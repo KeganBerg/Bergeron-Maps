@@ -4,6 +4,7 @@ export async function newMap(page: Page, name: string) {
   await page.goto('/');
   await page.getByTestId('new-map').click();
   await page.getByTestId('map-name-input').fill(name);
+  await page.getByTestId('mode-blank').click();
   await page.getByTestId('create-map').click();
   await expect(page.getByTestId('canvas').locator('canvas').first()).toBeVisible();
 }

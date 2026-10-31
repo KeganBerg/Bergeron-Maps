@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../ui/Dialog';
 import { CommitInput } from '../ui/fields';
 import { Icon } from '../ui/icons';
 import { useEditor } from './store';
+import { floorColor } from '../theme';
 
 export function FloorTabs() {
   const doc = useEditor((s) => s.doc)!;
@@ -29,7 +30,7 @@ export function FloorTabs() {
   return (
     <nav className="floor-tabs" aria-label="Floors">
       <div className="tabs-scroll" role="tablist">
-        {doc.floors.map((f) => {
+        {doc.floors.map((f, i) => {
           const active = f.id === floorId;
           return (
             <div
@@ -37,6 +38,7 @@ export function FloorTabs() {
               role="tab"
               aria-selected={active}
               className={`floor-tab${active ? ' active' : ''}`}
+              style={{ ['--floor-color' as string]: floorColor(i) }}
               onClick={() => st().setFloor(f.id)}
               onDoubleClick={() => setRenaming(f.id)}
               onContextMenu={(e) => {
@@ -50,7 +52,10 @@ export function FloorTabs() {
                 <CommitInput value={f.name} autoFocus maxLength={40} className="tab-input"
                   onCommit={(v) => st().renameFloor(f.id, v)} onBlur={() => setRenaming(null)} data-testid="floor-rename" />
               ) : (
-                <span>{f.name}</span>
+                <>
+                  <span className="floor-dot" aria-hidden="true" />
+                  <span>{f.name}</span>
+                </>
               )}
               {active && renaming !== f.id && (
                 <button className="icon-btn tiny" title="Floor options" aria-label="Floor options"

@@ -9,6 +9,7 @@ import { DEFAULT_ROW } from '../model/rows';
 import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, MapObjectShape } from '../render/MapObjects';
 import { zoomAt } from '../render/viewport';
+import { MAP_PALETTE } from '../theme';
 import { currentFloor, useEditor } from './store';
 
 const DRAG_THRESHOLD = 3;
@@ -401,8 +402,8 @@ export function CanvasStage() {
             rotationSnaps={snapMode === 'free' ? [] : [0, 45, 90, 135, 180, 225, 270, 315]}
             rotationSnapTolerance={5}
             anchorSize={9}
-            borderStroke="#2563eb"
-            anchorStroke="#2563eb"
+            borderStroke={MAP_PALETTE.selection}
+            anchorStroke={MAP_PALETTE.selection}
             boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 4 || Math.abs(newBox.height) < 4 ? oldBox : newBox)}
             anchorDragBoundFunc={
               snapMode === 'grid'

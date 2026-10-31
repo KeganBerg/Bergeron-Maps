@@ -3,8 +3,10 @@ import { Group, Image as KImage, Rect, Text } from 'react-konva';
 import { ASSET_BY_KEY, svgDataUrl } from '../assets/library';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, TextObject } from '../model/types';
 import { useImage } from './useImage';
+import { MAP_PALETTE } from '../theme';
+import { SPACE_FILL } from '../model/rows';
 
-export const LABEL_FONT = 'Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+export const LABEL_FONT = MAP_PALETTE.font;
 
 interface ObjProps {
   obj: MapObject;
@@ -14,7 +16,7 @@ interface ObjProps {
 }
 
 /** Text that stays upright on screen whatever the object's rotation, for readability. */
-function UprightLabel({ text, x, y, rotation, size, color = '#111827', maxWidth }: {
+function UprightLabel({ text, x, y, rotation, size, color = MAP_PALETTE.label, maxWidth }: {
   text: string; x: number; y: number; rotation: number; size: number; color?: string; maxWidth: number;
 }) {
   const w = Math.max(maxWidth, size * text.length * 0.7);
@@ -52,14 +54,15 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
       <Rect
         width={obj.width}
         height={obj.height}
-        fill={highlighted ? '#fde68a' : obj.accessible ? '#dbeafe' : obj.fill}
-        stroke={duplicate ? '#dc2626' : '#1f2937'}
+        fill={highlighted ? MAP_PALETTE.highlightFill : obj.accessible ? '#dbeafe' : obj.fill === SPACE_FILL ? MAP_PALETTE.spaceFill : obj.fill}
+        stroke={duplicate ? '#dc2626' : MAP_PALETTE.spaceStroke}
         strokeWidth={duplicate ? 3 : 1.5}
         dash={duplicate ? [6, 3] : undefined}
         perfectDrawEnabled={false}
       />
       {obj.accessible && <Rect x={3} y={3} width={10} height={10} fill="#1d4ed8" listening={false} />}
-      <UprightLabel text={obj.label} x={obj.width / 2} y={ly} rotation={obj.rotation} size={size} maxWidth={obj.width} />
+      <UprightLabel text={obj.label} x={obj.width / 2} y={ly} rotation={obj.rotation} size={size} maxWidth={obj.width}
+        color={highlighted ? MAP_PALETTE.highlightLabel : obj.accessible ? '#0b2545' : MAP_PALETTE.label} />
     </Group>
   );
 });
@@ -115,7 +118,7 @@ const TextShape = memo(function TextShape({ obj }: ObjProps & { obj: TextObject 
         fontSize={obj.fontSize}
         fontStyle="bold"
         fontFamily={LABEL_FONT}
-        fill={obj.color}
+        fill={obj.color === '#111827' ? MAP_PALETTE.label : obj.color}
         listening={false}
       />
     </Group>

@@ -9,6 +9,7 @@ import { clampScale, fitViewport, floorBounds, zoomAt } from '../render/viewport
 import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
+import { floorColor, MAP_PALETTE } from '../theme';
 
 const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -141,7 +142,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
   };
 
   return (
-    <div className="viewer">
+    <div className="viewer" style={{ ['--floor-color' as string]: floorColor(doc.floors.indexOf(floor)) }}>
       {preview && (
         <div className="preview-banner">
           Preview — this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
@@ -224,7 +225,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
                   y={-focused.height / 2 - 6 / view.scale}
                   width={focused.width + 12 / view.scale}
                   height={focused.height + 12 / view.scale}
-                  stroke="#f59e0b"
+                  stroke={MAP_PALETTE.ring}
                   strokeWidth={4 / view.scale}
                   cornerRadius={4 / view.scale}
                 />
@@ -247,8 +248,9 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
       </div>
 
       <nav className="viewer-floors" aria-label="Floors">
-        {doc.floors.map((f) => (
+        {doc.floors.map((f, i) => (
           <button key={f.id} className={f.id === floor.id ? 'active' : ''} aria-pressed={f.id === floor.id}
+            style={{ ['--floor-color' as string]: floorColor(i) }}
             onClick={() => { setFloorId(f.id); setTapped(null); }} data-testid={`viewer-floor-${f.name}`}>
             {f.name}
           </button>

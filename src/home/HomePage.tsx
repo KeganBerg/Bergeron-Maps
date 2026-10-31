@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { createMap } from '../model/factory';
 import { newId } from '../model/ids';
 import { TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
 import { navigate } from '../router';
-import { ConfirmDialog, Dialog } from '../ui/Dialog';
+import { ConfirmDialog } from '../ui/Dialog';
+import { NewMapDialog } from './NewMapDialog';
 import { Icon } from '../ui/icons';
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -12,7 +12,6 @@ export function HomePage({ repo }: { repo: MapRepository }) {
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [trash, setTrash] = useState<MapSummary[]>([]);
   const [creating, setCreating] = useState(false);
-  const [name, setName] = useState('');
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
   const [purging, setPurging] = useState<MapSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,12 +30,6 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     void refresh();
     // refresh only on mount
   }, []);
-
-  const create = async () => {
-    const doc = createMap(name || 'Untitled map');
-    await repo.createMap(doc);
-    navigate(`/edit/${doc.id}`);
-  };
 
   const copyMap = async (m: MapSummary) => {
     const src = await repo.getMap(m.id);
@@ -117,21 +110,10 @@ export function HomePage({ repo }: { repo: MapRepository }) {
       </main>
 
       {creating && (
-        <Dialog title="New map" onClose={() => setCreating(false)}
-          footer={
-            <>
-              <button className="btn" onClick={() => setCreating(false)}>Cancel</button>
-              <button className="btn primary" onClick={create} data-testid="create-map">Create map</button>
-            </>
-          }>
-          <form onSubmit={(e) => { e.preventDefault(); void create(); }}>
-            <label className="stack">
-              Facility name
-              <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Harbor Hotel Garage" maxLength={80} data-testid="map-name-input" />
-            </label>
-          </form>
-          <p className="hint">You can add floors, rows of spaces and landmarks next.</p>
-        </Dialog>
+        <NewMapDialog
+          onClose={() => setCreating(false)}
+          onCreate={async (doc) => { await repo.createMap(doc); navigate(`/edit/${doc.id}`); }}
+        />
       )}
       {trashing && (
         <ConfirmDialog

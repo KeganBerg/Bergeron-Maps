@@ -150,3 +150,16 @@ test('text labels and smart snapping modes are available', async ({ page }) => {
   await page.getByTestId('snap-mode').selectOption('grid');
   await expect(page.getByLabel('Grid size')).toBeVisible();
 });
+
+test('quick lot builder creates a numbered lot in one step', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('new-map').click();
+  await page.getByTestId('map-name-input').fill('Quick Lot');
+  await page.getByTestId('quick-rows').fill('3');
+  await page.getByTestId('quick-spacesPerRow').fill('8');
+  await expect(page.getByTestId('create-map')).toHaveText('Create map with 24 spaces');
+  await page.getByTestId('create-map').click();
+  await expect(page.getByTestId('canvas').locator('canvas').first()).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByTestId('open-Quick Lot')).toContainText('24 spaces');
+});
