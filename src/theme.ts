@@ -48,10 +48,10 @@ function readTheme(): ThemeName {
   } catch {
     /* default below */
   }
-  return 'classic';
+  return 'signage';
 }
 
-export const THEME: ThemeName = typeof window === 'undefined' ? 'classic' : readTheme();
+export const THEME: ThemeName = typeof window === 'undefined' ? 'signage' : readTheme();
 export const MAP_PALETTE: MapPalette = PALETTES[THEME];
 
 export function applyTheme() {
