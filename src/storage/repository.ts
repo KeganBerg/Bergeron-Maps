@@ -7,9 +7,21 @@ export interface MapSummary {
   floorCount: number;
   spaceCount: number;
   deletedAt?: string;
+  /** The site (facility/location) this map belongs to. Maps are grouped by site. */
+  site: string;
+  revision: number;
+  /** When employees last got a new version. Undefined = never published. */
+  publishedAt?: string;
+  /** Draft revision that was published; lower than `revision` means unpublished changes. */
+  publishedRevision?: number;
 }
 
-export type VersionReason = 'auto' | 'manual' | 'before-restore' | 'conflict';
+export interface PublishInfo {
+  publishedAt: string;
+  publishedRevision: number;
+}
+
+export type VersionReason = 'auto' | 'manual' | 'before-restore' | 'conflict' | 'publish';
 
 export interface VersionMeta {
   id: string;
@@ -40,7 +52,19 @@ export interface MapRepository {
   listMaps(): Promise<MapSummary[]>;
   listTrash(): Promise<MapSummary[]>;
   getMap(id: string): Promise<MapDocument | null>;
-  createMap(doc: MapDocument): Promise<MapDocument>;
+  /** `site` defaults to the map name, so a one-map location needs no extra step. */
+  createMap(doc: MapDocument, site?: string): Promise<MapDocument>;
+  moveToSite(id: string, site: string): Promise<void>;
+  /** Sites the person can add maps to, including ones without maps yet. */
+  listSites?(): Promise<string[]>;
+  /**
+   * Makes the current saved draft what employees see. Drafts are never shown
+   * to employees; they keep seeing the last published version until this runs.
+   */
+  publishMap(id: string): Promise<PublishInfo>;
+  getPublishInfo(id: string): Promise<PublishInfo | null>;
+  /** The employee view. Null when the map was never published (or is deleted). */
+  getPublishedMap(id: string): Promise<(MapDocument & { publishedAt: string }) | null>;
   /** Saves only if the stored revision still equals `baseRevision`; otherwise throws ConflictError. */
   saveMap(doc: MapDocument, baseRevision: number): Promise<MapDocument>;
   trashMap(id: string): Promise<void>;
@@ -52,8 +76,12 @@ export interface MapRepository {
   getVersion(versionId: string): Promise<MapDocument | null>;
 }
 
-export function summarize(doc: MapDocument, deletedAt?: string): MapSummary {
+export function summarize(doc: MapDocument, deletedAt?: string, extra: { site?: string; publish?: PublishInfo } = {}): MapSummary {
   return {
+    site: extra.site?.trim() || doc.name,
+    revision: doc.revision,
+    publishedAt: extra.publish?.publishedAt,
+    publishedRevision: extra.publish?.publishedRevision,
     id: doc.id,
     name: doc.name,
     updatedAt: doc.updatedAt,

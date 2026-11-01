@@ -1,5 +1,5 @@
 import { BrandMark, BrandWordmark } from '../ui/Brand';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { newId } from '../model/ids';
 import { TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
 import { navigate } from '../router';
@@ -9,10 +9,45 @@ import { Icon } from '../ui/icons';
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-export function HomePage({ repo }: { repo: MapRepository }) {
+function groupBySite(maps: MapSummary[], sites: string[] = []): [string, MapSummary[]][] {
+  const by = new Map<string, MapSummary[]>(sites.map((s) => [s, []]));
+  for (const m of maps) by.set(m.site, [...(by.get(m.site) ?? []), m]);
+  return [...by.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function publishStatus(m: MapSummary): { text: string; tone: string } {
+  if (!m.publishedAt) return { text: 'Draft · not published', tone: 'draft' };
+  if (m.publishedRevision !== m.revision) return { text: 'Unpublished changes', tone: 'changes' };
+  return { text: 'Published', tone: 'live' };
+}
+
+export function AppHeader({ children }: { children?: ReactNode }) {
+  return (
+    <header className="home-header">
+      <button className="brand" onClick={() => navigate('/')} aria-label="Bergeron Maps home">
+        <BrandMark size={36} />
+        <BrandWordmark height={15} />
+        <h1 className="sr-only">Bergeron Maps</h1>
+      </button>
+      <div className="header-actions">{children}</div>
+    </header>
+  );
+}
+
+const LOCAL_BANNER = 'Browser-only mode: maps are saved in this browser and nobody else can see them.';
+
+/**
+ * The manager's home: every site they can edit, each with its maps and their
+ * publish status. `banner` and `headerExtra` let online mode add the company
+ * name, team link and account menu.
+ */
+export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, title = 'Your sites', canAddSite = true }: {
+  repo: MapRepository; banner?: ReactNode; headerExtra?: ReactNode; title?: string; canAddSite?: boolean;
+}) {
+  const [sites, setSites] = useState<string[]>([]);
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [trash, setTrash] = useState<MapSummary[]>([]);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<false | { site?: string }>(false);
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
   const [purging, setPurging] = useState<MapSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,9 +56,10 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     try {
       await repo.purgeExpiredTrash();
       setMaps(await repo.listMaps());
+      if (repo.listSites) setSites(await repo.listSites());
       setTrash(await repo.listTrash());
-    } catch {
-      setError('Your maps couldn’t be loaded from this browser. If you are in private browsing mode, saving may be disabled.');
+    } catch (e) {
+      setError(`Your maps couldn’t be loaded. ${(e as Error).message ?? ''}`.trim());
       setMaps([]);
     }
   };
@@ -37,55 +73,75 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     if (!src) return;
     const now = new Date().toISOString();
     const copy = { ...structuredClone(src), id: newId('map'), name: `${src.name} (copy)`, createdAt: now, updatedAt: now, revision: 0 };
-    await repo.createMap(copy);
+    try {
+      await repo.createMap(copy, m.site);
+    } catch (e) {
+      setError((e as Error).message);
+    }
     await refresh();
   };
 
   return (
     <div className="home">
-      <header className="home-header">
-        <div className="brand">
-          <BrandMark size={36} />
-          <BrandWordmark height={15} />
-          <h1 className="sr-only">Bergeron Maps</h1>
-        </div>
-        <button className="btn primary" onClick={() => setCreating(true)} data-testid="new-map">
-          <Icon name="plus" size={16} /> New map
-        </button>
-      </header>
+      <AppHeader>
+        {headerExtra}
+        {canAddSite && (
+          <button className="btn primary" onClick={() => setCreating({})} data-testid="new-map">
+            <Icon name="plus" size={16} /> New site
+          </button>
+        )}
+      </AppHeader>
 
       <main className="home-main">
-        <div className="notice-banner">
-          Maps are saved in this browser on this device for now. Sign-in, sharing with employees, and cloud backup arrive in the next phase.
-        </div>
+        {banner && <div className="notice-banner">{banner}</div>}
         {error && <p className="error-text">{error}</p>}
-        <h2>Your maps</h2>
+        <h2>{title}</h2>
         {maps === null ? (
           <p className="muted">Loading…</p>
-        ) : maps.length === 0 ? (
+        ) : maps.length === 0 && sites.length === 0 ? (
           <div className="empty-state">
-            <p>No maps yet. Create your first facility map to get started.</p>
-            <button className="btn primary" onClick={() => setCreating(true)}>Create a map</button>
+            <p>No maps yet. Create your first site map to get started. It takes about a minute.</p>
+            <button className="btn primary" onClick={() => setCreating({})}>Create a map</button>
           </div>
         ) : (
-          <ul className="map-grid" data-testid="map-list">
-            {maps.map((m) => (
-              <li key={m.id} className="map-card">
-                <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
-                  <strong>{m.name}</strong>
-                  <span className="muted">
-                    {m.floorCount} floor{m.floorCount === 1 ? '' : 's'} · {m.spaceCount} space{m.spaceCount === 1 ? '' : 's'}
-                  </span>
-                  <span className="muted small">Edited {when(m.updatedAt)}</span>
-                </button>
-                <div className="card-actions">
-                  <button className="btn small" onClick={() => navigate(`/view/${m.id}`)}>View</button>
-                  <button className="btn small" onClick={() => copyMap(m)} title="Use as a starting point for another facility">Copy</button>
-                  <button className="btn small" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
-                </div>
-              </li>
+          <div className="sites" data-testid="map-list">
+            {groupBySite(maps, sites).map(([site, list]) => (
+              <section key={site} className="site" data-testid={`site-${site}`}>
+                <header className="site-head">
+                  <h3>{site}</h3>
+                  <span className="muted small">{list.length} map{list.length === 1 ? '' : 's'} · {list.reduce((n, m) => n + m.spaceCount, 0)} spaces</span>
+                  <button className="btn small" onClick={() => setCreating({ site })} data-testid={`add-map-${site}`}>
+                    <Icon name="plus" size={14} /> Add map
+                  </button>
+                </header>
+                {list.length === 0 && <p className="muted small">No maps yet. Use Add map to build one in about a minute.</p>}
+                <ul className="map-grid">
+                  {list.map((m) => {
+                    const st = publishStatus(m);
+                    return (
+                      <li key={m.id} className="map-card">
+                        <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
+                          <span className={`pub-pill ${st.tone}`}>{st.text}</span>
+                          <strong>{m.name}</strong>
+                          <span className="muted">
+                            {m.floorCount} floor{m.floorCount === 1 ? '' : 's'} · {m.spaceCount} space{m.spaceCount === 1 ? '' : 's'}
+                          </span>
+                          <span className="muted small">Edited {when(m.updatedAt)}</span>
+                        </button>
+                        <div className="card-actions">
+                          <button className="btn small" onClick={() => navigate(m.publishedAt ? `/view/${m.id}` : `/view/${m.id}?preview=1`)}>
+                            {m.publishedAt ? 'Employee view' : 'Preview'}
+                          </button>
+                          <button className="btn small" onClick={() => copyMap(m)} title="Use as a starting point for another map">Copy</button>
+                          <button className="btn small" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
 
         {trash.length > 0 && (
@@ -113,8 +169,17 @@ export function HomePage({ repo }: { repo: MapRepository }) {
 
       {creating && (
         <NewMapDialog
+          site={creating.site}
           onClose={() => setCreating(false)}
-          onCreate={async (doc) => { await repo.createMap(doc); navigate(`/edit/${doc.id}`); }}
+          onCreate={async (doc, site) => {
+            try {
+              const stored = await repo.createMap(doc, site);
+              navigate(`/edit/${stored.id}`);
+            } catch (e) {
+              setCreating(false);
+              setError((e as Error).message);
+            }
+          }}
         />
       )}
       {trashing && (
