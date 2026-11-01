@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@source "../index.html";
+@source "../main.js";
+
+@theme {
+  --font-display: "Geist", "Segoe UI", system-ui, sans-serif;
+  --font-sign: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-sans: "Geist", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --color-ink: #070707;
+  --color-ink-2: #0f0f10;
+  --color-ink-3: #18181a;
+  --color-line: #26262a;
+  --color-fog: #a1a1a6;
+  --color-sign: #f2b705;
+  --color-p1: #e0263f;
+  --color-p2: #f08a2c;
+  --color-p3: #18a957;
+  --color-p4: #2f7df6;
+  --color-p5: #9b51e0;
+}
+
+@layer base {
+  html { background: var(--color-ink); color-scheme: dark; }
+  body { @apply bg-ink text-white font-sans antialiased; }
+  ::selection { background: var(--color-sign); color: var(--color-ink); }
+}
+
+/* Lenis smooth scrolling */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+@layer components {
+  .btn-primary { @apply inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 font-semibold text-ink transition will-change-transform hover:brightness-110; }
+  .btn-ghost { @apply inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-3 font-semibold text-white/90 transition hover:border-white/40 hover:bg-white/5; }
+  .eyebrow-chip { @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-fog; }
+  .h-section { @apply font-display text-4xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl; }
+  .card { @apply relative overflow-hidden rounded-2xl border border-line bg-ink-2 p-6; }
+  .field { @apply w-full rounded-lg border border-line bg-ink-3 px-4 py-3 text-white placeholder:text-white/30 outline-none transition focus:border-sign; }
+}
+
+/* Mouse-follow spotlight on cards (position set by main.js) */
+.spot::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(242, 183, 5, .12), transparent 45%);
+}
+.spot:hover::before { opacity: 1; }
+
+/* Topographic contour lines drift slowly */
+.contours path { stroke-dasharray: 6 10; animation: drift 40s linear infinite; }
+.contours path:nth-child(even) { animation-duration: 55s; animation-direction: reverse; }
+@keyframes drift { to { stroke-dashoffset: -400; } }
+
+/* Endless marquee */
+.marquee { mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.marquee-track { animation: marquee 38s linear infinite; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* Typing caret */
+.caret { display: inline-block; width: 2px; height: 1.05em; background: currentColor; vertical-align: -0.15em; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Before JS runs, keep animated elements visible; main.js hides then reveals them. */
+.js [data-reveal] { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .contours path, .marquee-track, .caret { animation: none !important; }
+  .js [data-reveal] { opacity: 1 !important; }
+}

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:db": "vitest run --config vitest.db.config.ts"
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "build:site": "python3 site/build-map.py && tailwindcss -i site/src/input.css -o site/styles.css --minify"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.1.0",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@tailwindcss/cli": "^4.1.11",
     "@testing-library/react": "16.0.1",
     "@types/pg": "^8.11.10",
     "@types/react": "18.3.12",
@@ -36,6 +38,7 @@
     "fake-indexeddb": "6.0.0",
     "jsdom": "25.0.1",
     "pg": "^8.13.1",
+    "tailwindcss": "^4.1.11",
     "typescript": "5.6.3",
     "vite": "5.4.11",
     "vitest": "2.1.5"
