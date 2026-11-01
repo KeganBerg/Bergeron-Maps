@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+# The app is a private sign-in area.
+Disallow: /app/
+
+Sitemap: https://bergeronmaps.com/sitemap.xml

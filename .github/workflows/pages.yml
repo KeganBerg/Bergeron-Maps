@@ -40,6 +40,8 @@ jobs:
         run: |
           mkdir -p _site/app
           cp -r site/. _site/
+          # Build inputs stay in the repo, not on the public site.
+          rm -rf _site/src _site/build-drawings.py
           cp -r dist/. _site/app/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
