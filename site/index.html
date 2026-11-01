@@ -26,7 +26,11 @@
   <header id="nav" class="fixed inset-x-0 top-0 z-50 border-white/5 transition-colors duration-300">
     <div class="mx-auto flex h-16 max-w-7xl items-center gap-8 px-5 sm:px-8">
       <a href="#top" class="flex items-center gap-3" aria-label="Bergeron Maps home">
-        <img src="logo.svg" alt="" width="32" height="32" class="rounded-md" />
+        <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true" class="shrink-0">
+          <rect width="40" height="40" rx="9" fill="#0d0d0e" stroke="#ffffff" stroke-opacity=".14"/>
+          <g fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".8"><path d="M2 31c6-4 10-1 15-4s7-9 13-10 8 2 9 1"/><path d="M2 35c7-3 12 0 18-3s8-8 14-8 5 3 6 2"/><path d="M3 8c5 2 9-1 14 1s6 6 12 5 8-5 10-4"/></g>
+          <text x="20" y="27.5" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="19" fill="#fff">BM</text>
+        </svg>
         <span class="font-sign text-lg font-extrabold tracking-[0.18em]">BERGERON MAPS</span>
       </a>
       <nav class="ml-auto hidden items-center gap-7 text-sm text-fog md:flex" aria-label="Sections">
@@ -73,14 +77,14 @@
           Bergeron Maps turns any lot or garage into a numbered, searchable map. Managers build it in minutes. Attendants find any space from their phone, on their first shift.
         </p>
         <div data-hero class="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <a href="#contact" class="btn-primary magnetic">Book a demo <span aria-hidden="true">→</span></a>
+          <a href="#contact" class="btn-primary shimmer magnetic">Book a demo <span aria-hidden="true">→</span></a>
           <a href="app/" class="btn-ghost">Open the app</a>
         </div>
       </div>
 
       <!-- Product mockup: the editor, plus a phone finding B16 -->
       <div id="mock" class="relative mx-auto mt-20 max-w-6xl px-5 pb-28 sm:px-8 [perspective:1800px]">
-        <div id="mock-window" class="relative rounded-2xl border border-white/10 bg-ink-2/90 shadow-[0_40px_120px_-20px_rgba(0,0,0,.9),0_0_0_1px_rgba(255,255,255,.03)] backdrop-blur [transform-origin:50%_0%]">
+        <div id="mock-window" class="beam relative rounded-2xl border border-white/10 bg-ink-2/90 shadow-[0_40px_120px_-20px_rgba(0,0,0,.9),0_0_0_1px_rgba(255,255,255,.03)] backdrop-blur [transform-origin:50%_0%]">
           <div class="flex items-center gap-3 border-b border-white/5 px-4 py-3">
             <span class="flex gap-1.5"><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i></span>
             <span class="ml-2 truncate text-sm text-fog">Harbor Point Hotel Garage <span class="text-white/25">/</span> <span class="text-white">Level 2</span></span>
@@ -143,6 +147,53 @@
       <p id="statement" class="font-display text-3xl font-medium leading-[1.2] tracking-[-0.02em] sm:text-5xl">
         Today, the map lives in someone's head. New hires learn the lot by guessing. Guests wait while a runner hunts for a car. And no two properties do it the same way. <span class="text-sign">Bergeron Maps fixes all of it.</span>
       </p>
+    </section>
+
+    <!-- ================= EXPLODED GARAGE (floors separate on scroll) ================= -->
+    <section id="levels" class="relative overflow-hidden border-t border-white/5">
+      <div id="levels-pin" class="mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-5 py-24 sm:px-8 lg:grid-cols-[1fr_1.25fr]">
+        <div>
+          <p class="text-sm font-medium text-sign">Multi-level garages</p>
+          <h2 class="h-section mt-4">Six levels.<br /><span class="text-fog">One search bar.</span></h2>
+          <p class="mt-6 max-w-md text-lg text-fog">Every floor gets its own color, connected by the ramps, stairs and elevators your crew actually uses. Search a space and the map opens on the right level, already lit up.</p>
+          <div class="mt-8 flex flex-wrap gap-2 text-sm font-semibold">
+            <span class="lv-chip rounded-full border border-p4/40 px-3 py-1 text-p4">P4 · Roof</span>
+            <span class="lv-chip rounded-full bg-p3 px-3 py-1 text-ink">P3 · C21 is here</span>
+            <span class="lv-chip rounded-full border border-p2/40 px-3 py-1 text-p2">P2</span>
+            <span class="lv-chip rounded-full border border-p1/40 px-3 py-1 text-p1">P1 · Valet</span>
+          </div>
+        </div>
+        <div class="relative grid h-[460px] place-items-center sm:h-[560px] [perspective:2200px]" aria-hidden="true">
+          <div id="stack" class="relative h-[220px] w-[300px] [transform-style:preserve-3d] [transform:rotateX(58deg)_rotateZ(-38deg)] sm:h-[260px] sm:w-[380px]">
+            <div class="floor" style="--c:#e0263f;--z:0"><span>P1</span></div>
+            <div class="floor" style="--c:#f08a2c;--z:1"><span>P2</span></div>
+            <div class="floor floor-hit" style="--c:#18a957;--z:2"><span>P3</span><i class="hit"></i></div>
+            <div class="floor" style="--c:#2f7df6;--z:3"><span>P4</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= REAL PRODUCT + NUMBERS ================= -->
+    <section id="real" class="border-t border-white/5">
+      <div class="mx-auto max-w-7xl px-5 py-28 sm:px-8 sm:py-36">
+        <div class="mx-auto max-w-3xl text-center">
+          <p data-reveal class="text-sm font-medium text-sign">The product</p>
+          <h2 data-reveal class="h-section mt-4">Not a mockup.<br /><span class="text-fog">The real editor, today.</span></h2>
+        </div>
+        <div class="mt-16 [perspective:2000px]">
+          <figure id="shot" class="beam relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-ink-2 shadow-[0_50px_140px_-30px_rgba(242,183,5,.25)] [transform-origin:50%_100%]">
+            <div class="flex items-center gap-1.5 border-b border-white/5 px-4 py-3"><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i><span class="mx-auto rounded-md bg-white/5 px-10 py-1 text-xs text-fog">bergeronmaps.com/app</span></div>
+            <img src="img/editor.webp" width="1440" height="900" alt="The Bergeron Maps editor showing a garage level with numbered rows, ramps, stairs and entrances" class="block w-full" loading="lazy" />
+          </figure>
+        </div>
+        <dl class="mx-auto mt-20 grid max-w-5xl grid-cols-2 gap-y-12 text-center md:grid-cols-4">
+          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">standard map symbols</dt><dd class="font-display text-5xl font-semibold tracking-tight sm:text-6xl"><span class="ticker" data-to="32">32</span></dd></div>
+          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">questions to a full lot</dt><dd class="font-display text-5xl font-semibold tracking-tight sm:text-6xl"><span class="ticker" data-to="4">4</span></dd></div>
+          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">character join code for staff</dt><dd class="font-display text-5xl font-semibold tracking-tight sm:text-6xl"><span class="ticker" data-to="6">6</span></dd></div>
+          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">apps to install</dt><dd class="font-display text-5xl font-semibold tracking-tight text-sign sm:text-6xl">0</dd></div>
+        </dl>
+      </div>
     </section>
 
     <!-- ================= HOW IT WORKS (pinned) ================= -->
@@ -270,36 +321,64 @@
 
     <!-- ================= FOR OPERATORS ================= -->
     <section id="operators" class="border-y border-white/5 bg-ink-2">
-      <div class="mx-auto grid max-w-7xl gap-16 px-5 py-28 sm:px-8 sm:py-36 lg:grid-cols-[1fr_1.2fr]">
+      <div class="mx-auto grid max-w-7xl items-center gap-16 px-5 py-28 sm:px-8 sm:py-36 lg:grid-cols-[1fr_1.15fr]">
         <div>
           <p data-reveal class="text-sm font-medium text-sign">For operators</p>
           <h2 data-reveal class="h-section mt-4">Run ten sites like you run one.</h2>
-          <p data-reveal class="mt-6 max-w-md text-lg text-fog">Bergeron Maps gives regional and site managers one standard for every property, and gives every attendant the same simple tool.</p>
+          <p data-reveal class="mt-6 max-w-md text-lg text-fog">One standard for every property in your portfolio. Regional managers see everything, site managers see their own buildings, and every attendant gets the same simple map.</p>
+          <ul class="mt-10 grid gap-5 sm:grid-cols-2">
+            <li data-reveal><div class="font-semibold">Faster onboarding</div><div class="mt-1 text-fog">New hires read the map instead of memorizing the lot.</div></li>
+            <li data-reveal><div class="font-semibold">Quicker retrievals</div><div class="mt-1 text-fog">Type the space, walk straight to it.</div></li>
+            <li data-reveal><div class="font-semibold">Total control</div><div class="mt-1 text-fog">You decide who edits, who views, and when changes go live.</div></li>
+            <li data-reveal><div class="font-semibold">Your brand</div><div class="mt-1 text-fog">Your company's name and colors on every map.</div></li>
+          </ul>
         </div>
-        <dl class="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2">
-          <div data-reveal class="bg-ink-2 p-7"><dt class="font-semibold">Faster onboarding</dt><dd class="mt-2 text-fog">New attendants read the map instead of memorizing the lot.</dd></div>
-          <div data-reveal class="bg-ink-2 p-7"><dt class="font-semibold">Quicker retrievals</dt><dd class="mt-2 text-fog">Search a space number and walk straight to it.</dd></div>
-          <div data-reveal class="bg-ink-2 p-7"><dt class="font-semibold">Consistency</dt><dd class="mt-2 text-fog">Same symbols and numbering at every property, every shift.</dd></div>
-          <div data-reveal class="bg-ink-2 p-7"><dt class="font-semibold">Control</dt><dd class="mt-2 text-fog">You decide who edits, who views, and when changes go live.</dd></div>
-          <div data-reveal class="bg-ink-2 p-7"><dt class="font-semibold">Your brand</dt><dd class="mt-2 text-fog">Put your company's name and colors on the maps your team uses.</dd></div>
-          <div data-reveal class="bg-ink-2 p-7"><dt class="font-semibold">Pilot first</dt><dd class="mt-2 text-fog">Prove it at one location before rolling it out across your portfolio.</dd></div>
-        </dl>
+        <!-- portfolio diagram: sites → Bergeron Maps → crews, with light travelling along the lines -->
+        <div data-reveal class="relative">
+          <svg viewBox="0 0 600 440" class="w-full" role="img" aria-label="Several properties connected through Bergeron Maps to attendants' phones">
+            <defs>
+              <linearGradient id="beamg" x1="0" x2="1"><stop offset="0" stop-color="#f2b705" stop-opacity="0"/><stop offset=".5" stop-color="#f2b705"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+            </defs>
+            <g fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2">
+              <path id="b1" d="M150 60C230 60 220 220 300 220"/><path id="b2" d="M150 165C220 165 230 220 300 220"/><path id="b3" d="M150 275C220 275 230 220 300 220"/><path id="b4" d="M150 380C230 380 220 220 300 220"/>
+              <path id="b5" d="M300 220C380 220 370 110 450 110"/><path id="b6" d="M300 220H450"/><path id="b7" d="M300 220C380 220 370 330 450 330"/>
+            </g>
+            <g fill="none" stroke="url(#beamg)" stroke-width="2.5" stroke-linecap="round" class="beams">
+              <use href="#b1"/><use href="#b2"/><use href="#b3"/><use href="#b4"/><use href="#b5"/><use href="#b6"/><use href="#b7"/>
+            </g>
+            <g font-family="Geist, sans-serif" font-size="13" font-weight="600" fill="#fff">
+              <g transform="translate(14 36)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#e0263f"/><text x="36" y="29">Hotel garage</text></g>
+              <g transform="translate(14 141)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#f08a2c"/><text x="36" y="29">Hospital lot</text></g>
+              <g transform="translate(14 251)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#18a957"/><text x="36" y="29">Stadium</text></g>
+              <g transform="translate(14 356)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#2f7df6"/><text x="36" y="29">Office tower</text></g>
+              <g transform="translate(262 182)"><rect width="76" height="76" rx="20" fill="#0d0d0e" stroke="#f2b705" stroke-opacity=".6"/><text x="38" y="47" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="30">BM</text></g>
+              <g transform="translate(450 84)"><rect width="136" height="52" rx="12" fill="#18181a" stroke="#26262a"/><text x="16" y="23">Regional</text><text x="16" y="40" fill="#a1a1a6" font-weight="400" font-size="11">Every site</text></g>
+              <g transform="translate(450 194)"><rect width="136" height="52" rx="12" fill="#18181a" stroke="#26262a"/><text x="16" y="23">Site managers</text><text x="16" y="40" fill="#a1a1a6" font-weight="400" font-size="11">Their buildings</text></g>
+              <g transform="translate(450 304)"><rect width="136" height="52" rx="12" fill="#18181a" stroke="#26262a"/><text x="16" y="23">Attendants</text><text x="16" y="40" fill="#a1a1a6" font-weight="400" font-size="11">Published maps</text></g>
+            </g>
+          </svg>
+        </div>
       </div>
     </section>
 
-    <!-- ================= REVIEWS (placeholder: no real reviews yet) ================= -->
+    <!-- ================= REVIEWS → FOUNDING SITES (no real reviews yet) ================= -->
     <section id="reviews" class="mx-auto max-w-7xl px-5 py-28 sm:px-8 sm:py-36">
-      <div class="grid items-end gap-10 lg:grid-cols-2">
-        <div>
-          <p data-reveal class="text-sm font-medium text-sign">Reviews</p>
-          <h2 data-reveal class="h-section mt-4">Our first sites are going live now.</h2>
+      <div data-reveal class="beam relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-ink-2 to-ink p-8 sm:p-14">
+        <div aria-hidden="true" class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sign/20 blur-[100px]"></div>
+        <div class="grid gap-12 lg:grid-cols-[1.2fr_1fr] lg:items-end">
+          <div>
+            <p class="text-sm font-medium text-sign">Founding sites</p>
+            <h2 class="h-section mt-4">Become a founding site.</h2>
+            <p class="mt-6 max-w-lg text-lg text-fog">We're choosing a handful of properties for our pilot program. You'll work directly with the founders, and we'll build your first map with you.</p>
+            <a href="#contact" class="btn-primary shimmer mt-9">Apply for the pilot <span aria-hidden="true">→</span></a>
+          </div>
+          <ul class="space-y-3 text-sm">
+            <li class="flex gap-3 rounded-xl border border-white/5 bg-white/[.02] p-4"><span class="text-sign">→</span>A direct line to the people building it</li>
+            <li class="flex gap-3 rounded-xl border border-white/5 bg-white/[.02] p-4"><span class="text-sign">→</span>Your first map built with you, floor by floor</li>
+            <li class="flex gap-3 rounded-xl border border-white/5 bg-white/[.02] p-4"><span class="text-sign">→</span>Your feedback decides what we build next</li>
+          </ul>
         </div>
-        <p data-reveal class="max-w-lg text-lg text-fog lg:justify-self-end">Reviews from real pilot teams will appear here as they come in. We'd rather show you nothing than show you something made up.</p>
-      </div>
-      <div class="mt-14 grid gap-4 md:grid-cols-3" data-placeholder="reviews">
-        <div data-reveal class="grid h-48 place-items-center rounded-2xl border border-dashed border-white/15 text-sm text-white/40">Reserved for a pilot site</div>
-        <div data-reveal class="grid h-48 place-items-center rounded-2xl border border-dashed border-white/15 text-sm text-white/40">Reserved for a pilot site</div>
-        <div data-reveal class="grid h-48 place-items-center rounded-2xl border border-dashed border-white/15 text-sm text-white/40">Reserved for a pilot site</div>
+        <p class="mt-12 border-t border-white/5 pt-6 text-sm text-white/40" data-placeholder="reviews">Reviews from our pilot sites will appear here as they come in. We don't post made-up testimonials.</p>
       </div>
     </section>
 

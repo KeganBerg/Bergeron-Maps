@@ -110,11 +110,42 @@
     },
   });
 
+  // ---- Exploded garage: floors pull apart as you scroll ----
+  gsap.set('#stack', { rotateX: 58, rotateZ: -30 });
+  ScrollTrigger.matchMedia({
+    '(min-width: 1024px)': function () {
+      gsap.timeline({ scrollTrigger: { trigger: '#levels-pin', start: 'top top', end: '+=1200', pin: true, scrub: 1 } })
+        .fromTo('#stack', { '--gap': '14px', rotateZ: -30 }, { '--gap': '96px', rotateZ: -42, ease: 'none' })
+        .fromTo('.floor:not(.floor-hit)', { opacity: 1 }, { opacity: 0.55, ease: 'none' }, 0.5)
+        .fromTo('.lv-chip', { opacity: 0.35 }, { opacity: 1, stagger: 0.1 }, 0);
+    },
+    '(max-width: 1023px)': function () {
+      gsap.fromTo('#stack', { '--gap': '12px' }, { '--gap': '64px', ease: 'none', scrollTrigger: { trigger: '#stack', start: 'top 85%', end: 'bottom 35%', scrub: 1 } });
+    },
+  });
+  gsap.to('.floor .hit', { boxShadow: '0 0 40px 14px rgba(242,183,5,.75)', repeat: -1, yoyo: true, duration: 1.1, ease: 'sine.inOut' });
+
+  // ---- Real product screenshot lies flat as it scrolls into view ----
+  gsap.fromTo('#shot', { rotateX: 22, scale: 0.9, opacity: 0.4 }, { rotateX: 0, scale: 1, opacity: 1, ease: 'none', scrollTrigger: { trigger: '#shot', start: 'top 95%', end: 'top 30%', scrub: true } });
+
+  // ---- Number tickers ----
+  document.querySelectorAll('.ticker').forEach(function (el) {
+    var to = +el.dataset.to, o = { v: 0 };
+    el.textContent = '0';
+    ScrollTrigger.create({ trigger: el, start: 'top 90%', once: true, onEnter: function () {
+      gsap.to(o, { v: to, duration: 1.6, ease: 'power3.out', onUpdate: function () { el.textContent = Math.round(o.v); } });
+    } });
+  });
+
   // ---- Generic reveals ----
   ScrollTrigger.batch('[data-reveal]', {
     start: 'top 88%', once: true,
     onEnter: function (els) { gsap.fromTo(els, { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 1, stagger: 0.08, ease: 'expo.out' }); },
   });
+
+  // Pins were created out of page order; let ScrollTrigger re-sort them.
+  ScrollTrigger.sort();
+  addEventListener('load', function () { ScrollTrigger.refresh(); });
 
   // Magnetic primary button
   document.querySelectorAll('.magnetic').forEach(function (b) {

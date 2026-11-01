@@ -68,3 +68,46 @@ html.lenis, html.lenis body { height: auto; }
   .contours path, .marquee-track, .caret { animation: none !important; }
   .js [data-reveal] { opacity: 1 !important; }
 }
+
+/* ---------- round 3 effects ---------- */
+
+/* Border beam: a light that travels around a card's edge (after Magic UI's BorderBeam) */
+@property --beam-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.beam::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: conic-gradient(from var(--beam-angle), transparent 0 78%, rgba(242,183,5,.9) 88%, #fff 90%, transparent 92%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: beam-spin 7s linear infinite;
+}
+@keyframes beam-spin { to { --beam-angle: 360deg; } }
+
+/* Shimmer sweep across primary buttons */
+.shimmer { position: relative; overflow: hidden; isolation: isolate; }
+.shimmer::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(110deg, transparent 35%, rgba(242,183,5,.45) 50%, transparent 65%);
+  transform: translateX(-120%); animation: shimmer 3.6s ease-in-out infinite;
+}
+@keyframes shimmer { 60%, 100% { transform: translateX(120%); } }
+
+/* Light travelling along the portfolio diagram lines */
+.beams use { stroke-dasharray: 70 600; stroke-dashoffset: 670; animation: beam-run 3.2s cubic-bezier(.6,0,.3,1) infinite; }
+.beams use:nth-child(2) { animation-delay: .4s; } .beams use:nth-child(3) { animation-delay: .8s; } .beams use:nth-child(4) { animation-delay: 1.2s; }
+.beams use:nth-child(5) { animation-delay: 1.6s; } .beams use:nth-child(6) { animation-delay: 2s; } .beams use:nth-child(7) { animation-delay: 2.4s; }
+@keyframes beam-run { to { stroke-dashoffset: 0; } }
+
+/* Exploded garage: stacked floor plates in 3D */
+.floor {
+  position: absolute; inset: 0; border-radius: 14px; border: 2px solid var(--c);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 27px, rgba(255,255,255,.22) 27px 28.5px) 14px 14px / calc(100% - 28px) 34% no-repeat,
+    repeating-linear-gradient(90deg, transparent 0 27px, rgba(255,255,255,.22) 27px 28.5px) 14px calc(100% - 14px) / calc(100% - 28px) 34% no-repeat,
+    linear-gradient(color-mix(in oklab, var(--c) 14%, #0d0d0e), color-mix(in oklab, var(--c) 8%, #0d0d0e));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 30px 60px -20px rgba(0,0,0,.8);
+  transform: translateZ(calc(var(--z) * var(--gap, 16px)));
+}
+.floor span { position: absolute; left: -14px; top: 50%; translate: -100% -50%; font: 800 28px var(--font-sign); color: var(--c); }
+.floor .hit { position: absolute; left: calc(14px + 28.5px * 7); top: 14px; width: 27px; height: 34%; background: var(--color-sign); border-radius: 2px; box-shadow: 0 0 24px 6px rgba(242,183,5,.55); }
+
+@media (prefers-reduced-motion: reduce) { .beam::after, .shimmer::after, .beams use { animation: none !important; } }
