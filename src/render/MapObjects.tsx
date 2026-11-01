@@ -1,8 +1,12 @@
-import { memo } from 'react';
-import { Group, Image as KImage, Rect, Text } from 'react-konva';
-import { ASSET_BY_KEY, svgDataUrl } from '../assets/library';
-import type { AssetObject, BackgroundImage, MapObject, SpaceObject, TextObject } from '../model/types';
+import { memo, useMemo } from 'react';
+import { Group, Image as KImage, Line, Rect, Text } from 'react-konva';
+import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
+import { badgeLayout } from '../assets/draw';
+import { ASSET_BY_KEY, renderAssetSvg, svgDataUrl, type AssetDef } from '../assets/library';
+import { svgDoc, withAlpha } from '../assets/style';
+import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
+import { fitLabel, LABEL_LINE_HEIGHT } from './fitLabel';
 import { MAP_PALETTE } from '../theme';
 import { SPACE_FILL } from '../model/rows';
 
@@ -15,24 +19,34 @@ interface ObjProps {
   dimmed?: boolean;
 }
 
-/** Text that stays upright on screen whatever the object's rotation, for readability. */
-function UprightLabel({ text, x, y, rotation, size, color = MAP_PALETTE.label, maxWidth }: {
-  text: string; x: number; y: number; rotation: number; size: number; color?: string; maxWidth: number;
+/**
+ * Text that stays upright on screen whatever the object's rotation. With
+ * `fitW`/`fitH` (the room the object leaves for it) it shrinks or breaks onto
+ * two lines so it never spills into neighbouring objects.
+ */
+function UprightLabel({ text, x, y, rotation, size, color = MAP_PALETTE.label, maxWidth, fitW, fitH }: {
+  text: string; x: number; y: number; rotation: number; size: number; color?: string; maxWidth: number; fitW?: number; fitH?: number;
 }) {
-  const w = Math.max(maxWidth, size * text.length * 0.7);
+  const fitted = fitW ? fitLabel(text, size, fitW, fitH ?? size * 3) : { lines: [text], size };
+  const fs = fitted.size;
+  const body = fitted.lines.join('\n');
+  const h = fs * LABEL_LINE_HEIGHT * fitted.lines.length;
+  const w = fitW ? Math.max(fitW, ...fitted.lines.map((l) => fs * l.length * 0.7)) : Math.max(maxWidth, fs * text.length * 0.7);
   return (
     <Text
-      text={text}
+      text={body}
       x={x}
       y={y}
       width={w}
-      height={size * 1.2}
+      height={h}
       offsetX={w / 2}
-      offsetY={(size * 1.2) / 2}
+      offsetY={h / 2}
+      lineHeight={LABEL_LINE_HEIGHT}
+      wrap="none"
       rotation={-rotation}
       align="center"
       verticalAlign="middle"
-      fontSize={size}
+      fontSize={fs}
       fontStyle="bold"
       fontFamily={LABEL_FONT}
       fill={color}
@@ -46,59 +60,115 @@ export function spaceFontSize(s: Pick<SpaceObject, 'width' | 'height'>) {
   return Math.max(9, Math.min(24, Math.min(s.width, s.height) * 0.34));
 }
 
+export const spaceVariant = (s: Pick<SpaceObject, 'variant' | 'accessible'>): SpaceVariant =>
+  s.variant ?? (s.accessible ? 'accessible' : 'standard');
+
+/** Space paint: the object's own settings over the theme defaults. */
+export function spacePaint(obj: SpaceObject) {
+  return {
+    fill: obj.fill === SPACE_FILL || !obj.fill ? MAP_PALETTE.spaceFill : obj.fill,
+    fo: obj.fillOpacity ?? 1,
+    stroke: obj.stroke || MAP_PALETTE.spaceStroke,
+    sw: obj.strokeWidth ?? 1.5,
+  };
+}
+
+function useSvgImage(markup: string | null) {
+  const src = useMemo(() => (markup ? svgDataUrl(markup) : undefined), [markup]);
+  return useImage(src);
+}
+
 const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: ObjProps & { obj: SpaceObject }) {
   const size = spaceFontSize(obj);
+  const variant = spaceVariant(obj);
+  const p = spacePaint(obj);
+  const marks = useMemo(() => {
+    const body = spaceMarks(variant, obj.width, obj.height, obj.labelPlacement, p.stroke);
+    return body ? svgDoc(obj.width, obj.height, body) : null;
+  }, [variant, obj.width, obj.height, obj.labelPlacement, p.stroke]);
+  const marksImg = useSvgImage(marks);
   const ly = obj.labelPlacement === 'top' ? size : obj.labelPlacement === 'bottom' ? obj.height - size : obj.height / 2;
+  // Room for the number: the stall width (minus an accessible aisle) by about half its depth.
+  const aisle = variant === 'accessible' && obj.width / obj.height >= 0.75 ? obj.width * 0.38 : 0;
+  const labelRoomW = obj.width - aisle;
+  const labelRoomH = obj.labelPlacement === 'center' && variant === 'standard' ? obj.height : obj.height * 0.5;
+  const rot = ((obj.rotation % 180) + 180) % 180;
+  const sideways = rot > 45 && rot < 135;
+  const lx = variant === 'accessible' && obj.width / obj.height >= 0.75 ? (obj.width * 0.62) / 2 : obj.width / 2;
+  const fill = highlighted ? MAP_PALETTE.highlightFill : withAlpha(p.fill, p.fo);
+  const stroke = duplicate ? '#dc2626' : p.stroke;
+  const sw = duplicate ? 3 : p.sw;
+  const bodyProps = {
+    fill,
+    stroke: sw > 0 ? stroke : undefined,
+    strokeWidth: sw,
+    strokeEnabled: sw > 0,
+    dash: duplicate ? [6, 3] : undefined,
+    perfectDrawEnabled: false,
+  };
   return (
     <Group id={obj.id} name="obj" x={obj.x} y={obj.y} rotation={obj.rotation} offsetX={obj.width / 2} offsetY={obj.height / 2}>
-      <Rect
-        width={obj.width}
-        height={obj.height}
-        fill={highlighted ? MAP_PALETTE.highlightFill : obj.accessible ? '#dbeafe' : obj.fill === SPACE_FILL ? MAP_PALETTE.spaceFill : obj.fill}
-        stroke={duplicate ? '#dc2626' : MAP_PALETTE.spaceStroke}
-        strokeWidth={duplicate ? 3 : 1.5}
-        dash={duplicate ? [6, 3] : undefined}
-        perfectDrawEnabled={false}
-      />
-      {obj.accessible && <Rect x={3} y={3} width={10} height={10} fill="#1d4ed8" listening={false} />}
-      <UprightLabel text={obj.label} x={obj.width / 2} y={ly} rotation={obj.rotation} size={size} maxWidth={obj.width}
-        color={highlighted ? MAP_PALETTE.highlightLabel : obj.accessible ? '#0b2545' : MAP_PALETTE.label} />
+      {variant === 'angled' ? (
+        <>
+          {/* Invisible box keeps the whole stall clickable. */}
+          <Rect width={obj.width} height={obj.height} fill="rgba(0,0,0,0.001)" />
+          <Line points={spaceOutline(variant, obj.width, obj.height)} closed {...bodyProps} />
+        </>
+      ) : (
+        <Rect width={obj.width} height={obj.height} {...bodyProps} />
+      )}
+      {marksImg && <KImage image={marksImg} width={obj.width} height={obj.height} listening={false} perfectDrawEnabled={false} />}
+      <UprightLabel text={obj.label} x={lx} y={ly} rotation={obj.rotation} size={size} maxWidth={obj.width}
+        fitW={sideways ? labelRoomH : labelRoomW} fitH={sideways ? labelRoomW : labelRoomH}
+        color={highlighted ? MAP_PALETTE.highlightLabel : MAP_PALETTE.label} />
     </Group>
   );
 });
 
+/** Where an asset's name label goes, in the object's own coordinates. */
+function labelSpot(def: AssetDef | undefined, w: number, h: number): { y: number; size: number } | null {
+  const pos = def?.labelPos ?? 'below';
+  if (pos === 'inside') return null;
+  if (pos === 'below') return { y: h + 10, size: Math.max(10, Math.min(14, Math.max(w, h) * 0.22)) };
+  const size = Math.max(10, Math.min(20, Math.min(w, h) * 0.16, (w / 8) * 1.6));
+  return { y: pos === 'badge' ? badgeLayout(w, h).labelY : h / 2, size };
+}
+
 const AssetShape = memo(function AssetShape({ obj }: ObjProps & { obj: AssetObject }) {
   const def = ASSET_BY_KEY[obj.assetKey];
-  const src = def?.svg ? svgDataUrl(def.svg) : undefined;
-  const img = useImage(src);
+  const markup = useMemo(
+    () => (def && !obj.imageSrc ? renderAssetSvg(def, obj) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [def, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label],
+  );
+  const drawn = useSvgImage(markup);
+  const photo = useImage(obj.imageSrc);
   const label = obj.label?.trim();
-  const area = !def || def.render === 'area';
+  const spot = label ? labelSpot(def, obj.width, obj.height) : null;
   return (
     <Group id={obj.id} name="obj" x={obj.x} y={obj.y} rotation={obj.rotation} offsetX={obj.width / 2} offsetY={obj.height / 2}>
-      {area ? (
-        <Rect
-          width={obj.width}
-          height={obj.height}
-          fill={obj.fill ?? def?.fill ?? '#e5e7eb'}
-          fillPatternImage={img}
-          fillPatternRepeat="repeat"
-          stroke={def?.stroke ?? '#6b7280'}
-          strokeWidth={1.5}
-          perfectDrawEnabled={false}
-        />
-      ) : img ? (
-        <KImage image={img} width={obj.width} height={obj.height} perfectDrawEnabled={false} />
-      ) : (
-        <Rect width={obj.width} height={obj.height} fill="#f3f4f6" />
-      )}
-      {label && (
+      <Rect width={obj.width} height={obj.height} fill="rgba(0,0,0,0.001)" />
+      {obj.imageSrc ? (
+        <>
+          {photo && <KImage image={photo} width={obj.width} height={obj.height} opacity={obj.fillOpacity ?? 1} perfectDrawEnabled={false} />}
+          {(obj.strokeWidth ?? 0) > 0 && (
+            <Rect width={obj.width} height={obj.height} stroke={obj.stroke ?? '#27313d'} strokeWidth={obj.strokeWidth} listening={false} />
+          )}
+        </>
+      ) : drawn ? (
+        <KImage image={drawn} width={obj.width} height={obj.height} perfectDrawEnabled={false} />
+      ) : !def ? (
+        <Rect width={obj.width} height={obj.height} fill="#f3f4f6" stroke="#9ca3af" dash={[4, 3]} />
+      ) : null}
+      {label && spot && (
         <UprightLabel
           text={label}
           x={obj.width / 2}
-          y={area ? obj.height / 2 : obj.height + 10}
+          y={spot.y}
           rotation={obj.rotation}
-          size={Math.max(10, Math.min(16, Math.max(obj.width, obj.height) * 0.22))}
+          size={spot.size}
           maxWidth={obj.width}
+          color={spot.y < obj.height && def?.labelColor ? def.labelColor : MAP_PALETTE.label}
         />
       )}
     </Group>
@@ -106,18 +176,30 @@ const AssetShape = memo(function AssetShape({ obj }: ObjProps & { obj: AssetObje
 });
 
 const TextShape = memo(function TextShape({ obj }: ObjProps & { obj: TextObject }) {
+  const sw = obj.strokeWidth ?? 0;
+  const hasBox = !!obj.fill || sw > 0;
   return (
     <Group id={obj.id} name="obj" x={obj.x} y={obj.y} rotation={obj.rotation} offsetX={obj.width / 2} offsetY={obj.height / 2}>
-      <Rect width={obj.width} height={obj.height} fill="rgba(0,0,0,0.001)" />
+      <Rect
+        width={obj.width}
+        height={obj.height}
+        cornerRadius={hasBox ? 3 : 0}
+        fill={obj.fill ? withAlpha(obj.fill, obj.fillOpacity ?? 1) : 'rgba(0,0,0,0.001)'}
+        stroke={sw > 0 ? obj.stroke ?? '#27313d' : undefined}
+        strokeWidth={sw}
+        strokeEnabled={sw > 0}
+      />
       <Text
         text={obj.text}
-        width={obj.width}
+        x={hasBox ? 4 : 0}
+        width={obj.width - (hasBox ? 8 : 0)}
         height={obj.height}
         align="center"
         verticalAlign="middle"
         fontSize={obj.fontSize}
         fontStyle="bold"
         fontFamily={LABEL_FONT}
+        lineHeight={1.15}
         fill={obj.color === '#111827' ? MAP_PALETTE.label : obj.color}
         listening={false}
       />
