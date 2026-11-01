@@ -55,6 +55,8 @@ export interface MapRepository {
   /** `site` defaults to the map name, so a one-map location needs no extra step. */
   createMap(doc: MapDocument, site?: string): Promise<MapDocument>;
   moveToSite(id: string, site: string): Promise<void>;
+  /** Sites the person can add maps to, including ones without maps yet. */
+  listSites?(): Promise<string[]>;
   /**
    * Makes the current saved draft what employees see. Drafts are never shown
    * to employees; they keep seeing the last published version until this runs.

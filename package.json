@@ -17,6 +17,7 @@
     "@fontsource/barlow-condensed": "^5.1.0",
     "@fontsource/ibm-plex-sans": "^5.1.0",
     "@fontsource/overpass": "^5.1.1",
+    "@supabase/supabase-js": "^2.45.4",
     "immer": "10.1.1",
     "konva": "9.3.18",
     "nanoid": "5.0.9",

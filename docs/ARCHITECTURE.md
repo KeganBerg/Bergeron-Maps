@@ -55,3 +55,11 @@ Every space has a stable id that survives renumbering, so vehicle-location recor
 4. Background images move to Supabase Storage with signed URLs scoped by the same policies.
 5. Publish = copy the current draft into `published_maps`; viewers always load the latest published snapshot.
 6. Daily database backups (Supabase), plus version history and trash for user-level recovery.
+
+## Online mode (Phase 2)
+
+- `src/cloud/client.ts` turns on online mode when the build has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (set in `.github/workflows/pages.yml`; the anon key is public by design). Without them, or after "Try it without an account", the app runs in browser-only mode with `IndexedDbRepository`.
+- Sign-in is an emailed one-time link (PKCE). There is no role picker: access comes only from `memberships`, which admins and managers grant by email (`add_member`; invitations become memberships when the person first signs in).
+- Access model: a Bergeron Maps admin (`platform_admins`, set in the SQL editor) creates each customer company and its sites. Each site has a **site link** (`#/site/<id>`) for its managers. The link narrows the view to that site, but grants nothing by itself. Employees join one site with its 6-character code and only see published maps.
+- `SupabaseRepository` implements `MapRepository` against the tables in `supabase/migrations`. Saves are `update … where revision = base`: zero rows means someone else saved first (`ConflictError`). Row-level security enforces company and site separation on every request, so removed people lose access immediately.
+- Not yet built: public (no sign-in) links, live push updates, server-side pruning of automatic versions, and scheduled trash purge (`purge_expired_trash` exists; it needs a Supabase cron job).

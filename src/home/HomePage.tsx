@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { newId } from '../model/ids';
 import { TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
 import { navigate } from '../router';
@@ -8,8 +8,8 @@ import { Icon } from '../ui/icons';
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-function groupBySite(maps: MapSummary[]): [string, MapSummary[]][] {
-  const by = new Map<string, MapSummary[]>();
+function groupBySite(maps: MapSummary[], sites: string[] = []): [string, MapSummary[]][] {
+  const by = new Map<string, MapSummary[]>(sites.map((s) => [s, []]));
   for (const m of maps) by.set(m.site, [...(by.get(m.site) ?? []), m]);
   return [...by.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
@@ -20,7 +20,29 @@ function publishStatus(m: MapSummary): { text: string; tone: string } {
   return { text: 'Published', tone: 'live' };
 }
 
-export function HomePage({ repo }: { repo: MapRepository }) {
+export function AppHeader({ children }: { children?: ReactNode }) {
+  return (
+    <header className="home-header">
+      <button className="brand" onClick={() => navigate('/')} aria-label="Bergeron Maps home">
+        <span className="logo">P</span>
+        <h1>Bergeron Maps</h1>
+      </button>
+      <div className="header-actions">{children}</div>
+    </header>
+  );
+}
+
+const LOCAL_BANNER = 'Browser-only mode: maps are saved in this browser and nobody else can see them.';
+
+/**
+ * The manager's home: every site they can edit, each with its maps and their
+ * publish status. `banner` and `headerExtra` let online mode add the company
+ * name, team link and account menu.
+ */
+export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, title = 'Your sites', canAddSite = true }: {
+  repo: MapRepository; banner?: ReactNode; headerExtra?: ReactNode; title?: string; canAddSite?: boolean;
+}) {
+  const [sites, setSites] = useState<string[]>([]);
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [trash, setTrash] = useState<MapSummary[]>([]);
   const [creating, setCreating] = useState<false | { site?: string }>(false);
@@ -32,9 +54,10 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     try {
       await repo.purgeExpiredTrash();
       setMaps(await repo.listMaps());
+      if (repo.listSites) setSites(await repo.listSites());
       setTrash(await repo.listTrash());
-    } catch {
-      setError('Your maps couldn’t be loaded from this browser. If you are in private browsing mode, saving may be disabled.');
+    } catch (e) {
+      setError(`Your maps couldn’t be loaded. ${(e as Error).message ?? ''}`.trim());
       setMaps([]);
     }
   };
@@ -48,38 +71,39 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     if (!src) return;
     const now = new Date().toISOString();
     const copy = { ...structuredClone(src), id: newId('map'), name: `${src.name} (copy)`, createdAt: now, updatedAt: now, revision: 0 };
-    await repo.createMap(copy, m.site);
+    try {
+      await repo.createMap(copy, m.site);
+    } catch (e) {
+      setError((e as Error).message);
+    }
     await refresh();
   };
 
   return (
     <div className="home">
-      <header className="home-header">
-        <div className="brand">
-          <span className="logo">P</span>
-          <h1>Bergeron Maps</h1>
-        </div>
-        <button className="btn primary" onClick={() => setCreating({})} data-testid="new-map">
-          <Icon name="plus" size={16} /> New site
-        </button>
-      </header>
+      <AppHeader>
+        {headerExtra}
+        {canAddSite && (
+          <button className="btn primary" onClick={() => setCreating({})} data-testid="new-map">
+            <Icon name="plus" size={16} /> New site
+          </button>
+        )}
+      </AppHeader>
 
       <main className="home-main">
-        <div className="notice-banner">
-          Preview mode: maps are saved in this browser only. Sign-in and online saving are next.
-        </div>
+        {banner && <div className="notice-banner">{banner}</div>}
         {error && <p className="error-text">{error}</p>}
-        <h2>Your sites</h2>
+        <h2>{title}</h2>
         {maps === null ? (
           <p className="muted">Loading…</p>
-        ) : maps.length === 0 ? (
+        ) : maps.length === 0 && sites.length === 0 ? (
           <div className="empty-state">
             <p>No maps yet. Create your first site map to get started. It takes about a minute.</p>
             <button className="btn primary" onClick={() => setCreating({})}>Create a map</button>
           </div>
         ) : (
           <div className="sites" data-testid="map-list">
-            {groupBySite(maps).map(([site, list]) => (
+            {groupBySite(maps, sites).map(([site, list]) => (
               <section key={site} className="site" data-testid={`site-${site}`}>
                 <header className="site-head">
                   <h3>{site}</h3>
@@ -88,6 +112,7 @@ export function HomePage({ repo }: { repo: MapRepository }) {
                     <Icon name="plus" size={14} /> Add map
                   </button>
                 </header>
+                {list.length === 0 && <p className="muted small">No maps yet. Use Add map to build one in about a minute.</p>}
                 <ul className="map-grid">
                   {list.map((m) => {
                     const st = publishStatus(m);
@@ -144,7 +169,15 @@ export function HomePage({ repo }: { repo: MapRepository }) {
         <NewMapDialog
           site={creating.site}
           onClose={() => setCreating(false)}
-          onCreate={async (doc, site) => { await repo.createMap(doc, site); navigate(`/edit/${doc.id}`); }}
+          onCreate={async (doc, site) => {
+            try {
+              const stored = await repo.createMap(doc, site);
+              navigate(`/edit/${stored.id}`);
+            } catch (e) {
+              setCreating(false);
+              setError((e as Error).message);
+            }
+          }}
         />
       )}
       {trashing && (
