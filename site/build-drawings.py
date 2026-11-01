@@ -74,7 +74,7 @@ def plan():
 def section():
     """Cross-section through a four-level garage, ramps between floors."""
     o = []
-    levels = [("P4", "#2f7df6", 70), ("P3", "#18a957", 160), ("P2", "#f08a2c", 250), ("P1", "#e0263f", 340)]
+    levels = [("L4", "#0057b8", 70), ("L3", "#007a33", 160), ("L2", "#e87722", 250), ("L1", "#c8102e", 340)]
     # ground
     o.append('<path d="M0 380H1200" stroke-width="2"/>')
     for x in range(0, 1200, 14):
@@ -96,15 +96,15 @@ def section():
     for name, color, y in levels:
         for x in range(390, 830, 62):
             if random.random() < .72:
-                hit = name == "P3" and x == 638
+                hit = name == "L3" and x == 638
                 cls = ' class="car hit"' if hit else ' class="car"'
                 o.append(f'<g{cls} transform="translate({x} {y-26})"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/>'
                          f'<circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g>')
     # callout to the found car
     o.append('<g class="callout"><path d="M664 132 720 40H900" stroke-width="1"/><circle cx="664" cy="132" r="4" fill="currentColor" stroke="none"/>'
-             '<text x="728" y="32" class="note" text-anchor="start">C21 · LEVEL P3 · NORTH STAIRS</text></g>')
+             '<text x="728" y="32" class="note" text-anchor="start">3C21 · LEVEL 3 · NORTH STAIRS</text></g>')
     return ('<svg id="section" viewBox="0 0 1200 400" class="drawing block h-auto w-full" fill="none" stroke="currentColor" '
-            f'role="img" aria-label="Cross-section of a four-level garage with the found car on level P3">{"".join(o)}</svg>')
+            f'role="img" aria-label="Cross-section of a four-level garage with the found car on Level 3">{"".join(o)}</svg>')
 
 
 p = pathlib.Path(__file__).with_name("index.html")
