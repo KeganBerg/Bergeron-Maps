@@ -70,9 +70,11 @@ export function AdminPage({ header, onOpen, onCreated, canGoBack }: {
         {canGoBack && <button className="link back-link" onClick={() => navigate('/')}><Icon name="back" size={14} /> Back to maps</button>}
         <h2>All accounts</h2>
         {totals && (
-          <p className="muted admin-totals" data-testid="admin-totals">
-            {totals.companies} {totals.companies === 1 ? 'company' : 'companies'} · {totals.sites} sites · {totals.people} people · {totals.maps} maps
-          </p>
+          <dl className="admin-stats" data-testid="admin-totals">
+            {([['Companies', totals.companies], ['Sites', totals.sites], ['People', totals.people], ['Maps', totals.maps]] as const).map(([label, n]) => (
+              <div key={label}><dt>{label}</dt><dd>{n}</dd></div>
+            ))}
+          </dl>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}

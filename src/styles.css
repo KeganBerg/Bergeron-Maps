@@ -485,7 +485,11 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .site-url { word-break: break-all; }
 .link-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .link-edit input { width: 200px; }
-.admin-totals { text-align: center; margin: -8px 0 0; }
+.admin-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.admin-stats > div { display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; padding: 14px 8px; }
+.admin-stats > div + div { border-left: 1px solid var(--border); }
+.admin-stats dt { font-size: 12px; color: var(--muted); }
+.admin-stats dd { margin: 0; font-size: 26px; font-weight: 700; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .admin-company-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-company-head h3 { margin: 0; }
 .admin h4 { margin: 14px 0 0; font-size: 13px; text-transform: none; }
