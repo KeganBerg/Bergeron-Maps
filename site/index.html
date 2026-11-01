@@ -1,441 +1,277 @@
 <!doctype html>
-<html lang="en" class="bg-ink">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bergeron Maps · Every car, found in seconds</title>
-  <meta name="description" content="Bergeron Maps turns any parking lot or garage into a numbered, searchable map. Managers build it in minutes. Attendants find any space from their phone." />
+  <title>Bergeron Maps · Parking maps for valet operations</title>
+  <meta name="description" content="Bergeron Maps turns any parking lot or garage into a numbered, searchable map. Managers build it in an afternoon. Attendants find any space from their phone." />
   <meta property="og:title" content="Bergeron Maps" />
-  <meta property="og:description" content="Every car, found in seconds. Parking maps for valet operations." />
+  <meta property="og:description" content="Parking maps for valet operations. Every space, every level, searchable on a phone." />
   <meta property="og:type" content="website" />
-  <meta name="theme-color" content="#070707" />
+  <meta name="theme-color" content="#0b0b0b" />
+  <!-- Security: GitHub Pages can't send custom headers, so the policy is set here. Everything is self-hosted. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' mailto:; upgrade-insecure-requests" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="logo.svg" type="image/svg+xml" />
-  <script>
-    // Old app links (…/Bergeron-Maps/#/site/…) land here now; forward them to the app.
-    if (location.hash.indexOf('#/') === 0) location.replace('app/' + location.search + location.hash);
-    document.documentElement.classList.add('js');
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Caveat:wght@600&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="preload" href="fonts/archivo.woff2" as="font" type="font/woff2" crossorigin />
+  <script src="boot.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="overflow-x-hidden">
+<body>
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-sign focus:px-3 focus:py-2 focus:text-ink">Skip to content</a>
 
-  <!-- ================= NAV ================= -->
-  <header id="nav" class="fixed inset-x-0 top-0 z-50 border-white/5 transition-colors duration-300">
-    <div class="mx-auto flex h-16 max-w-7xl items-center gap-8 px-5 sm:px-8">
+  <!-- ===== HEADER ===== -->
+  <header class="relative z-20 border-b border-white/15 bg-ink text-white">
+    <div class="wrap flex h-16 items-center gap-8">
       <a href="#top" class="flex items-center gap-3" aria-label="Bergeron Maps home">
-        <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true" class="shrink-0">
-          <rect width="40" height="40" rx="9" fill="#0d0d0e" stroke="#ffffff" stroke-opacity=".14"/>
-          <g fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".8"><path d="M2 31c6-4 10-1 15-4s7-9 13-10 8 2 9 1"/><path d="M2 35c7-3 12 0 18-3s8-8 14-8 5 3 6 2"/><path d="M3 8c5 2 9-1 14 1s6 6 12 5 8-5 10-4"/></g>
-          <text x="20" y="27.5" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="19" fill="#fff">BM</text>
-        </svg>
-        <span class="font-sign text-lg font-extrabold tracking-[0.18em]">BERGERON MAPS</span>
+        <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true"><rect width="40" height="40" fill="#fff"/><text x="20" y="28.5" text-anchor="middle" font-family="Barlow Condensed" font-weight="800" font-size="21" fill="#0b0b0b">BM</text></svg>
+        <span class="whitespace-nowrap font-sign text-[16px] tracking-[0.12em] sm:text-[19px] sm:tracking-[0.16em]">BERGERON MAPS</span>
       </a>
-      <nav class="ml-auto hidden items-center gap-7 text-sm text-fog md:flex" aria-label="Sections">
-        <a class="transition hover:text-white" href="#product">Product</a>
-        <a class="transition hover:text-white" href="#how">How it works</a>
-        <a class="transition hover:text-white" href="#operators">For operators</a>
-        <a class="transition hover:text-white" href="#about">About</a>
+      <nav class="ml-auto hidden gap-8 text-[15px] text-white/70 md:flex" aria-label="Sections">
+        <a class="hover:text-white" href="#how">How it works</a>
+        <a class="hover:text-white" href="#product">Product</a>
+        <a class="hover:text-white" href="#operators">Operators</a>
+        <a class="hover:text-white" href="#about">About</a>
       </nav>
-      <div class="ml-auto flex items-center gap-3 md:ml-0">
-        <a href="app/" class="hidden text-sm text-fog transition hover:text-white sm:block">Sign in</a>
-        <a href="#contact" class="btn-primary !px-4 !py-2 text-sm">Book a demo</a>
+      <div class="ml-auto flex items-center gap-5 md:ml-0">
+        <a href="app/" class="hidden whitespace-nowrap text-[15px] text-white/70 hover:text-white sm:inline">Sign in</a>
+        <a href="#contact" class="btn btn-sign whitespace-nowrap !px-3 sm:!px-5">Book a demo</a>
       </div>
     </div>
   </header>
 
-  <main id="top">
-    <!-- ================= HERO ================= -->
-    <section class="relative isolate overflow-hidden pt-36 sm:pt-44">
-      <!-- topographic lines, from the logo -->
-      <svg class="contours pointer-events-none absolute inset-0 -z-10 h-full w-full opacity-[0.09]" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <g fill="none" stroke="#fff" stroke-width="1.2">
-          <path d="M-40 120c160-70 280 50 440 0s260-120 440-60 300 90 640 10"/>
-          <path d="M-40 170c170-60 300 70 460 16s250-110 430-56 300 96 630 20"/>
-          <path d="M-40 222c180-48 310 84 470 30s250-96 420-50 300 100 620 30"/>
-          <path d="M-40 760c140 60 300-80 460-20s220 160 420 120 300-120 640-80"/>
-          <path d="M-40 812c160 48 300-68 452-12s220 148 412 112 304-104 656-68"/>
-          <path d="M-40 862c170 36 300-56 444-4s222 132 404 104 308-88 672-56"/>
-          <path d="M600 440c80-80 240-60 260 20s-100 140-200 120-140-72-60-140z"/>
-          <path d="M564 444c92-120 320-92 336 28s-140 192-272 164-184-104-64-192z"/>
-          <path d="M528 448c104-160 400-124 412 36s-180 248-344 208-228-136-68-244z"/>
-        </g>
-      </svg>
-      <div aria-hidden="true" class="absolute left-1/2 top-24 -z-10 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-sign/10 blur-[140px]"></div>
-
-      <div class="mx-auto max-w-5xl px-5 text-center sm:px-8">
-        <a href="#how" data-hero class="eyebrow-chip hover:text-white">
-          <span class="h-1.5 w-1.5 rounded-full bg-p3"></span> Now onboarding pilot sites
-          <span aria-hidden="true">→</span>
-        </a>
-        <h1 id="hero-title" class="mx-auto mt-7 max-w-4xl font-display text-[clamp(2.9rem,7.6vw,6.2rem)] font-semibold leading-[0.98] tracking-[-0.045em]">
-          Every car, found<br class="hidden sm:block" /> in <span class="text-sign">seconds.</span>
-        </h1>
-        <p data-hero class="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-fog sm:text-xl">
-          Bergeron Maps turns any lot or garage into a numbered, searchable map. Managers build it in minutes. Attendants find any space from their phone, on their first shift.
-        </p>
-        <div data-hero class="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <a href="#contact" class="btn-primary shimmer magnetic">Book a demo <span aria-hidden="true">→</span></a>
-          <a href="app/" class="btn-ghost">Open the app</a>
+  <main id="main">
+    <!-- ===== HERO: sheet A-102 ===== -->
+    <section id="top" class="bg-ink text-white">
+      <div class="wrap grid gap-10 pb-14 pt-20 lg:grid-cols-12 lg:pt-28">
+        <div class="lg:col-span-8">
+          <h1 class="text-[clamp(2.8rem,7vw,5.6rem)] font-[780] leading-[0.95] tracking-[-0.035em]">Every car,<br />found in seconds.</h1>
+        </div>
+        <div class="flex flex-col justify-end gap-7 lg:col-span-4">
+          <p class="text-lg leading-relaxed text-white/75">Bergeron Maps turns your lot or garage into a numbered map your whole crew can search on their phones. Type a space, see the floor and the way there.</p>
+          <div class="flex flex-wrap gap-3">
+            <a href="#contact" class="btn btn-sign">Book a demo</a>
+            <a href="app/" class="btn btn-line">Open the app</a>
+          </div>
         </div>
       </div>
 
-      <!-- Product mockup: the editor, plus a phone finding B16 -->
-      <div id="mock" class="relative mx-auto mt-20 max-w-6xl px-5 pb-28 sm:px-8 [perspective:1800px]">
-        <div id="mock-window" class="beam relative rounded-2xl border border-white/10 bg-ink-2/90 shadow-[0_40px_120px_-20px_rgba(0,0,0,.9),0_0_0_1px_rgba(255,255,255,.03)] backdrop-blur [transform-origin:50%_0%]">
-          <div class="flex items-center gap-3 border-b border-white/5 px-4 py-3">
-            <span class="flex gap-1.5"><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i></span>
-            <span class="ml-2 truncate text-sm text-fog">Harbor Point Hotel Garage <span class="text-white/25">/</span> <span class="text-white">Level 2</span></span>
-            <span class="ml-auto hidden rounded-full bg-p3/15 px-2.5 py-0.5 text-xs font-medium text-p3 sm:inline">Published</span>
-          </div>
-          <div class="px-2 pt-2 sm:px-6 sm:pt-6"><!--MAP--><svg viewBox="0 0 800 440" class="block w-full" role="img" aria-label="A garage level map with space B16 highlighted">
-  <defs>
-    <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#ffffff" fill-opacity=".06"/></pattern>
-  </defs>
-  <rect width="800" height="440" fill="url(#dots)"/>
-  <g class="stalls" fill="none" stroke="#e7e7ea" stroke-opacity=".55" stroke-width="1.5" font-family="Geist, sans-serif" font-size="13" font-weight="600" text-anchor="middle">
-    <g class="stall"><rect x="80" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="106.0" y="138" fill="#e7e7ea" stroke="none">B10</text></g><g class="stall"><rect x="132" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="158.0" y="138" fill="#e7e7ea" stroke="none">B11</text></g><g class="stall"><rect x="184" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="210.0" y="138" fill="#e7e7ea" stroke="none">B12</text></g><g class="stall"><rect x="236" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="262.0" y="138" fill="#e7e7ea" stroke="none">B13</text></g><g class="stall"><rect x="288" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="314.0" y="138" fill="#e7e7ea" stroke="none">B14</text></g><g class="stall"><rect x="340" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="366.0" y="138" fill="#e7e7ea" stroke="none">B15</text></g><g class="stall stall-b16"><rect x="392" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="418.0" y="138" fill="#e7e7ea" stroke="none">B16</text></g><g class="stall"><rect x="444" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="470.0" y="138" fill="#e7e7ea" stroke="none">B17</text></g><g class="stall"><rect x="496" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="522.0" y="138" fill="#e7e7ea" stroke="none">B18</text></g><g class="stall"><rect x="548" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="574.0" y="138" fill="#e7e7ea" stroke="none">B19</text></g><g class="stall"><rect x="600" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="626.0" y="138" fill="#e7e7ea" stroke="none">B20</text></g><g class="stall"><rect x="652" y="60" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="678.0" y="138" fill="#e7e7ea" stroke="none">B21</text></g><g class="stall"><rect x="80" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="106.0" y="312" fill="#e7e7ea" stroke="none">C10</text></g><g class="stall"><rect x="132" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="158.0" y="312" fill="#e7e7ea" stroke="none">C11</text></g><g class="stall"><rect x="184" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="210.0" y="312" fill="#e7e7ea" stroke="none">C12</text></g><g class="stall"><rect x="236" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="262.0" y="312" fill="#e7e7ea" stroke="none">C13</text></g><g class="stall"><rect x="288" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="314.0" y="312" fill="#e7e7ea" stroke="none">C14</text></g><g class="stall"><rect x="340" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="366.0" y="312" fill="#e7e7ea" stroke="none">C15</text></g><g class="stall"><rect x="392" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="418.0" y="312" fill="#e7e7ea" stroke="none">C16</text></g><g class="stall"><rect x="444" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="470.0" y="312" fill="#e7e7ea" stroke="none">C17</text></g><g class="stall"><rect x="496" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="522.0" y="312" fill="#e7e7ea" stroke="none">C18</text></g><g class="stall"><rect x="548" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="574.0" y="312" fill="#e7e7ea" stroke="none">C19</text></g><g class="stall"><rect x="600" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="626.0" y="312" fill="#e7e7ea" stroke="none">C20</text></g><g class="stall"><rect x="652" y="288" width="52" height="92" fill="#ffffff" fill-opacity=".02" /><text x="678.0" y="312" fill="#e7e7ea" stroke="none">C21</text></g>
-  </g>
-  <path d="M60 220H760" stroke="#f2b705" stroke-opacity=".35" stroke-width="2" stroke-dasharray="14 12"/>
-  <g class="lm" font-family="Geist, sans-serif" font-size="11" font-weight="700">
-    <rect x="16" y="196" width="40" height="48" rx="6" fill="#18a957"/><text x="36" y="224" fill="#fff" text-anchor="middle">IN</text>
-    <rect x="712" y="196" width="72" height="48" rx="6" fill="#2f7df6"/><text x="748" y="218" fill="#fff" text-anchor="middle">RAMP</text><text x="748" y="233" fill="#fff" fill-opacity=".8" text-anchor="middle">to P3 ↑</text>
-    <rect x="16" y="300" width="48" height="40" rx="6" fill="#f2b705"/><text x="40" y="324" fill="#070707" text-anchor="middle">VALET</text>
-  </g>
-  <path class="route" d="M56 220H418V160" fill="none" stroke="#f2b705" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <g class="pin"><circle cx="418" cy="106" r="22" fill="#f2b705" fill-opacity=".18"/><circle cx="418" cy="106" r="8" fill="#f2b705"/></g>
-</svg><!--/MAP--></div>
-          <div class="flex gap-2 border-t border-white/5 px-4 py-3 text-xs font-semibold sm:text-sm">
-            <span class="rounded-md border border-p1/50 px-3 py-1 text-white/70">P1</span>
-            <span class="rounded-md bg-p2 px-3 py-1 text-ink">P2</span>
-            <span class="rounded-md border border-p3/50 px-3 py-1 text-white/70">P3</span>
-            <span class="rounded-md border border-p4/50 px-3 py-1 text-white/70">P4</span>
-            <span class="ml-auto hidden items-center gap-2 text-fog sm:flex"><span class="h-2 w-2 rounded-full bg-p3"></span>Saved</span>
-          </div>
-        </div>
-
-        <div id="mock-phone" class="absolute -bottom-2 right-3 w-[42%] max-w-[230px] rounded-[2rem] border border-white/15 bg-ink p-2.5 shadow-[0_30px_80px_-10px_rgba(0,0,0,.95)] sm:right-0 sm:w-[230px]">
-          <div class="rounded-[1.5rem] bg-ink-3 p-3 sm:p-4">
-            <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15"></div>
-            <div class="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-ink">
-              <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M12.5 12.5 18 18" stroke="currentColor" stroke-width="2.4"/></svg>
-              <span id="typed"></span><span class="caret"></span>
-            </div>
-            <div id="result" class="mt-3 rounded-xl border border-sign/40 bg-sign/10 p-3">
-              <div class="font-sign text-3xl font-extrabold leading-none text-sign">B16</div>
-              <div class="mt-1.5 text-xs text-fog">Level 2 · Row B · past the valet stand, on your left</div>
+      <div class="wrap pb-20">
+        <figure class="sheet relative border border-white/25">
+          <div class="relative px-3 pb-3 pt-6 text-white/85 sm:px-8 sm:pt-10">
+            <!--PLAN--><svg id="plan" viewBox="-40 0 1240 600" class="drawing block h-auto w-full" fill="none" stroke="currentColor" role="img" aria-label="Plan drawing of a garage level with space C12 found and the route to it"><defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0v10" stroke="currentColor" stroke-width=".8"/></pattern></defs><rect x="40" y="40" width="1080" height="470" fill="none" stroke-width="3"/><rect x="48" y="48" width="1064" height="454" fill="none" stroke-width="1"/><rect class="col" x="154" y="150" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="154" y="388" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="314" y="150" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="314" y="388" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="474" y="150" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="474" y="388" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="634" y="150" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="634" y="388" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="794" y="150" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="794" y="388" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="954" y="150" width="12" height="12" fill="currentColor" stroke="none"/><rect class="col" x="954" y="388" width="12" height="12" fill="currentColor" stroke="none"/><g class="stall"><path d="M170 48v96" /><rect x="170" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="195.0" y="128">A1</text></g><g class="stall"><path d="M220 48v96" /><rect x="220" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="245.0" y="128">A2</text></g><g class="stall"><path d="M270 48v96" /><rect x="270" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="295.0" y="128">A3</text></g><g class="stall"><path d="M320 48v96" /><rect x="320" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="345.0" y="128">A4</text></g><g class="stall"><path d="M370 48v96" /><rect x="370" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="395.0" y="128">A5</text></g><g class="stall"><path d="M420 48v96" /><rect x="420" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="445.0" y="128">A6</text></g><g class="stall"><path d="M470 48v96" /><rect x="470" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="495.0" y="128">A7</text></g><g class="stall"><path d="M520 48v96" /><rect x="520" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="545.0" y="128">A8</text></g><g class="stall"><path d="M570 48v96" /><rect x="570" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="595.0" y="128">A9</text></g><g class="stall"><path d="M620 48v96" /><rect x="620" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="645.0" y="128">A10</text></g><g class="stall"><path d="M670 48v96" /><rect x="670" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="695.0" y="128">A11</text></g><g class="stall"><path d="M720 48v96" /><rect x="720" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="745.0" y="128">A12</text></g><g class="stall"><path d="M770 48v96" /><rect x="770" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="795.0" y="128">A13</text></g><g class="stall"><path d="M820 48v96" /><rect x="820" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="845.0" y="128">A14</text></g><g class="stall"><path d="M870 48v96" /><rect x="870" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="895.0" y="128">A15</text></g><g class="stall"><path d="M920 48v96" /><rect x="920" y="48" width="50" height="96" fill="transparent" stroke="none"/><text x="945.0" y="128">A16</text></g><path class="stall-end" d="M970 48v96"/><g class="stall"><path d="M170 296v-96" /><rect x="170" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="195.0" y="222">B1</text></g><g class="stall"><path d="M220 296v-96" /><rect x="220" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="245.0" y="222">B2</text></g><g class="stall"><path d="M270 296v-96" /><rect x="270" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="295.0" y="222">B3</text></g><g class="stall"><path d="M320 296v-96" /><rect x="320" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="345.0" y="222">B4</text></g><g class="stall"><path d="M370 296v-96" /><rect x="370" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="395.0" y="222">B5</text></g><g class="stall"><path d="M420 296v-96" /><rect x="420" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="445.0" y="222">B6</text></g><g class="stall"><path d="M470 296v-96" /><rect x="470" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="495.0" y="222">B7</text></g><g class="stall"><path d="M520 296v-96" /><rect x="520" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="545.0" y="222">B8</text></g><g class="stall"><path d="M570 296v-96" /><rect x="570" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="595.0" y="222">B9</text></g><g class="stall"><path d="M620 296v-96" /><rect x="620" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="645.0" y="222">B10</text></g><g class="stall"><path d="M670 296v-96" /><rect x="670" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="695.0" y="222">B11</text></g><g class="stall"><path d="M720 296v-96" /><rect x="720" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="745.0" y="222">B12</text></g><g class="stall"><path d="M770 296v-96" /><rect x="770" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="795.0" y="222">B13</text></g><g class="stall"><path d="M820 296v-96" /><rect x="820" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="845.0" y="222">B14</text></g><g class="stall"><path d="M870 296v-96" /><rect x="870" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="895.0" y="222">B15</text></g><g class="stall"><path d="M920 296v-96" /><rect x="920" y="200" width="50" height="96" fill="transparent" stroke="none"/><text x="945.0" y="222">B16</text></g><path class="stall-end" d="M970 296v-96"/><g class="stall"><path d="M170 296v96" /><rect x="170" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="195.0" y="382">C1</text></g><g class="stall"><path d="M220 296v96" /><rect x="220" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="245.0" y="382">C2</text></g><g class="stall"><path d="M270 296v96" /><rect x="270" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="295.0" y="382">C3</text></g><g class="stall"><path d="M320 296v96" /><rect x="320" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="345.0" y="382">C4</text></g><g class="stall"><path d="M370 296v96" /><rect x="370" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="395.0" y="382">C5</text></g><g class="stall"><path d="M420 296v96" /><rect x="420" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="445.0" y="382">C6</text></g><g class="stall"><path d="M470 296v96" /><rect x="470" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="495.0" y="382">C7</text></g><g class="stall"><path d="M520 296v96" /><rect x="520" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="545.0" y="382">C8</text></g><g class="stall"><path d="M570 296v96" /><rect x="570" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="595.0" y="382">C9</text></g><g class="stall"><path d="M620 296v96" /><rect x="620" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="645.0" y="382">C10</text></g><g class="stall"><path d="M670 296v96" /><rect x="670" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="695.0" y="382">C11</text></g><g class="stall found"><path d="M720 296v96" /><rect class="stall-found-box" x="720" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="745.0" y="382">C12</text></g><g class="stall"><path d="M770 296v96" /><rect x="770" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="795.0" y="382">C13</text></g><g class="stall"><path d="M820 296v96" /><rect x="820" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="845.0" y="382">C14</text></g><g class="stall"><path d="M870 296v96" /><rect x="870" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="895.0" y="382">C15</text></g><g class="stall"><path d="M920 296v96" /><rect x="920" y="296" width="50" height="96" fill="transparent" stroke="none"/><text x="945.0" y="382">C16</text></g><path class="stall-end" d="M970 296v96"/><g class="stall"><path d="M170 502v-96" /><rect x="170" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="195.0" y="432">D1</text></g><g class="stall"><path d="M220 502v-96" /><rect x="220" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="245.0" y="432">D2</text></g><g class="stall"><path d="M270 502v-96" /><rect x="270" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="295.0" y="432">D3</text></g><g class="stall"><path d="M320 502v-96" /><rect x="320" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="345.0" y="432">D4</text></g><g class="stall"><path d="M370 502v-96" /><rect x="370" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="395.0" y="432">D5</text></g><g class="stall"><path d="M420 502v-96" /><rect x="420" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="445.0" y="432">D6</text></g><g class="stall"><path d="M470 502v-96" /><rect x="470" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="495.0" y="432">D7</text></g><g class="stall"><path d="M520 502v-96" /><rect x="520" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="545.0" y="432">D8</text></g><g class="stall"><path d="M570 502v-96" /><rect x="570" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="595.0" y="432">D9</text></g><g class="stall"><path d="M620 502v-96" /><rect x="620" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="645.0" y="432">D10</text></g><g class="stall"><path d="M670 502v-96" /><rect x="670" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="695.0" y="432">D11</text></g><g class="stall"><path d="M720 502v-96" /><rect x="720" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="745.0" y="432">D12</text></g><g class="stall"><path d="M770 502v-96" /><rect x="770" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="795.0" y="432">D13</text></g><g class="stall"><path d="M820 502v-96" /><rect x="820" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="845.0" y="432">D14</text></g><g class="stall"><path d="M870 502v-96" /><rect x="870" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="895.0" y="432">D15</text></g><g class="stall"><path d="M920 502v-96" /><rect x="920" y="406" width="50" height="96" fill="transparent" stroke="none"/><text x="945.0" y="432">D16</text></g><path class="stall-end" d="M970 502v-96"/><path d="M170 296h800" stroke-width="1.5"/><path class="aisle" d="M110 172H1000" stroke-dasharray="10 10" stroke-width="1"/><path class="aisle" d="M110 420H1000" stroke-dasharray="10 10" stroke-width="1"/><path d="M260 172l14 -7v14z" fill="currentColor" stroke="none"/><path d="M274 420l-14 -7v14z" fill="currentColor" stroke="none"/><path d="M560 172l14 -7v14z" fill="currentColor" stroke="none"/><path d="M574 420l-14 -7v14z" fill="currentColor" stroke="none"/><path d="M860 172l14 -7v14z" fill="currentColor" stroke="none"/><path d="M874 420l-14 -7v14z" fill="currentColor" stroke="none"/><rect x="1010" y="196" width="100" height="200" fill="url(#hatch)" stroke-width="1.5"/><path d="M1060 370V222m-10 14 10-14 10 14" stroke-width="2"/><text class="note" x="1060" y="412">RAMP UP · P3</text><rect x="56" y="200" width="70" height="96" fill="none" stroke-width="1.5"/><path d="M56 206h70" stroke-width=".8"/><path d="M56 216h70" stroke-width=".8"/><path d="M56 226h70" stroke-width=".8"/><path d="M56 236h70" stroke-width=".8"/><path d="M56 246h70" stroke-width=".8"/><path d="M56 256h70" stroke-width=".8"/><path d="M56 266h70" stroke-width=".8"/><path d="M56 276h70" stroke-width=".8"/><path d="M56 286h70" stroke-width=".8"/><rect x="56" y="302" width="70" height="56" fill="none" stroke-width="1.5"/><path d="M56 302l70 56M126 302l-70 56" stroke-width=".8"/><text class="note" x="91" y="376">STAIR · ELEV</text><path d="M0 470H40" stroke-width="0"/><path class="entry" d="M-30 452H52m-14-10 14 10-14 10" stroke-width="2.5"/><text class="note" x="6" y="438" text-anchor="start">ENTRY</text><rect x="70" y="440" width="44" height="26" fill="none" stroke-width="1.5"/><text class="note" x="92" y="457">VALET</text><path class="route" d="M52 452H140V420H745V372" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M170 22H970M170 16v12M970 16v12" stroke-width="1"/><text class="note" x="570" y="16">16 SPACES @ 9'-0" = 144'-0"</text><g transform="translate(1150 560)"><circle r="16" fill="none" stroke-width="1"/><path d="M0 -12 6 8 0 3-6 8z" fill="currentColor" stroke="none"/><text class="note" y="-22">N</text></g><g transform="translate(40 560)"><path d="M0 0h200M0-6v12M50-4v8M100-6v12M200-6v12" stroke-width="1"/><text class="note" x="0" y="22" text-anchor="start">0</text><text class="note" x="100" y="22">25</text><text class="note" x="200" y="22">50 FT</text></g></svg><!--/PLAN-->
+            <!-- phone, drawn -->
+            <div id="phone" class="relative mt-4 border-2 border-white bg-ink p-3 sm:absolute sm:bottom-10 sm:right-10 sm:mt-0 sm:w-[210px]">
+              <div class="flex items-center gap-2 border border-white px-2 py-1.5 font-mono text-sm sm:text-base">
+                <svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12.5 12.5 18 18" stroke="currentColor" stroke-width="2.2"/></svg>
+                <span id="typed">C12</span><span class="caret" aria-hidden="true"></span>
+              </div>
+              <div id="result" class="mt-3 bg-sign p-3 text-ink">
+                <div class="font-sign text-2xl leading-none sm:text-3xl">C12</div>
+                <div class="mt-1 text-[11px] leading-snug sm:text-xs">Level 2 · Row C · from the entry, down the south aisle, on your left</div>
+              </div>
             </div>
           </div>
+          <figcaption class="titleblock grid grid-cols-2 border-t border-white/25 text-white/70 sm:grid-cols-4">
+            <div><span>Project</span>Harbor Point Hotel Garage</div>
+            <div><span>Sheet</span>A-102 · Level 2</div>
+            <div class="hidden sm:block"><span>Spaces</span>64 on this level</div>
+            <div class="hidden sm:block"><span>Status</span>Published to crew</div>
+          </figcaption>
+        </figure>
+        <p class="mt-3 text-sm text-white/45">Illustration of a sample garage. Not a real client site.</p>
+      </div>
+    </section>
+
+    <!-- ===== PROBLEM ===== -->
+    <section class="bg-paper text-ink">
+      <div class="wrap grid gap-12 py-24 lg:grid-cols-12 lg:py-32">
+        <h2 class="h2 lg:col-span-5">Most lots are mapped in one person's head.</h2>
+        <div class="lg:col-span-6 lg:col-start-7">
+          <p class="text-xl leading-relaxed">New attendants learn the numbering by guessing. Runners lose minutes looking for cars while guests wait. And every property you operate does it a little differently.</p>
+          <dl class="mt-12 grid gap-px border-y border-ink/15 bg-ink/15 sm:grid-cols-3">
+            <div class="bg-paper py-5 sm:pr-5"><dt class="label">Training</dt><dd class="mt-2">Learned by shadowing, shift after shift.</dd></div>
+            <div class="bg-paper py-5 sm:px-5"><dt class="label">Retrieval</dt><dd class="mt-2">Slow when the person who parked it is gone.</dd></div>
+            <div class="bg-paper py-5 sm:pl-5"><dt class="label">Standards</dt><dd class="mt-2">Different at every site you run.</dd></div>
+          </dl>
         </div>
       </div>
     </section>
 
-    <!-- ================= MARQUEE ================= -->
-    <section aria-label="Where it works" class="border-y border-white/5 py-6">
-      <div class="marquee overflow-hidden">
-        <div class="marquee-track flex w-max gap-12 whitespace-nowrap text-sm font-medium uppercase tracking-[0.22em] text-white/35">
-          <span>Hotels</span><span>·</span><span>Hospitals</span><span>·</span><span>Stadiums</span><span>·</span><span>Restaurants</span><span>·</span><span>Office garages</span><span>·</span><span>Event lots</span><span>·</span><span>Residential towers</span><span>·</span><span>Airports</span><span>·</span>
-          <span aria-hidden="true">Hotels</span><span aria-hidden="true">·</span><span aria-hidden="true">Hospitals</span><span aria-hidden="true">·</span><span aria-hidden="true">Stadiums</span><span aria-hidden="true">·</span><span aria-hidden="true">Restaurants</span><span aria-hidden="true">·</span><span aria-hidden="true">Office garages</span><span aria-hidden="true">·</span><span aria-hidden="true">Event lots</span><span aria-hidden="true">·</span><span aria-hidden="true">Residential towers</span><span aria-hidden="true">·</span><span aria-hidden="true">Airports</span><span aria-hidden="true">·</span>
+    <!-- ===== HOW IT WORKS ===== -->
+    <section id="how" class="border-t border-ink/15 bg-paper text-ink">
+      <div class="wrap py-24 lg:py-32">
+        <div class="grid gap-6 lg:grid-cols-12">
+          <h2 class="h2 lg:col-span-6">From a sketch on paper to every phone on the crew.</h2>
+          <p class="text-lg text-ink/70 lg:col-span-4 lg:col-start-9 lg:self-end">Most managers already draw their lot by hand. Start there.</p>
         </div>
+        <ol class="mt-16 grid border-t-2 border-ink md:grid-cols-3">
+          <li class="step border-b border-ink/15 py-8 md:border-b-0 md:border-r md:pr-8">
+            <span class="label">1 · Draw</span>
+            <svg viewBox="0 0 300 170" class="mt-5 w-full" aria-hidden="true">
+              <g fill="none" stroke="#2a2a2a" stroke-width="1.7" stroke-linecap="round" class="hand">
+                <path d="M14 18c60-3 190 2 272-1"/><path d="M14 18c-2 40 2 90 0 136"/><path d="M286 17c2 40-1 100 1 137"/><path d="M14 154c90 2 180-2 273 0"/>
+                <path d="M30 28v34M52 29v33M74 28v35M96 29v34M118 28v34M140 29v33M162 28v35"/><path d="M30 62c44 1 88-1 132 1"/>
+                <path d="M30 144v-30M52 143v-30M74 144v-31M96 143v-30M118 144v-30"/><path d="M30 114c30-1 60 1 88 0"/>
+                <path d="M210 86c14-12 36-12 48 3"/><path d="M252 80l6 9-11 1"/>
+              </g>
+              <g font-family="Bradley Hand, Segoe Print, cursive" font-size="13" fill="#2a2a2a"><text x="34" y="82">A1 → A7</text><text x="34" y="100">B1 – B5</text><text x="206" y="112">ramp up</text></g>
+            </svg>
+            <h3 class="mt-6 text-xl font-semibold">Start from your sketch</h3>
+            <p class="mt-2 text-ink/70">Snap a photo of your drawing and trace over it, or answer four questions and let the builder lay out the whole lot.</p>
+          </li>
+          <li class="step border-b border-ink/15 py-8 md:border-b-0 md:border-r md:px-8">
+            <span class="label">2 · Publish</span>
+            <svg viewBox="0 0 300 170" class="mt-5 w-full" aria-hidden="true">
+              <rect x="10" y="10" width="280" height="150" fill="#fff" stroke="#0b0b0b" stroke-width="2"/>
+              <g fill="none" stroke="#0b0b0b" stroke-width="1.3"><path d="M30 22v40M54 22v40M78 22v40M102 22v40M126 22v40M150 22v40M174 22v40M198 22v40M30 62h168"/><path d="M30 148v-40M54 148v-40M78 148v-40M102 148v-40M126 148v-40M30 108h96"/></g>
+              <g font-family="Archivo, sans-serif" font-size="9" font-weight="700" fill="#0b0b0b" text-anchor="middle"><text x="42" y="56">A1</text><text x="66" y="56">A2</text><text x="90" y="56">A3</text><text x="114" y="56">A4</text><text x="138" y="56">A5</text><text x="162" y="56">A6</text><text x="186" y="56">A7</text><text x="42" y="128">B1</text><text x="66" y="128">B2</text><text x="90" y="128">B3</text><text x="114" y="128">B4</text></g>
+              <rect x="222" y="24" width="56" height="20" fill="#0b0b0b"/><text x="250" y="38" font-family="Archivo, sans-serif" font-size="9" font-weight="800" fill="#f2b705" text-anchor="middle">VALET</text>
+              <path d="M230 120h40m-10-8 10 8-10 8" stroke="#f08a2c" stroke-width="3" fill="none"/>
+            </svg>
+            <h3 class="mt-6 text-xl font-semibold">Publish it to your team</h3>
+            <p class="mt-2 text-ink/70">Invite managers and attendants by email or a six-character site code. Edits stay in draft until you publish.</p>
+          </li>
+          <li class="step py-8 md:pl-8">
+            <span class="label">3 · Find</span>
+            <svg viewBox="0 0 300 170" class="mt-5 w-full" aria-hidden="true">
+              <rect x="105" y="4" width="90" height="162" rx="12" fill="#0b0b0b"/>
+              <rect x="113" y="16" width="74" height="18" fill="#fff"/><text x="120" y="29" font-family="IBM Plex Mono, monospace" font-size="10" fill="#0b0b0b">⌕ C12</text>
+              <g fill="none" stroke="#fff" stroke-width="1"><rect x="115" y="44" width="12" height="26"/><rect x="129" y="44" width="12" height="26"/><rect x="157" y="44" width="12" height="26"/><rect x="171" y="44" width="12" height="26"/></g>
+              <rect x="143" y="44" width="12" height="26" fill="#f2b705"/>
+              <rect x="113" y="80" width="74" height="40" fill="#f2b705"/><text x="119" y="100" font-family="Barlow Condensed, sans-serif" font-weight="800" font-size="18" fill="#0b0b0b">C12</text><text x="119" y="113" font-family="Archivo, sans-serif" font-size="7" fill="#0b0b0b">Level 2 · south aisle</text>
+              <g font-family="Archivo, sans-serif" font-size="8" font-weight="700" text-anchor="middle"><rect x="113" y="130" width="22" height="14" fill="#e0263f"/><text x="124" y="140" fill="#fff">P1</text><rect x="139" y="130" width="22" height="14" fill="#f08a2c"/><text x="150" y="140" fill="#0b0b0b">P2</text><rect x="165" y="130" width="22" height="14" fill="none" stroke="#18a957"/><text x="176" y="140" fill="#fff">P3</text></g>
+            </svg>
+            <h3 class="mt-6 text-xl font-semibold">Find any car</h3>
+            <p class="mt-2 text-ink/70">Attendants type a space number. It lights up on the right floor. It works in any phone's browser, with nothing to install.</p>
+          </li>
+        </ol>
       </div>
     </section>
 
-    <!-- ================= STATEMENT (words light up on scroll) ================= -->
-    <section class="mx-auto max-w-5xl px-5 py-32 sm:px-8 sm:py-44">
-      <p id="statement" class="font-display text-3xl font-medium leading-[1.2] tracking-[-0.02em] sm:text-5xl">
-        Today, the map lives in someone's head. New hires learn the lot by guessing. Guests wait while a runner hunts for a car. And no two properties do it the same way. <span class="text-sign">Bergeron Maps fixes all of it.</span>
-      </p>
+    <!-- ===== MULTI-LEVEL: section drawing ===== -->
+    <section class="bg-ink text-white">
+      <div class="wrap py-24 lg:py-32">
+        <div class="grid gap-6 lg:grid-cols-12">
+          <h2 class="h2 lg:col-span-6">Six levels. One search.</h2>
+          <p class="text-lg text-white/70 lg:col-span-5 lg:col-start-8 lg:self-end">Every floor gets its own color, the same way real garages sign their levels. Ramps, stairs and elevators connect them, and a search opens the map on the right floor.</p>
+        </div>
+        <div class="mt-16 text-white/85"><!--SECTION--><svg id="section" viewBox="0 0 1200 400" class="drawing block h-auto w-full" fill="none" stroke="currentColor" role="img" aria-label="Cross-section of a four-level garage with the found car on level P3"><path d="M0 380H1200" stroke-width="2"/><path d="M0 380l-10 12" stroke-width=".7"/><path d="M14 380l-10 12" stroke-width=".7"/><path d="M28 380l-10 12" stroke-width=".7"/><path d="M42 380l-10 12" stroke-width=".7"/><path d="M56 380l-10 12" stroke-width=".7"/><path d="M70 380l-10 12" stroke-width=".7"/><path d="M84 380l-10 12" stroke-width=".7"/><path d="M98 380l-10 12" stroke-width=".7"/><path d="M112 380l-10 12" stroke-width=".7"/><path d="M126 380l-10 12" stroke-width=".7"/><path d="M140 380l-10 12" stroke-width=".7"/><path d="M154 380l-10 12" stroke-width=".7"/><path d="M168 380l-10 12" stroke-width=".7"/><path d="M182 380l-10 12" stroke-width=".7"/><path d="M196 380l-10 12" stroke-width=".7"/><path d="M210 380l-10 12" stroke-width=".7"/><path d="M224 380l-10 12" stroke-width=".7"/><path d="M238 380l-10 12" stroke-width=".7"/><path d="M252 380l-10 12" stroke-width=".7"/><path d="M266 380l-10 12" stroke-width=".7"/><path d="M280 380l-10 12" stroke-width=".7"/><path d="M294 380l-10 12" stroke-width=".7"/><path d="M308 380l-10 12" stroke-width=".7"/><path d="M322 380l-10 12" stroke-width=".7"/><path d="M336 380l-10 12" stroke-width=".7"/><path d="M350 380l-10 12" stroke-width=".7"/><path d="M364 380l-10 12" stroke-width=".7"/><path d="M378 380l-10 12" stroke-width=".7"/><path d="M392 380l-10 12" stroke-width=".7"/><path d="M406 380l-10 12" stroke-width=".7"/><path d="M420 380l-10 12" stroke-width=".7"/><path d="M434 380l-10 12" stroke-width=".7"/><path d="M448 380l-10 12" stroke-width=".7"/><path d="M462 380l-10 12" stroke-width=".7"/><path d="M476 380l-10 12" stroke-width=".7"/><path d="M490 380l-10 12" stroke-width=".7"/><path d="M504 380l-10 12" stroke-width=".7"/><path d="M518 380l-10 12" stroke-width=".7"/><path d="M532 380l-10 12" stroke-width=".7"/><path d="M546 380l-10 12" stroke-width=".7"/><path d="M560 380l-10 12" stroke-width=".7"/><path d="M574 380l-10 12" stroke-width=".7"/><path d="M588 380l-10 12" stroke-width=".7"/><path d="M602 380l-10 12" stroke-width=".7"/><path d="M616 380l-10 12" stroke-width=".7"/><path d="M630 380l-10 12" stroke-width=".7"/><path d="M644 380l-10 12" stroke-width=".7"/><path d="M658 380l-10 12" stroke-width=".7"/><path d="M672 380l-10 12" stroke-width=".7"/><path d="M686 380l-10 12" stroke-width=".7"/><path d="M700 380l-10 12" stroke-width=".7"/><path d="M714 380l-10 12" stroke-width=".7"/><path d="M728 380l-10 12" stroke-width=".7"/><path d="M742 380l-10 12" stroke-width=".7"/><path d="M756 380l-10 12" stroke-width=".7"/><path d="M770 380l-10 12" stroke-width=".7"/><path d="M784 380l-10 12" stroke-width=".7"/><path d="M798 380l-10 12" stroke-width=".7"/><path d="M812 380l-10 12" stroke-width=".7"/><path d="M826 380l-10 12" stroke-width=".7"/><path d="M840 380l-10 12" stroke-width=".7"/><path d="M854 380l-10 12" stroke-width=".7"/><path d="M868 380l-10 12" stroke-width=".7"/><path d="M882 380l-10 12" stroke-width=".7"/><path d="M896 380l-10 12" stroke-width=".7"/><path d="M910 380l-10 12" stroke-width=".7"/><path d="M924 380l-10 12" stroke-width=".7"/><path d="M938 380l-10 12" stroke-width=".7"/><path d="M952 380l-10 12" stroke-width=".7"/><path d="M966 380l-10 12" stroke-width=".7"/><path d="M980 380l-10 12" stroke-width=".7"/><path d="M994 380l-10 12" stroke-width=".7"/><path d="M1008 380l-10 12" stroke-width=".7"/><path d="M1022 380l-10 12" stroke-width=".7"/><path d="M1036 380l-10 12" stroke-width=".7"/><path d="M1050 380l-10 12" stroke-width=".7"/><path d="M1064 380l-10 12" stroke-width=".7"/><path d="M1078 380l-10 12" stroke-width=".7"/><path d="M1092 380l-10 12" stroke-width=".7"/><path d="M1106 380l-10 12" stroke-width=".7"/><path d="M1120 380l-10 12" stroke-width=".7"/><path d="M1134 380l-10 12" stroke-width=".7"/><path d="M1148 380l-10 12" stroke-width=".7"/><path d="M1162 380l-10 12" stroke-width=".7"/><path d="M1176 380l-10 12" stroke-width=".7"/><path d="M1190 380l-10 12" stroke-width=".7"/><path class="slab" d="M120 70H1080" stroke-width="5"/><g transform="translate(40 42)"><rect width="56" height="34" fill="#2f7df6" stroke="none"/><text x="28" y="26" class="lvl">P4</text></g><path class="slab" d="M120 160H1080" stroke-width="5"/><g transform="translate(40 132)"><rect width="56" height="34" fill="#18a957" stroke="none"/><text x="28" y="26" class="lvl">P3</text></g><path class="slab" d="M120 250H1080" stroke-width="5"/><g transform="translate(40 222)"><rect width="56" height="34" fill="#f08a2c" stroke="none"/><text x="28" y="26" class="lvl">P2</text></g><path class="slab" d="M120 340H1080" stroke-width="5"/><g transform="translate(40 312)"><rect width="56" height="34" fill="#e0263f" stroke="none"/><text x="28" y="26" class="lvl">P1</text></g><path class="colm" d="M120 70V380" stroke-width="2"/><path class="colm" d="M360 70V380" stroke-width="2"/><path class="colm" d="M600 70V380" stroke-width="2"/><path class="colm" d="M840 70V380" stroke-width="2"/><path class="colm" d="M1080 70V380" stroke-width="2"/><path class="ramp" d="M860 340L1060 250" stroke-width="3"/><path class="ramp" d="M140 250L340 160" stroke-width="3"/><path class="ramp" d="M860 160L1060 70" stroke-width="3"/><g class="car" transform="translate(390 44)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(452 44)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(514 44)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(576 44)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(638 44)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(700 44)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(452 134)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(514 134)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(576 134)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car hit" transform="translate(638 134)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(700 134)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(762 134)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(576 224)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(638 224)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(700 224)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(452 314)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(514 314)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(576 314)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(638 314)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(700 314)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(762 314)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="car" transform="translate(824 314)"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/><circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g><g class="callout"><path d="M664 132 720 40H900" stroke-width="1"/><circle cx="664" cy="132" r="4" fill="currentColor" stroke="none"/><text x="728" y="32" class="note" text-anchor="start">C21 · LEVEL P3 · NORTH STAIRS</text></g></svg><!--/SECTION--></div>
+      </div>
     </section>
 
-    <!-- ================= EXPLODED GARAGE (floors separate on scroll) ================= -->
-    <section id="levels" class="relative overflow-hidden border-t border-white/5">
-      <div id="levels-pin" class="mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-5 py-24 sm:px-8 lg:grid-cols-[1fr_1.25fr]">
-        <div>
-          <p class="text-sm font-medium text-sign">Multi-level garages</p>
-          <h2 class="h-section mt-4">Six levels.<br /><span class="text-fog">One search bar.</span></h2>
-          <p class="mt-6 max-w-md text-lg text-fog">Every floor gets its own color, connected by the ramps, stairs and elevators your crew actually uses. Search a space and the map opens on the right level, already lit up.</p>
-          <div class="mt-8 flex flex-wrap gap-2 text-sm font-semibold">
-            <span class="lv-chip rounded-full border border-p4/40 px-3 py-1 text-p4">P4 · Roof</span>
-            <span class="lv-chip rounded-full bg-p3 px-3 py-1 text-ink">P3 · C21 is here</span>
-            <span class="lv-chip rounded-full border border-p2/40 px-3 py-1 text-p2">P2</span>
-            <span class="lv-chip rounded-full border border-p1/40 px-3 py-1 text-p1">P1 · Valet</span>
+    <!-- ===== PRODUCT: annotated screenshot ===== -->
+    <section id="product" class="bg-paper text-ink">
+      <div class="wrap py-24 lg:py-32">
+        <div class="grid gap-6 lg:grid-cols-12">
+          <h2 class="h2 lg:col-span-7">Built for the people who run the lot, and simple enough for their first day.</h2>
+        </div>
+        <figure class="mt-14">
+          <div class="relative border-2 border-ink">
+            <img src="img/editor.webp" width="1440" height="900" alt="The Bergeron Maps editor: a garage level with numbered rows, ramps, stairs and entrances, a symbol library on the left and floor tabs at the bottom" class="block w-full" loading="lazy" />
+            <span class="pin" style="left:9%;top:14%">1</span>
+            <span class="pin" style="left:62%;top:22%">2</span>
+            <span class="pin" style="left:31%;top:30%">3</span>
+            <span class="pin" style="left:7%;top:96%">4</span>
+            <span class="pin" style="left:96%;top:2.5%">5</span>
           </div>
-        </div>
-        <div class="relative grid h-[460px] place-items-center sm:h-[560px] [perspective:2200px]" aria-hidden="true">
-          <div id="stack" class="relative h-[220px] w-[300px] [transform-style:preserve-3d] [transform:rotateX(58deg)_rotateZ(-38deg)] sm:h-[260px] sm:w-[380px]">
-            <div class="floor" style="--c:#e0263f;--z:0"><span>P1</span></div>
-            <div class="floor" style="--c:#f08a2c;--z:1"><span>P2</span></div>
-            <div class="floor floor-hit" style="--c:#18a957;--z:2"><span>P3</span><i class="hit"></i></div>
-            <div class="floor" style="--c:#2f7df6;--z:3"><span>P4</span></div>
-          </div>
-        </div>
+          <figcaption>
+            <ol class="mt-8 grid gap-x-10 gap-y-5 sm:grid-cols-2 lg:grid-cols-5">
+              <li><span class="pin-num">1</span><b>32 standard symbols.</b> Ramps, key boxes, valet stands, EV chargers and exits, the same at every site.</li>
+              <li><span class="pin-num">2</span><b>Rows number themselves.</b> Draw a row and the spaces are numbered for you.</li>
+              <li><span class="pin-num">3</span><b>Floors are connected.</b> Stairs, elevators and ramps link one level to the next.</li>
+              <li><span class="pin-num">4</span><b>Color-coded levels.</b> Each floor has its own color, on the map and on the phone.</li>
+              <li><span class="pin-num">5</span><b>Publish when ready.</b> Your crew sees the last published version until you publish again.</li>
+            </ol>
+          </figcaption>
+        </figure>
       </div>
     </section>
 
-    <!-- ================= REAL PRODUCT + NUMBERS ================= -->
-    <section id="real" class="border-t border-white/5">
-      <div class="mx-auto max-w-7xl px-5 py-28 sm:px-8 sm:py-36">
-        <div class="mx-auto max-w-3xl text-center">
-          <p data-reveal class="text-sm font-medium text-sign">The product</p>
-          <h2 data-reveal class="h-section mt-4">Not a mockup.<br /><span class="text-fog">The real editor, today.</span></h2>
+    <!-- ===== OPERATORS ===== -->
+    <section id="operators" class="border-t border-ink/15 bg-paper text-ink">
+      <div class="wrap grid gap-12 py-24 lg:grid-cols-12 lg:py-32">
+        <div class="lg:col-span-5">
+          <h2 class="h2">One standard across every property.</h2>
+          <p class="mt-6 text-lg text-ink/70">For operators running more than one site: the same symbols, numbering and layout everywhere, with access set by role.</p>
         </div>
-        <div class="mt-16 [perspective:2000px]">
-          <figure id="shot" class="beam relative mx-auto max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-ink-2 shadow-[0_50px_140px_-30px_rgba(242,183,5,.25)] [transform-origin:50%_100%]">
-            <div class="flex items-center gap-1.5 border-b border-white/5 px-4 py-3"><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i><i class="h-3 w-3 rounded-full bg-white/10"></i><span class="mx-auto rounded-md bg-white/5 px-10 py-1 text-xs text-fog">bergeronmaps.com/app</span></div>
-            <img src="img/editor.webp" width="1440" height="900" alt="The Bergeron Maps editor showing a garage level with numbered rows, ramps, stairs and entrances" class="block w-full" loading="lazy" />
-          </figure>
-        </div>
-        <dl class="mx-auto mt-20 grid max-w-5xl grid-cols-2 gap-y-12 text-center md:grid-cols-4">
-          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">standard map symbols</dt><dd class="font-display text-5xl font-semibold tracking-tight sm:text-6xl"><span class="ticker" data-to="32">32</span></dd></div>
-          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">questions to a full lot</dt><dd class="font-display text-5xl font-semibold tracking-tight sm:text-6xl"><span class="ticker" data-to="4">4</span></dd></div>
-          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">character join code for staff</dt><dd class="font-display text-5xl font-semibold tracking-tight sm:text-6xl"><span class="ticker" data-to="6">6</span></dd></div>
-          <div data-reveal class="flex flex-col-reverse"><dt class="mt-2 text-sm text-fog">apps to install</dt><dd class="font-display text-5xl font-semibold tracking-tight text-sign sm:text-6xl">0</dd></div>
+        <dl class="divide-y divide-ink/15 border-y border-ink/15 lg:col-span-6 lg:col-start-7">
+          <div class="grid gap-2 py-5 sm:grid-cols-3"><dt class="font-semibold">Regional managers</dt><dd class="text-ink/70 sm:col-span-2">See and edit every site in their region.</dd></div>
+          <div class="grid gap-2 py-5 sm:grid-cols-3"><dt class="font-semibold">Site managers</dt><dd class="text-ink/70 sm:col-span-2">Edit and publish maps for their own buildings only.</dd></div>
+          <div class="grid gap-2 py-5 sm:grid-cols-3"><dt class="font-semibold">Attendants</dt><dd class="text-ink/70 sm:col-span-2">View the published map for the site they work at.</dd></div>
+          <div class="grid gap-2 py-5 sm:grid-cols-3"><dt class="font-semibold">Your brand</dt><dd class="text-ink/70 sm:col-span-2">Your company's name and colors on the maps your team uses.</dd></div>
+          <div class="grid gap-2 py-5 sm:grid-cols-3"><dt class="font-semibold">Done for you</dt><dd class="text-ink/70 sm:col-span-2">Send us a walkthrough or a sketch and we'll build the map.</dd></div>
         </dl>
       </div>
     </section>
 
-    <!-- ================= HOW IT WORKS (pinned) ================= -->
-    <section id="how" class="relative border-t border-white/5">
-      <div id="how-pin" class="mx-auto grid min-h-screen max-w-7xl items-center gap-12 px-5 py-24 sm:px-8 lg:grid-cols-2 lg:gap-20">
-        <div>
-          <p class="text-sm font-medium text-sign">How it works</p>
-          <h2 class="h-section mt-4">Live in an afternoon.<br /><span class="text-fog">Learned in a minute.</span></h2>
-          <ol class="mt-12 space-y-2" id="steps">
-            <li data-step="0" class="step rounded-2xl border border-transparent p-5 transition-all duration-500">
-              <h3 class="flex items-baseline gap-3 text-xl font-semibold"><span class="font-mono text-sm text-sign">01</span>Build the map</h3>
-              <p class="mt-2 pl-9 text-fog">Answer four questions and get a full, numbered lot. Or upload your hand sketch and trace over it. Floors, ramps and exits included.</p>
-            </li>
-            <li data-step="1" class="step rounded-2xl border border-transparent p-5 transition-all duration-500">
-              <h3 class="flex items-baseline gap-3 text-xl font-semibold"><span class="font-mono text-sm text-sign">02</span>Publish it to your team</h3>
-              <p class="mt-2 pl-9 text-fog">Invite managers and attendants by email. Each person sees only the sites they work at. Edits stay in draft until you publish.</p>
-            </li>
-            <li data-step="2" class="step rounded-2xl border border-transparent p-5 transition-all duration-500">
-              <h3 class="flex items-baseline gap-3 text-xl font-semibold"><span class="font-mono text-sm text-sign">03</span>Find any car</h3>
-              <p class="mt-2 pl-9 text-fog">Attendants type a space number on their phone. It lights up, with the floor and the way there. No app to install.</p>
-            </li>
-          </ol>
+    <!-- ===== PILOT / REVIEWS (no reviews yet) ===== -->
+    <section id="reviews" class="bg-sign text-ink">
+      <div class="wrap grid gap-10 py-20 lg:grid-cols-12 lg:py-24">
+        <div class="lg:col-span-7">
+          <h2 class="h2">We're taking on our first pilot sites.</h2>
+          <p class="mt-6 max-w-xl text-lg">Start at one location. We'll build the first map with you and stay in close contact through the pilot. Pricing is per site.</p>
         </div>
+        <div class="flex flex-col justify-end gap-5 lg:col-span-4 lg:col-start-9">
+          <a href="#contact" class="btn btn-ink self-start">Apply for the pilot</a>
+          <p class="text-sm text-ink/70" data-placeholder="reviews">Reviews from pilot sites will be posted here once they're in. We don't publish made-up testimonials.</p>
+        </div>
+      </div>
+    </section>
 
-        <div class="relative aspect-[4/3.4] w-full">
-          <!-- stage 0: quick builder -->
-          <div data-stage="0" class="stage card absolute inset-0 flex flex-col">
-            <div class="text-sm text-fog">New map · Build it for me</div>
-            <div class="mt-5 grid grid-cols-2 gap-3 text-sm">
-              <div class="rounded-xl bg-ink-3 p-4"><div class="text-fog">Floors</div><div class="mt-1 text-2xl font-semibold">3</div></div>
-              <div class="rounded-xl bg-ink-3 p-4"><div class="text-fog">Rows per floor</div><div class="mt-1 text-2xl font-semibold">4</div></div>
-              <div class="rounded-xl bg-ink-3 p-4"><div class="text-fog">Spaces per row</div><div class="mt-1 text-2xl font-semibold">12</div></div>
-              <div class="rounded-xl bg-ink-3 p-4"><div class="text-fog">Accessible</div><div class="mt-1 text-2xl font-semibold">2</div></div>
-            </div>
-            <div class="mt-5 flex flex-1 flex-col justify-center gap-2.5" aria-hidden="true">
-              <div class="build-row flex gap-1"></div><div class="build-row flex gap-1"></div><div class="build-row flex gap-1"></div><div class="build-row flex gap-1"></div>
-            </div>
-            <div class="mt-5 rounded-full bg-white py-3 text-center text-sm font-semibold text-ink">Build it for me</div>
-          </div>
-
-          <!-- stage 1: publish to team -->
-          <div data-stage="1" class="stage card absolute inset-0 flex flex-col">
-            <div class="flex items-center justify-between">
-              <div><div class="text-sm text-fog">Site</div><div class="text-2xl font-semibold">Harbor Point Hotel</div></div>
-              <div class="flex rounded-full bg-ink-3 p-1 text-sm"><span class="rounded-full px-3 py-1 text-fog">Draft</span><span class="rounded-full bg-p3 px-3 py-1 font-semibold text-ink">Published</span></div>
-            </div>
-            <div class="mt-6 text-sm text-fog">Team</div>
-            <ul class="mt-3 space-y-2.5 text-sm">
-              <li class="team flex items-center gap-3 rounded-xl bg-ink-3 p-3"><span class="grid h-9 w-9 place-items-center rounded-full bg-p4 font-semibold">DM</span><div><div class="font-medium">Site manager</div><div class="text-fog">Can edit and publish</div></div><span class="ml-auto text-p3">Active</span></li>
-              <li class="team flex items-center gap-3 rounded-xl bg-ink-3 p-3"><span class="grid h-9 w-9 place-items-center rounded-full bg-p2 font-semibold text-ink">JR</span><div><div class="font-medium">Attendant</div><div class="text-fog">Views the published map</div></div><span class="ml-auto text-p3">Active</span></li>
-              <li class="team flex items-center gap-3 rounded-xl bg-ink-3 p-3"><span class="grid h-9 w-9 place-items-center rounded-full bg-p5 font-semibold">AL</span><div><div class="font-medium">Attendant</div><div class="text-fog">Views the published map</div></div><span class="ml-auto text-fog">Invited</span></li>
-            </ul>
-            <div class="mt-auto pt-5 text-sm text-fog">Join code <span class="ml-2 rounded-md bg-ink-3 px-2.5 py-1 font-mono tracking-[0.3em] text-white">H4R8PT</span></div>
-          </div>
-
-          <!-- stage 2: phone search -->
-          <div data-stage="2" class="stage card absolute inset-0 grid place-items-center">
-            <div class="w-[min(260px,70%)] rounded-[2rem] border border-white/15 bg-ink p-2.5">
-              <div class="rounded-[1.5rem] bg-ink-3 p-4">
-                <div class="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-ink">⌕ C21</div>
-                <div class="mt-4 grid grid-cols-6 gap-1" aria-hidden="true">
-                  <i class="h-10 rounded-sm border border-white/30"></i><i class="h-10 rounded-sm border border-white/30"></i><i class="h-10 rounded-sm border border-white/30"></i><i class="h-10 rounded-sm border border-white/30"></i><i class="h-10 rounded-sm border border-white/30"></i><i class="find h-10 rounded-sm border border-sign bg-sign"></i>
-                </div>
-                <div class="mt-4 rounded-xl bg-sign/10 p-3"><div class="font-sign text-3xl font-extrabold text-sign">C21</div><div class="text-xs text-fog">Level 3 · Row C · by the north stairs</div></div>
-                <div class="mt-4 flex gap-1 text-xs font-semibold"><span class="flex-1 rounded border border-p1/60 py-1 text-center">P1</span><span class="flex-1 rounded border border-p2/60 py-1 text-center">P2</span><span class="flex-1 rounded bg-p3 py-1 text-center text-ink">P3</span></div>
-              </div>
-            </div>
+    <!-- ===== ABOUT (placeholder wording until Kegan sends his own) ===== -->
+    <section id="about" class="bg-paper text-ink">
+      <div class="wrap grid gap-12 py-24 lg:grid-cols-12 lg:py-32">
+        <h2 class="h2 lg:col-span-5">About</h2>
+        <div class="lg:col-span-6 lg:col-start-7">
+          <p class="text-xl leading-relaxed" data-placeholder="about">Bergeron Maps is an independent company founded by cousins Kegan and Alexander Bergeron. Kegan builds the product. Alexander works with the operators who use it.</p>
+          <div class="mt-10 grid border-t border-ink/15 sm:grid-cols-2">
+            <div class="border-b border-ink/15 py-5 sm:border-r sm:pr-6"><div class="font-semibold">Kegan Bergeron</div><div class="text-ink/60">Co-founder, product</div></div>
+            <div class="border-b border-ink/15 py-5 sm:pl-6"><div class="font-semibold">Alexander Bergeron</div><div class="text-ink/60">Co-founder, partnerships</div></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ================= PRODUCT BENTO ================= -->
-    <section id="product" class="mx-auto max-w-7xl px-5 py-28 sm:px-8 sm:py-36">
-      <div class="max-w-3xl">
-        <p data-reveal class="text-sm font-medium text-sign">Product</p>
-        <h2 data-reveal class="h-section mt-4">Powerful for managers.<br /><span class="text-fog">Obvious for everyone else.</span></h2>
-      </div>
-      <div class="mt-16 grid gap-4 md:grid-cols-6">
-        <article data-reveal class="card spot md:col-span-4">
-          <h3 class="text-xl font-semibold">Every level, color-coded</h3>
-          <p class="mt-2 max-w-md text-fog">Floors get the same colors as real garage signage, so nobody wonders which level they are on.</p>
-          <div class="mt-8 flex gap-2" aria-hidden="true">
-            <div class="h-24 flex-1 rounded-xl bg-p1/90 p-3 font-sign text-3xl font-extrabold">P1</div>
-            <div class="h-24 flex-1 rounded-xl bg-p2/90 p-3 font-sign text-3xl font-extrabold text-ink">P2</div>
-            <div class="h-24 flex-1 rounded-xl bg-p3/90 p-3 font-sign text-3xl font-extrabold">P3</div>
-            <div class="h-24 flex-1 rounded-xl bg-p4/90 p-3 font-sign text-3xl font-extrabold">P4</div>
-            <div class="hidden h-24 flex-1 rounded-xl bg-p5/90 p-3 font-sign text-3xl font-extrabold sm:block">P5</div>
-          </div>
-        </article>
-        <article data-reveal class="card spot md:col-span-2">
-          <h3 class="text-xl font-semibold">Nothing to install</h3>
-          <p class="mt-2 text-fog">It runs in the browser on any phone, tablet or computer.</p>
-          <div class="mt-8 font-display text-6xl font-semibold tracking-tighter text-white/90">0 <span class="text-2xl text-fog">downloads</span></div>
-        </article>
-        <article data-reveal class="card spot md:col-span-2">
-          <h3 class="text-xl font-semibold">Start from a paper sketch</h3>
-          <p class="mt-2 text-fog">Snap a photo of your hand drawing and trace a clean map right over it.</p>
-          <div class="mt-6 rotate-[-2deg] rounded-lg bg-[#f6f1e3] p-3 font-['Caveat'] text-xl leading-tight text-[#2b2b2b]" aria-hidden="true">Row A → 1-12<br />ramp up by the stairs ↗</div>
-        </article>
-        <article data-reveal class="card spot md:col-span-2">
-          <h3 class="text-xl font-semibold">Everyone sees only their site</h3>
-          <p class="mt-2 text-fog">Managers get their own buildings. Attendants get the published map. You see everything.</p>
-          <div class="mt-6 flex -space-x-2" aria-hidden="true"><span class="h-9 w-9 rounded-full border-2 border-ink-2 bg-p4"></span><span class="h-9 w-9 rounded-full border-2 border-ink-2 bg-p2"></span><span class="h-9 w-9 rounded-full border-2 border-ink-2 bg-p5"></span><span class="grid h-9 w-9 place-items-center rounded-full border-2 border-ink-2 bg-ink-3 text-xs text-fog">+12</span></div>
-        </article>
-        <article data-reveal class="card spot md:col-span-2">
-          <h3 class="text-xl font-semibold">Drafts stay drafts</h3>
-          <p class="mt-2 text-fog">Rework the lot all week. Your crew keeps seeing the last published version until you hit publish.</p>
-          <div class="mt-6 flex items-center gap-2 text-sm" aria-hidden="true"><span class="rounded-full bg-ink-3 px-3 py-1 text-fog">Draft · v7</span><span class="text-fog">→</span><span class="rounded-full bg-p3/15 px-3 py-1 text-p3">Published · v6</span></div>
-        </article>
-        <article data-reveal class="card spot md:col-span-3">
-          <h3 class="text-xl font-semibold">One standard across every property</h3>
-          <p class="mt-2 max-w-md text-fog">The same symbols, numbering and layout at every site you run. Move an attendant to a new property and they already know how to read the map.</p>
-          <div class="mt-6 flex flex-wrap gap-2 text-xs font-semibold" aria-hidden="true">
-            <span class="rounded-md bg-sign px-2.5 py-1.5 text-ink">VALET</span><span class="rounded-md bg-p3 px-2.5 py-1.5">ENTRANCE</span><span class="rounded-md bg-p1 px-2.5 py-1.5">EXIT</span><span class="rounded-md bg-p4 px-2.5 py-1.5">RAMP ↑</span><span class="rounded-md bg-white px-2.5 py-1.5 text-ink">KEY BOX</span><span class="rounded-md bg-p5 px-2.5 py-1.5">EV</span><span class="rounded-md border border-white/20 px-2.5 py-1.5">♿ ACCESSIBLE</span>
-          </div>
-        </article>
-        <article data-reveal class="card spot md:col-span-3">
-          <h3 class="text-xl font-semibold">We can map it for you</h3>
-          <p class="mt-2 max-w-md text-fog">Short on time? Send us a walkthrough video or your sketch. We build the map and hand it back ready for your team.</p>
-          <a href="#contact" class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-sign hover:underline">Ask about done-for-you mapping →</a>
-        </article>
-      </div>
-    </section>
-
-    <!-- ================= FOR OPERATORS ================= -->
-    <section id="operators" class="border-y border-white/5 bg-ink-2">
-      <div class="mx-auto grid max-w-7xl items-center gap-16 px-5 py-28 sm:px-8 sm:py-36 lg:grid-cols-[1fr_1.15fr]">
-        <div>
-          <p data-reveal class="text-sm font-medium text-sign">For operators</p>
-          <h2 data-reveal class="h-section mt-4">Run ten sites like you run one.</h2>
-          <p data-reveal class="mt-6 max-w-md text-lg text-fog">One standard for every property in your portfolio. Regional managers see everything, site managers see their own buildings, and every attendant gets the same simple map.</p>
-          <ul class="mt-10 grid gap-5 sm:grid-cols-2">
-            <li data-reveal><div class="font-semibold">Faster onboarding</div><div class="mt-1 text-fog">New hires read the map instead of memorizing the lot.</div></li>
-            <li data-reveal><div class="font-semibold">Quicker retrievals</div><div class="mt-1 text-fog">Type the space, walk straight to it.</div></li>
-            <li data-reveal><div class="font-semibold">Total control</div><div class="mt-1 text-fog">You decide who edits, who views, and when changes go live.</div></li>
-            <li data-reveal><div class="font-semibold">Your brand</div><div class="mt-1 text-fog">Your company's name and colors on every map.</div></li>
-          </ul>
+    <!-- ===== CONTACT ===== -->
+    <section id="contact" class="bg-ink text-white">
+      <div class="wrap grid gap-14 py-24 lg:grid-cols-12 lg:py-32">
+        <div class="lg:col-span-5">
+          <h2 class="h2">Book a demo.</h2>
+          <p class="mt-6 text-lg text-white/70">Tell us about your property and we'll show you your lot mapped. Or email <a class="underline decoration-sign decoration-2 underline-offset-4" href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a>.</p>
         </div>
-        <!-- portfolio diagram: sites → Bergeron Maps → crews, with light travelling along the lines -->
-        <div data-reveal class="relative">
-          <svg viewBox="0 0 600 440" class="w-full" role="img" aria-label="Several properties connected through Bergeron Maps to attendants' phones">
-            <defs>
-              <linearGradient id="beamg" x1="0" x2="1"><stop offset="0" stop-color="#f2b705" stop-opacity="0"/><stop offset=".5" stop-color="#f2b705"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-            </defs>
-            <g fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="2">
-              <path id="b1" d="M150 60C230 60 220 220 300 220"/><path id="b2" d="M150 165C220 165 230 220 300 220"/><path id="b3" d="M150 275C220 275 230 220 300 220"/><path id="b4" d="M150 380C230 380 220 220 300 220"/>
-              <path id="b5" d="M300 220C380 220 370 110 450 110"/><path id="b6" d="M300 220H450"/><path id="b7" d="M300 220C380 220 370 330 450 330"/>
-            </g>
-            <g fill="none" stroke="url(#beamg)" stroke-width="2.5" stroke-linecap="round" class="beams">
-              <use href="#b1"/><use href="#b2"/><use href="#b3"/><use href="#b4"/><use href="#b5"/><use href="#b6"/><use href="#b7"/>
-            </g>
-            <g font-family="Geist, sans-serif" font-size="13" font-weight="600" fill="#fff">
-              <g transform="translate(14 36)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#e0263f"/><text x="36" y="29">Hotel garage</text></g>
-              <g transform="translate(14 141)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#f08a2c"/><text x="36" y="29">Hospital lot</text></g>
-              <g transform="translate(14 251)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#18a957"/><text x="36" y="29">Stadium</text></g>
-              <g transform="translate(14 356)"><rect width="136" height="48" rx="12" fill="#18181a" stroke="#26262a"/><circle cx="22" cy="24" r="6" fill="#2f7df6"/><text x="36" y="29">Office tower</text></g>
-              <g transform="translate(262 182)"><rect width="76" height="76" rx="20" fill="#0d0d0e" stroke="#f2b705" stroke-opacity=".6"/><text x="38" y="47" text-anchor="middle" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="30">BM</text></g>
-              <g transform="translate(450 84)"><rect width="136" height="52" rx="12" fill="#18181a" stroke="#26262a"/><text x="16" y="23">Regional</text><text x="16" y="40" fill="#a1a1a6" font-weight="400" font-size="11">Every site</text></g>
-              <g transform="translate(450 194)"><rect width="136" height="52" rx="12" fill="#18181a" stroke="#26262a"/><text x="16" y="23">Site managers</text><text x="16" y="40" fill="#a1a1a6" font-weight="400" font-size="11">Their buildings</text></g>
-              <g transform="translate(450 304)"><rect width="136" height="52" rx="12" fill="#18181a" stroke="#26262a"/><text x="16" y="23">Attendants</text><text x="16" y="40" fill="#a1a1a6" font-weight="400" font-size="11">Published maps</text></g>
-            </g>
-          </svg>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= REVIEWS → FOUNDING SITES (no real reviews yet) ================= -->
-    <section id="reviews" class="mx-auto max-w-7xl px-5 py-28 sm:px-8 sm:py-36">
-      <div data-reveal class="beam relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-ink-2 to-ink p-8 sm:p-14">
-        <div aria-hidden="true" class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sign/20 blur-[100px]"></div>
-        <div class="grid gap-12 lg:grid-cols-[1.2fr_1fr] lg:items-end">
-          <div>
-            <p class="text-sm font-medium text-sign">Founding sites</p>
-            <h2 class="h-section mt-4">Become a founding site.</h2>
-            <p class="mt-6 max-w-lg text-lg text-fog">We're choosing a handful of properties for our pilot program. You'll work directly with the founders, and we'll build your first map with you.</p>
-            <a href="#contact" class="btn-primary shimmer mt-9">Apply for the pilot <span aria-hidden="true">→</span></a>
-          </div>
-          <ul class="space-y-3 text-sm">
-            <li class="flex gap-3 rounded-xl border border-white/5 bg-white/[.02] p-4"><span class="text-sign">→</span>A direct line to the people building it</li>
-            <li class="flex gap-3 rounded-xl border border-white/5 bg-white/[.02] p-4"><span class="text-sign">→</span>Your first map built with you, floor by floor</li>
-            <li class="flex gap-3 rounded-xl border border-white/5 bg-white/[.02] p-4"><span class="text-sign">→</span>Your feedback decides what we build next</li>
-          </ul>
-        </div>
-        <p class="mt-12 border-t border-white/5 pt-6 text-sm text-white/40" data-placeholder="reviews">Reviews from our pilot sites will appear here as they come in. We don't post made-up testimonials.</p>
-      </div>
-    </section>
-
-    <!-- ================= ABOUT ================= -->
-    <!-- PLACEHOLDER: replace with Kegan's own about-us wording -->
-    <section id="about" class="border-t border-white/5">
-      <div class="mx-auto grid max-w-7xl gap-12 px-5 py-28 sm:px-8 sm:py-36 lg:grid-cols-2">
-        <div>
-          <p data-reveal class="text-sm font-medium text-sign">About</p>
-          <h2 data-reveal class="h-section mt-4">Built by the Bergerons.</h2>
-        </div>
-        <div>
-          <p data-reveal class="text-lg leading-relaxed text-fog" data-placeholder="about">Bergeron Maps is an independent, family-run company founded by cousins Kegan and Alexander Bergeron. Kegan builds the product. Alexander works directly with the operators who use it.</p>
-          <div class="mt-10 grid gap-3 sm:grid-cols-2">
-            <div data-reveal class="card flex items-center gap-4 !p-5"><span class="grid h-12 w-12 place-items-center rounded-full bg-white font-semibold text-ink">KB</span><div><div class="font-semibold">Kegan Bergeron</div><div class="text-sm text-fog">Co-founder, Product</div></div></div>
-            <div data-reveal class="card flex items-center gap-4 !p-5"><span class="grid h-12 w-12 place-items-center rounded-full bg-sign font-semibold text-ink">AB</span><div><div class="font-semibold">Alexander Bergeron</div><div class="text-sm text-fog">Co-founder, Partnerships</div></div></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= CONTACT ================= -->
-    <section id="contact" class="relative isolate overflow-hidden border-t border-white/5">
-      <div aria-hidden="true" class="absolute bottom-0 left-1/2 -z-10 h-[420px] w-[900px] -translate-x-1/2 translate-y-1/2 rounded-full bg-sign/15 blur-[140px]"></div>
-      <div class="mx-auto grid max-w-7xl gap-14 px-5 py-28 sm:px-8 sm:py-36 lg:grid-cols-2">
-        <div>
-          <h2 data-reveal class="h-section">See your lot,<br />mapped.</h2>
-          <p data-reveal class="mt-6 max-w-md text-lg text-fog">Start with a paid pilot at one location. Pricing is per site, and we'll send a quote once we know your property.</p>
-          <p data-reveal class="mt-8 text-fog">Prefer email? <a class="font-semibold text-white underline decoration-sign decoration-2 underline-offset-4" href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a></p>
-        </div>
-        <form id="contact-form" data-reveal class="card grid gap-4 !p-7 sm:grid-cols-2">
-          <label class="grid gap-1.5 text-sm text-fog">Name<input class="field" name="name" required autocomplete="name" /></label>
-          <label class="grid gap-1.5 text-sm text-fog">Company<input class="field" name="company" autocomplete="organization" /></label>
-          <label class="grid gap-1.5 text-sm text-fog sm:col-span-2">Work email<input class="field" name="email" type="email" required autocomplete="email" /></label>
-          <label class="grid gap-1.5 text-sm text-fog sm:col-span-2">How many sites?
+        <form id="contact-form" class="grid gap-5 sm:grid-cols-2 lg:col-span-6 lg:col-start-7" novalidate>
+          <label class="field-l">Name<input class="field" name="name" required autocomplete="name" maxlength="120" /></label>
+          <label class="field-l">Company<input class="field" name="company" autocomplete="organization" maxlength="120" /></label>
+          <label class="field-l sm:col-span-2">Work email<input class="field" name="email" type="email" required autocomplete="email" maxlength="200" /></label>
+          <label class="field-l sm:col-span-2">Number of sites
             <select class="field" name="sites"><option>1</option><option>2 to 5</option><option>6 to 20</option><option>More than 20</option></select>
           </label>
-          <label class="grid gap-1.5 text-sm text-fog sm:col-span-2">Anything we should know?<textarea class="field" name="message" rows="3"></textarea></label>
-          <button type="submit" class="btn-primary justify-center sm:col-span-2">Request a demo <span aria-hidden="true">→</span></button>
-          <p class="text-center text-xs text-white/40 sm:col-span-2">Opens your email app with the details filled in.</p>
+          <label class="field-l sm:col-span-2">Anything else<textarea class="field" name="message" rows="4" maxlength="2000"></textarea></label>
+          <div class="flex flex-wrap items-center gap-5 sm:col-span-2">
+            <button type="submit" class="btn btn-sign">Send request</button>
+            <p class="text-sm text-white/55">This opens your email app with the details filled in. Nothing is sent until you press send there.</p>
+          </div>
+          <p id="form-error" class="hidden text-sm text-sign sm:col-span-2" role="alert"></p>
         </form>
       </div>
     </section>
   </main>
 
-  <footer class="border-t border-white/5">
-    <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-10 gap-y-4 px-5 py-10 text-sm text-fog sm:px-8">
-      <a href="#top" class="flex items-center gap-3 text-white"><img src="logo.svg" alt="" width="28" height="28" class="rounded" /><span class="font-sign font-extrabold tracking-[0.18em]">BERGERON MAPS</span></a>
-      <nav class="flex gap-6 sm:ml-auto"><a class="hover:text-white" href="app/">Sign in</a><a class="hover:text-white" href="#contact">Contact</a><a class="hover:text-white" href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a></nav>
-      <p class="w-full text-white/35">© <span id="year">2026</span> Bergeron Maps. All rights reserved.</p>
+  <footer class="border-t border-white/15 bg-ink text-white/60">
+    <div class="wrap grid gap-8 py-12 text-sm md:grid-cols-12">
+      <div class="md:col-span-4"><div class="font-sign text-lg tracking-[0.16em] text-white">BERGERON MAPS</div><p class="mt-2">© <span id="year">2026</span> Bergeron Maps</p></div>
+      <div class="md:col-span-4"><div class="label text-white/40">Privacy</div><p class="mt-2">This site sets no cookies and uses no trackers or analytics. Fonts and scripts are served from this site only.</p></div>
+      <nav class="flex flex-col gap-2 md:col-span-3 md:col-start-10" aria-label="Footer">
+        <a class="hover:text-white" href="app/">Sign in</a>
+        <a class="hover:text-white" href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a>
+        <a class="hover:text-white" href=".well-known/security.txt">Report a security issue</a>
+      </nav>
     </div>
   </footer>
 
-  <script src="vendor/lenis.min.js"></script>
-  <script src="vendor/gsap.min.js"></script>
-  <script src="vendor/ScrollTrigger.min.js"></script>
-  <script src="vendor/SplitText.min.js"></script>
-  <script src="main.js"></script>
+  <script src="vendor/gsap.min.js" defer></script>
+  <script src="vendor/ScrollTrigger.min.js" defer></script>
+  <script src="main.js" defer></script>
 </body>
 </html>
