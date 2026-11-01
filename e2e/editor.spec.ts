@@ -164,6 +164,27 @@ test('quick lot builder creates a numbered lot in one step', async ({ page }) =>
   await expect(page.getByTestId('open-Quick Lot')).toContainText('24 spaces');
 });
 
+test('a map can be downloaded as a file and imported again as a new map', async ({ page }) => {
+  await newMap(page, 'Riverside Garage');
+  await page.getByTestId('add-row').click();
+  await page.getByTestId('row-count').fill('6');
+  await page.getByTestId('create-row').click();
+  await waitSaved(page);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-map').click()]);
+  expect(download.suggestedFilename()).toBe('Riverside-Garage.bmap.json');
+  const file = await download.path();
+
+  await page.getByRole('button', { name: 'All maps' }).click();
+  await page.getByTestId('import-map-input').setInputFiles(file!);
+  await expect(page.getByTestId('canvas').locator('canvas').first()).toBeVisible();
+  await page.getByRole('button', { name: 'All maps' }).click();
+  await expect(page.getByTestId('map-list').locator('li')).toHaveCount(2);
+  await expect(page.getByTestId('map-list')).toContainText('6 spaces');
+
+  await page.getByTestId('import-map-input').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"hi":1}') });
+  await expect(page.getByText('“notes.json” couldn’t be imported.')).toBeVisible();
+});
+
 test('employees only see a map after it is published, and only the published version', async ({ page }) => {
   await newMap(page, 'Publish Lot');
   const id = page.url().split('/edit/')[1];
