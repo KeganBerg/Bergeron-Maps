@@ -1,3 +1,4 @@
+import { BrandMark } from '../ui/Brand';
 import { floorBounds, fitViewport, zoomAt } from '../render/viewport';
 import type { SnapMode } from '../model/snapping';
 import { CommitInput, toNumber } from '../ui/fields';
@@ -71,7 +72,7 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
   return (
     <header className="topbar">
       <div className="group">
-        <button className="icon-btn" title="All maps" aria-label="All maps" onClick={onHome}><Icon name="home" /></button>
+        <button className="icon-btn brand-home" title="All maps" aria-label="All maps" onClick={onHome}><BrandMark size={28} title="All maps" /></button>
         <CommitInput className="map-name" value={doc.name} maxLength={80} aria-label="Map name" data-testid="map-name-input-top" onCommit={(v) => st().renameMap(v)} />
         <span className={`save-status ${info.tone}`} title={error ?? (status === 'saved' ? 'Saved in this browser on this device' : undefined)} data-testid="save-status" role="status">
           {info.tone === 'ok' ? <Icon name="check" size={14} /> : info.tone === 'error' ? <Icon name="alert" size={14} /> : null}

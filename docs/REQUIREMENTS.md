@@ -178,13 +178,24 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 22 | This matrix; automated tests of key workflows; re-run after changes | In progress: 72 unit tests, 12 browser tests and 27 database security tests run in CI on every push. Publishing, permissions, revoked access, exporting and company separation tests arrive with those features |
+| 22 | This matrix; automated tests of key workflows; re-run after changes | In progress: 82 unit tests, 13 browser tests and 27 database security tests run in CI on every push. Publishing, permissions, revoked access, exporting and company separation tests arrive with those features |
 
 ## Part 23: Usability testing
 
 | ID | Requirement | Status |
 |---|---|---|
 | 23.5 | Test with people who have no mapping experience | Not started. Needs real managers and valet staff; recommended once Phase 2 makes sharing possible |
+
+## Asset library redesign (Kegan, 2026-11-01)
+
+| ID | Requirement | Status |
+|---|---|---|
+| A1 | All listed assets in 18 categories | Every listed item has a library tile; all but 8 work now. Not built yet, shown in the library as "Next stage": freeform line, polygon, custom shape, custom polygon zone, PDF reference, grouped objects, saved templates, company assets |
+| A2 | Cartoon-realistic, top-down, consistent style standard | Done: `docs/ASSET_STYLE.md`, `src/assets/style.ts`, `src/assets/draw.ts` |
+| A3 | Fill color with an opacity slider on anything that has a fill | Done for spaces, assets, text boxes and imported images (Style panel) |
+| A4 | Editable border color and thickness in px, including no border | Done, with 0 / 1 / 2 / 3 px presets and Reset |
+| A5 | Icons and arrows keep their aspect ratio; labels fit or wrap | Done (`icon()` in `style.ts`, `render/fitLabel.ts`) |
+| A6 | Standard Bergeron Maps logo in the app | Done: favicon, home header, editor home button |
 
 ## Known gaps in Phase 1 (to keep honest)
 

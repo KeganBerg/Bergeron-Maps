@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickCanvas, drawRow, newMap, waitSaved } from './helpers';
+import { clickCanvas, drawRow, newMap, waitSaved, addFromLibrary } from './helpers';
 
 test('manager creates a numbered row, copies and pastes it, renumbers and undoes', async ({ page }) => {
   await newMap(page, 'Harbor Hotel');
@@ -69,7 +69,7 @@ test('floors: add, rename, duplicate and switch', async ({ page }) => {
 
 test('locked layers cannot be selected; layers can be added and objects moved between them', async ({ page }) => {
   await newMap(page, 'Layers');
-  await page.getByTestId('asset-column').click();
+  await addFromLibrary(page, 'column');
   await expect(page.getByTestId('selected-name')).toHaveText('Column 1');
   await page.getByTestId('tab-layers').click();
   await page.getByTestId('lock-Structure').click();
@@ -86,7 +86,7 @@ test('locked layers cannot be selected; layers can be added and objects moved be
 
 test('work is saved automatically and survives a reload; deleted maps can be restored', async ({ page }) => {
   await newMap(page, 'Reload Test');
-  await page.getByTestId('asset-valet-booth').click();
+  await addFromLibrary(page, 'valet-booth');
   await waitSaved(page);
   await page.reload();
   await expect(page.getByTestId('canvas').locator('canvas').first()).toBeVisible();
@@ -103,11 +103,11 @@ test('work is saved automatically and survives a reload; deleted maps can be res
 
 test('version history restores an earlier version without losing the newer one', async ({ page }) => {
   await newMap(page, 'Versions');
-  await page.getByTestId('asset-tree').click();
+  await addFromLibrary(page, 'tree');
   await page.getByTestId('save').click();
   await waitSaved(page);
-  await page.getByTestId('asset-tree').last().click();
-  await page.getByTestId('asset-tree').last().click();
+  await addFromLibrary(page, 'tree');
+  await addFromLibrary(page, 'tree');
   await waitSaved(page);
   await page.getByTestId('history').click();
   const items = page.getByTestId('version-list').locator('li');
@@ -128,9 +128,9 @@ test('conflicting edits from two windows are detected and both versions are kept
   await other.goto(url);
   await expect(other.getByTestId('canvas').locator('canvas').first()).toBeVisible();
 
-  await page.getByTestId('asset-tree').click();
+  await addFromLibrary(page, 'tree');
   await waitSaved(page);
-  await other.getByTestId('asset-column').click();
+  await addFromLibrary(other, 'column');
   await expect(other.getByTestId('save-status')).toContainText('Changed elsewhere');
   await expect(other.getByRole('dialog')).toContainText('This map was changed somewhere else');
   await other.getByTestId('conflict-mine').click();
@@ -183,6 +183,24 @@ test('a map can be downloaded as a file and imported again as a new map', async 
 
   await page.getByTestId('import-map-input').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"hi":1}') });
   await expect(page.getByText('“notes.json” couldn’t be imported.')).toBeVisible();
+});
+
+test('fill opacity, border color and border thickness can be changed, including no border', async ({ page }) => {
+  await newMap(page, 'Styles');
+  await addFromLibrary(page, 'space-standard');
+  await expect(page.getByTestId('style-fields')).toBeVisible();
+  await page.getByTestId('style-border-0').click();
+  await expect(page.getByTestId('style-stroke-width')).toHaveValue('0');
+  await page.getByTestId('style-stroke-width').fill('2.5');
+  await page.getByTestId('style-stroke-width').press('Enter');
+  await expect(page.getByTestId('style-stroke-width')).toHaveValue('2.5');
+  await page.getByTestId('style-opacity').fill('40');
+  await expect(page.getByTestId('style-fields')).toContainText('40%');
+  await page.getByTestId('style-opacity').blur();
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('style-fields')).toContainText('100%');
+  await page.getByTestId('space-variant').selectOption('ev');
+  await expect(page.getByTestId('space-variant')).toHaveValue('ev');
 });
 
 test('employees only see a map after it is published, and only the published version', async ({ page }) => {
