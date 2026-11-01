@@ -71,8 +71,8 @@ export function RowDialog() {
             onChange={(e) => set('count', num(e.target.value, 1, 500, 1))} />
         </label>
         <label>
-          Prefix <span className="hint">e.g. A or B-</span>
-          <input value={form.prefix} maxLength={12} data-testid="row-prefix" onChange={(e) => set('prefix', e.target.value)} />
+          Prefix
+          <input value={form.prefix} maxLength={12} placeholder="e.g. A or B-" data-testid="row-prefix" onChange={(e) => set('prefix', e.target.value)} />
         </label>
         <label>
           Start at
@@ -83,7 +83,7 @@ export function RowDialog() {
             }} />
         </label>
         <label>
-          Digits <span className="hint">2 → 01, 02</span>
+          Digits
           <select value={form.digits} onChange={(e) => set('digits', Number(e.target.value))}>
             <option value={1}>1, 2, 3</option>
             <option value={2}>01, 02, 03</option>
