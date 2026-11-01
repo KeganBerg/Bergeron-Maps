@@ -142,38 +142,7 @@ function BackgroundSection() {
   const bgLayer = floor.layers.find((l) => l.id === bg?.layerId);
   const st = useEditor.getState;
 
-  const onFile = (file: File | undefined) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      st().notify({ tone: 'error', message: 'That file isn’t an image. Use a PNG, JPG or WebP site plan or aerial photo.' });
-      return;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      st().notify({ tone: 'error', message: 'That image is larger than 15 MB. Please use a smaller or compressed copy.' });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => st().notify({ tone: 'error', message: 'The image couldn’t be read. Please try another file.' });
-    reader.onload = () => {
-      const src = String(reader.result);
-      const img = new Image();
-      img.onload = () => {
-        const s = st();
-        const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
-        const width = img.naturalWidth * scale;
-        const height = img.naturalHeight * scale;
-        const v = s.viewport;
-        const cx = (s.viewSize.width / 2 - v.x) / v.scale;
-        const cy = (s.viewSize.height / 2 - v.y) / v.scale;
-        const keep = bg ? { x: bg.x, y: bg.y, width: bg.width, height: (bg.width * height) / width, opacity: bg.opacity } : null;
-        s.setBackground({ src, fileName: file.name, ...(keep ?? { x: cx - width / 2, y: cy - height / 2, width, height, opacity: 0.6 }) });
-        s.notify({ tone: 'success', message: bg ? 'Background image replaced.' : 'Background image added and locked so it won’t move by accident.' });
-      };
-      img.onerror = () => st().notify({ tone: 'error', message: 'This image format isn’t supported. Try PNG or JPG.' });
-      img.src = src;
-    };
-    reader.readAsDataURL(file);
-  };
+  const onFile = loadBackgroundFile;
 
   return (
     <section className="bg-section">
@@ -213,4 +182,40 @@ function BackgroundSection() {
       )}
     </section>
   );
+}
+
+/** Reads an image file and sets it as the current floor's background. */
+export function loadBackgroundFile(file: File | undefined) {
+  const st = useEditor.getState;
+  const bg = currentFloor(st())?.background;
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    st().notify({ tone: 'error', message: 'That file isn’t an image. Use a PNG, JPG or WebP site plan or aerial photo.' });
+    return;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    st().notify({ tone: 'error', message: 'That image is larger than 15 MB. Please use a smaller or compressed copy.' });
+    return;
+  }
+  const reader = new FileReader();
+  reader.onerror = () => st().notify({ tone: 'error', message: 'The image couldn’t be read. Please try another file.' });
+  reader.onload = () => {
+    const src = String(reader.result);
+    const img = new Image();
+    img.onload = () => {
+      const s = st();
+      const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+      const width = img.naturalWidth * scale;
+      const height = img.naturalHeight * scale;
+      const v = s.viewport;
+      const cx = (s.viewSize.width / 2 - v.x) / v.scale;
+      const cy = (s.viewSize.height / 2 - v.y) / v.scale;
+      const keep = bg ? { x: bg.x, y: bg.y, width: bg.width, height: (bg.width * height) / width, opacity: bg.opacity } : null;
+      s.setBackground({ src, fileName: file.name, ...(keep ?? { x: cx - width / 2, y: cy - height / 2, width, height, opacity: 0.6 }) });
+      s.notify({ tone: 'success', message: bg ? 'Background image replaced.' : 'Background image added and locked so it won’t move by accident.' });
+    };
+    img.onerror = () => st().notify({ tone: 'error', message: 'This image format isn’t supported. Try PNG or JPG.' });
+    img.src = src;
+  };
+  reader.readAsDataURL(file);
 }

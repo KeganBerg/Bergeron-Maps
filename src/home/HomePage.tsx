@@ -1,3 +1,4 @@
+import { BrandMark, BrandWordmark } from '../ui/Brand';
 import { useEffect, useState } from 'react';
 import { newId } from '../model/ids';
 import { TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
@@ -44,8 +45,9 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     <div className="home">
       <header className="home-header">
         <div className="brand">
-          <span className="logo">P</span>
-          <h1>Bergeron Maps</h1>
+          <BrandMark size={36} />
+          <BrandWordmark height={15} />
+          <h1 className="sr-only">Bergeron Maps</h1>
         </div>
         <button className="btn primary" onClick={() => setCreating(true)} data-testid="new-map">
           <Icon name="plus" size={16} /> New map

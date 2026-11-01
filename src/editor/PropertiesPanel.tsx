@@ -2,8 +2,11 @@ import { useEffect, useRef } from 'react';
 import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { rowSpaces } from '../model/rows';
-import type { AssetObject, Floor, LabelPlacement, MapObject, SpaceObject, TextObject } from '../model/types';
-import { CommitInput, toNumber } from '../ui/fields';
+import type { AssetObject, Floor, LabelPlacement, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
+import { CommitInput, CommitTextarea, toNumber } from '../ui/fields';
+import { SPACES } from '../assets/catalog/spaces';
+import { spaceVariant } from '../render/MapObjects';
+import { StyleFields } from './StyleFields';
 import { Icon, type IconName } from '../ui/icons';
 import { objectDisplayName } from './CanvasStage';
 import { currentFloor, useEditor } from './store';
@@ -65,6 +68,8 @@ export function PropertiesPanel() {
         </div>
       )}
 
+      <StyleFields objs={objs} />
+
       {single && single.kind !== 'space' && <GeometryFields o={single} />}
 
       {objs.length >= 2 && <ArrangeButtons count={objs.length} />}
@@ -116,12 +121,14 @@ function SpaceFields({ s, inRow, entered }: { s: SpaceObject; inRow: boolean; en
         </select>
       </label>
       <label>
-        Fill
-        <input type="color" value={s.fill} onChange={(e) => st().updateObjects([s.id], { fill: e.target.value })} />
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={!!s.accessible} onChange={(e) => st().updateObjects([s.id], { accessible: e.target.checked })} />
-        Accessible space
+        Space type
+        <select value={spaceVariant(s)} data-testid="space-variant"
+          onChange={(e) => {
+            const variant = e.target.value as SpaceVariant;
+            st().updateObjects([s.id], { variant, accessible: variant === 'accessible' || undefined } as Partial<MapObject>);
+          }}>
+          {SPACES.map((d) => <option key={d.variant} value={d.variant}>{d.name.replace(/ parking space$/, '').replace(/^./, (c) => c.toUpperCase())}</option>)}
+        </select>
       </label>
       {inRow && entered && (
         <p className="hint">
@@ -204,9 +211,11 @@ function AssetFields({ a }: { a: AssetObject }) {
           onCommit={(v) => st().updateObjects([a.id], { name: v.trim() || undefined })} />
       </label>
       <label>
-        Label on map
-        <CommitInput value={a.label ?? ''} maxLength={40} placeholder="(none)" onCommit={(v) => st().updateObjects([a.id], { label: v.trim() || undefined })} />
+        {def?.labelPos === 'inside' ? 'Text on it' : 'Label on map'}
+        <CommitInput value={a.label ?? ''} maxLength={40} placeholder={def?.labelPos === 'inside' ? def.label : '(none)'} data-testid="asset-label"
+          onCommit={(v) => st().updateObjects([a.id], { label: v.trim() || undefined })} />
       </label>
+      {def?.note && def.creates !== 'image' && <p className="hint">{def.note}</p>}
       {def?.connector && (
         <fieldset className="connects">
           <legend>Connects to</legend>
@@ -237,14 +246,18 @@ function TextFields({ t }: { t: TextObject }) {
     <div className="fields">
       <label>
         Text
-        <CommitInput ref={ref} value={t.text} maxLength={80} data-testid="text-value" onCommit={(v) => st().updateObjects([t.id], { text: v })} />
+        {t.text.includes('\n') || t.text.length > 40 ? (
+          <CommitTextarea value={t.text} maxLength={600} rows={4} data-testid="text-value" onCommit={(v) => st().updateObjects([t.id], { text: v })} />
+        ) : (
+          <CommitInput ref={ref} value={t.text} maxLength={600} data-testid="text-value" onCommit={(v) => st().updateObjects([t.id], { text: v })} />
+        )}
       </label>
       <label>
         Size
         <CommitInput type="number" value={t.fontSize} onCommit={(v) => st().updateObjects([t.id], { fontSize: toNumber(v, t.fontSize, 6, 200) })} />
       </label>
       <label>
-        Color
+        Text color
         <input type="color" value={t.color} onChange={(e) => st().updateObjects([t.id], { color: e.target.value })} />
       </label>
     </div>
