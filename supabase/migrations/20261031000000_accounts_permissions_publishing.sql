@@ -6,7 +6,6 @@
 -- tables or need extra rules (adding members, publishing) go through
 -- SECURITY DEFINER functions that check permissions themselves.
 
-create extension if not exists pgcrypto;
 
 create type public.member_role as enum ('owner', 'manager', 'employee');
 
@@ -503,7 +502,7 @@ declare
   code text;
 begin
   loop
-    code := (select string_agg(substr(alphabet, 1 + (get_byte(gen_random_bytes(1), 0) % 32), 1), '') from generate_series(1, 6));
+    code := (select string_agg(substr(alphabet, 1 + (get_byte(uuid_send(gen_random_uuid()), 0) % 32), 1), '') from generate_series(1, 6));
     exit when not exists (select 1 from public.facilities where join_code = code);
   end loop;
   return code;

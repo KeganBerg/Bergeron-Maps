@@ -85,6 +85,7 @@ beforeEach(async () => {
   const employee = await user(`employee${seq}@acme.test`);
   const scopedEmployee = await user(`scoped${seq}@acme.test`);
   const outsider = await user(`outsider${seq}@other.test`);
+  await db.query('insert into platform_admins (email) values ($1), ($2)', [`owner${seq}@acme.test`, `outsider${seq}@other.test`]);
 
   const [{ create_company: company }] = await as<{ create_company: string }>(owner, `select public.create_company('Acme Valet', 'Harbor Hotel')`);
   const [{ id: facilityA }] = await as<{ id: string }>(owner, 'select id from facilities where company_id = $1', [company]);
@@ -328,4 +329,40 @@ describe('sites: join codes and contract limits', () => {
     const [{ id }] = await as<{ id: string }>(siteMgr, `insert into maps (facility_id, name, draft) values ($1, 'Stadium', '{}') returning id`, [w.facilityB]);
     expect(id).toBeTruthy();
   });
+
+describe('platform admins', () => {
+  it('only admins can create a company; nobody can read or add admins from the app', async () => {
+    await expect(as(w.manager, `select public.create_company('Mine', 'Lot')`)).rejects.toThrow(/Only Bergeron Maps admins/);
+    await expect(as(w.manager, `select * from platform_admins`)).rejects.toThrow(/permission denied/);
+    await expect(as(w.manager, `insert into platform_admins (email) values ('me@x.test')`)).rejects.toThrow(/permission denied/);
+    expect((await as<{ is_platform_admin: boolean }>(w.owner, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(true);
+    expect((await as<{ is_platform_admin: boolean }>(w.manager, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(false);
+  });
+
+  it('employees cannot read join codes from the sites table', async () => {
+    await expect(as(w.employee, 'select join_code from facilities')).rejects.toThrow(/permission denied/);
+    expect(await as(w.employee, 'select id, name from facilities')).not.toHaveLength(0);
+  });
+});
+
+describe('custom site links', () => {
+  it('sites get a readable link name that only resolves for people with access', async () => {
+    const [{ slug }] = await as<{ slug: string }>(w.owner, 'select slug from facilities where id = $1', [w.facilityA]);
+    expect(slug).toMatch(/^harbor-hotel(-\d+)?$/);
+    const mine = await as<{ id: string }>(w.manager, 'select id, company_id from facilities where slug = $1', [slug]);
+    expect(mine.map((r) => r.id)).toEqual([w.facilityA]);
+    expect(await as(w.outsider, 'select id from facilities where slug = $1', [slug])).toHaveLength(0);
+    await expect(as(null, 'select id from facilities where slug = $1', [slug])).rejects.toThrow(/permission denied/);
+  });
+
+  it('owners can rename a link; it is cleaned up and must be unique; employees cannot rename', async () => {
+    const custom = `Harbor Valet ${seq}!`;
+    const [{ slug }] = await as<{ slug: string }>(w.owner, 'update facilities set slug = $2 where id = $1 returning slug', [w.facilityA, custom]);
+    expect(slug).toBe(`harbor-valet-${seq}`);
+    await expect(as(w.owner, 'update facilities set slug = $2 where id = $1', [w.facilityB, slug])).rejects.toThrow(/duplicate key/);
+    const r = await as(w.employee, 'update facilities set slug = $2 where id = $1 returning id', [w.facilityA, 'hijack']);
+    expect(r).toHaveLength(0);
+    await expect(as(w.owner, 'update facilities set slug = $2 where id = $1', [w.facilityA, 'team'])).rejects.toThrow(/check constraint/);
+  });
+});
 });
