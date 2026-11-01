@@ -305,7 +305,8 @@ describe('sites: join codes and contract limits', () => {
 
   it('wrong codes are rejected with a plain message, and codes never raise a role', async () => {
     const newbie = await user(`guess${seq}@gmail.test`);
-    await expect(as(newbie, `select public.join_site('ZZZZZZ')`)).rejects.toThrow(/didn't match a site/);
+    expect((await as<{ join_site: string | null }>(newbie, `select public.join_site('ZZZZZZ')`))[0].join_site).toBeNull();
+    expect(await as(newbie, 'select id from facilities')).toEqual([]);
     const [{ get_join_code: code }] = await as<{ get_join_code: string }>(w.manager, 'select public.get_join_code($1)', [w.facilityA]);
     await as(w.manager, 'select public.join_site($1)', [code]);
     const [m] = await as<{ role: string; facility_ids: string[] | null }>(w.manager, 'select role, facility_ids from memberships where user_id = $1', [w.manager]);
@@ -317,7 +318,7 @@ describe('sites: join codes and contract limits', () => {
     const [{ rotate_join_code: fresh }] = await as<{ rotate_join_code: string }>(w.manager, 'select public.rotate_join_code($1)', [w.facilityA]);
     expect(fresh).not.toBe(old);
     const late = await user(`late${seq}@gmail.test`);
-    await expect(as(late, 'select public.join_site($1)', [old])).rejects.toThrow(/didn't match/);
+    expect((await as<{ join_site: string | null }>(late, 'select public.join_site($1)', [old]))[0].join_site).toBeNull();
     await expect(as(w.manager, `update facilities set join_code = 'AAAAAA' where id = $1`, [w.facilityA])).rejects.toThrow(/New join code/);
   });
 
@@ -336,6 +337,46 @@ describe('sites: join codes and contract limits', () => {
     const [{ id }] = await as<{ id: string }>(siteMgr, `insert into maps (facility_id, name, draft) values ($1, 'Stadium', '{}') returning id`, [w.facilityB]);
     expect(id).toBeTruthy();
   });
+
+describe('audit hardening', () => {
+  it('site managers cannot shrink or change the access of people beyond their sites', async () => {
+    const siteMgr = await user(`sitemgr${seq}@acme.test`);
+    await as(w.owner, `select public.add_member($1, $2, 'manager', array[$3]::uuid[])`, [w.company, `sitemgr${seq}@acme.test`, w.facilityB]);
+    // w.manager is a company-wide manager; the site manager must not be able to narrow them to one site.
+    await expect(as(siteMgr, `select public.add_member($1, $2, 'manager', array[$3]::uuid[])`, [w.company, `manager${seq}@acme.test`, w.facilityB]))
+      .rejects.toThrow(/access beyond your sites/);
+    const [m] = await as<{ facility_ids: string[] | null }>(w.owner, 'select facility_ids from memberships where user_id = $1', [w.manager]);
+    expect(m.facility_ids).toBeNull();
+    // ...but can still manage people who are only at their site.
+    await as(siteMgr, `select public.add_member($1, $2, 'employee', array[$3]::uuid[])`, [w.company, `scoped${seq}@acme.test`, w.facilityB]);
+    // Invitations follow the same rule.
+    await as(w.owner, `select public.add_member($1, 'wide${seq}@new.test', 'manager')`, [w.company]);
+    await expect(as(siteMgr, `select public.add_member($1, 'wide${seq}@new.test', 'employee', array[$2]::uuid[])`, [w.company, w.facilityB]))
+      .rejects.toThrow(/beyond your sites/);
+    await expect(as(siteMgr, `select public.cancel_invitation($1, 'wide${seq}@new.test')`, [w.company])).rejects.toThrow(/your own sites/);
+  });
+
+  it('site managers only see the people at their own sites', async () => {
+    const siteMgr = await user(`sitesee${seq}@acme.test`);
+    await as(w.owner, `select public.add_member($1, $2, 'manager', array[$3]::uuid[])`, [w.company, `sitesee${seq}@acme.test`, w.facilityB]);
+    const seen = (await as<{ email: string }>(siteMgr, 'select email from public.list_members($1)', [w.company])).map((r) => r.email).sort();
+    expect(seen).toEqual([`scoped${seq}@acme.test`, `sitesee${seq}@acme.test`]);
+    expect((await as(w.owner, 'select email from public.list_members($1)', [w.company])).length).toBeGreaterThan(3);
+  });
+
+  it('join codes cannot be guessed: 10 wrong codes in an hour pause joining', async () => {
+    const guesser = await user(`brute${seq}@gmail.test`);
+    for (let i = 0; i < 10; i++) await as(guesser, `select public.join_site('QQQQQ' || $1)`, [String(i)]);
+    const [{ get_join_code: code }] = await as<{ get_join_code: string }>(w.manager, 'select public.get_join_code($1)', [w.facilityA]);
+    await expect(as(guesser, 'select public.join_site($1)', [code])).rejects.toThrow(/Too many wrong codes/);
+    await expect(as(guesser, 'select * from join_attempts')).rejects.toThrow(/permission denied/);
+  });
+
+  it('map documents have a size limit', async () => {
+    const huge = { ...doc('big'), pad: 'x'.repeat(26 * 1024 * 1024) };
+    await expect(as(w.manager, `insert into maps (facility_id, name, draft) values ($1, 'Big', $2)`, [w.facilityA, huge])).rejects.toThrow(/maps_draft_size/);
+  });
+});
 
 describe('platform admins', () => {
   it('only admins can create a company; nobody can read or add admins from the app', async () => {

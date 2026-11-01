@@ -7,7 +7,7 @@ import { useEditor } from './store';
 
 export function Sidebar() {
   const [tab, setTab] = useState<'add' | 'layers'>('add');
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 700px)').matches);
   const tool = useEditor((s) => s.tool);
   const st = useEditor.getState;
 
