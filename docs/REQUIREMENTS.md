@@ -160,7 +160,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 19 | Share links, PDF, high-res image, printable floors, per-floor export, permission-aware | Not started (Phase 3; share links Phase 2) |
+| 19 | Share links, PDF, high-res image, printable floors, per-floor export, permission-aware | Not started (Phase 3; share links Phase 2). Partial: a map can be downloaded as a map file and imported on the home page (`storage/mapFile.ts`; unit: mapFile.test; e2e: editor.spec download/import). This moves a map between browsers and lets a map built elsewhere (for example from a paper sketch) be loaded privately |
 
 ## Part 20: Performance
 
@@ -178,7 +178,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 22 | This matrix; automated tests of key workflows; re-run after changes | In progress: 78 unit tests, 12 browser tests and 27 database security tests run in CI on every push. Publishing, permissions, revoked access, exporting and company separation tests arrive with those features |
+| 22 | This matrix; automated tests of key workflows; re-run after changes | In progress: 82 unit tests, 13 browser tests and 27 database security tests run in CI on every push. Publishing, permissions, revoked access, exporting and company separation tests arrive with those features |
 
 ## Part 23: Usability testing
 
