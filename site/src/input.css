@@ -125,8 +125,8 @@
 
 .am-canvas { position: absolute; left: 280px; top: 46px; right: 0; bottom: 50px; overflow: hidden; }
 .am-map { width: 1160px; height: 804px; }
-.am .sp text { fill: #0b2545; font-family: "Overpass", sans-serif; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
-.am .sp.hit .sp-body { fill: #f2b705; }
+.sp text { fill: #0b2545; font-family: "Overpass", sans-serif; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+.sp.hit .sp-body { fill: #f2b705; }
 .am-tip { opacity: 0; }
 .am-tip rect { fill: #0b2545; }
 .am-tip text { fill: #fff; font: 600 14px "Overpass", sans-serif; text-anchor: middle; }
@@ -190,3 +190,33 @@
 .dm-steps button[aria-selected="true"] .dm-bar { background: var(--color-sign); }
 .dm-dot[data-edge="bottom"] { translate: -50% -4px; }
 .dm-dot[data-edge="right"] { translate: 6px -50%; }
+
+/* ===== Hero: the plan drawing, the real map over it, and a working phone ===== */
+.hero-svg { display: block; width: 100%; height: auto; }
+.hero-real { position: absolute; inset: 0; height: 100%; }
+.drawing .bp-stall, .drawing .bp-box { stroke-width: 1.2; }
+.drawing .bp-num { font-size: 10px; }
+.drawing .bp-note { font-size: 9px; letter-spacing: .06em; }
+.drawing .bp-aisle { stroke-dasharray: 10 8; stroke-width: .8; }
+.hero-real [data-find] { cursor: pointer; }
+.hero-real .sp[data-find]:hover .sp-body { fill: #fff2c2; }
+.hero-real .sp.hit:hover .sp-body { fill: #f2b705; }
+.hero-real .as[data-find]:hover { opacity: .8; }
+#hr-route { stroke: #0b2545; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+#hr-ring, #hp-ring { stroke: #f2b705; stroke-width: 6; }
+
+.hp-wrap { position: relative; aspect-ratio: 330 / 690; }
+.hp { position: absolute; left: 0; top: 0; width: 330px; height: 690px; transform: scale(var(--hs, .88)); transform-origin: 0 0; font-family: "Overpass", "Segoe UI", sans-serif; font-size: 14px; color: #0b2545; }
+.hp .am-phone { position: relative; left: 0; top: 0; opacity: 1; visibility: visible; box-shadow: 0 30px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.12); }
+.hp-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; color: #0b2545; }
+.hp-search input::placeholder { color: #5d6b7e; }
+.hp-search:focus-within { box-shadow: 0 0 0 3px #93c5fd; }
+.hp-res { position: absolute; left: -2px; right: -2px; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; background: #fff; border: 1px solid #dedad2; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.18); z-index: 5; }
+.hp-res:empty { display: none; }
+.hp-res button { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 8px; font-size: 15px; color: #0b2545; text-align: left; cursor: pointer; }
+.hp-res button:hover, .hp-res button.on { background: #efece6; }
+.hp-res b { font-weight: 800; }
+.hp-res span, .hp-res li.none { color: #5d6b7e; font-size: 13px; }
+.hp-res li.none { padding: 10px; }
+.hp .am-info { opacity: 1; }
+.sep { font-style: normal; margin: 0 .35em; }
