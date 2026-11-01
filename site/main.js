@@ -20,35 +20,12 @@
   });
 
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var hero = heroMap(reduced);
   productDemo(reduced);
   if (!window.gsap || reduced) return;
   gsap.registerPlugin(ScrollTrigger);
 
-  // Hero: the plan draws itself, the phone types a space, it lights up and the route draws in.
-  var plan = document.getElementById('plan');
-  var lines = plan.querySelectorAll('path:not(.route), rect:not([fill="transparent"])');
-  lines.forEach(function (el) {
-    var len = el.getTotalLength ? el.getTotalLength() : 0;
-    if (len) gsap.set(el, { strokeDasharray: len, strokeDashoffset: len });
-  });
-  var route = plan.querySelector('.route');
-  var rlen = route.getTotalLength();
-  gsap.set(route, { strokeDasharray: rlen, strokeDashoffset: rlen });
-  var found = plan.querySelector('.stall-found-box');
-  gsap.set(found, { opacity: 0 });
-  var typed = document.getElementById('typed');
-  typed.textContent = '';
-  gsap.set('#result', { autoAlpha: 0 });
-  gsap.set(plan.querySelectorAll('text'), { opacity: 0 });
-
-  var q = { n: 0 };
-  gsap.timeline({ delay: 0.2 })
-    .to(lines, { strokeDashoffset: 0, duration: 1.4, ease: 'power2.inOut', stagger: { amount: 0.8 } })
-    .to(plan.querySelectorAll('text'), { opacity: 1, duration: 0.5, stagger: { amount: 0.4 } }, '-=0.6')
-    .to(q, { n: 3, duration: 0.6, ease: 'none', onUpdate: function () { typed.textContent = 'C12'.slice(0, Math.round(q.n)); } })
-    .to(found, { opacity: 1, duration: 0.25 })
-    .to('#result', { autoAlpha: 1, duration: 0.3 }, '<')
-    .to(route, { strokeDashoffset: 0, duration: 1.1, ease: 'power1.inOut' }, '<');
+  heroIntro();
 
   // Section drawing draws in once when it scrolls into view.
   var sec = document.getElementById('section');
@@ -228,5 +205,122 @@
       else { tl.pause(); if (next) next.pause(); }
     }, { threshold: 0.35 }).observe(frame);
     base();
+  }
+
+  /* ===== Hero: blueprint draws, the real map wipes in over it, then the phone finds things ===== */
+  function heroIntro() {
+    var plan = document.getElementById('plan'), real = document.getElementById('hr-real');
+    if (!plan || !real) return;
+    var lines = plan.querySelectorAll('path, rect, circle');
+    lines.forEach(function (el) { var l = el.getTotalLength ? el.getTotalLength() : 0; if (l) gsap.set(el, { strokeDasharray: l, strokeDashoffset: l }); });
+    gsap.set(plan.querySelectorAll('text'), { opacity: 0 });
+    gsap.set(real, { clipPath: 'inset(0 100% 0 0)' });
+    gsap.timeline({ delay: 0.15, onComplete: function () { gsap.set(real, { clearProps: 'clipPath' }); if (hero) hero.start(); } })
+      .to(lines, { strokeDashoffset: 0, duration: 1.3, ease: 'power2.inOut', stagger: { amount: 0.7 } })
+      .to(plan.querySelectorAll('text'), { opacity: 1, duration: 0.4, stagger: { amount: 0.3 } }, '-=0.6')
+      .to(real, { clipPath: 'inset(0 0% 0 0)', duration: 1.2, ease: 'power2.inOut' }, '+=0.3');
+  }
+
+  function heroMap(reduced) {
+    var real = document.getElementById('hr-real'), world = document.getElementById('hr-world');
+    if (!real || !world) return null;
+    var hp = document.getElementById('hp'), wrap = document.getElementById('hp-wrap');
+    function fitPhone() { hp.style.setProperty('--hs', wrap.clientWidth / 330); }
+    fitPhone();
+    if (window.ResizeObserver) new ResizeObserver(fitPhone).observe(wrap); else addEventListener('resize', fitPhone);
+
+    var g = window.gsap && !reduced ? window.gsap : null;
+    var items = [].slice.call(world.querySelectorAll('[data-find]'));
+    var q = document.getElementById('hp-q'), res = document.getElementById('hp-res'), form = document.getElementById('hp-form');
+    var pmap = document.getElementById('hp-map'), pring = document.getElementById('hp-ring'), ring = document.getElementById('hr-ring');
+    var route = document.getElementById('hr-route'), it = document.getElementById('hp-it'), idt = document.getElementById('hp-id');
+    var box = world.getAttribute('data-box').split(' ').map(Number);
+    var lanes = world.getAttribute('data-lanes').split(',').map(Number), mainX = +world.getAttribute('data-main');
+    var entry = items.filter(function (e) { return e.getAttribute('data-find') === 'Entrance'; })[0];
+    var whole = [box[0] - 20, box[1] - 20, box[2] + 40, box[3] + 40];
+    pmap.setAttribute('viewBox', whole.join(' '));
+    var current = null, auto = !reduced, timer = null;
+
+    function num(el, k) { return +el.getAttribute('data-' + k); }
+    function setView(v, animate) {
+      if (animate && g) g.to(pmap, { attr: { viewBox: v.join(' ') }, duration: 0.9, ease: 'power2.inOut' });
+      else pmap.setAttribute('viewBox', v.join(' '));
+    }
+    function pathTo(el) {
+      var tx = num(el, 'x'), ty = num(el, 'y');
+      var ex = num(entry, 'x'), ey = num(entry, 'y');
+      var lane = lanes.reduce(function (a, b) { return Math.abs(b - ty) < Math.abs(a - ty) ? b : a; });
+      return 'M' + ex + ' ' + (ey - 10) + 'V' + lane + 'H' + tx + 'V' + (ty + (ty < lane ? num(el, 'h') / 2 : -num(el, 'h') / 2));
+    }
+    function select(el, how) {
+      if (current) current.classList.remove('hit');
+      current = el;
+      var x = num(el, 'x'), y = num(el, 'y'), w = num(el, 'w'), h = num(el, 'h');
+      if (el.classList.contains('sp')) el.classList.add('hit');
+      [ring, pring].forEach(function (r) { r.setAttribute('x', x - w / 2 - 7); r.setAttribute('y', y - h / 2 - 7); r.setAttribute('width', w + 14); r.setAttribute('height', h + 14); });
+      it.textContent = el.getAttribute('data-find');
+      var kind = el.getAttribute('data-kind');
+      idt.textContent = 'Level 1';
+      if (kind && kind !== el.getAttribute('data-find')) { var sep = document.createElement('i'); sep.className = 'sep'; sep.textContent = '\u00b7'; idt.appendChild(sep); idt.appendChild(document.createTextNode(kind)); }
+      route.setAttribute('d', el === entry ? 'M0 0' : pathTo(el));
+      var vw = 260, vh = 340;
+      setView([x - vw / 2, y - vh / 2, vw, vh], true);
+      if (g) {
+        var len = route.getTotalLength();
+        g.fromTo(route, { strokeDasharray: len, strokeDashoffset: len }, { strokeDashoffset: 0, duration: 1, ease: 'power1.inOut' });
+        g.fromTo([ring, pring], { opacity: 0 }, { opacity: 1, duration: 0.3, delay: 0.2 });
+        g.fromTo('#hp-info', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, delay: 0.5 });
+      }
+      if (how !== 'type') { q.value = el.getAttribute('data-find'); }
+      res.innerHTML = '';
+    }
+    function matches(text) {
+      var t = text.trim().toLowerCase();
+      if (!t) return [];
+      return items.filter(function (e) { return e.getAttribute('data-find').toLowerCase().indexOf(t) >= 0 || e.getAttribute('data-kind').toLowerCase().indexOf(t) >= 0; })
+        .sort(function (a, b) { var A = a.getAttribute('data-find').toLowerCase(), B = b.getAttribute('data-find').toLowerCase(); return (A === t ? -1 : 0) - (B === t ? -1 : 0) || (A.indexOf(t) - B.indexOf(t)) || A.length - B.length; })
+        .slice(0, 5);
+    }
+    function list(text) {
+      var m = matches(text);
+      res.innerHTML = '';
+      if (!text.trim()) return;
+      if (!m.length) { var li = document.createElement('li'); li.className = 'none'; li.textContent = 'Nothing called “' + text.trim() + '” on this level.'; res.appendChild(li); return; }
+      m.forEach(function (e, i) {
+        var li = document.createElement('li'), b = document.createElement('button'), n = document.createElement('b'), s = document.createElement('span');
+        b.type = 'button'; if (i === 0) b.className = 'on';
+        n.textContent = e.getAttribute('data-find'); s.textContent = 'Level 1';
+        b.appendChild(n); b.appendChild(s);
+        b.addEventListener('click', function () { stop(); select(e); });
+        li.appendChild(b); res.appendChild(li);
+      });
+    }
+    function stop() { auto = false; if (timer) { clearTimeout(timer); timer = null; } if (g) g.killTweensOf(typer); }
+    var typer = { n: 0 };
+    var demo = ['1C12', 'Key box', 'EV charger 1', 'Parking office', '1A7'], step = 0;
+    function next() {
+      if (!auto) return;
+      var text = demo[step++ % demo.length];
+      var target = matches(text)[0];
+      q.value = '';
+      typer.n = 0;
+      g.to(typer, { n: text.length, duration: 0.12 * text.length, ease: 'none',
+        onUpdate: function () { q.value = text.slice(0, Math.round(typer.n)); list(q.value); },
+        onComplete: function () { timer = setTimeout(function () { if (!auto) return; select(target); timer = setTimeout(next, 3200); }, 450); } });
+    }
+
+    items.forEach(function (e) {
+      e.addEventListener('click', function () { stop(); select(e); });
+    });
+    q.addEventListener('input', function () { stop(); list(q.value); });
+    q.addEventListener('focus', stop);
+    form.addEventListener('submit', function (ev) { ev.preventDefault(); stop(); var m = matches(q.value)[0]; if (m) select(m, 'type'); });
+    real.addEventListener('pointerdown', stop);
+
+    // Initial state: the space from the headline example, found.
+    var first = matches('1C12')[0];
+    if (!g) { if (first) { select(first); q.value = ''; } return null; }
+    window.gsap.set('#hp-info', { opacity: 0 });
+    return { start: function () { if (auto) { timer = setTimeout(next, 600); } } };
   }
 })();

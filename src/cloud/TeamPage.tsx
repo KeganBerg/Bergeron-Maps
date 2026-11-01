@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
+import { useRoute } from '../router';
 import { ConfirmDialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
 import { friendly, supabase } from './client';
@@ -45,6 +46,11 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
   const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
+  const { query } = useRoute();
+  const [find, setFind] = useState(() => query.get('q') ?? '');
+  const f = find.trim().toLowerCase();
+  const shownSites = f ? sites.filter((x) => x.name.toLowerCase().includes(f) || x.slug.includes(f) || codes[x.id]?.toLowerCase() === f) : sites;
+  const shownMembers = members && f ? members.filter((m) => m.email.includes(f) || describe(m, sites).toLowerCase().includes(f)) : members;
 
   const saveLink = async () => {
     if (!editingLink) return;
@@ -129,6 +135,8 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
       <main className="home-main team">
         <div className="page-head">
           <h2>Sites and people <span className="page-sub">{membership.companyName}</span></h2>
+          <input type="search" className="page-search" value={find} onChange={(e) => setFind(e.target.value)}
+            placeholder="Search sites, people or a join code" aria-label="Search sites and people" data-testid="team-search" />
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}
@@ -140,7 +148,8 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
             published maps.
           </p>
           <ul className="site-list">
-            {sites.map((s) => (
+            {f && shownSites.length === 0 && <li className="muted small">No site matches “{find.trim()}”.</li>}
+            {shownSites.map((s) => (
               <li key={s.id} data-testid={`team-site-${s.name}`}>
                 <span className="site-name">
                   <strong>{s.name}</strong>
@@ -201,9 +210,10 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
 
         <section className="panel-card">
           <h3>People</h3>
-          {members === null ? <p className="muted">Loading…</p> : (
+          {shownMembers === null ? <p className="muted">Loading…</p> : (
             <ul className="people">
-              {members.map((m) => (
+              {f && shownMembers.length === 0 && <li className="muted small">Nobody matches “{find.trim()}”.</li>}
+              {shownMembers.map((m) => (
                 <li key={m.email}>
                   <span>
                     <strong>{m.email}</strong>
