@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { newId } from '../model/ids';
+import { MAP_FILE_EXTENSION, MAX_MAP_FILE_BYTES, parseMapFile } from '../storage/mapFile';
 import { TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
 import { navigate } from '../router';
 import { ConfirmDialog } from '../ui/Dialog';
@@ -15,6 +16,7 @@ export function HomePage({ repo }: { repo: MapRepository }) {
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
   const [purging, setPurging] = useState<MapSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const refresh = async () => {
     try {
@@ -40,6 +42,21 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     await refresh();
   };
 
+  const importFile = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    try {
+      if (file.size > MAX_MAP_FILE_BYTES) throw new Error('This file is too large to be a map file.');
+      const doc = parseMapFile(await file.text());
+      await repo.createMap(doc);
+      navigate(`/edit/${doc.id}`);
+    } catch (e) {
+      setError(`“${file.name}” couldn’t be imported. ${e instanceof Error ? e.message : ''}`);
+    } finally {
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  };
+
   return (
     <div className="home">
       <header className="home-header">
@@ -47,9 +64,16 @@ export function HomePage({ repo }: { repo: MapRepository }) {
           <span className="logo">P</span>
           <h1>Bergeron Maps</h1>
         </div>
-        <button className="btn primary" onClick={() => setCreating(true)} data-testid="new-map">
-          <Icon name="plus" size={16} /> New map
-        </button>
+        <span className="btn-row">
+          <button className="btn" onClick={() => fileInput.current?.click()} title="Open a map file downloaded from Bergeron Maps" data-testid="import-map">
+            Import map file
+          </button>
+          <input ref={fileInput} type="file" accept={`${MAP_FILE_EXTENSION},.json,application/json`} hidden
+            onChange={(e) => void importFile(e.target.files?.[0])} data-testid="import-map-input" />
+          <button className="btn primary" onClick={() => setCreating(true)} data-testid="new-map">
+            <Icon name="plus" size={16} /> New map
+          </button>
+        </span>
       </header>
 
       <main className="home-main">

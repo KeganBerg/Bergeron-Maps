@@ -3,6 +3,7 @@ import type { SnapMode } from '../model/snapping';
 import { CommitInput, toNumber } from '../ui/fields';
 import { Icon, type IconName } from '../ui/icons';
 import { modLabel } from './useKeyboard';
+import { mapFileName, serializeMapFile } from '../storage/mapFile';
 import { currentFloor, useEditor, type SaveStatus } from './store';
 
 const STATUS: Record<SaveStatus, { text: string; tone: string }> = {
@@ -49,6 +50,14 @@ export function TopBar({ onSave, onHistory, onPreview, onHome }: {
     if (floor) s.setViewport(fitViewport(floorBounds(floor), s.viewSize));
   };
   const info = STATUS[status];
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([serializeMapFile(st().doc!)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = mapFileName(st().doc!);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   return (
     <header className="topbar">
@@ -99,6 +108,9 @@ export function TopBar({ onSave, onHistory, onPreview, onHome }: {
 
       <div className="group">
         <ToolButton icon="history" label="Version history" onClick={onHistory} testId="history" />
+        <button className="btn small" onClick={download} title="Download this map as a file you can keep as a backup or import in another browser" data-testid="download-map">
+          Download
+        </button>
         <button className="btn" onClick={onPreview} data-testid="preview"><Icon name="play" size={14} /> Preview</button>
         <button className="btn primary" disabled title="Publishing to employees arrives with accounts in Phase 2. Use Preview to see the employee view.">
           Publish
