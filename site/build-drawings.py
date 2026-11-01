@@ -109,7 +109,6 @@ def section():
 
 p = pathlib.Path(__file__).with_name("index.html")
 html = p.read_text()
-html = re.sub(r"<!--PLAN-->.*?<!--/PLAN-->", lambda m: "<!--PLAN-->" + plan() + "<!--/PLAN-->", html, flags=re.S)
 html = re.sub(r"<!--SECTION-->.*?<!--/SECTION-->", lambda m: "<!--SECTION-->" + section() + "<!--/SECTION-->", html, flags=re.S)
 p.write_text(html)
 print("drawings ok")
