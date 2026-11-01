@@ -27,15 +27,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx vite build --base=/${{ github.event.repository.name }}/
+      # The app is built with relative asset paths and served under /app/, so it works both at
+      # keganberg.github.io/Bergeron-Maps/app/ and, once the custom domain is on, bergeronmaps.com/app/.
+      - run: npx vite build --base=./
         env:
           # Public project URL and anon key: safe to publish. Row-level security in
           # supabase/migrations decides what each signed-in person can reach.
           VITE_SUPABASE_URL: https://ysebxeokxpnmckwdtimj.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZWJ4ZW9reHBubWNrd2R0aW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDU3OTEsImV4cCI6MjEwOTEyMTc5MX0._gioylYj_sf6pLy3o6riTL0n9Y-EVsu3VNzpeRXYQkY
+      # Marketing site (site/) at the root, the app under /app/.
+      - name: Assemble site
+        run: |
+          mkdir -p _site/app
+          cp -r site/. _site/
+          cp -r dist/. _site/app/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
