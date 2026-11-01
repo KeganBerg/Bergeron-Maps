@@ -38,7 +38,7 @@
 /* Title block under the hero drawing, like the corner of an architect's sheet */
 .titleblock > div { @apply border-white/25 px-4 py-3 text-sm sm:px-6; }
 .titleblock > div + div { border-left-width: 1px; }
-.titleblock span { @apply mb-1 block font-mono text-[11px] uppercase tracking-[0.08em] text-white/40; }
+.titleblock span { @apply mb-1 block font-mono text-[11px] uppercase tracking-[0.08em] text-white/60; }
 
 /* Drawings */
 .drawing text { fill: currentColor; stroke: none; font-family: var(--font-mono); font-size: 11px; text-anchor: middle; }
@@ -179,6 +179,8 @@
 .dm-dot:hover { transform: scale(1.12); }
 .dm-dot.on { background: var(--color-sign); color: var(--color-ink); box-shadow: 0 0 0 3px var(--color-ink); }
 @media (max-width: 640px) { .dm-dot { width: 17px; height: 17px; font-size: 9px; box-shadow: 0 0 0 2px var(--color-sign); } }
+/* Keep a 28px tap target even when the visible dot is small. */
+.dm-dot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; translate: -50% -50%; border-radius: 50%; }
 
 .dm-steps { margin-top: 24px; display: grid; gap: 0; border-top: 1px solid rgb(11 11 11 / .15); }
 @media (min-width: 640px) { .dm-steps { grid-template-columns: repeat(2, 1fr); } }
@@ -220,3 +222,5 @@
 .hp-res li.none { padding: 10px; }
 .hp .am-info { opacity: 1; }
 .sep { font-style: normal; margin: 0 .35em; }
+
+.soon { margin-left: 6px; padding: 1px 6px; border: 1px solid rgb(11 11 11 / .3); border-radius: 2px; font: 500 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: rgb(11 11 11 / .7); vertical-align: 2px; white-space: nowrap; }
