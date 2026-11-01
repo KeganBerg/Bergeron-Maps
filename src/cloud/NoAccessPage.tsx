@@ -28,8 +28,8 @@ export function NoAccessPage({ email, isAdmin, onJoined }: { email: string; isAd
           <form className="signin-card" onSubmit={(e) => { e.preventDefault(); void run(() => supabase!.rpc('create_company', { p_name: company, p_facility_name: site })); }}>
             <h2>Set up a company</h2>
             <p className="muted">You’re a Bergeron Maps admin. Create the customer’s company and its first site, then add their managers from Team.</p>
-            <label className="stack">Company name<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="e.g. Towne Park" required maxLength={120} /></label>
-            <label className="stack">First site<input value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Harbor Hotel" required maxLength={120} /></label>
+            <label className="stack">Company name<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" required maxLength={120} /></label>
+            <label className="stack">First site<input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Site Name" required maxLength={120} /></label>
             <button className="btn primary big" disabled={busy}>Create company</button>
           </form>
         )}

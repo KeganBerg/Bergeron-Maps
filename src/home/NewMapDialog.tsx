@@ -66,7 +66,7 @@ export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCre
       <form className="new-map" onSubmit={(e) => { e.preventDefault(); create(); }}>
         <label className="stack">
           {site ? 'Map name' : 'Site name'}
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={site ? 'e.g. Overflow lot' : 'e.g. Harbor Hotel Garage'} maxLength={80} data-testid="map-name-input" />
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={site ? 'e.g. Overflow lot' : 'Site Name'} maxLength={80} data-testid="map-name-input" />
         </label>
 
         <div className="segmented" role="radiogroup" aria-label="How to start">

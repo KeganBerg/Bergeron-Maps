@@ -30,7 +30,7 @@ describe('map files', () => {
   });
 
   it('builds a safe file name', () => {
-    expect(mapFileName({ name: 'Clematis / Garage: Level 1' })).toBe('Clematis-Garage-Level-1.bmap.json');
+    expect(mapFileName({ name: 'Site Name / Garage: Level 1' })).toBe('Site-Name-Garage-Level-1.bmap.json');
     expect(mapFileName({ name: '***' })).toBe('map.bmap.json');
   });
 });

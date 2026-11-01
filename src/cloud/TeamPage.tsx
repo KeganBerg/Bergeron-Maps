@@ -173,7 +173,7 @@ export function TeamPage({ membership, header }: { membership: Membership; heade
           </ul>
           {full && (
             <form className="inline-form" onSubmit={(e) => { e.preventDefault(); void addSite(); }}>
-              <input value={newSite} onChange={(e) => setNewSite(e.target.value)} placeholder="New site name, e.g. Riverside Medical" maxLength={120} />
+              <input value={newSite} onChange={(e) => setNewSite(e.target.value)} placeholder="Site Name" maxLength={120} />
               <button className="btn" disabled={!newSite.trim()}><Icon name="plus" size={14} /> Add site</button>
             </form>
           )}

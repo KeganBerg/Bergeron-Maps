@@ -4,6 +4,7 @@ import { AppHeader, HomePage } from '../home/HomePage';
 import { navigate, useRoute } from '../router';
 import { ViewerPage } from '../viewer/ViewerPage';
 import { AccountMenu } from './AccountMenu';
+import { AdminPage } from './AdminPage';
 import { supabase } from './client';
 import { EmployeeHome } from './EmployeeHome';
 import { NoAccessPage } from './NoAccessPage';
@@ -13,7 +14,7 @@ import { SupabaseRepository } from './supabaseRepository';
 import { TeamPage } from './TeamPage';
 
 const COMPANY_KEY = 'bm.company';
-const RESERVED = new Set(['edit', 'view', 'team', 'site']);
+const RESERVED = new Set(['edit', 'view', 'team', 'site', 'admin']);
 const readCompany = () => { try { return localStorage.getItem(COMPANY_KEY); } catch { return null; } };
 
 /**
@@ -68,18 +69,21 @@ export function OnlineApp() {
 
   if (!s.loading && !s.session) return <SignInPage siteLink={!!linkKey} />;
   if (s.loading || (resolving && s.memberships.length)) return <div className="page-message"><p>Loading…</p></div>;
-  if (!membership || !repo) return <NoAccessPage email={s.email ?? ''} isAdmin={s.isAdmin} onJoined={s.reload} />;
-
-  const switchCompany = (id: string) => {
+  const switchCompany = (id: string, to = '/') => {
     try { localStorage.setItem(COMPANY_KEY, id); } catch { /* stays for this visit */ }
     setCompanyId(id);
-    navigate('/');
+    navigate(to);
   };
+  const accountMenu = <AccountMenu email={s.email ?? ''} memberships={s.memberships} current={membership} onSwitch={switchCompany} />;
+  if (parts[0] === 'admin' && s.isAdmin) return <AdminPage header={accountMenu} onOpen={switchCompany} onCreated={s.reload} />;
+  if (!membership || !repo) return <NoAccessPage email={s.email ?? ''} isAdmin={s.isAdmin} onJoined={s.reload} />;
+
   const editor = canEdit(membership);
   const header = (
     <>
+      {s.isAdmin && <button className="btn" onClick={() => navigate('/admin')} data-testid="admin">All accounts</button>}
       {editor && parts[0] !== 'team' && <button className="btn" onClick={() => navigate('/team')} data-testid="team">Sites &amp; people</button>}
-      <AccountMenu email={s.email ?? ''} memberships={s.memberships} current={membership} onSwitch={switchCompany} />
+      {accountMenu}
     </>
   );
 
