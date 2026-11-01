@@ -10,6 +10,8 @@ export interface Membership {
   role: Role;
   /** null = every site in the company (owners, regional managers). */
   siteIds: string[] | null;
+  /** Reached as a Bergeron Maps admin rather than as a member of the company. */
+  viaAdmin?: boolean;
 }
 
 export interface SessionState {
@@ -62,16 +64,22 @@ export function useSession(): SessionState {
     Promise.all([
       supabase.from('memberships').select('company_id, role, facility_ids, companies(name)').eq('user_id', userId),
       supabase.rpc('is_platform_admin'),
-    ]).then(([m, a]) => {
+    ]).then(async ([m, a]) => {
       if (!alive) return;
       if (m.error) setError(m.error.message);
       const rows = (m.data ?? []) as unknown as { company_id: string; role: Role; facility_ids: string[] | null; companies: { name: string } | null }[];
-      setMemberships(
-        rows
-          .map((r) => ({ companyId: r.company_id, companyName: r.companies?.name ?? 'Company', role: r.role, siteIds: r.facility_ids }))
-          .sort((x, y) => x.companyName.localeCompare(y.companyName)),
-      );
-      setIsAdmin(a.data === true);
+      const list: Membership[] = rows.map((r) => ({ companyId: r.company_id, companyName: r.companies?.name ?? 'Company', role: r.role, siteIds: r.facility_ids }));
+      const admin = a.data === true;
+      if (admin) {
+        // Admins can open every company, as if they were its owner.
+        const all = await supabase!.from('companies').select('id, name');
+        if (!alive) return;
+        for (const c of (all.data ?? []) as { id: string; name: string }[]) {
+          if (!list.some((x) => x.companyId === c.id)) list.push({ companyId: c.id, companyName: c.name, role: 'owner', siteIds: null, viaAdmin: true });
+        }
+      }
+      setMemberships(list.sort((x, y) => x.companyName.localeCompare(y.companyName)));
+      setIsAdmin(admin);
       setLoadedFor(`${userId}:${tick}`);
     });
     return () => {

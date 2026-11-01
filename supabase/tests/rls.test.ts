@@ -67,6 +67,7 @@ interface World {
   employee: string;
   scopedEmployee: string;
   outsider: string;
+  admin: string;
   company: string;
   facilityA: string;
   facilityB: string;
@@ -101,7 +102,13 @@ beforeEach(async () => {
   const [{ id: otherMap }] = await as<{ id: string }>(outsider, `insert into maps (facility_id, name, draft) values ($1, 'Secret', $2) returning id`, [otherFacility, doc('secret')]);
   await as(outsider, 'select public.publish_map($1)', [otherMap]);
 
-  w = { owner, manager, employee, scopedEmployee, outsider, company, facilityA, facilityB, otherCompany, otherMap, map };
+  // Company setup is done by admins; from here on the customers are plain members,
+  // and a separate Bergeron Maps admin oversees everything.
+  await db.query('delete from platform_admins where email in ($1, $2)', [`owner${seq}@acme.test`, `outsider${seq}@other.test`]);
+  const admin = await user(`admin${seq}@bergeronmaps.test`);
+  await db.query('insert into platform_admins (email) values ($1)', [`admin${seq}@bergeronmaps.test`]);
+
+  w = { owner, manager, employee, scopedEmployee, outsider, admin, company, facilityA, facilityB, otherCompany, otherMap, map };
 });
 
 describe('company data separation', () => {
@@ -335,8 +342,31 @@ describe('platform admins', () => {
     await expect(as(w.manager, `select public.create_company('Mine', 'Lot')`)).rejects.toThrow(/Only Bergeron Maps admins/);
     await expect(as(w.manager, `select * from platform_admins`)).rejects.toThrow(/permission denied/);
     await expect(as(w.manager, `insert into platform_admins (email) values ('me@x.test')`)).rejects.toThrow(/permission denied/);
-    expect((await as<{ is_platform_admin: boolean }>(w.owner, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(true);
+    expect((await as<{ is_platform_admin: boolean }>(w.admin, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(true);
+    expect((await as<{ is_platform_admin: boolean }>(w.owner, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(false);
     expect((await as<{ is_platform_admin: boolean }>(w.manager, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(false);
+  });
+
+  it('admins see every company, site, map and person, without being a member', async () => {
+    const companies = (await as<{ id: string }>(w.admin, 'select id from companies')).map((r) => r.id);
+    expect(companies).toEqual(expect.arrayContaining([w.company, w.otherCompany]));
+    expect(await as(w.admin, 'select id from maps where id in ($1, $2)', [w.map, w.otherMap])).toHaveLength(2);
+    const [{ admin_overview: all }] = await as<{ admin_overview: { id: string; sites: { name: string; maps: number }[]; people: { email: string; pending: boolean }[] }[] }>(
+      w.admin, 'select public.admin_overview()');
+    const acme = all.find((c) => c.id === w.company)!;
+    expect(acme.sites.map((s) => s.name)).toEqual(['Harbor Hotel', 'Stadium Lot']);
+    expect(acme.sites[0].maps).toBe(1);
+    expect(acme.people.map((p) => p.email)).toContain(`manager${seq}@acme.test`);
+    expect(await as(w.admin, 'select * from memberships where user_id = $1', [w.admin])).toEqual([]);
+  });
+
+  it('admins can manage any company; nobody else can see the overview', async () => {
+    expect((await as<{ add_member: string }>(w.admin, `select public.add_member($1, 'new@rival.test', 'manager')`, [w.otherCompany]))[0].add_member).toBe('invited');
+    expect((await as(w.admin, 'select * from public.list_members($1)', [w.otherCompany])).length).toBeGreaterThan(1);
+    await as(w.admin, 'select public.publish_map($1)', [w.map]);
+    await expect(as(w.owner, 'select public.admin_overview()')).rejects.toThrow(/Only Bergeron Maps admins/);
+    await expect(as(null, 'select public.admin_overview()')).rejects.toThrow(/permission denied/);
+    expect(await as(w.owner, 'select id from companies where id = $1', [w.otherCompany])).toEqual([]);
   });
 
   it('employees cannot read join codes from the sites table', async () => {
