@@ -67,3 +67,33 @@ describe('browser map storage', () => {
     expect(newer!.name).toBe('Versions edited');
   });
 });
+
+describe('publishing', () => {
+  it('employees see nothing until published, then only the published version', async () => {
+    const repo = new IndexedDbRepository(`pub-${Math.random()}`);
+    const created = await repo.createMap(createMap('Harbor'), 'Harbor Hotel');
+    expect(await repo.getPublishedMap(created.id)).toBeNull();
+    expect((await repo.listMaps())[0]).toMatchObject({ site: 'Harbor Hotel', publishedAt: undefined });
+
+    const info = await repo.publishMap(created.id);
+    expect(info.publishedRevision).toBe(1);
+    await repo.saveMap({ ...created, name: 'Harbor draft' }, 1);
+    expect((await repo.getPublishedMap(created.id))!.name).toBe('Harbor');
+    const [summary] = await repo.listMaps();
+    expect(summary.revision).toBe(2);
+    expect(summary.publishedRevision).toBe(1);
+    expect((await repo.listVersions(created.id)).some((v) => v.reason === 'publish')).toBe(true);
+
+    await repo.trashMap(created.id);
+    expect(await repo.getPublishedMap(created.id)).toBeNull();
+  });
+
+  it('groups maps by site, defaulting to the map name', async () => {
+    const repo = new IndexedDbRepository(`site-${Math.random()}`);
+    const a = await repo.createMap(createMap('Main garage'));
+    expect((await repo.listMaps())[0].site).toBe('Main garage');
+    await repo.moveToSite(a.id, 'Downtown');
+    expect((await repo.listMaps())[0].site).toBe('Downtown');
+    await expect(repo.moveToSite(a.id, '  ')).rejects.toThrow();
+  });
+});

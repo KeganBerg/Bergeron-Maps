@@ -8,6 +8,7 @@ import {
   summarize,
   type MapRepository,
   type MapSummary,
+  type PublishInfo,
   type VersionMeta,
   type VersionReason,
 } from './repository';
@@ -16,6 +17,9 @@ interface MapRecord {
   id: string;
   doc: MapDocument;
   deletedAt?: string;
+  site?: string;
+  published?: MapDocument;
+  publish?: PublishInfo;
 }
 
 interface VersionRecord extends VersionMeta {
@@ -72,14 +76,14 @@ export class IndexedDbRepository implements MapRepository {
   async listMaps(): Promise<MapSummary[]> {
     return (await this.all())
       .filter((r) => !r.deletedAt)
-      .map((r) => summarize(r.doc))
+      .map((r) => summarize(r.doc, undefined, r))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
   async listTrash(): Promise<MapSummary[]> {
     return (await this.all())
       .filter((r) => r.deletedAt)
-      .map((r) => summarize(r.doc, r.deletedAt))
+      .map((r) => summarize(r.doc, r.deletedAt, r))
       .sort((a, b) => b.deletedAt!.localeCompare(a.deletedAt!));
   }
 
@@ -90,11 +94,11 @@ export class IndexedDbRepository implements MapRepository {
     return migrateDocument(r.doc);
   }
 
-  async createMap(doc: MapDocument): Promise<MapDocument> {
+  async createMap(doc: MapDocument, site?: string): Promise<MapDocument> {
     const db = await this.db();
     const tx = db.transaction('maps', 'readwrite');
     const stored = { ...clone(doc), revision: 1 };
-    tx.objectStore('maps').add({ id: doc.id, doc: stored } satisfies MapRecord);
+    tx.objectStore('maps').add({ id: doc.id, doc: stored, site: site?.trim() || doc.name } satisfies MapRecord);
     await done(tx);
     return stored;
   }
@@ -118,6 +122,52 @@ export class IndexedDbRepository implements MapRepository {
     store.put({ ...current, doc: stored } satisfies MapRecord);
     await done(tx);
     return stored;
+  }
+
+  private async record(id: string): Promise<MapRecord | undefined> {
+    const db = await this.db();
+    return (await req(db.transaction('maps').objectStore('maps').get(id))) as MapRecord | undefined;
+  }
+
+  private async update(id: string, fn: (r: MapRecord) => MapRecord): Promise<MapRecord> {
+    const db = await this.db();
+    const tx = db.transaction('maps', 'readwrite');
+    const store = tx.objectStore('maps');
+    const r = (await req(store.get(id))) as MapRecord | undefined;
+    if (!r || r.deletedAt) {
+      tx.abort();
+      throw new Error('This map no longer exists. It may have been deleted.');
+    }
+    const next = fn(r);
+    store.put(next);
+    await done(tx);
+    return next;
+  }
+
+  async moveToSite(id: string, site: string): Promise<void> {
+    const name = site.trim();
+    if (!name) throw new Error('Enter a site name.');
+    await this.update(id, (r) => ({ ...r, site: name }));
+  }
+
+  async publishMap(id: string): Promise<PublishInfo> {
+    const r = await this.update(id, (r) => ({
+      ...r,
+      published: clone(r.doc),
+      publish: { publishedAt: new Date().toISOString(), publishedRevision: r.doc.revision },
+    }));
+    await this.saveVersion(r.doc, 'publish');
+    return r.publish!;
+  }
+
+  async getPublishInfo(id: string): Promise<PublishInfo | null> {
+    return (await this.record(id))?.publish ?? null;
+  }
+
+  async getPublishedMap(id: string): Promise<(MapDocument & { publishedAt: string }) | null> {
+    const r = await this.record(id);
+    if (!r || r.deletedAt || !r.published || !r.publish) return null;
+    return { ...migrateDocument(r.published), publishedAt: r.publish.publishedAt };
   }
 
   private async setDeleted(id: string, deletedAt: string | undefined): Promise<void> {
@@ -196,6 +246,7 @@ function defaultLabel(reason: VersionReason): string {
     case 'manual': return 'Saved version';
     case 'before-restore': return 'Before restoring an older version';
     case 'conflict': return 'Your changes (kept during a conflict)';
+    case 'publish': return 'Published to employees';
   }
 }
 

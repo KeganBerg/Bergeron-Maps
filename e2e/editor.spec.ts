@@ -163,3 +163,23 @@ test('quick lot builder creates a numbered lot in one step', async ({ page }) =>
   await page.goto('/');
   await expect(page.getByTestId('open-Quick Lot')).toContainText('24 spaces');
 });
+
+test('employees only see a map after it is published, and only the published version', async ({ page }) => {
+  await newMap(page, 'Publish Lot');
+  const id = page.url().split('/edit/')[1];
+  await page.goto(`/#/view/${id}`);
+  await expect(page.getByText('isn’t published yet')).toBeVisible();
+
+  await page.goto(`/#/edit/${id}`);
+  await expect(page.getByTestId('publish')).toHaveAttribute('data-state', 'never');
+  await page.getByTestId('publish').click();
+  await expect(page.getByTestId('publish')).toHaveAttribute('data-state', 'current');
+
+  // A later draft change is not visible to employees until published again.
+  await page.getByTestId('map-name-input-top').fill('Publish Lot Renamed');
+  await page.getByTestId('map-name-input-top').press('Enter');
+  await expect(page.getByTestId('publish')).toHaveAttribute('data-state', 'changes');
+  await waitSaved(page);
+  await page.goto(`/#/view/${id}`);
+  await expect(page.getByTestId('viewer-facility')).toHaveText('Publish Lot');
+});

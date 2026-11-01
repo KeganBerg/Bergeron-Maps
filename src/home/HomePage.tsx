@@ -8,10 +8,22 @@ import { Icon } from '../ui/icons';
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
+function groupBySite(maps: MapSummary[]): [string, MapSummary[]][] {
+  const by = new Map<string, MapSummary[]>();
+  for (const m of maps) by.set(m.site, [...(by.get(m.site) ?? []), m]);
+  return [...by.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function publishStatus(m: MapSummary): { text: string; tone: string } {
+  if (!m.publishedAt) return { text: 'Draft · not published', tone: 'draft' };
+  if (m.publishedRevision !== m.revision) return { text: 'Unpublished changes', tone: 'changes' };
+  return { text: 'Published', tone: 'live' };
+}
+
 export function HomePage({ repo }: { repo: MapRepository }) {
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [trash, setTrash] = useState<MapSummary[]>([]);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<false | { site?: string }>(false);
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
   const [purging, setPurging] = useState<MapSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +48,7 @@ export function HomePage({ repo }: { repo: MapRepository }) {
     if (!src) return;
     const now = new Date().toISOString();
     const copy = { ...structuredClone(src), id: newId('map'), name: `${src.name} (copy)`, createdAt: now, updatedAt: now, revision: 0 };
-    await repo.createMap(copy);
+    await repo.createMap(copy, m.site);
     await refresh();
   };
 
@@ -47,43 +59,62 @@ export function HomePage({ repo }: { repo: MapRepository }) {
           <span className="logo">P</span>
           <h1>Bergeron Maps</h1>
         </div>
-        <button className="btn primary" onClick={() => setCreating(true)} data-testid="new-map">
-          <Icon name="plus" size={16} /> New map
+        <button className="btn primary" onClick={() => setCreating({})} data-testid="new-map">
+          <Icon name="plus" size={16} /> New site
         </button>
       </header>
 
       <main className="home-main">
         <div className="notice-banner">
-          Maps are saved in this browser on this device for now. Sign-in, sharing with employees, and cloud backup arrive in the next phase.
+          Preview mode: maps are saved in this browser only. Sign-in and online saving are next.
         </div>
         {error && <p className="error-text">{error}</p>}
-        <h2>Your maps</h2>
+        <h2>Your sites</h2>
         {maps === null ? (
           <p className="muted">Loading…</p>
         ) : maps.length === 0 ? (
           <div className="empty-state">
-            <p>No maps yet. Create your first facility map to get started.</p>
-            <button className="btn primary" onClick={() => setCreating(true)}>Create a map</button>
+            <p>No maps yet. Create your first site map to get started. It takes about a minute.</p>
+            <button className="btn primary" onClick={() => setCreating({})}>Create a map</button>
           </div>
         ) : (
-          <ul className="map-grid" data-testid="map-list">
-            {maps.map((m) => (
-              <li key={m.id} className="map-card">
-                <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
-                  <strong>{m.name}</strong>
-                  <span className="muted">
-                    {m.floorCount} floor{m.floorCount === 1 ? '' : 's'} · {m.spaceCount} space{m.spaceCount === 1 ? '' : 's'}
-                  </span>
-                  <span className="muted small">Edited {when(m.updatedAt)}</span>
-                </button>
-                <div className="card-actions">
-                  <button className="btn small" onClick={() => navigate(`/view/${m.id}`)}>View</button>
-                  <button className="btn small" onClick={() => copyMap(m)} title="Use as a starting point for another facility">Copy</button>
-                  <button className="btn small" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
-                </div>
-              </li>
+          <div className="sites" data-testid="map-list">
+            {groupBySite(maps).map(([site, list]) => (
+              <section key={site} className="site" data-testid={`site-${site}`}>
+                <header className="site-head">
+                  <h3>{site}</h3>
+                  <span className="muted small">{list.length} map{list.length === 1 ? '' : 's'} · {list.reduce((n, m) => n + m.spaceCount, 0)} spaces</span>
+                  <button className="btn small" onClick={() => setCreating({ site })} data-testid={`add-map-${site}`}>
+                    <Icon name="plus" size={14} /> Add map
+                  </button>
+                </header>
+                <ul className="map-grid">
+                  {list.map((m) => {
+                    const st = publishStatus(m);
+                    return (
+                      <li key={m.id} className="map-card">
+                        <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
+                          <span className={`pub-pill ${st.tone}`}>{st.text}</span>
+                          <strong>{m.name}</strong>
+                          <span className="muted">
+                            {m.floorCount} floor{m.floorCount === 1 ? '' : 's'} · {m.spaceCount} space{m.spaceCount === 1 ? '' : 's'}
+                          </span>
+                          <span className="muted small">Edited {when(m.updatedAt)}</span>
+                        </button>
+                        <div className="card-actions">
+                          <button className="btn small" onClick={() => navigate(m.publishedAt ? `/view/${m.id}` : `/view/${m.id}?preview=1`)}>
+                            {m.publishedAt ? 'Employee view' : 'Preview'}
+                          </button>
+                          <button className="btn small" onClick={() => copyMap(m)} title="Use as a starting point for another map">Copy</button>
+                          <button className="btn small" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
 
         {trash.length > 0 && (
@@ -111,8 +142,9 @@ export function HomePage({ repo }: { repo: MapRepository }) {
 
       {creating && (
         <NewMapDialog
+          site={creating.site}
           onClose={() => setCreating(false)}
-          onCreate={async (doc) => { await repo.createMap(doc); navigate(`/edit/${doc.id}`); }}
+          onCreate={async (doc, site) => { await repo.createMap(doc, site); navigate(`/edit/${doc.id}`); }}
         />
       )}
       {trashing && (

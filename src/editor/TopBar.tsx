@@ -24,8 +24,17 @@ function ToolButton({ icon, label, onClick, disabled, active, testId }: {
   );
 }
 
-export function TopBar({ onSave, onHistory, onPreview, onHome }: {
+export type PublishState = 'never' | 'changes' | 'current';
+
+const PUBLISH_TEXT: Record<PublishState, string> = {
+  never: 'Not published yet: employees can’t see this map',
+  changes: 'Employees see an older version until you publish',
+  current: 'Employees see this version',
+};
+
+export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publishing, publishState, publishedAt }: {
   onSave: () => void; onHistory: () => void; onPreview: () => void; onHome: () => void;
+  onPublish: () => void; publishing: boolean; publishState: PublishState; publishedAt?: string;
 }) {
   const doc = useEditor((s) => s.doc)!;
   const status = useEditor((s) => s.saveStatus);
@@ -54,7 +63,7 @@ export function TopBar({ onSave, onHistory, onPreview, onHome }: {
     <header className="topbar">
       <div className="group">
         <button className="icon-btn" title="All maps" aria-label="All maps" onClick={onHome}><Icon name="home" /></button>
-        <CommitInput className="map-name" value={doc.name} maxLength={80} aria-label="Map name" onCommit={(v) => st().renameMap(v)} />
+        <CommitInput className="map-name" value={doc.name} maxLength={80} aria-label="Map name" data-testid="map-name-input-top" onCommit={(v) => st().renameMap(v)} />
         <span className={`save-status ${info.tone}`} title={error ?? (status === 'saved' ? 'Saved in this browser on this device' : undefined)} data-testid="save-status" role="status">
           {info.tone === 'ok' ? <Icon name="check" size={14} /> : info.tone === 'error' ? <Icon name="alert" size={14} /> : null}
           {info.text}
@@ -100,8 +109,10 @@ export function TopBar({ onSave, onHistory, onPreview, onHome }: {
       <div className="group">
         <ToolButton icon="history" label="Version history" onClick={onHistory} testId="history" />
         <button className="btn" onClick={onPreview} data-testid="preview"><Icon name="play" size={14} /> Preview</button>
-        <button className="btn primary" disabled title="Publishing to employees arrives with accounts in Phase 2. Use Preview to see the employee view.">
-          Publish
+        <button className={`btn ${publishState === 'current' ? 'published' : 'primary'}`} onClick={onPublish} disabled={publishing}
+          title={`${PUBLISH_TEXT[publishState]}${publishedAt ? ` (last published ${new Date(publishedAt).toLocaleString()})` : ''}`}
+          data-testid="publish" data-state={publishState}>
+          {publishing ? 'Publishing…' : publishState === 'current' ? <><Icon name="check" size={14} /> Published</> : publishState === 'changes' ? 'Publish changes' : 'Publish'}
         </button>
       </div>
     </header>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { floorBounds, fitViewport } from '../render/viewport';
-import type { MapRepository } from '../storage/repository';
+import type { MapRepository, PublishInfo } from '../storage/repository';
 import { Dialog } from '../ui/Dialog';
 import { Notices } from '../ui/Notices';
 import { navigate } from '../router';
@@ -22,6 +22,13 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
   const rowDialog = useEditor((s) => s.rowDialog);
   const conflict = useEditor((s) => s.conflict);
   const { saveNow, keepMine, useTheirs } = useAutosave(repo);
+  const [published, setPublished] = useState<PublishInfo | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const revision = useEditor((s) => s.revision);
+  const dirty = useEditor((s) => s.editSeq !== s.savedSeq);
+  useEffect(() => {
+    repo.getPublishInfo(mapId).then(setPublished, () => setPublished(null));
+  }, [mapId, repo]);
 
   useEffect(() => {
     let alive = true;
@@ -55,6 +62,28 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
   }, [saveNow]);
   useKeyboard(manualSave);
 
+  const publish = async () => {
+    setPublishing(true);
+    try {
+      await saveNow();
+      const s = useEditor.getState();
+      if (s.editSeq !== s.savedSeq) throw new Error('Your latest changes couldn’t be saved, so nothing was published. Try again.');
+      const info = await repo.publishMap(mapId);
+      setPublished(info);
+      const link = `${window.location.origin}${window.location.pathname}#/view/${mapId}`;
+      s.notify({
+        tone: 'success',
+        message: 'Published. Employees now see this version.',
+        action: { label: 'Copy employee link', run: () => void navigator.clipboard?.writeText(link) },
+      });
+    } catch (e) {
+      useEditor.getState().notify({ tone: 'error', message: (e as Error).message || 'Publishing failed. Try again.' });
+    } finally {
+      setPublishing(false);
+    }
+  };
+  const publishState = !published ? 'never' : dirty || revision !== published.publishedRevision ? 'changes' : 'current';
+
   const leave = async (to: string) => {
     const s = useEditor.getState();
     if (s.editSeq !== s.savedSeq && s.saveStatus !== 'conflict') await saveNow();
@@ -79,6 +108,10 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
         onHistory={() => setShowHistory(true)}
         onPreview={() => leave(`/view/${doc.id}?preview=1`)}
         onHome={() => leave('/')}
+        onPublish={publish}
+        publishing={publishing}
+        publishState={publishState}
+        publishedAt={published?.publishedAt}
       />
       <div className="editor-main">
         <Sidebar />
