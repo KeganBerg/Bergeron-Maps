@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
-import { navigate } from '../router';
-import { Icon } from '../ui/icons';
 import { friendly, supabase } from './client';
 import { siteLink } from './TeamPage';
 
@@ -22,8 +20,8 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(und
  * the place to set up a new company. The database refuses this data to
  * anyone else, whatever the browser asks for.
  */
-export function AdminPage({ header, onOpen, onCreated, canGoBack }: {
-  header: React.ReactNode; onOpen: (companyId: string, to?: string) => void; onCreated: () => void; canGoBack: boolean;
+export function AdminPage({ nav, account, onOpen, onCreated }: {
+  nav?: React.ReactNode; account: React.ReactNode; onOpen: (companyId: string, to?: string) => void; onCreated: () => void;
 }) {
   const [data, setData] = useState<AdminCompany[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,10 +63,9 @@ export function AdminPage({ header, onOpen, onCreated, canGoBack }: {
 
   return (
     <div className="home">
-      <AppHeader>{header}</AppHeader>
+      <AppHeader nav={nav}>{account}</AppHeader>
       <main className="home-main team admin">
-        {canGoBack && <button className="link back-link" onClick={() => navigate('/')}><Icon name="back" size={14} /> Back to maps</button>}
-        <h2>All accounts</h2>
+        <div className="page-head"><h2>All accounts</h2></div>
         {totals && (
           <dl className="admin-stats" data-testid="admin-totals">
             {([['Companies', totals.companies], ['Sites', totals.sites], ['People', totals.people], ['Maps', totals.maps]] as const).map(([label, n]) => (

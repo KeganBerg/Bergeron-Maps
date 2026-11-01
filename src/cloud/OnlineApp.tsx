@@ -75,27 +75,34 @@ export function OnlineApp() {
     navigate(to);
   };
   const accountMenu = <AccountMenu email={s.email ?? ''} memberships={s.memberships} current={membership} onSwitch={switchCompany} />;
-  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage header={accountMenu} onOpen={switchCompany} onCreated={s.reload} canGoBack={!!membership && parts[0] === 'admin'} />;
-  if (!membership || !repo) return <NoAccessPage email={s.email ?? ''} isAdmin={s.isAdmin} onJoined={s.reload} />;
-
-  const editor = canEdit(membership);
-  const header = (
+  const editor = !!membership && canEdit(membership);
+  const section = parts[0] === 'admin' ? 'admin' : parts[0] === 'team' ? 'team' : 'maps';
+  const tabs: [string, string, string][] = [
+    ...(membership && editor ? [['maps', '/', 'Maps'], ['team', '/team', 'Sites & people']] as [string, string, string][] : []),
+    ...(s.isAdmin ? [['admin', '/admin', 'All accounts']] as [string, string, string][] : []),
+  ];
+  const nav = tabs.length > 1 ? (
     <>
-      {s.isAdmin && <button className="btn" onClick={() => navigate('/admin')} data-testid="admin">All accounts</button>}
-      {editor && parts[0] !== 'team' && <button className="btn" onClick={() => navigate('/team')} data-testid="team">Sites &amp; people</button>}
-      {accountMenu}
+      {tabs.map(([key, to, label]) => (
+        <a key={key} href={`#${to}`} className={`nav-tab${section === key ? ' on' : ''}`} aria-current={section === key ? 'page' : undefined} data-testid={`nav-${key}`}>
+          {label}
+        </a>
+      ))}
     </>
-  );
+  ) : undefined;
+
+  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage nav={nav} account={accountMenu} onOpen={switchCompany} onCreated={s.reload} />;
+  if (!membership || !repo) return <NoAccessPage email={s.email ?? ''} isAdmin={s.isAdmin} onJoined={s.reload} />;
 
   if (parts[0] === 'view' && parts[1])
     return <ViewerPage key={parts[1]} mapId={parts[1]} repo={repo} preview={editor && query.get('preview') === '1'} />;
   if (parts[0] === 'edit' && parts[1] && editor) return <EditorPage key={parts[1]} mapId={parts[1]} repo={repo} />;
-  if (parts[0] === 'team' && editor) return <TeamPage membership={membership} header={header} />;
+  if (parts[0] === 'team' && editor) return <TeamPage membership={membership} nav={nav} account={accountMenu} />;
 
   if (linkKey && !siteParam)
     return (
       <div className="home">
-        <AppHeader>{header}</AppHeader>
+        <AppHeader nav={nav}>{accountMenu}</AppHeader>
         <main className="signin"><div className="signin-card">
           <h2>This site link isn’t available to you</h2>
           <p>You’re signed in as <strong>{s.email}</strong>. Check the link, or ask your admin to add this email to the site and then open the link again.</p>
@@ -104,9 +111,9 @@ export function OnlineApp() {
       </div>
     );
 
-  if (!editor) return <EmployeeHome repo={repo} header={header} />;
+  if (!editor) return <EmployeeHome repo={repo} account={accountMenu} />;
   return (
-    <HomePage key={`${membership.companyId}:${siteParam ?? ''}`} repo={repo} headerExtra={header} banner={null}
+    <HomePage key={`${membership.companyId}:${siteParam ?? ''}`} repo={repo} nav={nav} headerExtra={accountMenu} banner={null}
       title={siteParam ? 'Your site' : `${membership.companyName} sites`} canAddSite={canManageCompany(membership) && !siteParam} />
   );
 }

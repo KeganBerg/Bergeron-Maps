@@ -5,7 +5,7 @@ import type { MapSummary } from '../storage/repository';
 import type { SupabaseRepository } from './supabaseRepository';
 
 /** Employees see only published maps for the sites they belong to. */
-export function EmployeeHome({ repo, header }: { repo: SupabaseRepository; header: ReactNode }) {
+export function EmployeeHome({ repo, account }: { repo: SupabaseRepository; account: ReactNode }) {
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -14,9 +14,9 @@ export function EmployeeHome({ repo, header }: { repo: SupabaseRepository; heade
   const sites = [...new Set((maps ?? []).map((m) => m.site))].sort();
   return (
     <div className="home">
-      <AppHeader>{header}</AppHeader>
+      <AppHeader>{account}</AppHeader>
       <main className="home-main">
-        <h2>Your maps</h2>
+        <div className="page-head"><h2>Your maps</h2></div>
         {error && <p className="error-text">{error}</p>}
         {maps === null ? <p className="muted">Loading…</p> : maps.length === 0 ? (
           <div className="empty-state"><p>No maps are published for your site yet. Your manager will publish them here.</p></div>

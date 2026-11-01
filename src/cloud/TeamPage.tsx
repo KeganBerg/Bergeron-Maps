@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
-import { navigate } from '../router';
 import { ConfirmDialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
 import { friendly, supabase } from './client';
@@ -31,7 +30,7 @@ function describe(m: Member, sites: Site[]): string {
  * Sites and people for one company. Access is given by email to specific
  * sites; each site has a link for its managers and a code for employees.
  */
-export function TeamPage({ membership, header }: { membership: Membership; header: React.ReactNode }) {
+export function TeamPage({ membership, nav, account }: { membership: Membership; nav: React.ReactNode; account: React.ReactNode }) {
   const company = membership.companyId;
   const full = canManageCompany(membership);
   const [sites, setSites] = useState<Site[]>([]);
@@ -126,10 +125,11 @@ export function TeamPage({ membership, header }: { membership: Membership; heade
 
   return (
     <div className="home">
-      <AppHeader>{header}</AppHeader>
+      <AppHeader nav={nav}>{account}</AppHeader>
       <main className="home-main team">
-        <button className="link back-link" onClick={() => navigate('/')}><Icon name="back" size={14} /> Back to maps</button>
-        <h2>Sites and people · {membership.companyName}</h2>
+        <div className="page-head">
+          <h2>Sites and people <span className="page-sub">{membership.companyName}</span></h2>
+        </div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}
 
