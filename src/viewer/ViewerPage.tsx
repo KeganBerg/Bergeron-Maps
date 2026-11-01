@@ -29,7 +29,7 @@ function describe(o: MapObject, doc: MapDocument): { title: string; detail?: str
  * as the editor. Pan by dragging, pinch or Ctrl+scroll to zoom, tap to identify.
  */
 export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapRepository; preview: boolean }) {
-  const [doc, setDoc] = useState<MapDocument | null>(null);
+  const [doc, setDoc] = useState<(MapDocument & { publishedAt?: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [floorId, setFloorId] = useState('');
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
@@ -43,9 +43,12 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
 
   const load = () => {
     setError(null);
-    repo.getMap(mapId).then(
+    // Employees only ever see the published version; Preview shows the manager's draft.
+    (preview ? repo.getMap(mapId) : repo.getPublishedMap(mapId)).then(
       (d) => {
-        if (!d) return setError('This map isn’t available. It may have been deleted or you may not have access.');
+        if (!d) return setError(preview
+          ? 'This map isn’t available. It may have been deleted.'
+          : 'This map isn’t published yet, or it was removed. Ask your manager to publish it.');
         setDoc(d);
         setFloorId((cur) => (d.floors.some((f) => f.id === cur) ? cur : d.floors[0].id));
       },
@@ -155,7 +158,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
         <div className="titles">
           <strong data-testid="viewer-facility">{doc.name}</strong>
           <span className="muted small">
-            {floor.name} · Updated {ago(doc.updatedAt)}
+            {floor.name} · {preview ? 'Draft' : 'Updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
           </span>
         </div>
         <button className="icon-btn" aria-label="Refresh map" title="Get the latest version" onClick={load}><Icon name="restore" /></button>

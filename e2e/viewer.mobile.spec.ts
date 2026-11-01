@@ -14,6 +14,7 @@ test('employee finds a space on a phone and sees it highlighted on the right flo
     f2.rows[spec.id] = spec;
     f2.objects.push(...buildRowSpaces(spec, { x: 0, y: 0, rotation: 0 }, f2.layers[2].id));
     await repository.createMap(doc);
+    await repository.publishMap(doc.id);
     return doc.id;
   });
   await page.goto(`/#/view/${id}`);

@@ -184,3 +184,23 @@ test('a map can be downloaded as a file and imported again as a new map', async 
   await page.getByTestId('import-map-input').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"hi":1}') });
   await expect(page.getByText('“notes.json” couldn’t be imported.')).toBeVisible();
 });
+
+test('employees only see a map after it is published, and only the published version', async ({ page }) => {
+  await newMap(page, 'Publish Lot');
+  const id = page.url().split('/edit/')[1];
+  await page.goto(`/#/view/${id}`);
+  await expect(page.getByText('isn’t published yet')).toBeVisible();
+
+  await page.goto(`/#/edit/${id}`);
+  await expect(page.getByTestId('publish')).toHaveAttribute('data-state', 'never');
+  await page.getByTestId('publish').click();
+  await expect(page.getByTestId('publish')).toHaveAttribute('data-state', 'current');
+
+  // A later draft change is not visible to employees until published again.
+  await page.getByTestId('map-name-input-top').fill('Publish Lot Renamed');
+  await page.getByTestId('map-name-input-top').press('Enter');
+  await expect(page.getByTestId('publish')).toHaveAttribute('data-state', 'changes');
+  await waitSaved(page);
+  await page.goto(`/#/view/${id}`);
+  await expect(page.getByTestId('viewer-facility')).toHaveText('Publish Lot');
+});

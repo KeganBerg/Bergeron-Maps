@@ -35,7 +35,7 @@ const FIELDS: { key: keyof QuickLotSpec; label: string; hint: string }[] = [
  * New map, built for the busy manager: answer four numbers and get a full,
  * numbered layout to adjust, or start from an empty canvas.
  */
-export function NewMapDialog({ onCreate, onClose }: { onCreate: (doc: MapDocument) => void; onClose: () => void }) {
+export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCreate: (doc: MapDocument, site?: string) => void; onClose: () => void }) {
   const [name, setName] = useState('');
   const [mode, setMode] = useState<'quick' | 'blank'>('quick');
   const [raw, setRaw] = useState<Record<keyof QuickLotSpec, string>>({
@@ -50,10 +50,11 @@ export function NewMapDialog({ onCreate, onClose }: { onCreate: (doc: MapDocumen
   const preview = useMemo(() => createQuickLot('preview', spec), [spec.floors, spec.rows, spec.spacesPerRow, spec.accessible]);
   const total = quickLotTotal(spec);
 
-  const create = () => onCreate(mode === 'quick' ? createQuickLot(name || 'Untitled map', spec) : createMap(name || 'Untitled map'));
+  const fallback = site ? 'New map' : 'Untitled site';
+  const create = () => onCreate(mode === 'quick' ? createQuickLot(name || fallback, spec) : createMap(name || fallback), site);
 
   return (
-    <Dialog title="New map" wide onClose={onClose}
+    <Dialog title={site ? `New map at ${site}` : 'New site map'} wide onClose={onClose}
       footer={
         <>
           <button className="btn" onClick={onClose}>Cancel</button>
@@ -64,8 +65,8 @@ export function NewMapDialog({ onCreate, onClose }: { onCreate: (doc: MapDocumen
       }>
       <form className="new-map" onSubmit={(e) => { e.preventDefault(); create(); }}>
         <label className="stack">
-          Facility name
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Harbor Hotel Garage" maxLength={80} data-testid="map-name-input" />
+          {site ? 'Map name' : 'Site name'}
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={site ? 'e.g. Overflow lot' : 'e.g. Harbor Hotel Garage'} maxLength={80} data-testid="map-name-input" />
         </label>
 
         <div className="segmented" role="radiogroup" aria-label="How to start">

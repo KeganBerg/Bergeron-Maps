@@ -13,7 +13,7 @@ Last updated: 2026-10-30 (Phase 1).
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Core mapping platform | Implemented and tested (see notes for partial items) |
-| 2 | Accounts, permissions, publishing, mobile | Not started, except the viewer and search, which are built and tested against local data |
+| 2 | Accounts, permissions, publishing, mobile | In progress. Done: database schema with row-level security (27 tests), draft vs published, maps grouped by site, quick lot builder. Next: sign-in, members and join codes UI, online saving (needs a Supabase project) |
 | 3 | Refinement and expansion | Not started, except small items noted below |
 
 **Phase 1 storage limitation:** maps are stored in the browser (IndexedDB) on one device. That is enough to build and test the editor, autosave, versions, trash and conflict detection, but it is **not** a backup, it is not shared between devices, and it gives no access control. Phase 2 replaces it with the server behind the same `MapRepository` interface.
@@ -22,7 +22,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Implementation | Test | Status |
 |---|---|---|---|---|
-| 3.1-a | Top toolbar: save status, undo, redo, copy, paste, snapping, zoom, preview, publish | `editor/TopBar.tsx` | e2e: editor.spec (save status, undo, snapping) | Tested. Publish button is shown **disabled** until Phase 2 |
+| 3.1-a | Top toolbar: save status, undo, redo, copy, paste, snapping, zoom, preview, publish | `editor/TopBar.tsx` | e2e: editor.spec (save status, undo, snapping) | Tested. Publish shows Publish / Publish changes / Published |
 | 3.1-b | Left sidebar: asset library, space tools, layers, properties; collapsible | `editor/Sidebar.tsx` | e2e: editor.spec | Tested |
 | 3.1-c | Center canvas with handles, alignment guides, zoom/pan, feedback | `editor/CanvasStage.tsx` | manual; unit: snapping.test | Implemented |
 | 3.1-d | Bottom floor tabs with obvious Add Floor | `editor/FloorTabs.tsx` | e2e: floors test | Tested |
@@ -125,8 +125,8 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Implementation | Test | Status |
 |---|---|---|---|---|
-| 14.1 | Save / preview / publish; draft vs published | Preview opens the employee view of the saved draft | e2e: mobile viewer | Preview Implemented; Publish Not started (Phase 2) |
-| 14.2 | Viewers get latest published version without new link | Viewer reloads on open/refresh | — | Not started (Phase 2) |
+| 14.1 | Save / preview / publish; draft vs published | `MapRepository.publishMap`/`getPublishedMap`; employees' view loads only the published copy; Preview shows the draft; publish adds a version | unit: indexedDbRepository.test (publishing); e2e: editor.spec (published only) | Tested (browser storage); server side in `publish_map` + RLS, db tests |
+| 14.2 | Viewers get latest published version without new link | Same `#/view/:id` link always loads the newest published copy; refresh button | e2e: editor.spec (published only) | Implemented (live push updates arrive with online saving) |
 | 14.3 | Show facility, floor, last-updated, loading/error state | Viewer header; clear error and retry when a map can't load | e2e: mobile viewer | Tested |
 
 ## Part 15: Accounts, dashboards, permissions
@@ -178,7 +178,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 22 | This matrix; automated tests of key workflows; re-run after changes | In progress: 70 unit tests and 11 browser tests run in CI on every push. Publishing, permissions, revoked access, exporting and company separation tests arrive with those features |
+| 22 | This matrix; automated tests of key workflows; re-run after changes | In progress: 72 unit tests, 12 browser tests and 27 database security tests run in CI on every push. Publishing, permissions, revoked access, exporting and company separation tests arrive with those features |
 
 ## Part 23: Usability testing
 
@@ -191,3 +191,16 @@ Last updated: 2026-10-30 (Phase 1).
 - Drag, resize and rotate on the canvas, background-image editing, and asset favorites have been checked by hand but have no automated test yet.
 - Editor touch support is basic (desktop-first by spec); the viewer is the phone experience.
 - Background images are stored inside the map data. Phase 2 moves them to file storage so maps stay small.
+
+## Added during Phase 2 (from Kegan's feedback)
+
+| ID | Requirement | Where | Tests | Status |
+|---|---|---|---|---|
+| K-1 | Managers won't map lots by hand: build a lot from a few numbers | `model/quickLot.ts`, `home/NewMapDialog.tsx` | unit: quickLot.test; e2e: quick lot builder | Tested |
+| K-2 | Organization: maps grouped by site, publish status on every map | `home/HomePage.tsx` | e2e: editor.spec | Implemented |
+| K-3 | Simple, centered layout; Level signage look by default | `styles.css`, `theme.ts` | screenshots | Implemented |
+| K-4 | Phones: dialogs fit the screen (no iOS zoom) | `styles.css` (16px inputs) | manual on iPhone | Implemented |
+
+## Deferred from the white-label spec (backburner, per Kegan)
+
+Stripe setup fee and per-site billing; custom domains (CNAME); "Request manager status" flow; ending active sessions on removal; site slugs in public URLs. The database already ties roles to company and site, makes maps belong to the site, and has join codes and a site limit, so these can be added without reshaping data.
