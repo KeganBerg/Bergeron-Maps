@@ -22,9 +22,11 @@ function publishStatus(m: MapSummary): { text: string; tone: string } {
   return { text: 'Published', tone: 'live' };
 }
 
-export function AppHeader({ children }: { children?: ReactNode }) {
+/** Top bar: section links on the left, logo in the middle, account on the right. */
+export function AppHeader({ nav, children }: { nav?: ReactNode; children?: ReactNode }) {
   return (
-    <header className="home-header">
+    <header className={`home-header${nav ? ' has-nav' : ''}`}>
+      {nav && <nav className="header-nav" aria-label="Sections">{nav}</nav>}
       <button className="brand" onClick={() => navigate('/')} aria-label="Bergeron Maps home">
         <BrandMark size={36} />
         <BrandWordmark height={15} />
@@ -42,8 +44,8 @@ const LOCAL_BANNER = 'Browser-only mode: maps are saved in this browser and nobo
  * publish status. `banner` and `headerExtra` let online mode add the company
  * name, team link and account menu.
  */
-export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, title = 'Your sites', canAddSite = true }: {
-  repo: MapRepository; banner?: ReactNode; headerExtra?: ReactNode; title?: string; canAddSite?: boolean;
+export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title = 'Your sites', canAddSite = true }: {
+  repo: MapRepository; banner?: ReactNode; headerExtra?: ReactNode; nav?: ReactNode; title?: string; canAddSite?: boolean;
 }) {
   const [sites, setSites] = useState<string[]>([]);
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
@@ -100,28 +102,26 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, title = 'Yo
 
   return (
     <div className="home">
-      <AppHeader>
-        {headerExtra}
-        {canAddSite && (
-          <button className="btn" onClick={() => fileInput.current?.click()} title="Open a map file downloaded from Bergeron Maps" data-testid="import-map">
-            Import map file
-          </button>
-        )}
-        {canAddSite && (
-          <input ref={fileInput} type="file" accept={`${MAP_FILE_EXTENSION},.json,application/json`} hidden
-            onChange={(e) => void importFile(e.target.files?.[0])} data-testid="import-map-input" />
-        )}
-        {canAddSite && (
-          <button className="btn primary" onClick={() => setCreating({})} data-testid="new-map">
-            <Icon name="plus" size={16} /> New site
-          </button>
-        )}
-      </AppHeader>
+      <AppHeader nav={nav}>{headerExtra}</AppHeader>
 
       <main className="home-main">
         {banner && <div className="notice-banner">{banner}</div>}
         {error && <p className="error-text">{error}</p>}
-        <h2>{title}</h2>
+        <div className="page-head">
+          <h2>{title}</h2>
+          {canAddSite && (
+            <div className="page-actions">
+              <button className="btn" onClick={() => fileInput.current?.click()} title="Open a map file downloaded from Bergeron Maps" data-testid="import-map">
+                Import map file
+              </button>
+              <input ref={fileInput} type="file" accept={`${MAP_FILE_EXTENSION},.json,application/json`} hidden
+                onChange={(e) => void importFile(e.target.files?.[0])} data-testid="import-map-input" />
+              <button className="btn primary" onClick={() => setCreating({})} data-testid="new-map">
+                <Icon name="plus" size={16} /> New site
+              </button>
+            </div>
+          )}
+        </div>
         {maps === null ? (
           <p className="muted">Loading…</p>
         ) : maps.length === 0 && sites.length === 0 ? (

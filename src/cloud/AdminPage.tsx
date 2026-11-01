@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
-import { navigate } from '../router';
-import { Icon } from '../ui/icons';
 import { friendly, supabase } from './client';
 import { siteLink } from './TeamPage';
 
@@ -22,7 +20,9 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(und
  * the place to set up a new company. The database refuses this data to
  * anyone else, whatever the browser asks for.
  */
-export function AdminPage({ header, onOpen, onCreated }: { header: React.ReactNode; onOpen: (companyId: string, to?: string) => void; onCreated: () => void }) {
+export function AdminPage({ nav, account, onOpen, onCreated }: {
+  nav?: React.ReactNode; account: React.ReactNode; onOpen: (companyId: string, to?: string) => void; onCreated: () => void;
+}) {
   const [data, setData] = useState<AdminCompany[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -63,14 +63,15 @@ export function AdminPage({ header, onOpen, onCreated }: { header: React.ReactNo
 
   return (
     <div className="home">
-      <AppHeader>{header}</AppHeader>
+      <AppHeader nav={nav}>{account}</AppHeader>
       <main className="home-main team admin">
-        <button className="link back-link" onClick={() => navigate('/')}><Icon name="back" size={14} /> Back to maps</button>
-        <h2>All accounts</h2>
+        <div className="page-head"><h2>All accounts</h2></div>
         {totals && (
-          <p className="muted admin-totals" data-testid="admin-totals">
-            {totals.companies} {totals.companies === 1 ? 'company' : 'companies'} · {totals.sites} sites · {totals.people} people · {totals.maps} maps
-          </p>
+          <dl className="admin-stats" data-testid="admin-totals">
+            {([['Companies', totals.companies], ['Sites', totals.sites], ['People', totals.people], ['Maps', totals.maps]] as const).map(([label, n]) => (
+              <div key={label}><dt>{label}</dt><dd>{n}</dd></div>
+            ))}
+          </dl>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}
