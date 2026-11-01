@@ -22,7 +22,9 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(und
  * the place to set up a new company. The database refuses this data to
  * anyone else, whatever the browser asks for.
  */
-export function AdminPage({ header, onOpen, onCreated }: { header: React.ReactNode; onOpen: (companyId: string, to?: string) => void; onCreated: () => void }) {
+export function AdminPage({ header, onOpen, onCreated, canGoBack }: {
+  header: React.ReactNode; onOpen: (companyId: string, to?: string) => void; onCreated: () => void; canGoBack: boolean;
+}) {
   const [data, setData] = useState<AdminCompany[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export function AdminPage({ header, onOpen, onCreated }: { header: React.ReactNo
     <div className="home">
       <AppHeader>{header}</AppHeader>
       <main className="home-main team admin">
-        <button className="link back-link" onClick={() => navigate('/')}><Icon name="back" size={14} /> Back to maps</button>
+        {canGoBack && <button className="link back-link" onClick={() => navigate('/')}><Icon name="back" size={14} /> Back to maps</button>}
         <h2>All accounts</h2>
         {totals && (
           <p className="muted admin-totals" data-testid="admin-totals">

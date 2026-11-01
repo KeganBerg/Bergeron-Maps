@@ -75,7 +75,7 @@ export function OnlineApp() {
     navigate(to);
   };
   const accountMenu = <AccountMenu email={s.email ?? ''} memberships={s.memberships} current={membership} onSwitch={switchCompany} />;
-  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage header={accountMenu} onOpen={switchCompany} onCreated={s.reload} />;
+  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage header={accountMenu} onOpen={switchCompany} onCreated={s.reload} canGoBack={!!membership && parts[0] === 'admin'} />;
   if (!membership || !repo) return <NoAccessPage email={s.email ?? ''} isAdmin={s.isAdmin} onJoined={s.reload} />;
 
   const editor = canEdit(membership);
