@@ -2,7 +2,7 @@ name: Deploy preview to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/project-thread-6yvk88]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
