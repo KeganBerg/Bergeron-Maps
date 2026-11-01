@@ -42,7 +42,7 @@ export function NoAccessPage({ email, isAdmin, onJoined }: { email: string; isAd
           <label className="stack">
             Site code
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={7} autoCapitalize="characters" autoComplete="off"
-              placeholder="e.g. K7M2QX" className="code-input" data-testid="join-code" />
+              placeholder="K7M2QX" className="code-input" data-testid="join-code" />
           </label>
           {error && <p className="error-text" role="alert">{error}</p>}
           <button className="btn primary big" disabled={busy || code.trim().length < 6}>Join site</button>
