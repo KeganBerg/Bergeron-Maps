@@ -21,7 +21,22 @@ export interface Layer {
   role?: LayerRole;
 }
 
-interface BaseObject {
+/**
+ * Paint settings shared by every object that has a fill. All optional: when a
+ * field is missing the object uses its library default (see docs/ASSET_STYLE.md).
+ */
+export interface ObjectStyle {
+  /** Fill color as #rrggbb. */
+  fill?: string;
+  /** Fill opacity, 0 (clear) to 1 (solid). Applies to the fill only, not the border or text. */
+  fillOpacity?: number;
+  /** Border color as #rrggbb. */
+  stroke?: string;
+  /** Border thickness in map pixels. 0 hides the border. */
+  strokeWidth?: number;
+}
+
+interface BaseObject extends ObjectStyle {
   id: string;
   layerId: string;
   x: number;
@@ -33,8 +48,26 @@ interface BaseObject {
   name?: string;
 }
 
+/** Painted markings that tell drivers what a space is for. */
+export type SpaceVariant =
+  | 'standard'
+  | 'compact'
+  | 'oversized'
+  | 'accessible'
+  | 'reserved'
+  | 'vip'
+  | 'ev'
+  | 'motorcycle'
+  | 'loading'
+  | 'no-parking'
+  | 'angled'
+  | 'parallel'
+  | 'double';
+
 export interface SpaceObject extends BaseObject {
   kind: 'space';
+  /** Missing means 'standard' (or 'accessible' when `accessible` is set, for older maps). */
+  variant?: SpaceVariant;
   /** The parking-space identifier, e.g. "B16". */
   label: string;
   rowId?: string;
@@ -48,7 +81,8 @@ export interface AssetObject extends BaseObject {
   kind: 'asset';
   assetKey: string;
   label?: string;
-  fill?: string;
+  /** Imported image assets keep their picture here as a data URL. */
+  imageSrc?: string;
   /** For ramps, stairs, elevators and walkways: the floors this connects to. */
   connectsTo?: string[];
 }

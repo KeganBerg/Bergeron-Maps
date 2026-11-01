@@ -8,9 +8,10 @@ import { copyName, duplicateFloor, removeFloorReferences } from '../model/floors
 import { boxesIntersect, objectBox, unionBoxes } from '../model/geometry';
 import { newId } from '../model/ids';
 import { deleteLayer, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
-import { buildRowSpaces, normalizeRows, regenerateRow, type RowAnchor } from '../model/rows';
+import { highestNumber } from '../model/numbering';
+import { buildRowSpaces, normalizeRows, regenerateRow, SPACE_FILL, type RowAnchor } from '../model/rows';
 import type { SnapMode } from '../model/snapping';
-import type { BackgroundImage, Box, Floor, Layer, MapDocument, MapObject, RowSpec } from '../model/types';
+import type { BackgroundImage, Box, Floor, Layer, MapDocument, MapObject, RowSpec, SpaceObject } from '../model/types';
 
 export type Tool = { type: 'select' } | { type: 'hand' } | { type: 'row' } | { type: 'text' } | { type: 'asset'; key: string };
 
@@ -105,6 +106,7 @@ interface EditorActions {
 
   addAsset(key: string, at: { x: number; y: number }): void;
   addText(at: { x: number; y: number }, text?: string): void;
+  addImage(src: string, at: { x: number; y: number }, size: { width: number; height: number }, name?: string): void;
   openRowDialog(anchor: RowAnchor, count?: number): void;
   closeRowDialog(): void;
   addRow(spec: Omit<RowSpec, 'id'>, anchor: RowAnchor): void;
@@ -532,29 +534,64 @@ export const useEditor = create<EditorStore>()((set, get) => {
       const { doc, activeLayer } = get();
       const floor = currentFloor(get());
       if (!def || !doc || !floor) return;
-      const id = newId('as');
+      const creates = def.creates ?? 'asset';
+      if (creates === 'row') {
+        get().openRowDialog({ x: at.x, y: at.y, rotation: 0 });
+        remember(key);
+        return;
+      }
+      if (creates !== 'asset' && creates !== 'space' && creates !== 'text') return;
       // Cascade repeated placements at the same spot so they don't hide each other.
       const pos = { ...at };
       while (floor.objects.some((o) => Math.abs(o.x - pos.x) < 1 && Math.abs(o.y - pos.y) < 1)) {
         pos.x += 24;
         pos.y += 24;
       }
-      const obj: MapObject = {
-        id,
-        kind: 'asset',
-        assetKey: key,
-        layerId: resolveTargetLayer(floor, activeLayer, def.layer),
-        x: pos.x,
-        y: pos.y,
-        width: def.width,
-        height: def.height,
-        rotation: 0,
-        name: nextName(doc, def.namePrefix),
-      };
+      const base = { x: pos.x, y: pos.y, width: def.width, height: def.height, rotation: 0 };
+      let obj: MapObject;
+      if (creates === 'space') {
+        const labels = floor.objects.filter((o): o is SpaceObject => o.kind === 'space').map((o) => o.label);
+        obj = {
+          ...base, id: newId('sp'), kind: 'space', label: String((highestNumber(labels, '') ?? 0) + 1),
+          layerId: resolveTargetLayer(floor, activeLayer, 'spaces'), labelPlacement: 'center',
+          fill: SPACE_FILL, variant: def.variant, accessible: def.variant === 'accessible' || undefined,
+          ...(def.stroke ? { stroke: def.stroke } : {}),
+        };
+      } else if (creates === 'text') {
+        const t = def.text!;
+        obj = {
+          ...base, id: newId('tx'), kind: 'text', text: t.text, fontSize: t.fontSize, color: t.color,
+          layerId: resolveTargetLayer(floor, activeLayer, 'labels'),
+          ...(t.fill ? { fill: t.fill, fillOpacity: t.fillOpacity } : {}),
+          ...(t.strokeWidth ? { stroke: t.stroke, strokeWidth: t.strokeWidth } : {}),
+        };
+      } else {
+        obj = {
+          ...base, id: newId('as'), kind: 'asset', assetKey: key,
+          layerId: resolveTargetLayer(floor, activeLayer, def.layer),
+          name: nextName(doc, def.namePrefix),
+          ...(def.label ? { label: def.label } : {}),
+        };
+      }
       commit((_d, f) => {
         f.objects.push(obj);
       });
       remember(key);
+      set({ selection: [obj.id], tool: { type: 'select' } });
+    },
+    addImage(src, at, size, name) {
+      const { doc, activeLayer } = get();
+      const floor = currentFloor(get());
+      if (!doc || !floor) return;
+      const id = newId('as');
+      commit((_d, f) => {
+        f.objects.push({
+          id, kind: 'asset', assetKey: 'import-image', imageSrc: src,
+          layerId: resolveTargetLayer(floor, activeLayer, 'landmarks'),
+          x: at.x, y: at.y, width: size.width, height: size.height, rotation: 0,
+          name: name || nextName(doc, 'Image'),
+        });
+      });
       set({ selection: [id], tool: { type: 'select' } });
     },
     addText(at, text = 'Label') {

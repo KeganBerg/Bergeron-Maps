@@ -31,3 +31,11 @@ export async function clickCanvas(page: Page, x: number, y: number, opts?: { shi
   await page.mouse.click(c.x + x, c.y + y);
   if (opts?.shift) await page.keyboard.up('Shift');
 }
+
+/** Adds an object from the asset library by searching for it, as a user would. */
+export async function addFromLibrary(page: Page, key: string) {
+  const search = page.getByTestId('asset-search');
+  await search.fill(key.replace(/-/g, ' ').replace(/^space /, '').replace(/ standard$/, ' standard'));
+  await page.getByTestId(`asset-${key}`).first().click();
+  await search.fill('');
+}

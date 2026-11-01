@@ -13,6 +13,8 @@ import { MAP_PALETTE } from '../theme';
 import { currentFloor, useEditor } from './store';
 
 const DRAG_THRESHOLD = 3;
+const ALL_ANCHORS = ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right'];
+const COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
 type Gesture =
   | { type: 'pan'; startX: number; startY: number; vx: number; vy: number }
@@ -401,7 +403,14 @@ export function CanvasStage() {
             ignoreStroke
             rotationSnaps={snapMode === 'free' ? [] : [0, 45, 90, 135, 180, 225, 270, 315]}
             rotationSnapTolerance={5}
-            anchorSize={9}
+            // Big, rounded handles on all 8 points plus rotation, padded away
+            // from the object so thin things like walls still get separate handles.
+            enabledAnchors={ALL_ANCHORS}
+            anchorSize={COARSE ? 18 : 12}
+            anchorCornerRadius={3}
+            anchorStrokeWidth={1.5}
+            padding={6}
+            rotateAnchorOffset={COARSE ? 36 : 28}
             borderStroke={MAP_PALETTE.selection}
             anchorStroke={MAP_PALETTE.selection}
             boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 4 || Math.abs(newBox.height) < 4 ? oldBox : newBox)}
@@ -440,8 +449,9 @@ export function CanvasStage() {
             </Group>
           )}
           {chip && selBox && !gesture.current && (
-            <Label x={selBox.x + selBox.width / 2} y={selBox.y} scaleX={invScale} scaleY={invScale} listening={false}>
-              <Tag fill="#111827" cornerRadius={4} pointerDirection="down" pointerWidth={10} pointerHeight={6} opacity={0.9} />
+            // Name chip sits below the selection so it never covers the top handle or rotation knob.
+            <Label x={selBox.x + selBox.width / 2} y={selBox.y + selBox.height} offsetY={-16} scaleX={invScale} scaleY={invScale} listening={false}>
+              <Tag fill="#111827" cornerRadius={4} pointerDirection="up" pointerWidth={10} pointerHeight={6} opacity={0.9} />
               <Text text={chip} padding={6} fill="#fff" fontSize={12} />
             </Label>
           )}

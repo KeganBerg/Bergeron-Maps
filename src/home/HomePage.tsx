@@ -1,3 +1,4 @@
+import { BrandMark, BrandWordmark } from '../ui/Brand';
 import { useEffect, useState, type ReactNode } from 'react';
 import { newId } from '../model/ids';
 import { TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
@@ -24,8 +25,9 @@ export function AppHeader({ children }: { children?: ReactNode }) {
   return (
     <header className="home-header">
       <button className="brand" onClick={() => navigate('/')} aria-label="Bergeron Maps home">
-        <span className="logo">P</span>
-        <h1>Bergeron Maps</h1>
+        <BrandMark size={36} />
+        <BrandWordmark height={15} />
+        <h1 className="sr-only">Bergeron Maps</h1>
       </button>
       <div className="header-actions">{children}</div>
     </header>
