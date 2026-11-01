@@ -344,4 +344,25 @@ describe('platform admins', () => {
     expect(await as(w.employee, 'select id, name from facilities')).not.toHaveLength(0);
   });
 });
+
+describe('custom site links', () => {
+  it('sites get a readable link name that only resolves for people with access', async () => {
+    const [{ slug }] = await as<{ slug: string }>(w.owner, 'select slug from facilities where id = $1', [w.facilityA]);
+    expect(slug).toMatch(/^harbor-hotel(-\d+)?$/);
+    const mine = await as<{ id: string }>(w.manager, 'select id, company_id from facilities where slug = $1', [slug]);
+    expect(mine.map((r) => r.id)).toEqual([w.facilityA]);
+    expect(await as(w.outsider, 'select id from facilities where slug = $1', [slug])).toHaveLength(0);
+    await expect(as(null, 'select id from facilities where slug = $1', [slug])).rejects.toThrow(/permission denied/);
+  });
+
+  it('owners can rename a link; it is cleaned up and must be unique; employees cannot rename', async () => {
+    const custom = `Harbor Valet ${seq}!`;
+    const [{ slug }] = await as<{ slug: string }>(w.owner, 'update facilities set slug = $2 where id = $1 returning slug', [w.facilityA, custom]);
+    expect(slug).toBe(`harbor-valet-${seq}`);
+    await expect(as(w.owner, 'update facilities set slug = $2 where id = $1', [w.facilityB, slug])).rejects.toThrow(/duplicate key/);
+    const r = await as(w.employee, 'update facilities set slug = $2 where id = $1 returning id', [w.facilityA, 'hijack']);
+    expect(r).toHaveLength(0);
+    await expect(as(w.owner, 'update facilities set slug = $2 where id = $1', [w.facilityA, 'team'])).rejects.toThrow(/check constraint/);
+  });
+});
 });

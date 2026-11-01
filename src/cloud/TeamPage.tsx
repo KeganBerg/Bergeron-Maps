@@ -6,7 +6,7 @@ import { Icon } from '../ui/icons';
 import { friendly, supabase } from './client';
 import { canManageCompany, type Membership, type Role } from './session';
 
-interface Site { id: string; name: string }
+interface Site { id: string; name: string; slug: string }
 interface Member { user_id: string | null; email: string; role: Role; facility_ids: string[] | null; pending: boolean }
 
 /** What each kind of access means, in words a manager would use. */
@@ -17,7 +17,9 @@ const ACCESS_LABEL: Record<Access, string> = {
   employee: 'Employee (view only)',
 };
 
-export const siteLink = (id: string) => `${window.location.origin}${window.location.pathname}#/site/${id}`;
+/** Built from the current address, so links follow the app to any domain it's served from. */
+export const siteLink = (slug: string) => `${window.location.origin}${window.location.pathname}#/${slug}`;
+const cleanSlug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
 
 function describe(m: Member, sites: Site[]): string {
   if (m.role === 'owner') return 'Owner (all sites)';
@@ -43,10 +45,26 @@ export function TeamPage({ membership, header }: { membership: Membership; heade
   const [note, setNote] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
+  const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
+
+  const saveLink = async () => {
+    if (!editingLink) return;
+    const slug = cleanSlug(editingLink.value);
+    if (!slug) return setError('Use letters and numbers in the link name.');
+    const r = await supabase!.from('facilities').update({ slug }).eq('id', editingLink.id).select('slug');
+    if (r.error) {
+      return setError(/duplicate key/i.test(r.error.message) ? `“${slug}” is already taken by another site. Try adding the city, e.g. ${slug}-miami.`
+        : /check constraint/i.test(r.error.message) ? `“${slug}” can’t be used as a link name. Try another.` : friendly(r.error));
+    }
+    if (!r.data?.length) return setError('Only owners and regional managers can change site links.');
+    setEditingLink(null);
+    setNote(`Site link changed. The old link no longer works.`);
+    await load();
+  };
 
   const load = async () => {
     const db = supabase!;
-    const s = await db.from('facilities').select('id, name').eq('company_id', company).order('name');
+    const s = await db.from('facilities').select('id, name, slug').eq('company_id', company).order('name');
     if (s.error) return setError(friendly(s.error));
     const list = (s.data ?? []) as Site[];
     const mine = membership.siteIds === null ? list : list.filter((x) => membership.siteIds!.includes(x.id));
@@ -124,9 +142,25 @@ export function TeamPage({ membership, header }: { membership: Membership; heade
           <ul className="site-list">
             {sites.map((s) => (
               <li key={s.id} data-testid={`team-site-${s.name}`}>
-                <strong>{s.name}</strong>
+                <span className="site-name">
+                  <strong>{s.name}</strong>
+                  {editingLink?.id === s.id ? (
+                    <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveLink(); }}>
+                      <span className="muted small">…/#/</span>
+                      <input autoFocus value={editingLink.value} maxLength={50} aria-label="Link name" data-testid="slug-input"
+                        onChange={(e) => setEditingLink({ id: s.id, value: e.target.value })} />
+                      <button className="btn small primary">Save</button>
+                      <button type="button" className="btn small" onClick={() => setEditingLink(null)}>Cancel</button>
+                    </form>
+                  ) : (
+                    <span className="muted small site-url">{siteLink(s.slug)}</span>
+                  )}
+                </span>
                 <span className="site-actions">
-                  <button className="btn small" onClick={() => copy(siteLink(s.id), 'Site link')}>Copy site link</button>
+                  <button className="btn small" onClick={() => copy(siteLink(s.slug), 'Site link')}>Copy link</button>
+                  {full && editingLink?.id !== s.id && (
+                    <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>
+                  )}
                   {codes[s.id] && (
                     <>
                       <span className="code-chip" title="Employee join code">{codes[s.id]}</span>

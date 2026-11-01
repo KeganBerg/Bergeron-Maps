@@ -478,3 +478,7 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .inline-form input { flex: 1; }
 .add-person { display: grid; grid-template-columns: 2fr 1.4fr 1.2fr auto; gap: 10px; align-items: end; }
 @media (max-width: 700px) { .add-person { grid-template-columns: 1fr; } .header-actions .btn { padding: 6px 8px; } }
+.site-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.site-url { word-break: break-all; }
+.link-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.link-edit input { width: 200px; }

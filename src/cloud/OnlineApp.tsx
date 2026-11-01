@@ -13,6 +13,7 @@ import { SupabaseRepository } from './supabaseRepository';
 import { TeamPage } from './TeamPage';
 
 const COMPANY_KEY = 'bm.company';
+const RESERVED = new Set(['edit', 'view', 'team', 'site']);
 const readCompany = () => { try { return localStorage.getItem(COMPANY_KEY); } catch { return null; } };
 
 /**
@@ -36,19 +37,37 @@ export function OnlineApp() {
     if (back && back !== '/') navigate(back);
   }, [!!s.session]);
 
-  const siteParam = parts[0] === 'site' ? parts[1] : undefined;
+  // Site links: #/harbor-hotel (custom name) or #/site/<id>. Either way the
+  // site is looked up through row-level security, so it only resolves for
+  // people who were given access.
+  const linkKey = parts[0] === 'site' ? parts[1] : parts[0] && !RESERVED.has(parts[0]) ? parts[0] : undefined;
+  const [site, setSite] = useState<{ key: string; id: string | null; companyId?: string } | null>(null);
+  useEffect(() => {
+    if (!linkKey || !s.session || s.loading) return;
+    let alive = true;
+    const byId = parts[0] === 'site';
+    supabase!.from('facilities').select('id, company_id').eq(byId ? 'id' : 'slug', byId ? linkKey : linkKey.toLowerCase()).maybeSingle()
+      .then(({ data }) => {
+        if (!alive) return;
+        const row = data as { id: string; company_id: string } | null;
+        setSite({ key: linkKey, id: row?.id ?? null, companyId: row?.company_id });
+      });
+    return () => { alive = false; };
+  }, [linkKey, !!s.session, s.loading]);
+  const resolving = !!linkKey && site?.key !== linkKey;
+  const siteParam = linkKey && site?.key === linkKey ? site.id ?? undefined : undefined;
   const membership = useMemo(() => {
     if (!s.memberships.length) return undefined;
-    if (siteParam) {
-      const bySite = s.memberships.find((m) => m.siteIds === null || m.siteIds.includes(siteParam));
+    if (siteParam && site?.companyId) {
+      const bySite = s.memberships.find((m) => m.companyId === site.companyId);
       if (bySite) return bySite;
     }
     return s.memberships.find((m) => m.companyId === companyId) ?? s.memberships[0];
-  }, [s.memberships, companyId, siteParam]);
+  }, [s.memberships, companyId, siteParam, site]);
   const repo = useMemo(() => (membership ? new SupabaseRepository(supabase!, membership.companyId, siteParam) : null), [membership, siteParam]);
 
-  if (s.loading) return <div className="page-message"><p>Loading…</p></div>;
-  if (!s.session) return <SignInPage siteLink={!!siteParam} />;
+  if (!s.loading && !s.session) return <SignInPage siteLink={!!linkKey} />;
+  if (s.loading || (resolving && s.memberships.length)) return <div className="page-message"><p>Loading…</p></div>;
   if (!membership || !repo) return <NoAccessPage email={s.email ?? ''} isAdmin={s.isAdmin} onJoined={s.reload} />;
 
   const switchCompany = (id: string) => {
@@ -69,13 +88,13 @@ export function OnlineApp() {
   if (parts[0] === 'edit' && parts[1] && editor) return <EditorPage key={parts[1]} mapId={parts[1]} repo={repo} />;
   if (parts[0] === 'team' && editor) return <TeamPage membership={membership} header={header} />;
 
-  if (siteParam && membership.siteIds !== null && !membership.siteIds.includes(siteParam))
+  if (linkKey && !siteParam)
     return (
       <div className="home">
         <AppHeader>{header}</AppHeader>
         <main className="signin"><div className="signin-card">
-          <h2>You don’t have access to this site</h2>
-          <p>You’re signed in as <strong>{s.email}</strong>. Ask your admin to add this email to the site, then open the link again.</p>
+          <h2>This site link isn’t available to you</h2>
+          <p>You’re signed in as <strong>{s.email}</strong>. Check the link, or ask your admin to add this email to the site and then open the link again.</p>
           <button className="btn" onClick={() => navigate('/')}>Go to my sites</button>
         </div></main>
       </div>
