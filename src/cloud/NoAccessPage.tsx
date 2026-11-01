@@ -33,7 +33,11 @@ export function NoAccessPage({ email, isAdmin, onJoined }: { email: string; isAd
             <button className="btn primary big" disabled={busy}>Create company</button>
           </form>
         )}
-        <form className="signin-card" onSubmit={(e) => { e.preventDefault(); void run(() => supabase!.rpc('join_site', { p_code: code })); }}>
+        <form className="signin-card" onSubmit={(e) => { e.preventDefault(); void run(async () => {
+          const r = await supabase!.rpc('join_site', { p_code: code });
+          // No match comes back as null (so the database can count wrong tries).
+          return r.error || r.data ? r : { error: { message: 'That code didn’t match a site. Check it with your manager and try again.' } };
+        }); }}>
           <h2>{isAdmin ? 'Or join a site' : 'You don’t have access to a site yet'}</h2>
           <p className="muted">
             Signed in as <strong>{email}</strong>. If you’re a manager, ask your admin to add this email to your site. If you’re an employee, enter the
