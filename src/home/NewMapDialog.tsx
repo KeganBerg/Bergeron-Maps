@@ -1,26 +1,60 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Group, Layer, Stage } from 'react-konva';
 import { createMap } from '../model/factory';
 import { clampQuickLot, createQuickLot, QUICK_LOT_DEFAULTS, QUICK_LOT_LIMITS, quickLotTotal, type QuickLotSpec } from '../model/quickLot';
-import type { Floor, MapDocument } from '../model/types';
-import { floorBounds } from '../render/viewport';
+import type { MapDocument } from '../model/types';
+import { MapObjectShape } from '../render/MapObjects';
+import { fitViewport, floorBounds } from '../render/viewport';
+import { floorColor } from '../theme';
 import { Dialog } from '../ui/Dialog';
 
-/** A tiny top-down sketch of the first level, so the manager sees what they'll get. */
-function LotSketch({ floor }: { floor: Floor }) {
-  const b = floorBounds(floor);
-  if (!b) return null;
-  const pad = 20;
+/**
+ * Live preview of the level the manager is about to get, drawn with the same
+ * renderer as the editor and the phone viewer, so it looks exactly like the
+ * finished map. Levels can be flipped through with the floor buttons.
+ */
+function LotPreview({ doc }: { doc: MapDocument }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [index, setIndex] = useState(0);
+  const floor = doc.floors[Math.min(index, doc.floors.length - 1)];
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const measure = () => setSize({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const view = fitViewport(floorBounds(floor), size, 14);
   return (
-    <svg className="lot-sketch" viewBox={`${b.x - pad} ${b.y - pad} ${b.width + pad * 2} ${b.height + pad * 2}`} aria-hidden="true">
-      {floor.objects.map((o) => {
-        const t = `translate(${o.x} ${o.y}) rotate(${o.rotation})`;
-        const r = { x: -o.width / 2, y: -o.height / 2, width: o.width, height: o.height };
-        if (o.kind === 'space') return <rect key={o.id} transform={t} {...r} className={o.accessible ? 'sk-space sk-ada' : 'sk-space'} />;
-        if (o.kind === 'asset' && o.assetKey === 'road') return <rect key={o.id} transform={t} {...r} className="sk-lane" />;
-        if (o.kind === 'asset') return <circle key={o.id} transform={t} r={Math.min(o.width, o.height) / 2} className={`sk-mark sk-${o.assetKey}`} />;
-        return null;
-      })}
-    </svg>
+    <div className="lot-preview">
+      <div className="lot-sketch" ref={boxRef} data-testid="quick-preview">
+        {size.width > 0 && (
+          <Stage width={size.width} height={size.height} x={view.x} y={view.y} scaleX={view.scale} scaleY={view.scale} listening={false}>
+            <Layer>
+              {floor.layers.map((l) => (
+                <Group key={l.id}>
+                  {floor.objects.filter((o) => o.layerId === l.id).map((o) => <MapObjectShape key={o.id} obj={o} />)}
+                </Group>
+              ))}
+            </Layer>
+          </Stage>
+        )}
+      </div>
+      {doc.floors.length > 1 && (
+        <div className="lot-floors" role="group" aria-label="Preview a level">
+          {doc.floors.map((f, i) => (
+            <button key={f.id} type="button" className={f.id === floor.id ? 'active' : ''} aria-pressed={f.id === floor.id}
+              style={{ ['--floor-color' as string]: floorColor(i) }} onClick={() => setIndex(i)}>
+              {f.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -93,9 +127,9 @@ export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCre
               ))}
             </div>
             <figure className="quick-preview">
-              <LotSketch floor={preview.floors[0]} />
+              <LotPreview doc={preview} />
               <figcaption>
-                {spec.floors > 1 ? `Level 1 of ${spec.floors}. ` : ''}Lanes, entrance{spec.floors > 1 ? ', ramps and stairs' : ' and exit'} are added for you. Move or renumber anything afterward.
+                {spec.floors > 1 ? `${spec.floors} levels, ${total} spaces. ` : `${total} spaces. `}Lanes, entrance{spec.floors > 1 ? ', ramps and stairs' : ' and exit'} are added for you. Move or renumber anything afterward.
               </figcaption>
             </figure>
           </div>
