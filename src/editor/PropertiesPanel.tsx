@@ -10,6 +10,7 @@ import { StyleFields } from './StyleFields';
 import { Icon, type IconName } from '../ui/icons';
 import { objectDisplayName } from './CanvasStage';
 import { currentFloor, useEditor } from './store';
+import type { OrderOp } from '../model/order';
 
 export function PropertiesPanel() {
   const floor = useEditor((s) => currentFloor(s))!;
@@ -72,12 +73,12 @@ export function PropertiesPanel() {
 
       {single && single.kind !== 'space' && <GeometryFields o={single} />}
 
+      <OrderButtons />
+
       {objs.length >= 2 && <ArrangeButtons count={objs.length} />}
 
       <div className="btn-row">
         <button className="btn small" onClick={() => st().duplicate()} title="Duplicate (Ctrl+D)"><Icon name="duplicate" size={14} /> Duplicate</button>
-        <button className="btn small" onClick={() => st().bringToFront()}>Bring to front</button>
-        <button className="btn small" onClick={() => st().sendToBack()}>Send to back</button>
         <button className="btn small danger-text" onClick={() => st().deleteSelection()} title="Delete (Del)"><Icon name="trash" size={14} /> Delete</button>
       </div>
     </div>
@@ -279,6 +280,29 @@ function GeometryFields({ o }: { o: MapObject }) {
         <label>Rotation°<CommitInput type="number" value={r(o.rotation)} onCommit={(v) => up({ rotation: ((toNumber(v, o.rotation) % 360) + 360) % 360 })} /></label>
       </div>
     </details>
+  );
+}
+
+const ORDER: [OrderOp, IconName, string, string][] = [
+  ['front', 'toFront', 'Bring to front', 'On top of everything (Ctrl+Shift+])'],
+  ['forward', 'forward', 'Bring forward', 'Up one step (Ctrl+])'],
+  ['backward', 'backward', 'Send back', 'Down one step (Ctrl+[)'],
+  ['back', 'toBack', 'Send to back', 'Behind everything (Ctrl+Shift+[)'],
+];
+
+function OrderButtons() {
+  const st = useEditor.getState;
+  return (
+    <div className="order" data-testid="order">
+      <span className="muted">Order</span>
+      <div className="order-grid">
+        {ORDER.map(([op, icon, label, title]) => (
+          <button key={op} className="btn small" title={title} onClick={() => st().reorder(op)} data-testid={`order-${op}`}>
+            <Icon name={icon} size={14} /> {label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

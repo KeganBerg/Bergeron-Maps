@@ -527,3 +527,20 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .hit-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hit-kind { flex: none; width: 64px; font-size: 12px; font-weight: 600; color: var(--muted); }
 @media (max-width: 760px) { .page-search { width: 100%; } .hit-kind { width: 56px; } }
+
+/* Top toolbar: hovered and selected buttons flip to solid contrast
+   (white on a dark bar, black on a light one) so they are easy to spot. */
+:root { --chrome-hi-bg: #111827; --chrome-hi-text: #ffffff; }
+:root[data-theme='night'], :root[data-theme='signage'] { --chrome-hi-bg: #ffffff; --chrome-hi-text: #000000; }
+.topbar .icon-btn:hover:not(:disabled),
+.topbar .icon-btn.on,
+.topbar .zoom-pct:hover,
+.topbar .btn:not(.primary):not(.published):hover:not(:disabled) {
+  background: var(--chrome-hi-bg); color: var(--chrome-hi-text); border-color: var(--chrome-hi-bg);
+}
+.topbar .icon-btn:focus-visible, .topbar .zoom-pct:focus-visible { outline: 2px solid var(--chrome-hi-bg); outline-offset: 1px; }
+.topbar .brand-home:hover:not(:disabled) { background: transparent; outline: 2px solid var(--chrome-hi-bg); }
+.order { margin: 8px 0; }
+.order > .muted { display: block; font-size: 12px; margin: 6px 0; }
+.order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.order-grid .btn { justify-content: flex-start; }

@@ -13,7 +13,7 @@ const sp = (key: string, name: string, variant: SpaceVariant, width: number, hei
 /** Empty string = use the theme's line color. */
 export const SPACES = [
   sp('space-standard', 'Standard parking space', 'standard', 45, 90, ''),
-  sp('space-compact', 'Compact parking space', 'compact', 40, 80, ''),
+  sp('space-compact', 'Compact parking space', 'compact', 40, 90, ''),
   sp('space-oversized', 'Oversized parking space', 'oversized', 55, 105, '', ['large', 'truck']),
   sp('space-accessible', 'Accessible parking space', 'accessible', 75, 90, P.accessible, ['ada', 'handicap', 'disabled', 'wheelchair']),
   sp('space-reserved', 'Reserved parking space', 'reserved', 45, 90, ''),

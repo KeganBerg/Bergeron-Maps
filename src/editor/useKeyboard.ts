@@ -21,6 +21,12 @@ export function useKeyboard(onSave: () => void) {
       if (mod && key === 'x') { s.cut(); e.preventDefault(); return; }
       if (mod && key === 'v') { s.paste(); e.preventDefault(); return; }
       if (mod && key === 'd') { s.duplicate(); e.preventDefault(); return; }
+      if (mod && (e.code === 'BracketRight' || e.code === 'BracketLeft') && s.selection.length) {
+        const up = e.code === 'BracketRight';
+        s.reorder(e.shiftKey ? (up ? 'front' : 'back') : up ? 'forward' : 'backward');
+        e.preventDefault();
+        return;
+      }
       if (mod && key === 'a') { s.selectAll(); e.preventDefault(); return; }
       if (mod && key === 's') { onSave(); e.preventDefault(); return; }
       if (mod && key === 'z' && !e.shiftKey) { s.undo(); e.preventDefault(); return; }

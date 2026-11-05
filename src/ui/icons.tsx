@@ -49,6 +49,10 @@ const paths: Record<string, string> = {
   locate: 'M12 2v3M12 19v3M2 12h3M19 12h3M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',
   sort: 'M7 4v16M4 17l3 3 3-3M17 20V4M14 7l3-3 3 3',
   restore: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+  toFront: 'M12 20V9M7 14l5-5 5 5M5 4h14',
+  forward: 'M12 19V6M7 11l5-5 5 5',
+  backward: 'M12 5v13M7 13l5 5 5-5',
+  toBack: 'M12 4v11M7 10l5 5 5-5M5 20h14',
 };
 
 export type IconName = keyof typeof paths;
