@@ -222,3 +222,18 @@ test('employees only see a map after it is published, and only the published ver
   await page.goto(`/#/view/${id}`);
   await expect(page.getByTestId('viewer-facility')).toHaveText('Publish Lot');
 });
+
+test('order buttons put an object above or below objects on other layers', async ({ page }) => {
+  await newMap(page, 'Order Test');
+  await addFromLibrary(page, 'tree');
+  await addFromLibrary(page, 'grass-area');
+  await expect(page.getByTestId('selected-name')).toHaveText('Grass area 1');
+  await page.getByTestId('order-front').click();
+  await expect(page.getByTestId('notice').last()).toContainText('so it shows on top');
+  await expect(page.getByTestId('object-layer')).toHaveValue(/.+/);
+  await page.getByTestId('order-forward').click();
+  await expect(page.getByTestId('notice').last()).toContainText('Already in front');
+  await page.getByTestId('order-back').click();
+  await page.getByTestId('order-backward').click();
+  await expect(page.getByTestId('notice').last()).toContainText('Already at the back');
+});

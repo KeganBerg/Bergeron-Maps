@@ -9,12 +9,20 @@ const od = category('Outdoor environment');
 
 /** Scalloped round canopy, like a tree seen from above on a site plan. */
 const canopy = (lobes: number) => icon(64, 64, (c) => {
-  const cx = 32, cy = 32, R = 26;
+  const cx = 32, cy = 32;
+  // Size the ring so the outer edge of every lobe, plus the drop shadow,
+  // stays inside the 64 px box. Fewer lobes bulge further, so they get a
+  // smaller ring; otherwise small trees are clipped flat on their sides.
+  const half = Math.sin(Math.PI / lobes);
+  const arc = 1.25; // lobe radius as a multiple of half the chord
+  const bulge = half * (arc - Math.sqrt(arc * arc - 1));
+  const R = (27.5 - c.sw / 2) / (Math.cos(Math.PI / lobes) + bulge);
+  const lobeR = R * half * arc;
   let d = '';
   for (let i = 0; i <= lobes; i++) {
-    const a = (i / lobes) * Math.PI * 2;
+    const a = (i / lobes) * Math.PI * 2 - Math.PI / 2;
     const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R;
-    d += i === 0 ? `M${r2(x)} ${r2(y)}` : ` A${r2(R * 0.42)} ${r2(R * 0.42)} 0 0 1 ${r2(x)} ${r2(y)}`;
+    d += i === 0 ? `M${r2(x)} ${r2(y)}` : ` A${r2(lobeR)} ${r2(lobeR)} 0 0 1 ${r2(x)} ${r2(y)}`;
   }
   return `<path d="${d}Z" transform="translate(3 4)" fill="${P.shadow}"/><path d="${d}Z" ${FS(c)}/><circle cx="26" cy="25" r="11" fill="#fff" fill-opacity="0.16"/><path d="M32 32 22 22M32 32l11-7M32 32l-3 13M32 32l12 9" stroke="${P.foliageDark}" stroke-width="1.2" stroke-linecap="round"/><circle cx="32" cy="32" r="2.6" fill="${P.trunk}"/>`;
 });

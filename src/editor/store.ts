@@ -6,6 +6,7 @@ import { copySelection, preparePaste, renumberSpaces, type ClipboardData } from 
 import { createFloor, nextFloorName } from '../model/factory';
 import { copyName, duplicateFloor, removeFloorReferences } from '../model/floors';
 import { boxesIntersect, objectBox, unionBoxes } from '../model/geometry';
+import { reorderObjects, type OrderOp } from '../model/order';
 import { newId } from '../model/ids';
 import { deleteLayer, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
 import { highestNumber } from '../model/numbering';
@@ -101,8 +102,8 @@ interface EditorActions {
   align(op: AlignOp): void;
   distribute(op: DistributeOp): void;
   renumber(ids: string[]): void;
-  bringToFront(): void;
-  sendToBack(): void;
+  /** Changes drawing order: to the very front/back, or one step past the next overlapping object. */
+  reorder(op: OrderOp): void;
 
   addAsset(key: string, at: { x: number; y: number }): void;
   addText(at: { x: number; y: number }, text?: string): void;
@@ -516,17 +517,28 @@ export const useEditor = create<EditorStore>()((set, get) => {
       commit((_d, f) => renumberSpaces(f as Floor, ids));
       notify({ tone: 'success', message: 'Spaces renumbered.' });
     },
-    bringToFront() {
-      const ids = new Set(get().selection);
+    reorder(op) {
+      const floor = currentFloor(get());
+      const ids = get().selection;
+      if (!floor || !ids.length) return;
+      // Dry run on a copy first so a no-op doesn't add an undo step.
+      const probe = reorderObjects({ ...floor, objects: [...floor.objects] }, ids, op);
+      if (probe.noop) {
+        const where = op === 'front' || op === 'forward' ? 'in front' : 'at the back';
+        notify({
+          tone: 'info',
+          message: probe.blockedBy
+            ? `Can’t go past objects on “${probe.blockedBy.name}” while that layer is locked.`
+            : `Already ${where}${op === 'forward' || op === 'backward' ? ' of everything it overlaps' : ''}.`,
+        });
+        return;
+      }
+      let res = probe;
       commit((_d, f) => {
-        f.objects = [...f.objects.filter((o) => !ids.has(o.id)), ...f.objects.filter((o) => ids.has(o.id))];
+        res = reorderObjects(f as Floor, ids, op);
       });
-    },
-    sendToBack() {
-      const ids = new Set(get().selection);
-      commit((_d, f) => {
-        f.objects = [...f.objects.filter((o) => ids.has(o.id)), ...f.objects.filter((o) => !ids.has(o.id))];
-      });
+      if (res.movedTo) notify({ tone: 'info', message: `Moved to the “${res.movedTo.name}” layer so it shows ${op === 'front' || op === 'forward' ? 'on top' : 'underneath'}.` });
+      else if (res.blockedBy) notify({ tone: 'info', message: `Objects on the locked “${res.blockedBy.name}” layer weren’t passed. Unlock it to go past them.` });
     },
 
     addAsset(key, at) {
