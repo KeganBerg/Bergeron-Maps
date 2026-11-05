@@ -4,7 +4,7 @@ import { Group, Layer, Rect, Stage } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { searchMap, type SearchHit } from '../model/search';
 import type { MapDocument, MapObject } from '../model/types';
-import { BackgroundShape, MapObjectShape } from '../render/MapObjects';
+import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { clampScale, fitViewport, floorBounds, zoomAt } from '../render/viewport';
 import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
@@ -215,9 +215,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
               !l.visible ? null : (
                 <Group key={l.id}>
                   {floor.background?.layerId === l.id && <BackgroundShape bg={floor.background} listening={false} />}
-                  {floor.objects.filter((o) => o.layerId === l.id).map((o) => (
-                    <MapObjectShape key={o.id} obj={o} highlighted={o.id === focused?.id} />
-                  ))}
+                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} objProps={(o) => ({ highlighted: o.id === focused?.id })} />
                 </Group>
               ),
             )}

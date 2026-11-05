@@ -18,6 +18,7 @@ Third-party code libraries are used under their own open-source licenses:
 | immer | MIT |
 | nanoid | MIT |
 | @material-symbols/svg-400 (icon data) | Apache-2.0 |
+| clipper-lib (shape geometry) | Boost Software License 1.0 |
 
 **Rule for future assets:** before adding any external icon, image, font or map imagery, record its source, license, and whether commercial multi-tenant use and redistribution are allowed in this file. Do not assume all assets from one provider share the same license. Map-provider imagery (Google, Apple, etc.) must not be added without following that provider's terms.
 

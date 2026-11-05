@@ -57,3 +57,12 @@ not photorealistic.
 5. Check it at default size, stretched, and at small zoom (the library test
    renders every asset both ways and fails on invalid SVG).
 6. Compare it next to its neighbors in the library before merging.
+
+## Shapes: curves, bevels, cut-outs and merging
+
+Ground surfaces, zones, roads, buildings (anything on the Structure layer with a fill) and parking spaces can be reshaped per object in the **Shape** section of the properties panel. The geometry lives in `src/model/shape.ts` and is drawn the same way in the editor, the viewer and previews.
+
+- **Corners**: one curvature value in map pixels (slider and number), rounded or beveled. It is capped at half the piece's thickness so a piece never disappears.
+- **Curved pieces**: an asset can declare an `outline` (`ellipse`, `half`, `quarter`, `arc` for a curved band, `L` for a corner piece) and a default `band` thickness. The drawing is clipped to that outline, and the border is drawn along it.
+- **Cut-outs**: the free-draw and grid cut tools in the top bar subtract a shape from the selected object, or from every shapeable object under the cut when nothing is selected. Cuts are stored as fractions of the object's size, so they stretch with it.
+- **Merging**: assets with the same `merge` key (`grass`, `gravel`, `dirt`) on the same layer are drawn as one shape. Overlapping pieces join, and pieces closer than the **Blend** distance (16 px by default) flow together with a smooth bridge, like metaballs. The curb or border is drawn only around the outside of the merged shape, so it never crosses the grass. Any piece can opt out with "Merge with nearby pieces".

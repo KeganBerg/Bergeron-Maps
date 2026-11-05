@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ASSET_BY_KEY, symbolSupport } from '../assets/library';
+import { ASSET_BY_KEY, isShapeable, shapeSourceFor, symbolSupport } from '../assets/library';
+import { bandWidth, DEFAULT_BLEND, maxCorner } from '../model/shape';
 import { SymbolIcon, SymbolPicker } from './SymbolPicker';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { rowSpaces } from '../model/rows';
@@ -71,6 +72,8 @@ export function PropertiesPanel() {
       )}
 
       <StyleFields objs={objs} />
+
+      <ShapeFields objs={objs} />
 
       {single && single.kind !== 'space' && <GeometryFields o={single} />}
 
@@ -319,6 +322,73 @@ function GeometryFields({ o }: { o: MapObject }) {
         <label>Height<CommitInput type="number" value={r(o.height)} onCommit={(v) => up({ height: toNumber(v, o.height, 2) })} /></label>
         <label>Rotation°<CommitInput type="number" value={r(o.rotation)} onCommit={(v) => up({ rotation: ((toNumber(v, o.rotation) % 360) + 360) % 360 })} /></label>
       </div>
+    </details>
+  );
+}
+
+/** Curvature, bevel, band width, merging and cut-outs for areas, zones, roads, buildings and spaces. */
+function ShapeFields({ objs }: { objs: MapObject[] }) {
+  const st = useEditor.getState;
+  const targets = objs.filter((o) => o.kind === 'space' ? o.variant !== 'angled' : o.kind === 'asset' && !o.imageSrc && !!ASSET_BY_KEY[o.assetKey] && isShapeable(ASSET_BY_KEY[o.assetKey]));
+  if (!targets.length) return null;
+  const first = targets[0];
+  const ids = targets.map((o) => o.id);
+  const src = (o: MapObject) => (o.kind === 'asset' ? shapeSourceFor(ASSET_BY_KEY[o.assetKey], o) : o);
+  const max = Math.max(1, Math.min(...targets.map((o) => maxCorner(src(o)))));
+  const corner = Math.min(first.corner ?? 0, max);
+  const setCorner = (v: number) => st().updateObjects(ids, { corner: v > 0 ? Math.round(Math.min(max, Math.max(0, v))) : undefined });
+  const asset = first.kind === 'asset' ? first : null;
+  const def = asset ? ASSET_BY_KEY[asset.assetKey] : undefined;
+  const banded = def?.outline === 'arc' || def?.outline === 'L';
+  const mergeable = targets.every((o) => o.kind === 'asset' && !!ASSET_BY_KEY[o.assetKey]?.merge);
+  const cutCount = targets.reduce((n, o) => n + (o.cuts?.length ?? 0), 0);
+  return (
+    <details className="geometry shape-fields" open data-testid="shape-fields">
+      <summary>Shape</summary>
+      <div className="slider-field">
+        <span>Corners</span>
+        <input type="range" min={0} max={max} step={1} value={corner} aria-label="Corner curvature"
+          onChange={(e) => setCorner(Number(e.target.value))} data-testid="shape-corner-slider" />
+        <CommitInput type="number" className="num" value={corner} min={0} max={max} aria-label="Corner curvature in pixels"
+          onCommit={(v) => setCorner(toNumber(v, corner, 0, max))} data-testid="shape-corner" />
+      </div>
+      <div className="seg" role="group" aria-label="Corner style">
+        <button className={`btn small${!first.bevel ? ' on' : ''}`} aria-pressed={!first.bevel} onClick={() => st().updateObjects(ids, { bevel: undefined })}>Rounded</button>
+        <button className={`btn small${first.bevel ? ' on' : ''}`} aria-pressed={!!first.bevel} onClick={() => st().updateObjects(ids, { bevel: true })} data-testid="shape-bevel">Beveled</button>
+      </div>
+      {asset && banded && targets.length === 1 && (
+        <div className="slider-field">
+          <span>Width</span>
+          <input type="range" min={4} max={Math.floor(Math.min(asset.width, asset.height) - 2)} value={Math.round(bandWidth(src(asset)))} aria-label="Band width"
+            onChange={(e) => st().updateObjects(ids, { band: Number(e.target.value) } as Partial<MapObject>)} />
+          <CommitInput type="number" className="num" value={Math.round(bandWidth(src(asset)))} aria-label="Band width in pixels"
+            onCommit={(v) => st().updateObjects(ids, { band: toNumber(v, bandWidth(src(asset)), 4, Math.min(asset.width, asset.height) - 2) } as Partial<MapObject>)} />
+        </div>
+      )}
+      {mergeable && asset && (
+        <>
+          <label className="check">
+            <input type="checkbox" checked={asset.merge !== false} data-testid="shape-merge"
+              onChange={(e) => st().updateObjects(ids, { merge: e.target.checked ? undefined : false } as Partial<MapObject>)} />
+            Merge with nearby pieces
+          </label>
+          {asset.merge !== false && (
+            <div className="slider-field">
+              <span>Blend</span>
+              <input type="range" min={0} max={80} value={asset.blend ?? DEFAULT_BLEND} aria-label="Blend distance"
+                onChange={(e) => st().updateObjects(ids, { blend: Number(e.target.value) } as Partial<MapObject>)} />
+              <CommitInput type="number" className="num" value={asset.blend ?? DEFAULT_BLEND} aria-label="Blend distance in pixels"
+                onCommit={(v) => st().updateObjects(ids, { blend: toNumber(v, asset.blend ?? DEFAULT_BLEND, 0, 400) } as Partial<MapObject>)} />
+            </div>
+          )}
+        </>
+      )}
+      {first.kind === 'asset' && (
+        <p className="hint">
+          {cutCount ? `${cutCount} cut-out${cutCount === 1 ? '' : 's'}. ` : 'To cut a notch or an L shape, use the cut tools in the top bar. '}
+          {cutCount > 0 && <button className="link" onClick={() => st().updateObjects(ids, { cuts: undefined })} data-testid="shape-clear-cuts">Remove cut-outs</button>}
+        </p>
+      )}
     </details>
   );
 }

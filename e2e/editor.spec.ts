@@ -251,3 +251,30 @@ test('custom zone gets a Google symbol, and the symbol can be switched off', asy
   await page.getByTestId('symbol-toggle').check();
   await expect(page.getByTestId('symbol-current')).toContainText('wc');
 });
+
+test('grass pieces curve, merge and can be cut', async ({ page }) => {
+  await newMap(page, 'Shape Test');
+  await addFromLibrary(page, 'grass-divider');
+  await expect(page.getByTestId('shape-fields')).toBeVisible();
+  await page.getByTestId('shape-corner').fill('12');
+  await page.getByTestId('shape-corner').press('Enter');
+  await expect(page.getByTestId('shape-corner-slider')).toHaveValue('12');
+  await expect(page.getByTestId('shape-merge')).toBeChecked();
+
+  // Grid cut across the middle of the divider.
+  await page.getByTestId('tool-cut-grid').click();
+  const c = (await page.getByTestId('canvas').boundingBox())!;
+  const cx = c.x + c.width / 2;
+  const cy = c.y + c.height / 2;
+  await page.mouse.move(cx - 20, cy - 40);
+  await page.mouse.down();
+  await page.mouse.move(cx + 20, cy + 40, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByTestId('notice').last()).toContainText('Cut out');
+  // Escape leaves the cut tool; the divider stays selected, so its Shape section shows the cut.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('selected-name')).toHaveText('Grass divider 1');
+  await expect(page.getByTestId('shape-clear-cuts')).toBeVisible();
+  await page.getByTestId('shape-clear-cuts').click();
+  await expect(page.getByTestId('shape-clear-cuts')).toHaveCount(0);
+});

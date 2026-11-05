@@ -49,6 +49,8 @@ const paths: Record<string, string> = {
   locate: 'M12 2v3M12 19v3M2 12h3M19 12h3M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',
   sort: 'M7 4v16M4 17l3 3 3-3M17 20V4M14 7l3-3 3 3',
   restore: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+  cutFree: 'M6 18c-2-3-2-8 2-11s9-3 11 0 1 7-3 8-6-1-7 2M4 20l2-2',
+  cutGrid: 'M4 4h4M11 4h2M16 4h4v4M20 11v2M20 16v4h-4M13 20h-2M8 20H4v-4M4 13v-2M4 8V4',
   toFront: 'M12 20V9M7 14l5-5 5 5M5 4h14',
   forward: 'M12 19V6M7 11l5-5 5 5',
   backward: 'M12 5v13M7 13l5 5 5-5',

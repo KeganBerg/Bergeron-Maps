@@ -5,9 +5,10 @@ import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { objectBox, normalizeRotation, unionBoxes } from '../model/geometry';
 import { snapMove, snapToGrid, type Guide } from '../model/snapping';
+import { simplifyStroke } from '../model/shape';
 import { DEFAULT_ROW } from '../model/rows';
 import type { Box, Floor, MapObject } from '../model/types';
-import { BackgroundShape, MapObjectShape } from '../render/MapObjects';
+import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { zoomAt } from '../render/viewport';
 import { MAP_PALETTE } from '../theme';
 import { currentFloor, useEditor } from './store';
@@ -28,7 +29,8 @@ type Gesture =
       additiveClickId?: string;
     }
   | { type: 'marquee'; start: { x: number; y: number }; additive: boolean }
-  | { type: 'row'; start: { x: number; y: number } };
+  | { type: 'row'; start: { x: number; y: number } }
+  | { type: 'cut'; mode: 'free' | 'grid'; start: { x: number; y: number }; points: number[] };
 
 export function objectDisplayName(o: MapObject): string {
   if (o.kind === 'space') return `Space ${o.label || '(no number)'}`;
@@ -42,6 +44,7 @@ export function CanvasStage() {
   const trRef = useRef<Konva.Transformer>(null);
   const gesture = useRef<Gesture | null>(null);
   const [marquee, setMarquee] = useState<Box | null>(null);
+  const [cutDraft, setCutDraft] = useState<number[] | null>(null);
   const [rowDraft, setRowDraft] = useState<{ a: { x: number; y: number }; b: { x: number; y: number } } | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -144,6 +147,12 @@ export function CanvasStage() {
       st.addAsset(st.tool.key, w);
       return;
     }
+    if (st.tool.type === 'cut') {
+      const start = st.tool.mode === 'grid' ? { x: snapToGrid(w.x, gridSize), y: snapToGrid(w.y, gridSize) } : w;
+      gesture.current = { type: 'cut', mode: st.tool.mode, start, points: [start.x, start.y] };
+      setCutDraft([start.x, start.y]);
+      return;
+    }
     if (st.tool.type === 'text') {
       st.addText(w);
       return;
@@ -191,6 +200,15 @@ export function CanvasStage() {
       st.setViewport({ ...viewport, x: g.vx + p.x - g.startX, y: g.vy + p.y - g.startY });
     } else if (g.type === 'row') {
       setRowDraft({ a: g.start, b: w });
+    } else if (g.type === 'cut') {
+      if (g.mode === 'grid') {
+        const b = { x: snapToGrid(w.x, gridSize), y: snapToGrid(w.y, gridSize) };
+        g.points = [g.start.x, g.start.y, b.x, g.start.y, b.x, b.y, g.start.x, b.y];
+      } else {
+        const n = g.points.length;
+        if (Math.hypot(w.x - g.points[n - 2], w.y - g.points[n - 1]) * viewport.scale >= 3) g.points.push(w.x, w.y);
+      }
+      setCutDraft([...g.points]);
     } else if (g.type === 'marquee') {
       setMarquee({
         x: Math.min(g.start.x, w.x),
@@ -230,7 +248,14 @@ export function CanvasStage() {
     const st = useEditor.getState();
     if (!g) return;
     if (g.type === 'pan') setPanning(false);
-    else if (g.type === 'marquee') {
+    else if (g.type === 'cut') {
+      setCutDraft(null);
+      const ring = g.mode === 'free' ? simplifyStroke(g.points, 2 / viewport.scale) : g.points;
+      const xs = ring.filter((_, i) => i % 2 === 0);
+      const ys = ring.filter((_, i) => i % 2 === 1);
+      const big = (Math.max(...xs) - Math.min(...xs)) * viewport.scale > 4 && (Math.max(...ys) - Math.min(...ys)) * viewport.scale > 4;
+      if (ring.length >= 6 && big) st.cutWith(ring);
+    } else if (g.type === 'marquee') {
       if (marquee && marquee.width * viewport.scale > 2) st.selectInBox(marquee, g.additive);
       setMarquee(null);
     } else if (g.type === 'move') {
@@ -371,7 +396,7 @@ export function CanvasStage() {
         onContextMenu={(e) => e.evt.preventDefault()}
       >
         <Layer>
-          {snapMode === 'grid' && <GridLines viewport={viewport} size={viewSize} grid={gridSize} />}
+          {(snapMode === 'grid' || (tool.type === 'cut' && tool.mode === 'grid')) && <GridLines viewport={viewport} size={viewSize} grid={gridSize} />}
           {floor.layers.map((layer) => {
             if (!layer.visible) return null;
             const listening = !layer.locked;
@@ -385,11 +410,7 @@ export function CanvasStage() {
                     onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
                   />
                 )}
-                {floor.objects
-                  .filter((o) => o.layerId === layer.id)
-                  .map((o) => (
-                    <MapObjectShape key={o.id} obj={o} duplicate={duplicates.has(o.id)} />
-                  ))}
+                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
               </Group>
             );
           })}
@@ -436,6 +457,10 @@ export function CanvasStage() {
               listening={false}
             />
           ))}
+          {cutDraft && cutDraft.length >= 4 && (
+            <Line points={cutDraft} closed fill="rgba(220,38,38,0.12)" stroke="#dc2626" strokeWidth={1.5 * invScale}
+              dash={[5 * invScale, 4 * invScale]} listening={false} />
+          )}
           {marquee && (
             <Rect {...marquee} fill="rgba(37,99,235,0.08)" stroke="#2563eb" strokeWidth={invScale} dash={[4 * invScale, 3 * invScale]} listening={false} />
           )}

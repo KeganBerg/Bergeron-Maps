@@ -36,6 +36,9 @@ const speckle = (c: DrawCtx, color: string, step = 11, r = 1.4) => {
   return s;
 };
 
+/** Grass on a curb: shaped and curved pieces clip this to their outline. */
+const grassPiece = (c: DrawCtx) => `${boxRect(c, 4)}${speckle(c, P.grassEdge, 14, 1)}`;
+
 export const OUTDOOR = [
   od('tree', 'Tree', { draw: canopy(9), width: 56, height: 56, layer: 'landmarks', fill: P.foliage, stroke: P.foliageDark, strokeWidth: 1.2, keywords: ['landscaping', 'green', 'plant', 'shade tree'], labelPos: 'below' }),
   od('small-tree', 'Small tree', { draw: canopy(7), width: 36, height: 36, layer: 'landmarks', fill: P.foliageLight, stroke: P.foliageDark, strokeWidth: 1, keywords: ['ornamental', 'sapling'], labelPos: 'below' }),
@@ -56,7 +59,7 @@ export const OUTDOOR = [
     },
   }),
   od('grass-area', 'Grass area', {
-    width: 200, height: 120, layer: 'structure', fill: P.grass, stroke: P.grassEdge, strokeWidth: 1.5, keywords: ['lawn', 'turf', 'green space'],
+    width: 200, height: 120, layer: 'structure', fill: P.grass, stroke: P.grassEdge, strokeWidth: 1.5, keywords: ['lawn', 'turf', 'green space'], merge: 'grass',
     draw: (c) => `${boxRect(c, 4)}${speckle(c, P.grassEdge, 16, 1)}`,
   }),
   od('planter', 'Landscaping bed', {
@@ -94,11 +97,31 @@ export const OUTDOOR = [
     draw: (c) => `<rect x="1.5" y="2" width="${c.w - 1}" height="${c.h - 1}" rx="3" fill="${P.shadow}"/>${boxRect(c, 3)}<rect x="3" y="3" width="${c.w - 6}" height="${c.h - 6}" rx="2" fill="none" stroke="#fff" stroke-opacity="0.6"/>`,
   }),
   od('grass-divider', 'Grass divider', {
-    width: 200, height: 30, layer: 'structure', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'grass strip', 'island'],
-    draw: (c) => `${boxRect(c, 4)}${speckle({ ...c, w: c.w, h: c.h }, P.grassEdge, 14, 1)}`,
+    width: 200, height: 30, layer: 'structure', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'grass strip', 'island', 'planter'], merge: 'grass',
+    draw: grassPiece,
   }),
-  od('dirt-area', 'Dirt area', { width: 160, height: 100, layer: 'structure', fill: '#b9966b', stroke: '#8c6b4a', strokeWidth: 1.2, keywords: ['soil', 'unpaved', 'earth'], draw: (c) => `${boxRect(c, 6)}${speckle(c, '#8c6b4a', 13, 1.2)}` }),
-  od('gravel-area', 'Gravel area', { width: 160, height: 100, layer: 'structure', fill: P.gravel, stroke: '#a89f8c', strokeWidth: 1.2, keywords: ['gravel lot', 'stone', 'unpaved'], draw: (c) => `${boxRect(c, 2)}${speckle(c, '#a39a88', 7, 1.1)}` }),
+  od('grass-divider-corner', 'Grass divider corner', {
+    width: 120, height: 120, layer: 'structure', outline: 'L', band: 30, merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'island', 'corner', 'l shape', 'planter'],
+    draw: grassPiece,
+  }),
+  od('grass-divider-curve', 'Curved grass divider', {
+    width: 160, height: 160, layer: 'structure', outline: 'arc', band: 30, merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'island', 'curve', 'bend', 'arc', 'planter'],
+    draw: grassPiece,
+  }),
+  od('grass-island-half', 'Half-circle grass island', {
+    width: 120, height: 60, layer: 'structure', outline: 'half', merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'island', 'end cap', 'semicircle', 'round', 'planter'],
+    draw: grassPiece,
+  }),
+  od('grass-island-round', 'Round grass island', {
+    width: 100, height: 100, layer: 'structure', outline: 'ellipse', merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['island', 'circle', 'roundabout', 'round', 'planter'],
+    draw: grassPiece,
+  }),
+  od('grass-island-quarter', 'Quarter-round grass island', {
+    width: 100, height: 100, layer: 'structure', outline: 'quarter', merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['island', 'corner', 'quarter circle', 'round', 'planter'],
+    draw: grassPiece,
+  }),
+  od('dirt-area', 'Dirt area', { width: 160, height: 100, layer: 'structure', merge: 'dirt', fill: '#b9966b', stroke: '#8c6b4a', strokeWidth: 1.2, keywords: ['soil', 'unpaved', 'earth'], draw: (c) => `${boxRect(c, 6)}${speckle(c, '#8c6b4a', 13, 1.2)}` }),
+  od('gravel-area', 'Gravel area', { width: 160, height: 100, layer: 'structure', merge: 'gravel', fill: P.gravel, stroke: '#a89f8c', strokeWidth: 1.2, keywords: ['gravel lot', 'stone', 'unpaved'], draw: (c) => `${boxRect(c, 2)}${speckle(c, '#a39a88', 7, 1.1)}` }),
   od('retaining-wall', 'Retaining wall', {
     width: 200, height: 14, layer: 'structure', fill: '#a8a091', stroke: '#6f6758', strokeWidth: 1.2, keywords: ['block wall', 'stone wall', 'terrace'],
     draw: (c) => `${boxRect(c)}${along(c, 18, (x) => `<path d="M${r2(x)} 0 V${r2(c.h / 2)} M${r2(x + 9)} ${r2(c.h / 2)} V${c.h}" stroke="#6f6758" stroke-width="0.8"/>`, 9)}<path d="M0 ${r2(c.h / 2)} H${c.w}" stroke="#6f6758" stroke-width="0.8"/>`,

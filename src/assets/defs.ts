@@ -1,5 +1,6 @@
 import type { LayerRole, SpaceVariant } from '../model/types';
 import type { DrawFn } from './style';
+import type { OutlineKind } from '../model/shape';
 
 export const ASSET_CATEGORIES = [
   'Parking spaces',
@@ -72,6 +73,14 @@ export interface AssetDef {
   text?: TextPreset;
   /** Shown on 'soon' tiles and as extra help. */
   note?: string;
+  /** Outline of curved pieces (circle, half circle, curved band...). Missing = a box. */
+  outline?: OutlineKind;
+  /** Default band thickness for 'arc' and 'L' outlines. */
+  band?: number;
+  /** Pieces with the same merge key flow together into one shape (e.g. 'grass'). */
+  merge?: string;
+  /** The border is dashed (zones). */
+  dashed?: boolean;
 }
 
 type Opts = Omit<AssetDef, 'key' | 'name' | 'category' | 'keywords' | 'namePrefix'> & {
