@@ -94,13 +94,17 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
         <ToolButton icon="cursor" label="Select (Esc)" onClick={() => st().setTool({ type: 'select' })} active={tool.type === 'select'} />
         <ToolButton icon="hand" label="Pan (or hold Space and drag)" onClick={() => st().setTool({ type: 'hand' })} active={tool.type === 'hand'} />
         <ToolButton icon="text" label="Add a text label" onClick={() => st().setTool({ type: 'text' })} active={tool.type === 'text'} testId="tool-text" />
+        <ToolButton icon="cutFree" label="Cut out a shape: draw freely over a zone, ground area, road or building" onClick={() => st().setTool({ type: 'cut', mode: 'free' })}
+          active={tool.type === 'cut' && tool.mode === 'free'} testId="tool-cut-free" />
+        <ToolButton icon="cutGrid" label="Cut out a rectangle that snaps to the grid, for precise cuts" onClick={() => st().setTool({ type: 'cut', mode: 'grid' })}
+          active={tool.type === 'cut' && tool.mode === 'grid'} testId="tool-cut-grid" />
         <span className="sep" />
         <label className="snap" title="Smart: lines up with nearby objects. Grid: snaps to a grid. Free: no snapping.">
           <span className="muted">Snap</span>
           <select value={snapMode} onChange={(e) => st().setSnapMode(e.target.value as SnapMode)} data-testid="snap-mode">
             <option value="smart">Smart</option>
             <option value="grid">Grid</option>
-            <option value="free">Free placement</option>
+            <option value="free">Free</option>
           </select>
         </label>
         {snapMode === 'grid' && (

@@ -12,6 +12,8 @@ import { OUTDOOR, SIGNS } from './catalog/outdoor-signs';
 import { BUILDINGS, GARAGE, PEDESTRIAN, SERVICE } from './catalog/places';
 import { SPACES } from './catalog/spaces';
 import { isSafePath, type MapSymbol } from './symbols';
+import type { ShapeSource } from '../model/shape';
+import type { AssetObject } from '../model/types';
 import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
 import { VALET, VEHICLES } from './catalog/valet-vehicles';
 import { ASSET_CATEGORIES, type AssetCategory, type AssetDef } from './defs';
@@ -129,4 +131,15 @@ export function assetPreviewUrl(def: AssetDef): string | undefined {
     previewCache.set(def.key, url);
   }
   return url;
+}
+
+/** Can this asset be curved, beveled and cut? Ground surfaces, zones, roads and buildings can; icons can't. */
+export function isShapeable(def: AssetDef): boolean {
+  if (def.outline) return true;
+  return !!def.draw && (def.creates ?? 'asset') === 'asset' && def.layer === 'structure' && def.fillable !== false;
+}
+
+/** The outline settings for an object: the asset's piece shape plus the object's own curvature and cuts. */
+export function shapeSourceFor(def: AssetDef | undefined, o: AssetObject): ShapeSource {
+  return { width: o.width, height: o.height, outline: def?.outline, corner: o.corner, bevel: o.bevel, band: o.band ?? def?.band, cuts: o.cuts };
 }

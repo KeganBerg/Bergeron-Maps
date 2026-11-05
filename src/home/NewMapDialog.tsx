@@ -3,7 +3,7 @@ import { Group, Layer, Stage } from 'react-konva';
 import { createMap } from '../model/factory';
 import { clampQuickLot, createQuickLot, QUICK_LOT_DEFAULTS, QUICK_LOT_LIMITS, quickLotTotal, type QuickLotSpec } from '../model/quickLot';
 import type { MapDocument } from '../model/types';
-import { MapObjectShape } from '../render/MapObjects';
+import { LayerObjects } from '../render/MapObjects';
 import { fitViewport, floorBounds } from '../render/viewport';
 import { floorColor } from '../theme';
 import { Dialog } from '../ui/Dialog';
@@ -37,7 +37,7 @@ function LotPreview({ doc }: { doc: MapDocument }) {
             <Layer>
               {floor.layers.map((l) => (
                 <Group key={l.id}>
-                  {floor.objects.filter((o) => o.layerId === l.id).map((o) => <MapObjectShape key={o.id} obj={o} />)}
+                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} />
                 </Group>
               ))}
             </Layer>

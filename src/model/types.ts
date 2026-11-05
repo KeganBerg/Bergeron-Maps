@@ -46,6 +46,12 @@ interface BaseObject extends ObjectStyle {
   rotation: number;
   /** Human-readable identifier shown on click/tap, e.g. "Stairway 3". */
   name?: string;
+  /** Corner curvature in map pixels (0 = square). Capped so thin pieces never vanish. */
+  corner?: number;
+  /** Cut the corners straight (a bevel) instead of rounding them. */
+  bevel?: boolean;
+  /** Cut-outs, each a flat [x0, y0, x1, y1, ...] ring in fractions (0..1) of width and height. */
+  cuts?: number[][];
 }
 
 /** Painted markings that tell drivers what a space is for. */
@@ -89,6 +95,12 @@ export interface AssetObject extends BaseObject {
   symbol?: { name: string; path: string };
   /** true = show no symbol at all (the label then centers). */
   symbolHidden?: boolean;
+  /** Thickness of curved bands and L-shaped corner pieces. */
+  band?: number;
+  /** Landscape pieces merge with neighbours automatically; false keeps this one separate. */
+  merge?: boolean;
+  /** How close (map px) neighbours must be to flow together into one shape. */
+  blend?: number;
 }
 
 export interface TextObject extends BaseObject {

@@ -7,7 +7,7 @@ import { boxRect, F, FS, icon, P, r2, S, text, type DrawCtx } from '../style';
 const zn = category('Zones and boundaries');
 const Z = (key: string, name: string, color: string, o: { glyph?: string; hatch?: string; label?: string; keywords?: string[]; w?: number; h?: number } = {}) =>
   zn(key, name, {
-    draw: zone({ glyph: o.glyph, hatch: o.hatch }), width: o.w ?? 220, height: o.h ?? 130, layer: 'structure', fill: color, fillOpacity: 0.15, stroke: color, strokeWidth: 2,
+    draw: zone({ glyph: o.glyph, hatch: o.hatch }), width: o.w ?? 220, height: o.h ?? 130, layer: 'structure', fill: color, fillOpacity: 0.15, stroke: color, strokeWidth: 2, dashed: true,
     label: o.label ?? name.replace(/ zone$/i, ''), labelPos: o.glyph ? 'badge' : 'center', keywords: ['zone', 'area', ...(o.keywords ?? [])],
   });
 
@@ -37,7 +37,7 @@ export const ZONES = [
   zn('custom-circle', 'Custom circle', { draw: ellipse, width: 120, height: 120, layer: 'structure', fill: P.info, fillOpacity: 0.2, stroke: P.info, strokeWidth: 2, keywords: ['shape', 'round'] }),
   zn('custom-polygon', 'Custom polygon', { creates: 'soon', width: 0, height: 0, layer: 'structure', fill: P.info, stroke: P.info, strokeWidth: 2, keywords: ['shape', 'polygon', 'freeform'], note: 'Point-by-point drawing is the next stage. Use a rectangle or circle zone and rotate it for now.' }),
   zn('custom-boundary-line', 'Custom boundary line', { draw: dashLine('10 6'), width: 240, height: 10, layer: 'structure', fill: P.ink, fillable: false, stroke: P.danger, strokeWidth: 3, keywords: ['line', 'boundary', 'border', 'edge'] }),
-  zn('custom-zone', 'Custom zone', { also: ['Custom and reusable'], draw: zone({ glyph: 'pin' }), width: 220, height: 130, layer: 'structure', fill: P.teal, fillOpacity: 0.15, stroke: P.teal, strokeWidth: 2, label: 'Custom zone', labelPos: 'badge', keywords: ['zone', 'custom', 'area'] }),
+  zn('custom-zone', 'Custom zone', { also: ['Custom and reusable'], draw: zone({ glyph: 'pin' }), dashed: true, width: 220, height: 130, layer: 'structure', fill: P.teal, fillOpacity: 0.15, stroke: P.teal, strokeWidth: 2, label: 'Custom zone', labelPos: 'badge', keywords: ['zone', 'custom', 'area'] }),
 ];
 
 function ellipse(c: DrawCtx) {

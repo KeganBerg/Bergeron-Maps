@@ -1,20 +1,21 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { ASSET_BY_KEY } from '../assets/library';
+import { ASSET_BY_KEY, isShapeable, shapeSourceFor } from '../assets/library';
 import { alignObjects, distributeObjects, type AlignOp, type DistributeOp, type Moves } from '../model/align';
 import { copySelection, preparePaste, renumberSpaces, type ClipboardData } from '../model/clipboard';
 import { createFloor, nextFloorName } from '../model/factory';
 import { copyName, duplicateFloor, removeFloorReferences } from '../model/floors';
 import { boxesIntersect, objectBox, unionBoxes } from '../model/geometry';
 import { reorderObjects, type OrderOp } from '../model/order';
+import { cutForObject } from '../model/shape';
 import { newId } from '../model/ids';
 import { deleteLayer, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
 import { highestNumber } from '../model/numbering';
 import { buildRowSpaces, normalizeRows, regenerateRow, SPACE_FILL, type RowAnchor } from '../model/rows';
 import type { SnapMode } from '../model/snapping';
-import type { BackgroundImage, Box, Floor, Layer, MapDocument, MapObject, RowSpec, SpaceObject } from '../model/types';
+import type { AssetObject, BackgroundImage, Box, Floor, Layer, MapDocument, MapObject, RowSpec, SpaceObject } from '../model/types';
 
-export type Tool = { type: 'select' } | { type: 'hand' } | { type: 'row' } | { type: 'text' } | { type: 'asset'; key: string };
+export type Tool = { type: 'select' } | { type: 'hand' } | { type: 'row' } | { type: 'text' } | { type: 'asset'; key: string } | { type: 'cut'; mode: 'free' | 'grid' };
 
 export interface Viewport {
   x: number;
@@ -104,6 +105,8 @@ interface EditorActions {
   renumber(ids: string[]): void;
   /** Changes drawing order: to the very front/back, or one step past the next overlapping object. */
   reorder(op: OrderOp): void;
+  /** Cuts a world-space shape out of the selected (or else every touched) shapeable object. */
+  cutWith(ring: number[]): void;
 
   addAsset(key: string, at: { x: number; y: number }): void;
   addText(at: { x: number; y: number }, text?: string): void;
@@ -539,6 +542,38 @@ export const useEditor = create<EditorStore>()((set, get) => {
       });
       if (res.movedTo) notify({ tone: 'info', message: `Moved to the “${res.movedTo.name}” layer so it shows ${op === 'front' || op === 'forward' ? 'on top' : 'underneath'}.` });
       else if (res.blockedBy) notify({ tone: 'info', message: `Objects on the locked “${res.blockedBy.name}” layer weren’t passed. Unlock it to go past them.` });
+    },
+
+    cutWith(ring) {
+      const floor = currentFloor(get());
+      if (!floor || ring.length < 6) return;
+      const blocked = new Set(floor.layers.filter((l) => l.locked || !l.visible).map((l) => l.id));
+      const sel = new Set(get().selection);
+      const xs = ring.filter((_, i) => i % 2 === 0);
+      const ys = ring.filter((_, i) => i % 2 === 1);
+      const box = { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+      const candidates = floor.objects.filter((o): o is AssetObject => {
+        if (o.kind !== 'asset' || o.imageSrc || blocked.has(o.layerId)) return false;
+        const def = ASSET_BY_KEY[o.assetKey];
+        return !!def && isShapeable(def) && boxesIntersect(objectBox(o), box);
+      });
+      const pool = sel.size && candidates.some((o) => sel.has(o.id)) ? candidates.filter((o) => sel.has(o.id)) : candidates;
+      const cuts = new Map<string, number[]>();
+      for (const o of pool) {
+        const c = cutForObject({ ...o, ...shapeSourceFor(ASSET_BY_KEY[o.assetKey], o) }, ring);
+        if (c) cuts.set(o.id, c);
+      }
+      if (!cuts.size) {
+        notify({ tone: 'info', message: 'Nothing to cut there. Draw over a zone, ground area, road or building.' });
+        return;
+      }
+      commit((_d, f) => {
+        for (const o of f.objects) {
+          const c = cuts.get(o.id);
+          if (c && o.kind === 'asset') o.cuts = [...(o.cuts ?? []), c];
+        }
+      });
+      notify({ tone: 'success', message: cuts.size === 1 ? 'Cut out. Undo with Ctrl+Z.' : `Cut ${cuts.size} objects. Undo with Ctrl+Z.` });
     },
 
     addAsset(key, at) {

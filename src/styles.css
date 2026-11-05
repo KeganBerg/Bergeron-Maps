@@ -184,9 +184,9 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .topbar .group { display: flex; align-items: center; gap: 4px; }
 .topbar .tools { flex-wrap: wrap; }
-.topbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
-.map-name { font-weight: 600; border-color: transparent !important; width: 190px; }
-.snap select { width: 118px; }
+.topbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 3px; }
+.map-name { font-weight: 600; border-color: transparent !important; width: 160px; }
+.snap select { width: 96px; }
 .map-name:hover, .map-name:focus { border-color: var(--border-strong) !important; }
 .save-status { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .save-status.ok { color: var(--ok); background: #f0fdf4; }
@@ -561,3 +561,14 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .symbol-field .symbol-now span { font-size: 12px; color: var(--muted); }
 .symbol-block { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 .symbol-block .field-label { font-size: 12px; color: var(--muted); }
+
+/* Shape section: curvature, bevel, band width, merging, cut-outs */
+.slider-field { display: grid; grid-template-columns: 56px 1fr 60px; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; color: var(--muted); }
+.slider-field input[type='range'] { width: 100%; }
+.slider-field .num { width: 60px; }
+.seg { display: inline-flex; margin: 4px 0 6px; }
+.seg .btn { border-radius: 0; }
+.seg .btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.seg .btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1px; }
+.seg .btn.on { background: var(--text); color: var(--panel); border-color: var(--text); }
+.shape-fields label.check { display: flex; font-size: 12px; margin: 6px 0; }
