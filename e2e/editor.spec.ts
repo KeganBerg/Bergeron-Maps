@@ -237,3 +237,17 @@ test('order buttons put an object above or below objects on other layers', async
   await page.getByTestId('order-backward').click();
   await expect(page.getByTestId('notice').last()).toContainText('Already at the back');
 });
+
+test('custom zone gets a Google symbol, and the symbol can be switched off', async ({ page }) => {
+  await newMap(page, 'Symbol Test');
+  await addFromLibrary(page, 'custom-zone');
+  await expect(page.getByTestId('symbol-field')).toBeVisible();
+  await page.getByTestId('symbol-choose').click();
+  await page.getByTestId('symbol-search').fill('restroom');
+  await page.getByTestId('symbol-wc').click();
+  await expect(page.getByTestId('symbol-current')).toContainText('wc');
+  await page.getByTestId('symbol-toggle').uncheck();
+  await expect(page.getByTestId('symbol-current')).toHaveCount(0);
+  await page.getByTestId('symbol-toggle').check();
+  await expect(page.getByTestId('symbol-current')).toContainText('wc');
+});

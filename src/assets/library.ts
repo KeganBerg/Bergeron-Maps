@@ -11,6 +11,7 @@ import { BACKGROUNDS, CUSTOM, DRAWING, MARKERS, TEXTS, ZONES } from './catalog/m
 import { OUTDOOR, SIGNS } from './catalog/outdoor-signs';
 import { BUILDINGS, GARAGE, PEDESTRIAN, SERVICE } from './catalog/places';
 import { SPACES } from './catalog/spaces';
+import { isSafePath, type MapSymbol } from './symbols';
 import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
 import { VALET, VEHICLES } from './catalog/valet-vehicles';
 import { ASSET_CATEGORIES, type AssetCategory, type AssetDef } from './defs';
@@ -74,6 +75,8 @@ export interface PaintSource {
   stroke?: string;
   strokeWidth?: number;
   label?: string;
+  symbol?: MapSymbol;
+  symbolHidden?: boolean;
 }
 
 /** The asset's paint with the object's own overrides applied. */
@@ -90,8 +93,30 @@ export function resolvePaint(def: AssetDef, o: Partial<PaintSource> = {}) {
 export function renderAssetSvg(def: AssetDef, o: PaintSource): string {
   if (!def.draw) return svgDoc(o.width, o.height, '');
   const p = resolvePaint(def, o);
-  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '' };
+  const symbol = o.symbolHidden ? null : o.symbol && isSafePath(o.symbol.path) ? o.symbol : undefined;
+  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol };
   return svgDoc(o.width, o.height, def.draw(ctx));
+}
+
+const PROBE: MapSymbol = { name: 'probe', path: 'M0 0h960v-960H0Z' };
+const symbolSupportCache = new Map<string, { custom: boolean; builtIn: boolean }>();
+/**
+ * Which assets can show a symbol, found by drawing each once with and
+ * without one: custom = a chosen symbol changes the drawing; builtIn = it has
+ * its own symbol that the "Show symbol" switch can turn off.
+ */
+export function symbolSupport(def: AssetDef): { custom: boolean; builtIn: boolean } {
+  let s = symbolSupportCache.get(def.key);
+  if (!s) {
+    if (!def.draw || (def.creates ?? 'asset') !== 'asset') s = { custom: false, builtIn: false };
+    else {
+      const base: DrawCtx = { w: def.width, h: def.height, ...resolvePaint(def), label: def.label ?? '' };
+      const plain = def.draw(base);
+      s = { custom: def.draw({ ...base, symbol: PROBE }) !== plain, builtIn: def.draw({ ...base, symbol: null }) !== plain };
+    }
+    symbolSupportCache.set(def.key, s);
+  }
+  return s;
 }
 
 /** Library tile preview at the asset's default size and paint. */

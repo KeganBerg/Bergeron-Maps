@@ -6,6 +6,8 @@
  */
 
 /** Restrained, real-world palette. Equivalent things always use the same color. */
+import type { SymbolChoice } from './symbols';
+
 export const P = {
   // Outlines and detail
   ink: '#27313d', // outline of every raised object
@@ -69,6 +71,8 @@ export interface DrawCtx {
   sw: number;
   /** The object's on-map label, for assets that print it on themselves (custom signs, markers). */
   label: string;
+  /** Symbol override: missing = the asset's own symbol, null = none, else a chosen Material symbol. */
+  symbol?: SymbolChoice;
 }
 
 export type DrawFn = (c: DrawCtx) => string;

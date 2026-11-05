@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { Group, Image as KImage, Line, Rect, Text } from 'react-konva';
 import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
 import { badgeLayout } from '../assets/draw';
-import { ASSET_BY_KEY, renderAssetSvg, svgDataUrl, type AssetDef } from '../assets/library';
+import { ASSET_BY_KEY, renderAssetSvg, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
 import { svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
@@ -126,8 +126,14 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
 });
 
 /** Where an asset's name label goes, in the object's own coordinates. */
-function labelSpot(def: AssetDef | undefined, w: number, h: number): { y: number; size: number } | null {
-  const pos = def?.labelPos ?? 'below';
+function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; size: number } | null {
+  const { width: w, height: h } = obj;
+  let pos = def?.labelPos ?? 'below';
+  // The name sits under the badge only while there is a badge.
+  if (def && (pos === 'badge' || pos === 'center') && symbolSupport(def).custom) {
+    const shows = !obj.symbolHidden && (!!obj.symbol || (pos === 'badge' && symbolSupport(def).builtIn));
+    pos = shows ? 'badge' : 'center';
+  }
   if (pos === 'inside') return null;
   if (pos === 'below') return { y: h + 10, size: Math.max(10, Math.min(14, Math.max(w, h) * 0.22)) };
   const size = Math.max(10, Math.min(20, Math.min(w, h) * 0.16, (w / 8) * 1.6));
@@ -139,12 +145,12 @@ const AssetShape = memo(function AssetShape({ obj }: ObjProps & { obj: AssetObje
   const markup = useMemo(
     () => (def && !obj.imageSrc ? renderAssetSvg(def, obj) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [def, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label],
+    [def, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden],
   );
   const drawn = useSvgImage(markup);
   const photo = useImage(obj.imageSrc);
   const label = obj.label?.trim();
-  const spot = label ? labelSpot(def, obj.width, obj.height) : null;
+  const spot = label ? labelSpot(def, obj) : null;
   return (
     <Group id={obj.id} name="obj" x={obj.x} y={obj.y} rotation={obj.rotation} offsetX={obj.width / 2} offsetY={obj.height / 2}>
       <Rect width={obj.width} height={obj.height} fill="rgba(0,0,0,0.001)" />

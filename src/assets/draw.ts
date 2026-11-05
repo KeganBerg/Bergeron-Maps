@@ -4,6 +4,7 @@
  * like one family.
  */
 import { glyph } from './glyphs';
+import { symbolSvg } from './symbols';
 import { boxRect, F, FS, fitText, icon, P, r2, S, shade, text, type DrawCtx, type DrawFn } from './style';
 
 // ---------------------------------------------------------------- badges
@@ -18,6 +19,25 @@ export function badgeLayout(w: number, h: number) {
 /** White disc with a colored ring and symbol: the library's one "what is this place" marker. */
 export function badge(name: string, cx: number, cy: number, r: number, color: string): string {
   return `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r)}" fill="#ffffff" stroke="${color}" stroke-width="${r2(Math.max(1, r * 0.14))}"/>${glyph(name, cx, cy, r * 1.25, color)}`;
+}
+
+/**
+ * The symbol an object shows: its chosen Material symbol, nothing when the
+ * symbol is switched off, or the asset's built-in glyph `g`.
+ */
+export function symbolMark(c: DrawCtx, g: string | undefined, cx: number, cy: number, size: number, color: string): string {
+  if (c.symbol === null) return '';
+  if (c.symbol) return symbolSvg(c.symbol.path, cx, cy, size, color);
+  return g ? glyph(g, cx, cy, size, color) : '';
+}
+
+/** Whether this object draws any symbol (built-in or chosen). */
+export const hasSymbol = (c: DrawCtx, g?: string) => c.symbol !== null && (!!c.symbol || !!g);
+
+/** `badge`, honoring the object's symbol choice. */
+export function badgeFor(c: DrawCtx, g: string | undefined, cx: number, cy: number, r: number, color: string): string {
+  if (!hasSymbol(c, g)) return '';
+  return `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r)}" fill="#ffffff" stroke="${color}" stroke-width="${r2(Math.max(1, r * 0.14))}"/>${symbolMark(c, g, cx, cy, r * (c.symbol ? 1.3 : 1.25), color)}`;
 }
 
 const raisedShadow = (x: number, y: number, w: number, h: number, rx = 0, off = 1.5) =>
@@ -40,7 +60,7 @@ export const zone = (o: ZoneOpts = {}): DrawFn => (c) => {
     : '';
   const dash = o.dash === false || c.sw <= 0 ? '' : `stroke-dasharray="${r2(c.sw * 4)} ${r2(c.sw * 2.5)}"`;
   const b = badgeLayout(c.w, c.h);
-  return `${boxRect(c, 4, dash)}${hatch}${o.glyph ? badge(o.glyph, b.cx, b.cy, b.r, shade(c.stroke, 0)) : ''}`;
+  return `${boxRect(c, 4, dash)}${hatch}${badgeFor(c, o.glyph, b.cx, b.cy, b.r, shade(c.stroke, 0))}`;
 };
 
 /** An interior room: floor tint, solid walls, a door swing, and a badge. */
@@ -52,7 +72,7 @@ export const room = (g?: string, badgeColor: string = P.inkSoft): DrawFn => (c) 
   const door = c.sw > 0 && c.h > 40
     ? `<rect x="${r2(dx)}" y="${r2(c.h - c.sw - 0.5)}" width="${r2(dw)}" height="${r2(c.sw + 1)}" fill="${P.room}"/><path d="M${r2(dx)} ${r2(y)} v${r2(-dw)} a${r2(dw)} ${r2(dw)} 0 0 1 ${r2(dw)} ${r2(dw)}" fill="none" stroke="${P.inkSoft}" stroke-width="1" stroke-dasharray="3 2"/>`
     : '';
-  return `${boxRect(c)}${door}${g ? badge(g, b.cx, b.cy, b.r, badgeColor) : ''}`;
+  return `${boxRect(c)}${door}${badgeFor(c, g, b.cx, b.cy, b.r, badgeColor)}`;
 };
 
 /** A building footprint seen from above: roof with hip lines, outline, badge. */
@@ -63,28 +83,31 @@ export const building = (g?: string, badgeColor: string = P.inkSoft): DrawFn => 
   const x2 = Math.max(c.w - inset, c.w / 2);
   const ridge = `<path d="M${r2(i)} ${r2(i)} L${r2(x1)} ${r2(c.h / 2)} L${r2(i)} ${r2(c.h - i)} M${r2(c.w - i)} ${r2(i)} L${r2(x2)} ${r2(c.h / 2)} L${r2(c.w - i)} ${r2(c.h - i)} M${r2(x1)} ${r2(c.h / 2)} H${r2(x2)}" fill="none" stroke="${shade(c.fill, 0.18)}" stroke-width="1.2"/>`;
   const b = badgeLayout(c.w, c.h);
-  return `${raisedShadow(0, 0, c.w, c.h, 2, 3)}${boxRect(c, 2)}${ridge}${g ? badge(g, b.cx, b.cy, b.r, badgeColor) : ''}`;
+  return `${raisedShadow(0, 0, c.w, c.h, 2, 3)}${boxRect(c, 2)}${ridge}${badgeFor(c, g, b.cx, b.cy, b.r, badgeColor)}`;
 };
 
 /** A service bay: concrete floor, painted bay lines, a door at the front. */
 export const bay = (g: string, extra: (c: DrawCtx) => string = () => ''): DrawFn => (c) => {
   const b = badgeLayout(c.w, c.h);
   const door = `<rect x="${r2(c.w * 0.12)}" y="${r2(c.h - 4)}" width="${r2(c.w * 0.76)}" height="4" fill="${P.steel}" stroke="${P.steelDark}" stroke-width="0.8"/>`;
-  return `${boxRect(c)}<path d="M${r2(c.w * 0.1)} ${r2(c.h * 0.06)} V${r2(c.h * 0.9)} M${r2(c.w * 0.9)} ${r2(c.h * 0.06)} V${r2(c.h * 0.9)}" stroke="${P.paintYellow}" stroke-width="2.5"/>${extra(c)}${door}${badge(g, b.cx, b.cy, b.r, P.inkSoft)}`;
+  return `${boxRect(c)}<path d="M${r2(c.w * 0.1)} ${r2(c.h * 0.06)} V${r2(c.h * 0.9)} M${r2(c.w * 0.9)} ${r2(c.h * 0.06)} V${r2(c.h * 0.9)}" stroke="${P.paintYellow}" stroke-width="2.5"/>${extra(c)}${door}${badgeFor(c, g, b.cx, b.cy, b.r, P.inkSoft)}`;
 };
 
 // ---------------------------------------------------------------- pins and markers
 
 /** Teardrop map pin with a symbol or short text (number / letter). */
 export const pin = (g?: string): DrawFn => icon(40, 52, (c) => {
-  const content = g ? glyph(g, 20, 18, 17, c.fill) : text(20, 18.5, fitText(22, c.label.length || 1, 15), c.label || '1', c.fill);
+  const content = hasSymbol(c, g)
+    ? symbolMark(c, g, 20, 18.5, c.symbol ? 16 : 17, c.fill)
+    : text(20, 18.5, fitText(22, c.label.length || 1, 15), c.label || '1', c.fill);
   return `<ellipse cx="21.5" cy="50" rx="7" ry="2" fill="${P.shadow}"/><path d="M20 50S5 32 5 19a15 15 0 0 1 30 0c0 13-15 31-15 31Z" ${FS(c)}/><circle cx="20" cy="18.5" r="11" fill="#ffffff"/>${content}`;
 });
 
 /** Round numbered / lettered marker, flat like a printed map key. */
 export const disc = (fallback: string): DrawFn => icon(40, 40, (c) => {
   const t = c.label || fallback;
-  return `<circle cx="21" cy="22" r="17" fill="${P.shadow}"/><circle cx="20" cy="20" r="17" ${FS(c)}/>${text(20, 20.5, fitText(28, t.length, 18), t, '#ffffff')}`;
+  const inner = c.symbol ? symbolMark(c, undefined, 20, 20, 24, '#ffffff') : text(20, 20.5, fitText(28, t.length, 18), t, '#ffffff');
+  return `<circle cx="21" cy="22" r="17" fill="${P.shadow}"/><circle cx="20" cy="20" r="17" ${FS(c)}/>${inner}`;
 });
 
 // ---------------------------------------------------------------- signs (front face)
@@ -118,10 +141,13 @@ export const customSign: DrawFn = icon(56, 64, (c) => {
     if (last && (last + ' ' + w).length <= 10) lines[lines.length - 1] = last + ' ' + w;
     else lines.push(w);
   }
-  const ls = lines.slice(0, 3);
-  const size = Math.min(10, fitText(42, Math.max(...ls.map((l) => l.length)), 11));
-  const y0 = 26 - ((ls.length - 1) * size * 1.15) / 2;
-  return `${post(28, 48, 62)}<rect x="5" y="5.5" width="48" height="44" rx="4" fill="${P.shadow}"/><rect x="4" y="4" width="48" height="44" rx="4" ${FS(c)}/>${ls.map((l, i) => text(28, y0 + i * size * 1.15, size, l, '#ffffff')).join('')}`;
+  const withSym = !!c.symbol;
+  const ls = lines.slice(0, withSym ? 2 : 3);
+  const size = Math.min(withSym ? 8 : 10, fitText(42, Math.max(...ls.map((l) => l.length)), 11));
+  const mid = withSym ? 36 : 26;
+  const y0 = mid - ((ls.length - 1) * size * 1.15) / 2;
+  const sym = withSym ? symbolMark(c, undefined, 28, 17, 20, '#ffffff') : '';
+  return `${post(28, 48, 62)}<rect x="5" y="5.5" width="48" height="44" rx="4" fill="${P.shadow}"/><rect x="4" y="4" width="48" height="44" rx="4" ${FS(c)}/>${sym}${ls.map((l, i) => text(28, y0 + i * size * 1.15, size, l, '#ffffff')).join('')}`;
 });
 
 export const signOctagon = (word: string): DrawFn => icon(56, 64, (c) => {

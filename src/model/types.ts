@@ -85,6 +85,10 @@ export interface AssetObject extends BaseObject {
   imageSrc?: string;
   /** For ramps, stairs, elevators and walkways: the floors this connects to. */
   connectsTo?: string[];
+  /** A Material symbol chosen for this object, shown instead of its built-in one. */
+  symbol?: { name: string; path: string };
+  /** true = show no symbol at all (the label then centers). */
+  symbolHidden?: boolean;
 }
 
 export interface TextObject extends BaseObject {
