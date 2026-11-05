@@ -271,8 +271,9 @@ test('grass pieces curve, merge and can be cut', async ({ page }) => {
   await page.mouse.move(cx + 20, cy + 40, { steps: 5 });
   await page.mouse.up();
   await expect(page.getByTestId('notice').last()).toContainText('Cut out');
+  // Escape leaves the cut tool; the divider stays selected, so its Shape section shows the cut.
   await page.keyboard.press('Escape');
-  await page.mouse.click(cx - 60, cy);
+  await expect(page.getByTestId('selected-name')).toHaveText('Grass divider 1');
   await expect(page.getByTestId('shape-clear-cuts')).toBeVisible();
   await page.getByTestId('shape-clear-cuts').click();
   await expect(page.getByTestId('shape-clear-cuts')).toHaveCount(0);
