@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { ASSET_BY_KEY } from '../assets/library';
+import { useEffect, useRef, useState } from 'react';
+import { ASSET_BY_KEY, symbolSupport } from '../assets/library';
+import { SymbolIcon, SymbolPicker } from './SymbolPicker';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { rowSpaces } from '../model/rows';
 import type { AssetObject, Floor, LabelPlacement, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
@@ -216,6 +217,7 @@ function AssetFields({ a }: { a: AssetObject }) {
         <CommitInput value={a.label ?? ''} maxLength={40} placeholder={def?.labelPos === 'inside' ? def.label : '(none)'} data-testid="asset-label"
           onCommit={(v) => st().updateObjects([a.id], { label: v.trim() || undefined })} />
       </label>
+      {def && symbolSupport(def).custom && !a.imageSrc && <SymbolField a={a} builtIn={symbolSupport(def).builtIn} />}
       {def?.note && def.creates !== 'image' && <p className="hint">{def.note}</p>}
       {def?.connector && (
         <fieldset className="connects">
@@ -235,6 +237,44 @@ function AssetFields({ a }: { a: AssetObject }) {
             </label>
           ))}
         </fieldset>
+      )}
+    </div>
+  );
+}
+
+function SymbolField({ a, builtIn }: { a: AssetObject; builtIn: boolean }) {
+  const [open, setOpen] = useState(false);
+  const st = useEditor.getState;
+  const up = (patch: Partial<AssetObject>) => st().updateObjects([a.id], patch as Partial<MapObject>);
+  const shown = !a.symbolHidden;
+  return (
+    <div className="symbol-block" data-testid="symbol-field">
+      <span className="field-label">Symbol</span>
+      <div className="symbol-field">
+        <label className="check">
+          <input type="checkbox" checked={shown} data-testid="symbol-toggle"
+            onChange={(e) => up({ symbolHidden: e.target.checked ? undefined : true })} />
+          Show a symbol
+        </label>
+        {shown && (
+          <>
+            <span className="symbol-now" data-testid="symbol-current">
+              {a.symbol ? <><SymbolIcon path={a.symbol.path} size={20} /><span>{a.symbol.name.replace(/_/g, ' ')}</span></> : <span>{builtIn ? 'Built-in' : 'None chosen'}</span>}
+            </span>
+            <button className="btn small" onClick={() => setOpen(true)} data-testid="symbol-choose">{a.symbol ? 'Change' : 'Choose'}</button>
+            {a.symbol && <button className="btn small" onClick={() => up({ symbol: undefined })}>{builtIn ? 'Use built-in' : 'Remove'}</button>}
+          </>
+        )}
+      </div>
+      {open && (
+        <SymbolPicker
+          current={a.symbol?.name}
+          onClose={() => setOpen(false)}
+          onPick={(sym) => {
+            up({ symbol: sym, symbolHidden: undefined });
+            setOpen(false);
+          }}
+        />
       )}
     </div>
   );

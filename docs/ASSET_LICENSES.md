@@ -6,6 +6,8 @@ UI icons in `src/ui/icons.tsx` and the symbols in `src/assets/glyphs.ts` are als
 
 The Bergeron Maps logo (`src/assets/brand/`, `public/favicon.svg`) is the company's own artwork, traced to vectors from the founders' brand files. It is a trademark of Bergeron Maps, not open for reuse, and must not be replaced by a customer's brand except where white-labeling allows.
 
+**Material Symbols (Google).** The symbol picker (Symbol field on zones, rooms, buildings, pins, custom symbols and custom signs) offers Google's Material Symbols, the set at fonts.google.com/icons, from the npm package `@material-symbols/svg-400` (a dev dependency; the icons are bundled at build time into a separately loaded chunk). License: Apache License 2.0, which allows commercial use, modification, redistribution and use in white-labeled, multi-tenant products; keep the license notice with redistributed copies of the icon files. No attribution is required on the map itself. A chosen symbol's path data is saved inside the map so maps keep drawing it without the set.
+
 Third-party code libraries are used under their own open-source licenses:
 
 | Library | License |
@@ -15,6 +17,7 @@ Third-party code libraries are used under their own open-source licenses:
 | zustand | MIT |
 | immer | MIT |
 | nanoid | MIT |
+| @material-symbols/svg-400 (icon data) | Apache-2.0 |
 
 **Rule for future assets:** before adding any external icon, image, font or map imagery, record its source, license, and whether commercial multi-tenant use and redistribution are allowed in this file. Do not assume all assets from one provider share the same license. Map-provider imagery (Google, Apple, etc.) must not be added without following that provider's terms.
 
