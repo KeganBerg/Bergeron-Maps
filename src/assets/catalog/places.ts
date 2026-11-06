@@ -6,7 +6,7 @@ import { boxRect, F, FS, fitText, icon, P, r2, S, text, type DrawCtx } from '../
 // ---------------------------------------------------------------- pedestrian
 
 const pd = category('Pedestrian areas');
-const ZONE = { layer: 'structure' as const, fillOpacity: 0.16, strokeWidth: 2, labelPos: 'badge' as const };
+const ZONE = { layer: 'structure' as const, fillOpacity: 0.16, strokeWidth: 2, labelPos: 'badge' as const, dashed: true };
 const z = (cat: ReturnType<typeof category>, key: string, name: string, g: string, color: string, extra: object = {}) =>
   cat(key, name, { ...ZONE, draw: zone({ glyph: g }), width: 200, height: 120, fill: color, stroke: color, label: name, ...extra });
 

@@ -143,3 +143,19 @@ export function isShapeable(def: AssetDef): boolean {
 export function shapeSourceFor(def: AssetDef | undefined, o: AssetObject): ShapeSource {
   return { width: o.width, height: o.height, outline: def?.outline, corner: o.corner, bevel: o.bevel, band: o.band ?? def?.band, cuts: o.cuts };
 }
+
+/** Never merged: drains are separate fixtures, and overlapping zones mean different things. */
+const NO_MERGE = new Set(['drain-grate', 'storm-drain']);
+
+/**
+ * Which pieces flow together when they overlap or sit close: any grass piece
+ * with any other ('grass'), and otherwise copies of the same ground, planting
+ * or walkway asset (hedges, beds, gravel, pavers, sidewalks...).
+ */
+export function mergeKey(def: AssetDef): string | undefined {
+  if (def.merge) return def.merge;
+  if (def.key === 'hedge') return 'hedge';
+  if (NO_MERGE.has(def.key) || def.dashed) return undefined;
+  if ((def.category === 'Outdoor environment' || def.category === 'Pedestrian areas') && isShapeable(def)) return def.key;
+  return undefined;
+}
