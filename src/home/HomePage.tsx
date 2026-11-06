@@ -56,6 +56,17 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
+  /** Runs a change, shows what went wrong if it failed, and reloads the list either way. */
+  const act = async (fn: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message || 'That didn’t go through. Try again.');
+    }
+    await refresh();
+  };
+
   const refresh = async () => {
     try {
       await repo.purgeExpiredTrash();
@@ -181,7 +192,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                     <strong>{m.name}</strong> <span className="muted small">deleted {when(m.deletedAt!)}</span>
                   </span>
                   <span className="btn-row">
-                    <button className="btn small" onClick={async () => { await repo.restoreMap(m.id); await refresh(); }} data-testid={`restore-${m.name}`}>
+                    <button className="btn small" onClick={() => void act(() => repo.restoreMap(m.id))} data-testid={`restore-${m.name}`}>
                       <Icon name="restore" size={14} /> Restore
                     </button>
                     <button className="btn small danger-text" onClick={() => setPurging(m)}>Delete forever</button>
@@ -214,7 +225,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
           confirmLabel="Move to Recently deleted"
           danger
           onCancel={() => setTrashing(null)}
-          onConfirm={async () => { await repo.trashMap(trashing.id); setTrashing(null); await refresh(); }}
+          onConfirm={async () => { setTrashing(null); await act(() => repo.trashMap(trashing.id)); }}
           message={<p>You can restore it from “Recently deleted” for {TRASH_RETENTION_DAYS} days.</p>}
         />
       )}
@@ -224,7 +235,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
           confirmLabel="Delete forever"
           danger
           onCancel={() => setPurging(null)}
-          onConfirm={async () => { await repo.purgeMap(purging.id); setPurging(null); await refresh(); }}
+          onConfirm={async () => { setPurging(null); await act(() => repo.purgeMap(purging.id)); }}
           message={<p>This removes the map and all of its versions. It can’t be undone.</p>}
         />
       )}

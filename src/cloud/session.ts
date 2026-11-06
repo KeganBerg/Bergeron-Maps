@@ -66,7 +66,7 @@ export function useSession(): SessionState {
       supabase.rpc('is_platform_admin'),
     ]).then(async ([m, a]) => {
       if (!alive) return;
-      if (m.error) setError(m.error.message);
+      if (m.error || a.error) setError((m.error ?? a.error)!.message);
       const rows = (m.data ?? []) as unknown as { company_id: string; role: Role; facility_ids: string[] | null; companies: { name: string } | null }[];
       const list: Membership[] = rows.map((r) => ({ companyId: r.company_id, companyName: r.companies?.name ?? 'Company', role: r.role, siteIds: r.facility_ids }));
       const admin = a.data === true;

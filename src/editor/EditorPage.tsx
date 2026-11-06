@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { floorBounds, fitViewport } from '../render/viewport';
 import type { MapRepository, PublishInfo } from '../storage/repository';
 import { Dialog } from '../ui/Dialog';
 import { Notices } from '../ui/Notices';
@@ -10,7 +9,7 @@ import { RowDialog } from './RowDialog';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { VersionsDialog } from './VersionsDialog';
-import { currentFloor, useEditor } from './store';
+import { useEditor } from './store';
 import { readBackup, useAutosave } from './useAutosave';
 import { useKeyboard } from './useKeyboard';
 
@@ -43,11 +42,7 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
         useEditor.getState().load(d);
         const b = readBackup(mapId);
         if (b && b.savedAt > d.updatedAt) setBackup(b);
-        requestAnimationFrame(() => {
-          const s = useEditor.getState();
-          const f = currentFloor(s);
-          if (f) s.setViewport(fitViewport(floorBounds(f), s.viewSize));
-        });
+        // The canvas fits the floor to the screen when it mounts and measures itself.
       },
       (e: Error) => alive && setError(e.message || 'This map could not be opened.'),
     );

@@ -9,7 +9,7 @@ import { simplifyStroke } from '../model/shape';
 import { DEFAULT_ROW } from '../model/rows';
 import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
-import { zoomAt } from '../render/viewport';
+import { fitViewport, floorBounds, zoomAt } from '../render/viewport';
 import { MAP_PALETTE } from '../theme';
 import { currentFloor, useEditor } from './store';
 
@@ -70,7 +70,13 @@ export function CanvasStage() {
     if (!el) return;
     const ro = new ResizeObserver(() => useEditor.getState().setViewSize({ width: el.clientWidth, height: el.clientHeight }));
     ro.observe(el);
-    useEditor.getState().setViewSize({ width: el.clientWidth, height: el.clientHeight });
+    const s = useEditor.getState();
+    const size = { width: el.clientWidth, height: el.clientHeight };
+    s.setViewSize(size);
+    // Fit the floor to the real canvas size on open (on phones the canvas is much
+    // smaller than the default size, so fitting earlier cut the map off).
+    const f = currentFloor(s);
+    if (f) s.setViewport(fitViewport(floorBounds(f), size));
     return () => ro.disconnect();
   }, []);
 

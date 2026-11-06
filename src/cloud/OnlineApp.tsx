@@ -69,6 +69,14 @@ export function OnlineApp() {
 
   if (!s.loading && !s.session) return <SignInPage siteLink={!!linkKey} />;
   if (s.loading || (resolving && s.memberships.length)) return <div className="page-message"><p>Loading…</p></div>;
+  // A failed lookup must not look like "you have no access".
+  if (s.error && !s.memberships.length)
+    return (
+      <div className="page-message" role="alert">
+        <p>Your sites couldn’t be loaded. Check your connection and try again.</p>
+        <button className="btn" onClick={s.reload}>Try again</button>
+      </div>
+    );
   const switchCompany = (id: string, to = '/') => {
     try { localStorage.setItem(COMPANY_KEY, id); } catch { /* stays for this visit */ }
     setCompanyId(id);
