@@ -84,15 +84,17 @@ export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCre
   const preview = useMemo(() => createQuickLot('preview', spec), [spec.floors, spec.rows, spec.spacesPerRow, spec.accessible]);
   const total = quickLotTotal(spec);
 
-  const fallback = site ? 'New map' : 'Untitled site';
-  const create = () => onCreate(mode === 'quick' ? createQuickLot(name || fallback, spec) : createMap(name || fallback), site);
+  // A new site needs a real name; otherwise empty "Untitled site" entries pile up on the home page.
+  const needsName = !site && !name.trim();
+  const fallback = 'New map';
+  const create = () => !needsName && onCreate(mode === 'quick' ? createQuickLot(name.trim() || fallback, spec) : createMap(name.trim() || fallback), site);
 
   return (
     <Dialog title={site ? `New map at ${site}` : 'New site map'} wide onClose={onClose}
       footer={
         <>
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={create} data-testid="create-map">
+          <button className="btn primary" onClick={create} disabled={needsName} title={needsName ? 'Enter a site name first' : undefined} data-testid="create-map">
             {mode === 'quick' ? `Create map with ${total} spaces` : 'Create blank map'}
           </button>
         </>
