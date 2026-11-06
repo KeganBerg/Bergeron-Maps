@@ -39,6 +39,14 @@ function check<T>(r: { data: T; error: { message: string } | null }): T {
   return r.data;
 }
 
+/**
+ * Row-level security turns a write you aren't allowed to make into "0 rows
+ * changed" rather than an error, so say so instead of pretending it worked.
+ */
+function changed(r: { data: unknown[] | null; error: { message: string } | null }): void {
+  if (!check(r)?.length) throw new Error('That didn’t go through. The map may have been changed or removed, or you no longer have access to it.');
+}
+
 /** The stored document, with the server's id, name and revision as the source of truth. */
 function toDoc(row: Pick<MapRow, 'id' | 'name' | 'draft' | 'revision' | 'created_at' | 'updated_at'>): MapDocument {
   return migrateDocument({ ...row.draft, id: row.id, name: row.name, revision: row.revision, createdAt: row.created_at, updatedAt: row.updated_at });
@@ -104,8 +112,11 @@ export class SupabaseRepository implements MapRepository {
   /** Finds the company's site by name, creating it when allowed (owners and regional managers). */
   async siteId(name: string): Promise<string> {
     const site = name.trim();
-    const found = check(await this.db.from('facilities').select('id').eq('company_id', this.companyId).eq('name', site).maybeSingle()) as { id: string } | null;
-    if (found) return found.id;
+    // Two sites can share a name, so take the oldest rather than failing on "multiple rows".
+    const found = check(
+      await this.db.from('facilities').select('id').eq('company_id', this.companyId).eq('name', site).order('created_at').limit(1),
+    ) as { id: string }[];
+    if (found.length) return found[0].id;
     const r = await this.db.from('facilities').insert({ company_id: this.companyId, name: site }).select('id').single();
     if (r.error) throw new Error(/row-level security/i.test(r.error.message) ? `You can’t add a new site. Pick one of your sites or ask your admin to add “${site}”.` : r.error.message);
     return (r.data as { id: string }).id;
@@ -135,7 +146,7 @@ export class SupabaseRepository implements MapRepository {
   async moveToSite(id: string, site: string): Promise<void> {
     if (!site.trim()) throw new Error('Enter a site name.');
     const facility_id = await this.siteId(site);
-    check(await this.db.from('maps').update({ facility_id }).eq('id', id));
+    changed(await this.db.from('maps').update({ facility_id }).eq('id', id).select('id'));
   }
 
   async publishMap(id: string): Promise<PublishInfo> {
@@ -161,15 +172,15 @@ export class SupabaseRepository implements MapRepository {
   }
 
   async trashMap(id: string): Promise<void> {
-    check(await this.db.from('maps').update({ deleted_at: new Date().toISOString() }).eq('id', id));
+    changed(await this.db.from('maps').update({ deleted_at: new Date().toISOString() }).eq('id', id).select('id'));
   }
 
   async restoreMap(id: string): Promise<void> {
-    check(await this.db.from('maps').update({ deleted_at: null }).eq('id', id));
+    changed(await this.db.from('maps').update({ deleted_at: null }).eq('id', id).select('id'));
   }
 
   async purgeMap(id: string): Promise<void> {
-    check(await this.db.from('maps').delete().eq('id', id));
+    changed(await this.db.from('maps').delete().eq('id', id).select('id'));
   }
 
   /** Expired trash is removed by a scheduled server job (purge_expired_trash), not by browsers. */

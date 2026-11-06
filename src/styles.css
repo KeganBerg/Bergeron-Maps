@@ -179,7 +179,7 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .version-list li:last-child { border-bottom: 0; }
 
 /* Editor layout */
-.editor { height: 100%; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+.editor { height: 100%; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
 .editor-main { display: flex; min-height: 0; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .topbar .group { display: flex; align-items: center; gap: 4px; }

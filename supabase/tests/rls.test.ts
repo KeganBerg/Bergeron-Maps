@@ -388,6 +388,17 @@ describe('platform admins', () => {
     expect((await as<{ is_platform_admin: boolean }>(w.manager, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(false);
   });
 
+  it('an admin email only counts once it is confirmed', async () => {
+    const email = `unconfirmed${Date.now()}@bergeronmaps.test`;
+    await db.query('insert into platform_admins (email) values ($1)', [email]);
+    const id = (await db.query<{ id: string }>('insert into auth.users (email, email_confirmed_at) values ($1, null) returning id', [email])).rows[0].id;
+    expect((await as<{ is_platform_admin: boolean }>(id, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(false);
+    await expect(as(id, `select public.create_company('Mine', 'Lot')`)).rejects.toThrow(/Only Bergeron Maps admins/);
+    await db.query('update auth.users set email_confirmed_at = now() where id = $1', [id]);
+    expect((await as<{ is_platform_admin: boolean }>(id, 'select public.is_platform_admin()'))[0].is_platform_admin).toBe(true);
+    await db.query('delete from platform_admins where email = $1', [email]);
+  });
+
   it('admins see every company, site, map and person, without being a member', async () => {
     const companies = (await as<{ id: string }>(w.admin, 'select id from companies')).map((r) => r.id);
     expect(companies).toEqual(expect.arrayContaining([w.company, w.otherCompany]));
