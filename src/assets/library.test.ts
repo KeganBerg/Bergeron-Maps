@@ -45,6 +45,19 @@ describe('asset library', () => {
     expect(renderAssetSvg(ASSET_BY_KEY.wall, { width: 100, height: 10, strokeWidth: 0 })).toContain('stroke="none"');
   });
 
+  it('centres the turnaround lane line between the island and the outer edge', () => {
+    for (const [width, height, strokeWidth] of [[240, 240, 0], [400, 400, 0], [400, 240, 6], [120, 300, 3]]) {
+      const svg = renderAssetSvg(ASSET_BY_KEY.turnaround, { width, height, strokeWidth });
+      const circles = [...svg.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => m.slice(1).map(Number));
+      expect(circles, `${width}x${height}`).toHaveLength(3);
+      const [outer, island, lane] = circles;
+      for (const c of [island, lane]) expect([c[0], c[1]]).toEqual([outer[0], outer[1]]);
+      const r = Math.min(width, height) / 2;
+      const gapIn = lane[2] - (island[2] + 1), gapOut = (r - strokeWidth) - lane[2];
+      expect(Math.abs(gapIn - gapOut), `${width}x${height}`).toBeLessThan(0.1);
+    }
+  });
+
   it('finds assets by everyday words', () => {
     expect(searchAssets('ada').some((a) => a.key === 'space-accessible')).toBe(true);
     expect(searchAssets('cul de sac').map((a) => a.key)).toContain('turnaround');

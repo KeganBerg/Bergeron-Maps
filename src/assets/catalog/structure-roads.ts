@@ -150,7 +150,12 @@ export const ROADS = [
     ...ROAD, width: 240, height: 240, keywords: ['cul de sac', 'turn around', 'bulb'], strokeWidth: 0,
     draw: (c) => {
       const r = Math.min(c.w, c.h) / 2;
-      return `<rect x="0" y="${r2(c.h / 2 - 30)}" width="${r2(c.w / 2)}" height="60" ${F(c)}/><circle cx="${r2(c.w / 2)}" cy="${r2(c.h / 2)}" r="${r2(r - c.sw / 2)}" ${FS(c)}/><circle cx="${r2(c.w / 2)}" cy="${r2(c.h / 2)}" r="${r2(r * 0.32)}" fill="${P.grass}" stroke="${P.concreteEdge}" stroke-width="2"/><path d="M${r2(c.w / 2 + r * 0.66)} ${r2(c.h / 2)} a${r2(r * 0.66)} ${r2(r * 0.66)} 0 1 1 -1 -4" fill="none" stroke="${P.paint}" stroke-width="2" stroke-dasharray="8 6"/>`;
+      const cx = c.w / 2, cy = c.h / 2, island = r * 0.32;
+      // The lane line is a full circle on the same centre as the ring, halfway
+      // between the island's edge and the inside of the outer border, so it
+      // stays centred between the two lanes at any size, border or rotation.
+      const lane = (island + 1 + (r - c.sw)) / 2;
+      return `<rect x="0" y="${r2(cy - 30)}" width="${r2(cx)}" height="60" ${F(c)}/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r - c.sw / 2)}" ${FS(c)}/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(island)}" fill="${P.grass}" stroke="${P.concreteEdge}" stroke-width="2"/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(lane)}" fill="none" stroke="${P.paint}" stroke-width="2" stroke-dasharray="8 6"/>`;
     },
   }),
   rd('roundabout', 'Roundabout', {
