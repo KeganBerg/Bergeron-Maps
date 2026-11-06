@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cutForObject, localOutline, maxCorner, mergeOutlines, ringsArea } from './shape';
+import { cutForObject, localOutline, maxCorner, mergeClusters, mergeOutlines, ringsArea } from './shape';
 
 const box = { x: 50, y: 25, width: 100, height: 50, rotation: 0 };
 
@@ -49,5 +49,31 @@ describe('shape outlines', () => {
     expect(mergeOutlines([a, far])).toHaveLength(1);
     const veryFar = { ...b, x: 400 };
     expect(mergeOutlines([a, veryFar])).toHaveLength(2);
+  });
+
+  it('joins overlapping pieces with sharp corners, no rounded notches', () => {
+    // Two overlapping rectangles making a step shape, like two dirt areas.
+    const a = { x: 67, y: 42, width: 134, height: 84, rotation: 0 };
+    const b = { x: 185, y: -6, width: 134, height: 84, rotation: 0 };
+    const merged = mergeOutlines([a, b]);
+    expect(merged).toHaveLength(1);
+    const overlap = (134 - 118) * (84 - 48);
+    expect(ringsArea(merged)).toBeCloseTo(2 * 134 * 84 - overlap, -1);
+  });
+
+  it('irons out 1 px steps where hand-placed pieces meet', () => {
+    const post = { x: 14, y: 50, width: 28, height: 100, rotation: 0 }; // bottom at 100
+    const strip = { x: 54, y: 86.5, width: 80, height: 29, rotation: 0 }; // bottom at 101
+    const [ring] = mergeOutlines([post, strip]);
+    // The strip's bottom (y=101) was lined up with the post's (y=100): nothing pokes below 100.
+    const ys = ring.filter((_, i) => i % 2 === 1);
+    expect(Math.max(...ys)).toBeLessThan(100.2);
+  });
+
+  it('keeps far-apart pieces in separate clusters', () => {
+    const a = { x: 50, y: 15, width: 100, height: 30, rotation: 0 };
+    const b = { x: 500, y: 15, width: 100, height: 30, rotation: 0 };
+    const c = { x: 600, y: 15, width: 100, height: 30, rotation: 0 };
+    expect(mergeClusters([a, b, c]).map((k) => k.members)).toEqual([[0], [1, 2]]);
   });
 });

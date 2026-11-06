@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ASSET_BY_KEY, isShapeable, shapeSourceFor, symbolSupport } from '../assets/library';
+import { ASSET_BY_KEY, isShapeable, mergeKey, shapeSourceFor, symbolSupport } from '../assets/library';
 import { bandWidth, DEFAULT_BLEND, maxCorner } from '../model/shape';
 import { SymbolIcon, SymbolPicker } from './SymbolPicker';
 import { duplicateSpaceIds } from '../model/duplicates';
@@ -340,7 +340,7 @@ function ShapeFields({ objs }: { objs: MapObject[] }) {
   const asset = first.kind === 'asset' ? first : null;
   const def = asset ? ASSET_BY_KEY[asset.assetKey] : undefined;
   const banded = def?.outline === 'arc' || def?.outline === 'L';
-  const mergeable = targets.every((o) => o.kind === 'asset' && !!ASSET_BY_KEY[o.assetKey]?.merge);
+  const mergeable = targets.every((o) => o.kind === 'asset' && !!ASSET_BY_KEY[o.assetKey] && !!mergeKey(ASSET_BY_KEY[o.assetKey]));
   const cutCount = targets.reduce((n, o) => n + (o.cuts?.length ?? 0), 0);
   return (
     <details className="geometry shape-fields" open data-testid="shape-fields">

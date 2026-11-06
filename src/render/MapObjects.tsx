@@ -3,8 +3,8 @@ import type Konva from 'konva';
 import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
 import { badgeLayout } from '../assets/draw';
-import { ASSET_BY_KEY, isShapeable, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
-import { isShaped, localOutline, maxCorner, mergeOutlines, traceRings } from '../model/shape';
+import { ASSET_BY_KEY, isShapeable, mergeKey, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
+import { isShaped, localOutline, maxCorner, mergeClusters, traceRings, type Ring } from '../model/shape';
 import { P, svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
@@ -147,10 +147,18 @@ function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; si
   return { y: pos === 'badge' ? badgeLayout(w, h).labelY : h / 2, size };
 }
 
-const AssetShape = memo(function AssetShape({ obj, merged, highlighted }: ObjProps & { obj: AssetObject; merged?: boolean }) {
+/**
+ * How a piece inside a merged shape draws itself: 'ghost' = nothing (the merged
+ * shape paints it), 'fill' = its own drawing without a border, clipped to its
+ * outline (the merged shape paints the one outline).
+ */
+type MergedMode = 'ghost' | 'fill';
+
+const AssetShape = memo(function AssetShape({ obj, merged: mode, highlighted }: ObjProps & { obj: AssetObject; merged?: MergedMode }) {
   const def = ASSET_BY_KEY[obj.assetKey];
-  const src = shapeSourceFor(def, obj);
-  const shaped = !obj.imageSrc && !!def && isShapeable(def) && isShaped(src);
+  const src = mergeSourceFor(def, obj);
+  const merged = mode === 'ghost';
+  const shaped = (!obj.imageSrc && !!def && isShapeable(def) && isShaped(src)) || mode === 'fill';
   const rings = useMemo(
     () => (shaped || merged ? localOutline(src) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,9 +166,9 @@ const AssetShape = memo(function AssetShape({ obj, merged, highlighted }: ObjPro
   );
   const markup = useMemo(
     // Shaped pieces draw their own border along the outline, so the box border is left off.
-    () => (def && !obj.imageSrc && !merged ? renderAssetSvg(def, shaped ? { ...obj, strokeWidth: 0 } : obj) : null),
+    () => (def && !obj.imageSrc && !merged ? renderAssetSvg(def, shaped || mode ? { ...obj, strokeWidth: 0 } : obj) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [def, merged, shaped, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden],
+    [def, merged, shaped, mode, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden],
   );
   const drawn = useSvgImage(markup);
   const photo = useImage(obj.imageSrc);
@@ -185,7 +193,7 @@ const AssetShape = memo(function AssetShape({ obj, merged, highlighted }: ObjPro
           <Rect width={obj.width} height={obj.height} fill="#f3f4f6" stroke="#9ca3af" dash={[4, 3]} />
         ) : null}
       </Group>
-      {rings && shaped && !merged && sw > 0 && (
+      {rings && shaped && !mode && sw > 0 && (
         <Shape
           sceneFunc={(ctx, shape) => {
             traceRings(ctx, rings);
@@ -217,73 +225,125 @@ const AssetShape = memo(function AssetShape({ obj, merged, highlighted }: ObjPro
   );
 });
 
-/** Dot texture for merged ground surfaces, matching the asset drawings. */
-const MERGE_TEXTURE: Record<string, { color: string; step: number; r: number }> = {
-  grass: { color: P.grassEdge, step: 14, r: 1 },
-  gravel: { color: '#a39a88', step: 7, r: 1.1 },
-  dirt: { color: '#8c6b4a', step: 13, r: 1.2 },
+type Painter = (c: CanvasRenderingContext2D, size: number) => void;
+const dot = (c: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string, stroke?: string, lw = 0) => {
+  c.beginPath();
+  c.arc(x, y, r, 0, Math.PI * 2);
+  c.fillStyle = fill;
+  c.fill();
+  if (stroke && lw) {
+    c.strokeStyle = stroke;
+    c.lineWidth = lw;
+    c.stroke();
+  }
 };
+const dots = (color: string, r: number): Painter => (c, n) => {
+  for (const [x, y] of [[0.25, 0.3], [0.75, 0.2], [0.3, 0.8], [0.8, 0.7]]) dot(c, x * n, y * n, r, color);
+};
+
+/**
+ * World-anchored textures for merged surfaces, matching each asset's own
+ * drawing, so the fill runs on continuously across every piece. `tile` is the
+ * repeat size in map pixels; painters draw in map pixels.
+ */
+const MERGE_TEXTURE: Record<string, { tile: number; paint: Painter }> = {
+  grass: { tile: 28, paint: dots(P.grassEdge, 1) },
+  gravel: { tile: 14, paint: dots('#a39a88', 1.1) },
+  dirt: { tile: 26, paint: dots('#8c6b4a', 1.2) },
+  'rock-bed': { tile: 18, paint: dots('#8f897d', 2.4) },
+  'flower-bed': {
+    tile: 24,
+    paint: (c) => {
+      const colors = ['#e86a8a', '#f2c230', '#f4f4f4', '#b05cc8'];
+      [[6, 6], [18, 6], [10, 18], [22, 18]].forEach(([x, y], i) => dot(c, x, y, 3, colors[i], P.foliageDark, 0.6));
+    },
+  },
+};
+
+/**
+ * Things drawn once per piece on top of a merged surface (after the shared
+ * fill), so one piece's details are never hidden under another piece's fill.
+ * Drawn in the piece's own coordinates.
+ */
+const MERGE_DECOR: Record<string, (c: CanvasRenderingContext2D, w: number, h: number) => void> = {
+  // Landscaping bed: a row of shrubs down the middle, as in its own drawing.
+  planter: (c, w, h) => {
+    const along = w >= h;
+    const len = along ? w : h;
+    const r = Math.min(10, (along ? h : w) * 0.3);
+    for (let t = 15; t < len - 5; t += 30) dot(c, along ? t : w / 2, along ? h / 2 : t, r, P.foliage, P.foliageDark, 1);
+  },
+};
+
 const patternTiles = new Map<string, HTMLCanvasElement | null>();
+const TILE_K = 4; // tiles are drawn at 4x and scaled down, so they stay sharp when zoomed
 function textureTile(key: string): HTMLCanvasElement | null {
   if (patternTiles.has(key)) return patternTiles.get(key)!;
   const t = MERGE_TEXTURE[key];
   let tile: HTMLCanvasElement | null = null;
   if (t && typeof document !== 'undefined') {
-    // Drawn at 4x and scaled down by the pattern transform, so dots stay round when zoomed.
-    const k = 4;
     tile = document.createElement('canvas');
-    tile.width = tile.height = t.step * 2 * k;
+    tile.width = tile.height = t.tile * TILE_K;
     const c = tile.getContext('2d');
     if (c) {
-      c.fillStyle = t.color;
-      const dots = [[0.25, 0.3], [0.75, 0.2], [0.3, 0.8], [0.8, 0.7]];
-      for (const [x, y] of dots) {
-        c.beginPath();
-        c.arc(x * tile.width, y * tile.height, t.r * k, 0, Math.PI * 2);
-        c.fill();
-      }
+      c.scale(TILE_K, TILE_K);
+      t.paint(c, t.tile);
     } else tile = null;
   }
   patternTiles.set(key, tile);
   return tile;
 }
 
-interface MergeGroup {
+/** Geometry for an object inside a merge: hedges merge as rounded strips. */
+function mergeSourceFor(def: AssetDef | undefined, o: AssetObject) {
+  const src = shapeSourceFor(def, o);
+  if (def && mergeKey(def) === 'hedge') return { ...src, corner: Math.max(0, Math.min(o.width, o.height) / 2 - 1) };
+  return src;
+}
+
+interface MergeCluster {
   key: string;
   members: AssetObject[];
+  rings: Ring[];
 }
 
-/** Landscape pieces on one layer that flow together, keyed by their first (bottom) member. */
-export function mergeGroups(objects: MapObject[]): { leads: Map<string, MergeGroup>; merged: Set<string> } {
-  const byKey = new Map<string, MergeGroup>();
+/**
+ * Pieces on one layer that merge: copies of the same ground or planting asset
+ * (or any grass piece) that overlap or sit within their blend distance.
+ * A piece on its own keeps its normal drawing.
+ */
+export function mergePlan(objects: MapObject[]): { leads: Map<string, MergeCluster>; modes: Map<string, MergedMode> } {
+  const byKey = new Map<string, AssetObject[]>();
   for (const o of objects) {
     if (o.kind !== 'asset' || o.imageSrc || o.merge === false) continue;
-    const key = ASSET_BY_KEY[o.assetKey]?.merge;
+    const def = ASSET_BY_KEY[o.assetKey];
+    const key = def && mergeKey(def);
     if (!key) continue;
-    const g = byKey.get(key) ?? { key, members: [] };
-    g.members.push(o);
-    byKey.set(key, g);
+    byKey.set(key, [...(byKey.get(key) ?? []), o]);
   }
-  const leads = new Map<string, MergeGroup>();
-  const merged = new Set<string>();
-  for (const g of byKey.values()) {
-    leads.set(g.members[0].id, g);
-    for (const m of g.members) merged.add(m.id);
+  const leads = new Map<string, MergeCluster>();
+  const modes = new Map<string, MergedMode>();
+  for (const [key, objs] of byKey) {
+    if (objs.length < 2) continue;
+    const clusters = mergeClusters(objs.map((m) => ({ x: m.x, y: m.y, rotation: m.rotation, blend: m.blend, ...mergeSourceFor(ASSET_BY_KEY[m.assetKey], m) })));
+    const mode: MergedMode = MERGE_TEXTURE[key] || MERGE_DECOR[key] || key === 'hedge' ? 'ghost' : 'fill';
+    for (const c of clusters) {
+      if (c.members.length < 2) continue;
+      const members = c.members.map((i) => objs[i]);
+      leads.set(members[0].id, { key, members, rings: c.rings });
+      for (const m of members) modes.set(m.id, mode);
+    }
   }
-  return { leads, merged };
+  return { leads, modes };
 }
 
-const MergedShape = function MergedShape({ group }: { group: MergeGroup }) {
-  const lead = group.members[0];
+const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster }) {
+  const { key, rings } = cluster;
+  const lead = cluster.members[0];
   const def = ASSET_BY_KEY[lead.assetKey];
-  const members = group.members.map((m) => ({ x: m.x, y: m.y, rotation: m.rotation, blend: m.blend, ...shapeSourceFor(ASSET_BY_KEY[m.assetKey], m) }));
-  // Re-merge only when a piece's geometry changes, not on every pan or zoom.
-  const signature = JSON.stringify(members);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const rings = useMemo(() => mergeOutlines(members), [signature]);
   const fill = withAlpha(lead.fill ?? def?.fill ?? P.grass, lead.fillOpacity ?? def?.fillOpacity ?? 1);
-  const curb = lead.strokeWidth ?? def?.strokeWidth ?? 0;
-  const curbColor = lead.stroke ?? def?.stroke ?? P.concreteEdge;
+  const edge = lead.strokeWidth ?? def?.strokeWidth ?? 0;
+  const edgeColor = lead.stroke ?? def?.stroke ?? P.concreteEdge;
   return (
     <Shape
       listening={false}
@@ -292,21 +352,53 @@ const MergedShape = function MergedShape({ group }: { group: MergeGroup }) {
         const ctx = kctx._context;
         traceRings(ctx, rings);
         ctx.lineJoin = 'round';
-        // The curb is stroked first at double width; the grass then covers its inner
-        // half, so the curb only ever shows around the outside of the merged shape.
-        if (curb > 0) {
-          ctx.lineWidth = curb * 2;
-          ctx.strokeStyle = curbColor;
+        ctx.lineCap = 'round';
+        if (key === 'hedge') {
+          // Shrub lobes all along the edge, so merged hedges keep their bushy outline.
+          const lobe = Math.max(6, Math.min(lead.width, lead.height) * 0.55);
+          ctx.setLineDash([0.01, lobe * 0.7]);
+          ctx.lineWidth = lobe + edge * 2;
+          ctx.strokeStyle = edgeColor;
           ctx.stroke();
+          ctx.lineWidth = lobe;
+          ctx.strokeStyle = fill;
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = fill;
+          ctx.fill();
+          return;
+        }
+        // The border is stroked first at double width and the fill then covers its
+        // inner half, so the one border runs only around the outside of the merged shape.
+        if (edge > 0) {
+          ctx.lineWidth = edge * 2;
+          ctx.strokeStyle = edgeColor;
+          if (def?.dashed) ctx.setLineDash([edge * 4, edge * 2.5]);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
         ctx.fillStyle = fill;
         ctx.fill();
-        const tile = textureTile(group.key);
+        const tile = textureTile(key);
         const pattern = tile && ctx.createPattern(tile, 'repeat');
         if (pattern) {
-          pattern.setTransform?.(new DOMMatrix().scale(0.25));
+          pattern.setTransform?.(new DOMMatrix().scale(1 / TILE_K));
           ctx.fillStyle = pattern;
           ctx.fill();
+        }
+        const decor = MERGE_DECOR[key];
+        if (decor) {
+          ctx.save();
+          ctx.clip();
+          for (const m of cluster.members) {
+            ctx.save();
+            ctx.translate(m.x, m.y);
+            ctx.rotate((m.rotation * Math.PI) / 180);
+            ctx.translate(-m.width / 2, -m.height / 2);
+            decor(ctx, m.width, m.height);
+            ctx.restore();
+          }
+          ctx.restore();
         }
       }}
     />
@@ -314,12 +406,17 @@ const MergedShape = function MergedShape({ group }: { group: MergeGroup }) {
 };
 
 /**
- * Everything on one layer, in drawing order. Landscape pieces that merge are
- * drawn as one shape where their bottom-most piece sits; each piece still
- * gets its own invisible outline for clicking, selecting and labels.
+ * Everything on one layer, in drawing order. Pieces that merge are drawn as
+ * one shape where their bottom-most piece sits; each piece still gets its own
+ * invisible outline for clicking, selecting and labels.
  */
 export function LayerObjects({ objects, objProps }: { objects: MapObject[]; objProps?: (o: MapObject) => Omit<ObjProps, 'obj'> }) {
-  const { leads, merged } = useMemo(() => mergeGroups(objects), [objects]);
+  // Re-merge only when a mergeable piece changes, not on every pan, zoom or unrelated edit.
+  const signature = JSON.stringify(
+    objects.map((o) => (o.kind === 'asset' && ASSET_BY_KEY[o.assetKey] && mergeKey(ASSET_BY_KEY[o.assetKey]!) ? [o.id, o.x, o.y, o.width, o.height, o.rotation, o.corner, o.bevel, o.band, o.cuts, o.blend, o.merge, o.fill, o.fillOpacity, o.stroke, o.strokeWidth] : 0)),
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { leads, modes } = useMemo(() => mergePlan(objects), [signature]);
   return (
     <>
       {objects.map((o) => {
@@ -327,8 +424,8 @@ export function LayerObjects({ objects, objProps }: { objects: MapObject[]; objP
         const props = objProps?.(o) ?? {};
         return (
           <Fragment key={o.id}>
-            {lead && <MergedShape group={lead} />}
-            {o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={merged.has(o.id)} /> : <MapObjectShape obj={o} {...props} />}
+            {lead && <MergedShape cluster={lead} />}
+            {o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} /> : <MapObjectShape obj={o} {...props} />}
           </Fragment>
         );
       })}
