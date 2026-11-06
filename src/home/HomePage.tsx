@@ -146,12 +146,11 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
               <section key={site} className="site" data-testid={`site-${site}`}>
                 <header className="site-head">
                   <h3>{site}</h3>
-                  <span className="muted small">{list.length} map{list.length === 1 ? '' : 's'} · {list.reduce((n, m) => n + m.spaceCount, 0)} spaces</span>
+                  <span className="site-meta">{list.length} map{list.length === 1 ? '' : 's'} · {list.reduce((n, m) => n + m.spaceCount, 0)} space{list.reduce((n, m) => n + m.spaceCount, 0) === 1 ? '' : 's'}</span>
                   <button className="btn small" onClick={() => setCreating({ site })} data-testid={`add-map-${site}`}>
                     <Icon name="plus" size={14} /> Add map
                   </button>
                 </header>
-                {list.length === 0 && <p className="muted small">No maps yet. Use Add map to build one in about a minute.</p>}
                 <ul className="map-grid">
                   {list.map((m) => {
                     const st = publishStatus(m);
@@ -160,21 +159,30 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                         <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
                           <span className={`pub-pill ${st.tone}`}>{st.text}</span>
                           <strong>{m.name}</strong>
-                          <span className="muted">
+                          <span className="map-meta">
                             {m.floorCount} floor{m.floorCount === 1 ? '' : 's'} · {m.spaceCount} space{m.spaceCount === 1 ? '' : 's'}
                           </span>
-                          <span className="muted small">Edited {when(m.updatedAt)}</span>
+                          <span className="map-edited">Edited {when(m.updatedAt)}</span>
                         </button>
                         <div className="card-actions">
                           <button className="btn small" onClick={() => navigate(m.publishedAt ? `/view/${m.id}` : `/view/${m.id}?preview=1`)}>
                             {m.publishedAt ? 'Employee view' : 'Preview'}
                           </button>
                           <button className="btn small" onClick={() => copyMap(m)} title="Use as a starting point for another map">Copy</button>
-                          <button className="btn small" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
+                          <button className="btn small card-delete" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
                         </div>
                       </li>
                     );
                   })}
+                  {list.length === 0 && (
+                    <li className="map-card map-card-empty">
+                      <button className="map-add" onClick={() => setCreating({ site })}>
+                        <Icon name="plus" size={18} />
+                        <strong>Add the first map</strong>
+                        <span>Build one from a few numbers in about a minute.</span>
+                      </button>
+                    </li>
+                  )}
                 </ul>
               </section>
             ))}
