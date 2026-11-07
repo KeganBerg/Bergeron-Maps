@@ -98,22 +98,28 @@ export const STRUCTURE = [
 
 const rd = category('Roads and traffic');
 const ROAD = { layer: 'structure' as const, fill: P.asphalt, stroke: P.asphaltEdge, strokeWidth: 0, labelColor: '#ffffff' };
+/** Driving surfaces that join into one road where they overlap or touch. */
+const DRIVE = { ...ROAD, merge: 'road', blend: 6 };
 
 const doubleYellow = (c: DrawCtx, y = c.h / 2) => hLine(y - 2, 0, c.w, P.paintYellow, 1.6) + hLine(y + 2, 0, c.w, P.paintYellow, 1.6);
 const word = (c: DrawCtx, t: string, size = Math.min(c.h * 0.35, 16)) => text(c.w / 2, c.h / 2, size, t, P.paint);
 
-/** Quarter-circle road: the curve turns from the left edge down to the bottom. */
-const curve = (width: number, marks: 'road' | 'lane') => (c: DrawCtx) => {
-  const R = Math.min(c.w, c.h);
-  const rIn = Math.max(0, R - width);
+/**
+ * Quarter-ring road: the curve turns from the left edge down to the bottom,
+ * filling its box (a stretched box makes an elliptical bend). `c.band` is the
+ * road's width, matching the piece's 'arc' outline.
+ */
+const curve = (marks: 'road' | 'lane') => (c: DrawCtx) => {
+  const t = c.band ?? Math.min(c.w, c.h) * 0.5;
   const ox = 0, oy = c.h;
-  const arc = (r: number) => `M${ox} ${r2(oy - r)} A${r2(r)} ${r2(r)} 0 0 1 ${r2(ox + r)} ${oy}`;
-  const shape = `M${ox} ${r2(oy - R)} A${r2(R)} ${r2(R)} 0 0 1 ${r2(ox + R)} ${oy} L${r2(ox + rIn)} ${oy} A${r2(rIn)} ${r2(rIn)} 0 0 0 ${ox} ${r2(oy - rIn)} Z`;
-  const mid = (R + rIn) / 2;
+  const arc = (rx: number, ry: number) => `M${ox} ${r2(oy - ry)} A${r2(rx)} ${r2(ry)} 0 0 1 ${r2(ox + rx)} ${oy}`;
+  const shape = `M${ox} 0 A${c.w} ${c.h} 0 0 1 ${c.w} ${oy} L${r2(c.w - t)} ${oy} A${r2(c.w - t)} ${r2(c.h - t)} 0 0 0 ${ox} ${r2(t)} Z`;
+  const mid = t / 2;
   const lines = marks === 'road'
-    ? `<path d="${arc(mid - 2)}" fill="none" stroke="${P.paintYellow}" stroke-width="1.6"/><path d="${arc(mid + 2)}" fill="none" stroke="${P.paintYellow}" stroke-width="1.6"/>`
+    ? `<path d="${arc(c.w - mid + 2, c.h - mid + 2)}" fill="none" stroke="${P.paintYellow}" stroke-width="1.6"/><path d="${arc(c.w - mid - 2, c.h - mid - 2)}" fill="none" stroke="${P.paintYellow}" stroke-width="1.6"/>`
     : '';
-  return `<path d="${shape}" ${FS(c)}/><path d="${arc(R - 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/><path d="${arc(rIn + 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/>${lines}`;
+  if (c.marksOnly) return lines;
+  return `<path d="${shape}" ${FS(c)}/><path d="${arc(c.w - 3.5, c.h - 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/><path d="${arc(c.w - t + 3.5, c.h - t + 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/>${lines}`;
 };
 
 const ramp = (dir: 'up' | 'down' | 'none') => (c: DrawCtx) => {
@@ -124,17 +130,17 @@ const ramp = (dir: 'up' | 'down' | 'none') => (c: DrawCtx) => {
 };
 
 export const ROADS = [
-  rd('straight-road', 'Straight road', { ...ROAD, width: 300, height: 120, keywords: ['street', 'two lane'], draw: lane((c) => doubleYellow(c)) }),
-  rd('curved-road', 'Curved road', { ...ROAD, width: 240, height: 240, keywords: ['bend', 'turn', 'corner', 'street'], draw: curve(120, 'road') }),
-  rd('road', 'Straight driving lane', { ...ROAD, width: 300, height: 60, keywords: ['drive', 'aisle', 'lane'], draw: lane(() => '') }),
-  rd('curved-lane', 'Curved driving lane', { ...ROAD, width: 160, height: 160, keywords: ['bend', 'aisle', 'turn'], draw: curve(60, 'lane') }),
-  rd('one-way-lane', 'One-way lane', { ...ROAD, width: 300, height: 60, keywords: ['one way', 'aisle'], draw: lane((c) => along(c, 110, (x) => laneArrow(x, c.h / 2, 34))) }),
+  rd('straight-road', 'Straight road', { ...DRIVE, width: 300, height: 120, keywords: ['street', 'two lane'], draw: lane((c) => doubleYellow(c)) }),
+  rd('curved-road', 'Curved road', { ...DRIVE, width: 240, height: 240, keywords: ['bend', 'turn', 'corner', 'street'], outline: 'arc', band: 120, draw: curve('road') }),
+  rd('road', 'Straight driving lane', { ...DRIVE, width: 300, height: 60, keywords: ['drive', 'aisle', 'lane'], draw: lane(() => '') }),
+  rd('curved-lane', 'Curved driving lane', { ...DRIVE, width: 160, height: 160, keywords: ['bend', 'aisle', 'turn'], outline: 'arc', band: 60, draw: curve('lane') }),
+  rd('one-way-lane', 'One-way lane', { ...DRIVE, width: 300, height: 60, keywords: ['one way', 'aisle'], draw: lane((c) => along(c, 110, (x) => laneArrow(x, c.h / 2, 34))) }),
   rd('two-way-lane', 'Two-way lane', {
-    ...ROAD, width: 300, height: 120, keywords: ['two way', 'aisle', 'street'],
+    ...DRIVE, width: 300, height: 120, keywords: ['two way', 'aisle', 'street'],
     draw: lane((c) => hLine(c.h / 2, 0, c.w, P.paint, 2, '14 10') + along(c, 140, (x) => laneArrow(x, c.h * 0.27, 34) + laneArrow(x + 40, c.h * 0.73, 34, P.paint, true))),
   }),
-  rd('entrance-lane', 'Entrance lane', { ...ROAD, width: 240, height: 60, keywords: ['entry', 'in', 'inbound'], draw: lane((c) => laneArrow(c.w * 0.72, c.h / 2, 40) + word(c, 'IN')) }),
-  rd('exit-lane', 'Exit lane', { ...ROAD, width: 240, height: 60, keywords: ['out', 'outbound', 'egress'], draw: lane((c) => laneArrow(c.w * 0.72, c.h / 2, 40) + word(c, 'OUT')) }),
+  rd('entrance-lane', 'Entrance lane', { ...DRIVE, width: 240, height: 60, keywords: ['entry', 'in', 'inbound'], draw: lane((c) => laneArrow(c.w * 0.72, c.h / 2, 40) + word(c, 'IN')) }),
+  rd('exit-lane', 'Exit lane', { ...DRIVE, width: 240, height: 60, keywords: ['out', 'outbound', 'egress'], draw: lane((c) => laneArrow(c.w * 0.72, c.h / 2, 40) + word(c, 'OUT')) }),
   rd('driveway', 'Driveway', {
     layer: 'structure', fill: P.concrete, stroke: P.concreteEdge, strokeWidth: 1.5, width: 120, height: 80, keywords: ['apron', 'curb cut', 'access'],
     draw: (c) => `<path d="M0 ${c.h} C${r2(c.w * 0.18)} ${c.h} ${r2(c.w * 0.18)} ${r2(c.h * 0.75)} ${r2(c.w * 0.18)} ${r2(c.h * 0.6)} V0 H${r2(c.w * 0.82)} V${r2(c.h * 0.6)} C${r2(c.w * 0.82)} ${r2(c.h * 0.75)} ${r2(c.w * 0.82)} ${c.h} ${c.w} ${c.h} Z" ${FS(c)}/>${along({ ...c, w: c.w * 0.64 }, 20, (x) => `<path d="M${r2(c.w * 0.18 + x)} 0 v${r2(c.h * 0.6)}" stroke="${P.concreteEdge}" stroke-width="0.7"/>`, 10)}`,
@@ -143,7 +149,7 @@ export const ROADS = [
   rd('ramp-up', 'Upward ramp', { layer: 'structure', fill: '#9aa0a8', stroke: P.wall, strokeWidth: 1.5, width: 240, height: 70, connector: true, keywords: ['ramp', 'up', 'incline'], draw: ramp('up') }),
   rd('ramp-down', 'Downward ramp', { layer: 'structure', fill: '#9aa0a8', stroke: P.wall, strokeWidth: 1.5, width: 240, height: 70, connector: true, keywords: ['ramp', 'down', 'decline'], draw: ramp('down') }),
   rd('turning-lane', 'Turning lane', {
-    ...ROAD, width: 240, height: 60, keywords: ['turn lane', 'left turn', 'right turn'],
+    ...DRIVE, width: 240, height: 60, keywords: ['turn lane', 'left turn', 'right turn'],
     draw: lane((c) => `<g transform="translate(${r2(c.w * 0.6)} ${r2(c.h / 2)}) rotate(90) scale(${r2(c.h / 52)}) translate(-12 -30)"><path d="M15.5 58V24C15.5 19 13 17 9 17H8V23L0 13 8 3V9H10C18 9 22.5 14 22.5 23V58Z" fill="${P.paint}"/></g>`),
   }),
   rd('turnaround', 'Vehicle turnaround', {
@@ -201,12 +207,12 @@ export const ROADS = [
       return `${cones}<path d="M${r2(c.w * 0.35)} ${r2(c.h * 0.85)} C${r2(c.w * 0.6)} ${r2(c.h * 0.85)} ${r2(c.w * 0.62)} ${r2(c.h * 0.25)} ${r2(c.w * 0.88)} ${r2(c.h * 0.25)}" fill="none" stroke="${P.orange}" stroke-width="4"/><path d="M${r2(c.w * 0.86)} ${r2(c.h * 0.12)} L${r2(c.w * 0.98)} ${r2(c.h * 0.25)} L${r2(c.w * 0.86)} ${r2(c.h * 0.38)} Z" fill="${P.orange}"/>`;
     },
   }),
-  rd('service-drive', 'Service drive', { ...ROAD, width: 300, height: 60, keywords: ['service lane', 'dealership'], draw: lane((c) => word(c, 'SERVICE') + laneArrow(c.w * 0.85, c.h / 2, 30)) }),
+  rd('service-drive', 'Service drive', { ...DRIVE, width: 300, height: 60, keywords: ['service lane', 'dealership'], draw: lane((c) => word(c, 'SERVICE') + laneArrow(c.w * 0.85, c.h / 2, 30)) }),
   rd('service-reception-lane', 'Service reception lane', {
     ...ROAD, fill: '#5f6f82', width: 300, height: 70, keywords: ['service write up', 'service drive', 'reception', 'dealership'],
     draw: lane((c) => hLine(c.h / 2, 0, c.w, P.paint, 1, '4 6') + text(c.w / 2, c.h / 2, Math.min(c.h * 0.24, 12), 'SERVICE RECEPTION', P.paint) + laneArrow(c.w * 0.9, c.h / 2, 26)),
   }),
-  rd('drive-through-lane', 'Drive-through lane', { ...ROAD, width: 300, height: 60, keywords: ['drive thru', 'pickup window'], draw: lane((c) => word(c, 'DRIVE THRU', Math.min(c.h * 0.3, 14)) + laneArrow(c.w * 0.12, c.h / 2, 26) + laneArrow(c.w * 0.88, c.h / 2, 26)) }),
+  rd('drive-through-lane', 'Drive-through lane', { ...DRIVE, width: 300, height: 60, keywords: ['drive thru', 'pickup window'], draw: lane((c) => word(c, 'DRIVE THRU', Math.min(c.h * 0.3, 14)) + laneArrow(c.w * 0.12, c.h / 2, 26) + laneArrow(c.w * 0.88, c.h / 2, 26)) }),
   rd('loading-lane', 'Loading lane', {
     ...ROAD, width: 300, height: 60, keywords: ['loading', 'delivery', 'freight'],
     draw: (c) => hatched(P.paintYellow, 'LOADING', P.ink)(c),

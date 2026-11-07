@@ -73,6 +73,13 @@ export interface DrawCtx {
   label: string;
   /** Symbol override: missing = the asset's own symbol, null = none, else a chosen Material symbol. */
   symbol?: SymbolChoice;
+  /**
+   * Inside a merged road: draw only the paint marks (no surface, no edge
+   * lines), because the merged shape paints those once for all pieces.
+   */
+  marksOnly?: boolean;
+  /** Band thickness of curved ('arc') and L pieces, in map pixels. */
+  band?: number;
 }
 
 export type DrawFn = (c: DrawCtx) => string;

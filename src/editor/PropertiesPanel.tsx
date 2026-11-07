@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ASSET_BY_KEY, isShapeable, mergeKey, shapeSourceFor, symbolSupport } from '../assets/library';
-import { bandWidth, DEFAULT_BLEND, maxCorner } from '../model/shape';
+import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, shapeSourceFor, symbolSupport } from '../assets/library';
+import { bandWidth, maxCorner } from '../model/shape';
 import { SymbolIcon, SymbolPicker } from './SymbolPicker';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { rowSpaces } from '../model/rows';
@@ -375,10 +375,10 @@ function ShapeFields({ objs }: { objs: MapObject[] }) {
           {asset.merge !== false && (
             <div className="slider-field">
               <span>Blend</span>
-              <input type="range" min={0} max={80} value={asset.blend ?? DEFAULT_BLEND} aria-label="Blend distance"
+              <input type="range" min={0} max={80} value={asset.blend ?? defaultBlend(def)} aria-label="Blend distance"
                 onChange={(e) => st().updateObjects(ids, { blend: Number(e.target.value) } as Partial<MapObject>)} />
-              <CommitInput type="number" className="num" value={asset.blend ?? DEFAULT_BLEND} aria-label="Blend distance in pixels"
-                onCommit={(v) => st().updateObjects(ids, { blend: toNumber(v, asset.blend ?? DEFAULT_BLEND, 0, 400) } as Partial<MapObject>)} />
+              <CommitInput type="number" className="num" value={asset.blend ?? defaultBlend(def)} aria-label="Blend distance in pixels"
+                onCommit={(v) => st().updateObjects(ids, { blend: toNumber(v, asset.blend ?? defaultBlend(def), 0, 400) } as Partial<MapObject>)} />
             </div>
           )}
         </>
