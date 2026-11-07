@@ -12,7 +12,7 @@ import { OUTDOOR, SIGNS } from './catalog/outdoor-signs';
 import { BUILDINGS, GARAGE, PEDESTRIAN, SERVICE } from './catalog/places';
 import { SPACES } from './catalog/spaces';
 import { isSafePath, type MapSymbol } from './symbols';
-import type { ShapeSource } from '../model/shape';
+import { bandWidth, DEFAULT_BLEND, type ShapeSource } from '../model/shape';
 import type { AssetObject } from '../model/types';
 import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
 import { VALET, VEHICLES } from './catalog/valet-vehicles';
@@ -79,6 +79,8 @@ export interface PaintSource {
   label?: string;
   symbol?: MapSymbol;
   symbolHidden?: boolean;
+  band?: number;
+  marksOnly?: boolean;
 }
 
 /** The asset's paint with the object's own overrides applied. */
@@ -96,7 +98,8 @@ export function renderAssetSvg(def: AssetDef, o: PaintSource): string {
   if (!def.draw) return svgDoc(o.width, o.height, '');
   const p = resolvePaint(def, o);
   const symbol = o.symbolHidden ? null : o.symbol && isSafePath(o.symbol.path) ? o.symbol : undefined;
-  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol };
+  const band = def.outline === 'arc' || def.outline === 'L' ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band }) : undefined;
+  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly };
   return svgDoc(o.width, o.height, def.draw(ctx));
 }
 
@@ -143,6 +146,9 @@ export function isShapeable(def: AssetDef): boolean {
 export function shapeSourceFor(def: AssetDef | undefined, o: AssetObject): ShapeSource {
   return { width: o.width, height: o.height, outline: def?.outline, corner: o.corner, bevel: o.bevel, band: o.band ?? def?.band, cuts: o.cuts };
 }
+
+/** How close (map px) pieces of this asset must be to flow together, unless the object sets its own. */
+export const defaultBlend = (def: AssetDef | undefined) => def?.blend ?? DEFAULT_BLEND;
 
 /** Never merged: drains are separate fixtures, and overlapping zones mean different things. */
 const NO_MERGE = new Set(['drain-grate', 'storm-drain']);

@@ -262,6 +262,7 @@ export const hLine = (y: number, x1: number, x2: number, color: string, width: n
 
 /** A driving surface with paint. `marks` draws on top in the lane's own coordinates. */
 export const lane = (marks: (c: DrawCtx) => string, edge: 'white' | 'none' = 'white'): DrawFn => (c) => {
+  if (c.marksOnly) return marks(c);
   const e = edge === 'white' ? hLine(3.5, 0, c.w, P.paint, 2) + hLine(c.h - 3.5, 0, c.w, P.paint, 2) : '';
   return `${boxRect(c)}${e}${marks(c)}`;
 };

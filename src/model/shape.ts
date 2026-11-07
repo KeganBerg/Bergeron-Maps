@@ -353,3 +353,109 @@ export function traceRings(ctx: { beginPath(): void; moveTo(x: number, y: number
   }
 }
 
+
+/** How far (map px) outline points may sit from a road end and still count as on it (edges get lined up by up to ALIGN_TOLERANCE). */
+const END_TOLERANCE = ALIGN_TOLERANCE + 0.5;
+
+/** World rings `a` minus world rings `b`. */
+export function subtractRings(a: Ring[], b: Ring[]): Ring[] {
+  if (!b.length) return a;
+  return boolean(a.map(toInt), b.map(toInt), ClipperLib.ClipType.ctDifference).map(fromInt);
+}
+
+/** Even-odd point-in-rings test. */
+function insideRings(rings: Ring[], x: number, y: number): boolean {
+  let inside = false;
+  for (const r of rings)
+    for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+      const [xi, yi, xj, yj] = [r[i], r[i + 1], r[j], r[j + 1]];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+  return inside;
+}
+
+function distToSegment(px: number, py: number, s: number[]): number {
+  const [x1, y1, x2, y2] = s;
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2)) : 0;
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+/**
+ * Painted edge lines for a merged road: the outline of `rings`, moved `inset`
+ * px inside, as open polylines. Stretches of outline that lie on a road's
+ * open end (`ends`: world segments [x1, y1, x2, y2]) get no line, and the
+ * lines beside them run all the way out to the end, as on a single piece.
+ */
+export function insetLines(rings: Ring[], ends: number[][], inset: number): Ring[] {
+  const out: Ring[] = [];
+  for (const raw of rings) {
+    const P: [number, number][] = [];
+    for (let i = 0; i < raw.length; i += 2) {
+      const last = P[P.length - 1];
+      // Points closer than half a pixel only add jitter (and miter spikes) to the line.
+      if (!last || Math.hypot(raw[i] - last[0], raw[i + 1] - last[1]) > 0.5) P.push([raw[i], raw[i + 1]]);
+    }
+    while (P.length > 1 && Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1]) <= 0.5) P.pop();
+    const n = P.length;
+    if (n < 3) continue;
+    const d = P.map((p, i) => {
+      const q = P[(i + 1) % n];
+      const l = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      return [(q[0] - p[0]) / l, (q[1] - p[1]) / l];
+    });
+    // Which side is inside: test just off the middle of the longest edge.
+    let k = 0;
+    const lenOf = (i: number) => Math.hypot(P[(i + 1) % n][0] - P[i][0], P[(i + 1) % n][1] - P[i][1]);
+    for (let i = 1; i < n; i++) if (lenOf(i) > lenOf(k)) k = i;
+    const mx = (P[k][0] + P[(k + 1) % n][0]) / 2, my = (P[k][1] + P[(k + 1) % n][1]) / 2;
+    const s = insideRings(rings, mx - d[k][1] * 0.5, my + d[k][0] * 0.5) ? 1 : -1;
+    const nrm = d.map(([dx, dy]) => [-dy * s, dx * s]);
+    const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1];
+    // Inset corner between edge i-1 and edge i.
+    const corner = (i: number): [number, number] => {
+      const a = nrm[(i - 1 + n) % n], b = nrm[i];
+      const den = 1 + dot(a, b);
+      if (den < 0.25) return [P[i][0] + b[0] * inset, P[i][1] + b[1] * inset];
+      return [P[i][0] + ((a[0] + b[0]) * inset) / den, P[i][1] + ((a[1] + b[1]) * inset) / den];
+    };
+    // Which road end (if any) each outline edge lies on: those edges get no line.
+    const open = P.map((p, i) => {
+      const q = P[(i + 1) % n];
+      return ends.findIndex((s4) => distToSegment(p[0], p[1], s4) < END_TOLERANCE && distToSegment(q[0], q[1], s4) < END_TOLERANCE);
+    }).map((e) => (e < 0 ? null : ends[e]));
+    // Where edge e's inset line reaches the line of a road end, so the edge
+    // line runs right out to the end (vertex v is the fallback).
+    const meet = (e: number, end: number[], v: number): [number, number] => {
+      const len = Math.hypot(end[2] - end[0], end[3] - end[1]) || 1;
+      const N = [-(end[3] - end[1]) / len, (end[2] - end[0]) / len];
+      const den = dot(d[e], N);
+      if (Math.abs(den) < 0.2) return corner(v);
+      const bx = P[e][0] + nrm[e][0] * inset, by = P[e][1] + nrm[e][1] * inset;
+      const t = -((bx - end[0]) * N[0] + (by - end[1]) * N[1]) / den;
+      return [bx + d[e][0] * t, by + d[e][1] * t];
+    };
+    if (!open.some(Boolean)) {
+      const line: Ring = [];
+      for (let i = 0; i <= n; i++) line.push(...corner(i % n));
+      out.push(line);
+      continue;
+    }
+    for (let i = 0; i < n; i++) {
+      if (!open[i] || open[(i + 1) % n]) continue;
+      // A line starts after open edge i and runs until the next open edge.
+      const first = (i + 1) % n;
+      const line: Ring = [...meet(first, open[i]!, first)];
+      let e = first;
+      while (!open[(e + 1) % n]) {
+        e = (e + 1) % n;
+        line.push(...corner(e));
+      }
+      const v = (e + 1) % n;
+      line.push(...meet(e, open[v]!, v));
+      out.push(line);
+    }
+  }
+  return out;
+}

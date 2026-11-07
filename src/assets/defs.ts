@@ -79,6 +79,8 @@ export interface AssetDef {
   band?: number;
   /** Pieces with the same merge key flow together into one shape (e.g. 'grass'). */
   merge?: string;
+  /** Default blend distance for merging (map px). Missing = DEFAULT_BLEND. */
+  blend?: number;
   /** The border is dashed (zones). */
   dashed?: boolean;
 }
