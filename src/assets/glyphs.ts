@@ -104,6 +104,21 @@ const G: Record<string, string> = {
   moto: `<circle cx="5" cy="16" r="3.6" ${L}/><circle cx="19" cy="16" r="3.6" ${L}/><path d="M5 16 9 10.5h5.5L19 16M9 10.5 7.8 7.5H5M14.5 10.5 16.5 6.5h2.5" ${L}/>`,
   doubleArrow: `<path d="M2.5 12h19M6.5 8l-4 4 4 4M17.5 8l4 4-4 4" ${L}/>`,
   detour: `<path d="M4 21v-8a4 4 0 0 1 4-4h11.5M15.5 5l4 4-4 4" ${L}/><path d="M4 4v4" ${L}/>`,
+  // Schools and campuses
+  school: `<path d="M2.5 21.5h19M4 21.5V11l8-5 8 5v10.5M12 6V2.5h4v2.2h-4M10 21.5v-5h4v5M6.5 13.5h2M15.5 13.5h2" ${L}/>`,
+  chalkboard: `<rect x="2.5" y="3.5" width="19" height="12.5" rx="1" ${L}/><path d="M6 8h7M6 11.5h4.5M7.5 16l-2 5M16.5 16l2 5" ${L}/>`,
+  book: `<path d="M12 6.5C10 5 7 4.5 3 4.5v14c4 0 7 .5 9 2 2-1.5 5-2 9-2v-14c-4 0-7 .5-9 2ZM12 6.5v14" ${L}/>`,
+  ball: `<circle cx="12" cy="12" r="9.5" ${L}/><path d="M2.5 12h19M12 2.5v19M5.5 5.3c3 3 3 10.4 0 13.4M18.5 5.3c-3 3-3 10.4 0 13.4" ${L}/>`,
+  stage: `<path d="M2.5 3.5h19M3.5 3.5v17M20.5 3.5v17M3.5 3.5c0 6 3 9 6.5 9.5M20.5 3.5c0 6-3 9-6.5 9.5M2.5 20.5h19" ${L}/>`,
+  backpack: `<path d="M6 10a6 6 0 0 1 12 0v11.5H6Z" ${L}/><path d="M10 4.3V2.5h4v1.8M9 14.5h6v3.5H9Z" ${L}/>`,
+  staff: `<path d="M8 2.5 12 8l4-5.5" ${L}/><rect x="6" y="8" width="12" height="13.5" rx="1.5" ${L}/><circle cx="12" cy="13" r="2" ${SOLID}/><path d="M9 18h6" ${L}/>`,
+  visitor: `<circle cx="9" cy="5.5" r="2.4" ${SOLID}/><path d="M4.5 20.5v-6a4.5 4.5 0 0 1 9 0v6" ${L}/><rect x="15" y="9" width="6.5" height="8" rx="1" ${L}/><path d="M16.8 12h3M16.8 14.5h2" ${L}/>`,
+  bus: `<rect x="4" y="2.5" width="16" height="16" rx="2.5" ${L}/><path d="M4 11h16M4 6h16" ${L}/><circle cx="8" cy="14.8" r="1.2" ${SOLID}/><circle cx="16" cy="14.8" r="1.2" ${SOLID}/><path d="M6.5 18.5v3M17.5 18.5v3" ${L}/>`,
+  heart: `<path d="M12 20.5S3 15 3 8.8A4.3 4.3 0 0 1 12 6.5a4.3 4.3 0 0 1 9 2.3C21 15 12 20.5 12 20.5Z" ${L}/><path d="M13 8.5 10 13h4l-3 4.5" ${L}/>`,
+  bike: `<circle cx="5.5" cy="15.5" r="4" ${L}/><circle cx="18.5" cy="15.5" r="4" ${L}/><path d="M5.5 15.5 9 8.5h7l2.5 7M9 8.5l3.5 7h-7M12.5 15.5 16 8.5M7.5 6h3M15 6h2.5" ${L}/>`,
+  playground: `<path d="M4 21.5V6h5v15.5M4 10.5h5M4 15h5M9 6l9.5 13H21" ${L}/><path d="M14 3v4M20 3v6" ${L}/>`,
+  pavilion: `<path d="M2 10.5 12 4l10 6.5M4.5 10.5v10M19.5 10.5v10M2.5 20.5h19M8 15.5h8" ${L}/>`,
+  bench: `<path d="M3 9.5h18M2.5 14h19M6 9.5 4 19.5M18 9.5l2 10M8 14l-1 5.5M16 14l1 5.5" ${L}/>`,
 };
 
 export type GlyphName = keyof typeof G;

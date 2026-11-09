@@ -13,6 +13,7 @@ export const ASSET_CATEGORIES = [
   'Garage access',
   'Buildings and departments',
   'Service and preparation',
+  'Schools and campuses',
   'Outdoor environment',
   'Signs and safety',
   'Zones and boundaries',
