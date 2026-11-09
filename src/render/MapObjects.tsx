@@ -2,9 +2,11 @@ import { Fragment, memo, useMemo } from 'react';
 import type Konva from 'konva';
 import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
+import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { badgeLayout } from '../assets/draw';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
-import { bandWidth, insetLines, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
+import { bandWidth, growRings, insetLines, insideRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
+import { roadExtensions, roadJunctions, STOP_LINE, type RoadEnd, type RoadPiece } from '../model/roads';
 import { P, svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
@@ -156,7 +158,7 @@ function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; si
  */
 type MergedMode = 'ghost' | 'fill' | 'marks';
 
-const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, highlighted }: ObjProps & { obj: AssetObject; merged?: MergedMode; markClip?: Ring[] }) {
+const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markShift, highlighted }: ObjProps & { obj: AssetObject; merged?: MergedMode; markClip?: Ring[]; markShift?: number }) {
   const def = ASSET_BY_KEY[obj.assetKey];
   const src = mergeSourceFor(def, obj);
   const merged = mode === 'ghost';
@@ -191,7 +193,7 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, highl
             )}
           </>
         ) : drawn ? (
-          <KImage image={drawn} width={obj.width} height={obj.height} perfectDrawEnabled={false} />
+          <KImage image={drawn} y={mode === 'marks' ? markShift ?? 0 : 0} width={obj.width} height={obj.height} perfectDrawEnabled={false} />
         ) : !def ? (
           <Rect width={obj.width} height={obj.height} fill="#f3f4f6" stroke="#9ca3af" dash={[4, 3]} />
         ) : null}
@@ -310,53 +312,89 @@ interface MergeCluster {
   rings: Ring[];
   /** Merged roads: the painted edge lines, as open polylines. */
   lines?: Ring[];
+  /** Merged roads: stop bars at intersections. */
+  stops?: Ring[];
 }
 
 /** Paint line along a road's edge: inset from the edge, and its width (as drawn by each road piece). */
 const ROAD_EDGE = { inset: 3.5, width: 2 };
 
-/** A road piece's open ends (where it continues), in world coordinates. */
-function roadEnds(def: AssetDef | undefined, o: AssetObject): number[][] {
-  const w = o.width, h = o.height;
-  const t = def?.outline === 'arc' ? bandWidth({ width: w, height: h, band: o.band ?? def.band }) : 0;
-  const local = def?.outline === 'arc' ? [[0, 0, 0, t], [w - t, h, w, h]] : [[0, 0, 0, h], [w, 0, w, h]];
-  return local.map(([x1, y1, x2, y2]) => [...toWorld(o, x1, y1), ...toWorld(o, x2, y2)]);
+/** World outline of an object (with its curvature and cuts). */
+function worldOutline(o: AssetObject): Ring[] {
+  return localOutline(shapeSourceFor(ASSET_BY_KEY[o.assetKey], o)).map((r) => {
+    const out: Ring = [];
+    for (let i = 0; i < r.length; i += 2) out.push(...toWorld(o, r[i], r[i + 1]));
+    return out;
+  });
 }
+
+const ringsToLocal = (o: AssetObject, rings: Ring[]) =>
+  rings.map((r) => {
+    const out: Ring = [];
+    for (let k = 0; k < r.length; k += 2) out.push(...toLocal(o, r[k], r[k + 1]));
+    return out;
+  });
+
+/** A road piece in world coordinates: outline, open ends (where it continues) and width. */
+function roadPiece(o: AssetObject): RoadPiece {
+  const def = ASSET_BY_KEY[o.assetKey];
+  const w = o.width, h = o.height;
+  const arc = def?.outline === 'arc';
+  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band }) : h;
+  const local = arc ? [[0, 0, 0, t], [w - t, h, w, h]] : [[0, 0, 0, h], [w, 0, w, h]];
+  const body = worldOutline(o);
+  const ends = local.map(([x1, y1, x2, y2]): RoadEnd => {
+    const seg = [...toWorld(o, x1, y1), ...toWorld(o, x2, y2)];
+    const len = Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) || 1;
+    let out: [number, number] = [-(seg[3] - seg[1]) / len, (seg[2] - seg[0]) / len];
+    const mx = (seg[0] + seg[2]) / 2, my = (seg[1] + seg[3]) / 2;
+    if (insideRings(body, mx + out[0], my + out[1])) out = [-out[0], -out[1]];
+    return { seg, out };
+  });
+  const r = (o.rotation * Math.PI) / 180;
+  return { body, ends, width: t, axis: arc ? undefined : [Math.cos(r), Math.sin(r)] };
+}
+
+/** In-line pieces whose centre lines are this close (map px) are lined up with each other. */
+const MARK_ALIGN = 6;
 
 /**
  * Where each road piece may show its own paint marks: its own outline, minus
- * every crossing piece of the same road (so centre lines and arrows stop at a
- * junction instead of running across it). Pieces lying in the same direction
- * (a road built from straight pieces end to end) keep their marks, and where
- * they overlap only the first one paints.
+ * every crossing piece of the same road and every intersection (so centre
+ * lines and arrows stop at a junction instead of running across it). Pieces
+ * lying in the same direction (a road built from straight pieces end to end)
+ * keep their marks, only the first one paints where they overlap, and a
+ * piece placed a few pixels off has its marks moved onto the first one's line.
  */
-function roadMarkClips(members: AssetObject[]): Map<string, Ring[]> {
-  const world = members.map((m) => {
-    const src = shapeSourceFor(ASSET_BY_KEY[m.assetKey], m);
-    return localOutline(src).map((r) => {
-      const out: Ring = [];
-      for (let i = 0; i < r.length; i += 2) out.push(...toWorld(m, r[i], r[i + 1]));
-      return out;
-    });
-  });
+function roadMarks(members: AssetObject[], pieces: RoadPiece[], junction: Ring[]): { clips: Map<string, Ring[]>; shifts: Map<string, number> } {
   const straight = (m: AssetObject) => !ASSET_BY_KEY[m.assetKey]?.outline;
   const inLine = (a: AssetObject, b: AssetObject) => {
     if (!straight(a) || !straight(b)) return false;
     const d = (((a.rotation - b.rotation) % 180) + 180) % 180;
     return d < 3 || d > 177;
   };
+  // Marks stop just before the stop bars.
+  const stopZone = junction.length ? growRings(junction, STOP_LINE.offset + STOP_LINE.width / 2 + 1) : [];
   const clips = new Map<string, Ring[]>();
+  const shifts = new Map<string, number>();
   members.forEach((m, i) => {
     // In-line pieces: the earlier piece paints the overlap, so the marks are never doubled up.
-    const crossing = members.flatMap((o, j) => (j !== i && (j < i || !inLine(m, o)) ? world[j] : []));
-    const rings = subtractRings(world[i], crossing).map((r) => {
-      const out: Ring = [];
-      for (let k = 0; k < r.length; k += 2) out.push(...toLocal(m, r[k], r[k + 1]));
-      return out;
-    });
-    clips.set(m.id, rings);
+    const crossing = members.flatMap((o, j) => (j !== i && (j < i || !inLine(m, o)) ? pieces[j].body : []));
+    clips.set(m.id, ringsToLocal(m, subtractRings(pieces[i].body, [...crossing, ...stopZone])));
+    const a = (m.rotation * Math.PI) / 180;
+    const n = [-Math.sin(a), Math.cos(a)];
+    for (let j = 0; j < i; j++) {
+      const o = members[j];
+      if (!inLine(m, o) || Math.abs(o.height - m.height) > 1) continue;
+      const d = (o.x - m.x) * n[0] + (o.y - m.y) * n[1];
+      if (Math.abs(d) > 0.05 && Math.abs(d) <= MARK_ALIGN) {
+        shifts.set(m.id, d + (shifts.get(o.id) ?? 0));
+        break;
+      }
+      if (Math.abs(d) <= 0.05) break;
+    }
   });
-  return clips;
+  return { clips, shifts };
 }
 
 /**
@@ -364,7 +402,12 @@ function roadMarkClips(members: AssetObject[]): Map<string, Ring[]> {
  * (or any grass piece) that overlap or sit within their blend distance.
  * A piece on its own keeps its normal drawing.
  */
-export function mergePlan(objects: MapObject[]): { leads: Map<string, MergeCluster>; modes: Map<string, MergedMode>; clips: Map<string, Ring[]> } {
+export function mergePlan(objects: MapObject[]): {
+  leads: Map<string, MergeCluster>;
+  modes: Map<string, MergedMode>;
+  clips: Map<string, Ring[]>;
+  shifts: Map<string, number>;
+} {
   const byKey = new Map<string, AssetObject[]>();
   for (const o of objects) {
     if (o.kind !== 'asset' || o.imageSrc || o.merge === false) continue;
@@ -376,26 +419,35 @@ export function mergePlan(objects: MapObject[]): { leads: Map<string, MergeClust
   const leads = new Map<string, MergeCluster>();
   const modes = new Map<string, MergedMode>();
   const clips = new Map<string, Ring[]>();
+  const shifts = new Map<string, number>();
   for (const [key, objs] of byKey) {
     if (objs.length < 2) continue;
-    const clusters = mergeClusters(objs.map((m) => {
+    const road = key === 'road';
+    const pieces = road ? objs.map(roadPiece) : [];
+    const extra = road ? roadExtensions(pieces) : [];
+    const clusters = mergeClusters(objs.map((m, i) => {
       const def = ASSET_BY_KEY[m.assetKey];
-      return { x: m.x, y: m.y, rotation: m.rotation, blend: m.blend ?? defaultBlend(def), ...mergeSourceFor(def, m) };
+      return { x: m.x, y: m.y, rotation: m.rotation, blend: m.blend ?? defaultBlend(def), extra: extra[i], ...mergeSourceFor(def, m) };
     }));
-    const mode: MergedMode = key === 'road' ? 'marks' : MERGE_TEXTURE[key] || MERGE_DECOR[key] || key === 'hedge' ? 'ghost' : 'fill';
+    const mode: MergedMode = road ? 'marks' : MERGE_TEXTURE[key] || MERGE_DECOR[key] || key === 'hedge' ? 'ghost' : 'fill';
     for (const c of clusters) {
       if (c.members.length < 2) continue;
       const members = c.members.map((i) => objs[i]);
       const cluster: MergeCluster = { key, members, rings: c.rings };
-      if (key === 'road') {
-        cluster.lines = insetLines(c.rings, members.flatMap((m) => roadEnds(ASSET_BY_KEY[m.assetKey], m)), ROAD_EDGE.inset);
-        for (const [id, r] of roadMarkClips(members)) clips.set(id, r);
+      if (road) {
+        const ps = c.members.map((i) => pieces[i]);
+        cluster.lines = insetLines(c.rings, ps.flatMap((p) => p.ends.map((e) => e.seg)), ROAD_EDGE.inset);
+        const junctions = roadJunctions(ps, c.rings);
+        cluster.stops = junctions.stops;
+        const marks = roadMarks(members, ps, junctions.areas);
+        for (const [id, r] of marks.clips) clips.set(id, r);
+        for (const [id, d] of marks.shifts) shifts.set(id, d);
       }
       leads.set(members[0].id, cluster);
       for (const m of members) modes.set(m.id, mode);
     }
   }
-  return { leads, modes, clips };
+  return { leads, modes, clips, shifts };
 }
 
 const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster }) {
@@ -428,21 +480,62 @@ const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster })
           ctx.lineWidth = ROAD_EDGE.width;
           ctx.strokeStyle = P.paint;
           ctx.stroke();
+          if (cluster.stops?.length) {
+            ctx.beginPath();
+            for (const l of cluster.stops) {
+              ctx.moveTo(l[0], l[1]);
+              ctx.lineTo(l[2], l[3]);
+            }
+            ctx.lineWidth = STOP_LINE.width;
+            ctx.stroke();
+          }
           return;
         }
         if (key === 'hedge') {
-          // Shrub lobes all along the edge, so merged hedges keep their bushy outline.
-          const lobe = Math.max(6, Math.min(lead.width, lead.height) * 0.55);
-          ctx.setLineDash([0.01, lobe * 0.7]);
-          ctx.lineWidth = lobe + edge * 2;
-          ctx.strokeStyle = edgeColor;
-          ctx.stroke();
-          ctx.lineWidth = lobe;
-          ctx.strokeStyle = fill;
-          ctx.stroke();
+          // The same shrub clumps as a single hedge, for every piece: shadows, then
+          // one outline around all of them (stroked at double width, its inner half
+          // covered by the fill), then the leaf shading, so a merged hedge still reads
+          // as a row of bushes instead of a flat strip.
+          const each = (paint: (m: AssetObject, k: Clump) => void) => {
+            for (const m of cluster.members) {
+              ctx.save();
+              ctx.translate(m.x, m.y);
+              ctx.rotate((m.rotation * Math.PI) / 180);
+              ctx.translate(-m.width / 2, -m.height / 2);
+              for (const k of hedgeClumps(m.width, m.height)) paint(m, k);
+              ctx.restore();
+            }
+          };
+          const blob = (dx: number, dy: number) => (_: AssetObject, k: Clump) => ctx.ellipse(k.cx + dx, k.cy + dy, k.rx, k.ry, 0, 0, Math.PI * 2);
+          const pass = (dx: number, dy: number) => {
+            ctx.beginPath();
+            each((m, k) => {
+              ctx.moveTo(k.cx + dx + k.rx, k.cy + dy);
+              blob(dx, dy)(m, k);
+            });
+          };
           ctx.setLineDash([]);
+          pass(1.5, 2);
+          ctx.fillStyle = P.shadow;
+          ctx.fill();
+          pass(0, 0);
+          if (edge > 0) {
+            ctx.lineWidth = edge * 2;
+            ctx.strokeStyle = edgeColor;
+            ctx.stroke();
+          }
           ctx.fillStyle = fill;
           ctx.fill();
+          each((_, k) => {
+            for (const e of hedgeDetail(k)) {
+              ctx.beginPath();
+              ctx.ellipse(e.cx, e.cy, e.rx, e.ry, 0, 0, Math.PI * 2);
+              ctx.globalAlpha = e.alpha;
+              ctx.fillStyle = e.color;
+              ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+          });
           return;
         }
         // The border is stroked first at double width and the fill then covers its
@@ -493,7 +586,7 @@ export function LayerObjects({ objects, objProps }: { objects: MapObject[]; objP
     objects.map((o) => (o.kind === 'asset' && ASSET_BY_KEY[o.assetKey] && mergeKey(ASSET_BY_KEY[o.assetKey]!) ? [o.id, o.x, o.y, o.width, o.height, o.rotation, o.corner, o.bevel, o.band, o.cuts, o.blend, o.merge, o.fill, o.fillOpacity, o.stroke, o.strokeWidth] : 0)),
   );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const { leads, modes, clips } = useMemo(() => mergePlan(objects), [signature]);
+  const { leads, modes, clips, shifts } = useMemo(() => mergePlan(objects), [signature]);
   return (
     <>
       {objects.map((o) => {
@@ -502,7 +595,7 @@ export function LayerObjects({ objects, objProps }: { objects: MapObject[]; objP
         return (
           <Fragment key={o.id}>
             {lead && <MergedShape cluster={lead} />}
-            {o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} /> : <MapObjectShape obj={o} {...props} />}
+            {o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} markShift={shifts.get(o.id)} /> : <MapObjectShape obj={o} {...props} />}
           </Fragment>
         );
       })}

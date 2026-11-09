@@ -168,6 +168,8 @@ const ringToWorld = (o: Placed, r: Ring): Ring => {
 
 export interface MergeMember extends Placed, ShapeSource {
   blend?: number;
+  /** Extra world-space area that belongs to this piece when merging (e.g. a road end stretched to meet a nearby road). */
+  extra?: Ring[];
 }
 
 const areaOf = (paths: IntPath[]) => paths.reduce((s, p) => s + ClipperLib.Clipper.Area(p), 0) / (SCALE * SCALE);
@@ -213,7 +215,9 @@ export interface MergedCluster {
  */
 export function mergeClusters(members: MergeMember[]): MergedCluster[] {
   if (!members.length) return [];
-  const shapes = members.map((m) => boolean(localOutline(m, false).map((r) => toInt(ringToWorld(m, r))), [], ClipperLib.ClipType.ctUnion));
+  const shapes = members.map((m) =>
+    boolean([...localOutline(m, false).map((r) => toInt(ringToWorld(m, r))), ...(m.extra ?? []).map(toInt)], [], ClipperLib.ClipType.ctUnion),
+  );
   const blendOf = (m: MergeMember) => Math.max(0, m.blend ?? DEFAULT_BLEND);
   const boxes = shapes.map(boundsOf);
   // Grown a hair so pieces that share an edge exactly count as touching.
@@ -357,6 +361,22 @@ export function traceRings(ctx: { beginPath(): void; moveTo(x: number, y: number
 /** How far (map px) outline points may sit from a road end and still count as on it (edges get lined up by up to ALIGN_TOLERANCE). */
 const END_TOLERANCE = ALIGN_TOLERANCE + 0.5;
 
+/** Union of world rings. */
+export function unionRings(a: Ring[]): Ring[] {
+  return boolean(a.map(toInt), [], ClipperLib.ClipType.ctUnion).map(fromInt);
+}
+
+/** World rings `a` intersected with world rings `b`. */
+export function intersectRings(a: Ring[], b: Ring[]): Ring[] {
+  if (!a.length || !b.length) return [];
+  return boolean(a.map(toInt), b.map(toInt), ClipperLib.ClipType.ctIntersection).map(fromInt);
+}
+
+/** Rings grown (or shrunk, for negative d) by d map px, with square corners. */
+export function growRings(a: Ring[], d: number): Ring[] {
+  return offset(a.map(toInt), d, ClipperLib.JoinType.jtMiter).map(fromInt);
+}
+
 /** World rings `a` minus world rings `b`. */
 export function subtractRings(a: Ring[], b: Ring[]): Ring[] {
   if (!b.length) return a;
@@ -364,7 +384,7 @@ export function subtractRings(a: Ring[], b: Ring[]): Ring[] {
 }
 
 /** Even-odd point-in-rings test. */
-function insideRings(rings: Ring[], x: number, y: number): boolean {
+export function insideRings(rings: Ring[], x: number, y: number): boolean {
   let inside = false;
   for (const r of rings)
     for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {

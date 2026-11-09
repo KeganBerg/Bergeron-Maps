@@ -39,6 +39,26 @@ const speckle = (c: DrawCtx, color: string, step = 11, r = 1.4) => {
 /** Grass on a curb: shaped and curved pieces clip this to their outline. */
 const grassPiece = (c: DrawCtx) => `${boxRect(c, 4)}${speckle(c, P.grassEdge, 14, 1)}`;
 
+export interface Clump { cx: number; cy: number; rx: number; ry: number }
+
+/** The row of shrub clumps a hedge is drawn from, in its own coordinates. */
+export function hedgeClumps(w: number, h: number): Clump[] {
+  const n = Math.max(2, Math.round(w / (h * 0.9)));
+  const step = w / n;
+  return Array.from({ length: n }, (_, i) => ({ cx: step * (i + 0.5), cy: h / 2, rx: step / 2, ry: Math.max(1, h / 2 - 1) }));
+}
+
+/** Leaf shading inside one clump: a shaded side, a softly lit side and a few darker leaf tufts, so a hedge reads as foliage (no shine). */
+export function hedgeDetail(k: Clump): { cx: number; cy: number; rx: number; ry: number; color: string; alpha: number }[] {
+  return [
+    { cx: k.cx + k.rx * 0.15, cy: k.cy + k.ry * 0.25, rx: k.rx * 0.65, ry: k.ry * 0.55, color: P.foliageDark, alpha: 0.3 },
+    { cx: k.cx - k.rx * 0.2, cy: k.cy - k.ry * 0.22, rx: k.rx * 0.45, ry: k.ry * 0.4, color: P.foliageLight, alpha: 0.45 },
+    { cx: k.cx + k.rx * 0.38, cy: k.cy - k.ry * 0.12, rx: k.rx * 0.13, ry: k.ry * 0.12, color: P.foliageDark, alpha: 0.6 },
+    { cx: k.cx - k.rx * 0.05, cy: k.cy + k.ry * 0.45, rx: k.rx * 0.12, ry: k.ry * 0.11, color: P.foliageDark, alpha: 0.6 },
+    { cx: k.cx - k.rx * 0.45, cy: k.cy + k.ry * 0.1, rx: k.rx * 0.1, ry: k.ry * 0.1, color: P.foliageDark, alpha: 0.5 },
+  ];
+}
+
 export const OUTDOOR = [
   od('tree', 'Tree', { draw: canopy(9), width: 56, height: 56, layer: 'landmarks', fill: P.foliage, stroke: P.foliageDark, strokeWidth: 1.2, keywords: ['landscaping', 'green', 'plant', 'shade tree'], labelPos: 'below' }),
   od('small-tree', 'Small tree', { draw: canopy(7), width: 36, height: 36, layer: 'landmarks', fill: P.foliageLight, stroke: P.foliageDark, strokeWidth: 1, keywords: ['ornamental', 'sapling'], labelPos: 'below' }),
@@ -50,12 +70,13 @@ export const OUTDOOR = [
   od('hedge', 'Hedge', {
     width: 160, height: 22, layer: 'landmarks', fill: '#5f9f45', stroke: P.foliageDark, strokeWidth: 1, keywords: ['hedgerow', 'shrubs', 'screen'],
     draw: (c) => {
-      const n = Math.max(2, Math.round(c.w / (c.h * 0.9)));
-      const step = c.w / n;
+      const clumps = hedgeClumps(c.w, c.h);
+      const step = c.w / clumps.length;
       let d = `M0 ${r2(c.h / 2)}`;
-      for (let i = 0; i < n; i++) d += ` a${r2(step / 2)} ${r2(c.h / 2 - 1)} 0 0 1 ${r2(step)} 0`;
-      for (let i = 0; i < n; i++) d += ` a${r2(step / 2)} ${r2(c.h / 2 - 1)} 0 0 1 ${r2(-step)} 0`;
-      return `<path d="${d}Z" transform="translate(1.5 2)" fill="${P.shadow}"/><path d="${d}Z" ${FS(c)}/>`;
+      for (let i = 0; i < clumps.length; i++) d += ` a${r2(step / 2)} ${r2(c.h / 2 - 1)} 0 0 1 ${r2(step)} 0`;
+      for (let i = 0; i < clumps.length; i++) d += ` a${r2(step / 2)} ${r2(c.h / 2 - 1)} 0 0 1 ${r2(-step)} 0`;
+      const detail = clumps.map((k) => hedgeDetail(k).map((e) => `<ellipse cx="${r2(e.cx)}" cy="${r2(e.cy)}" rx="${r2(e.rx)}" ry="${r2(e.ry)}" fill="${e.color}" fill-opacity="${e.alpha}"/>`).join('')).join('');
+      return `<path d="${d}Z" transform="translate(1.5 2)" fill="${P.shadow}"/><path d="${d}Z" ${FS(c)}/>${detail}`;
     },
   }),
   od('grass-area', 'Grass area', {
