@@ -20,11 +20,12 @@ interface MapRow {
   updated_at: string;
   deleted_at: string | null;
   facility_id: string;
+  slot: number | null;
   facilities: { name: string } | null;
   published_maps: { published_at: string; revision: number } | null;
 }
 
-const MAP_COLUMNS = 'id, name, draft, revision, created_at, updated_at, deleted_at, facility_id, facilities(name), published_maps(published_at, revision)';
+const MAP_COLUMNS = 'id, name, draft, revision, created_at, updated_at, deleted_at, facility_id, slot, facilities(name), published_maps(published_at, revision)';
 
 const LABELS: Record<VersionReason, string> = {
   auto: 'Automatic save point',
@@ -57,6 +58,7 @@ function toSummary(row: MapRow): MapSummary {
   return summarize(toDoc(row), row.deleted_at ?? undefined, {
     site: row.facilities?.name,
     publish: pub ? { publishedAt: pub.published_at, publishedRevision: pub.revision } : undefined,
+    slot: row.slot,
   });
 }
 
@@ -122,11 +124,12 @@ export class SupabaseRepository implements MapRepository {
     return (r.data as { id: string }).id;
   }
 
-  async createMap(doc: MapDocument, site?: string): Promise<MapDocument> {
+  async createMap(doc: MapDocument, site?: string, slot?: number): Promise<MapDocument> {
     const facility_id = await this.siteId(site?.trim() || doc.name);
     const id = crypto.randomUUID();
+    // The database picks the slot (the asked-for one if it is free) and refuses a sixth map.
     const row = check(
-      await this.db.from('maps').insert({ id, facility_id, name: doc.name, draft: { ...doc, id } }).select(MAP_COLUMNS).single(),
+      await this.db.from('maps').insert({ id, facility_id, name: doc.name, draft: { ...doc, id }, slot: slot ?? null }).select(MAP_COLUMNS).single(),
     ) as unknown as MapRow;
     return toDoc(row);
   }
@@ -154,6 +157,10 @@ export class SupabaseRepository implements MapRepository {
     const info = await this.getPublishInfo(id);
     if (!info) throw new Error('Publishing didn’t complete. Try again.');
     return info;
+  }
+
+  async unpublishMap(id: string): Promise<void> {
+    check(await this.db.rpc('unpublish_map', { p_map: id }));
   }
 
   async getPublishInfo(id: string): Promise<PublishInfo | null> {

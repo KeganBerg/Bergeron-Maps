@@ -96,4 +96,50 @@ describe('publishing', () => {
     expect((await repo.listMaps())[0].site).toBe('Downtown');
     await expect(repo.moveToSite(a.id, '  ')).rejects.toThrow();
   });
+
+  it('gives each site 5 numbered slots; the trash frees a slot and restoring needs one', async () => {
+    const repo = fresh();
+    const made = [];
+    for (let i = 1; i <= 5; i++) made.push(await repo.createMap(createMap(`Map ${i}`), 'Garage'));
+    expect((await repo.listMaps()).map((m) => m.slot).sort()).toEqual([1, 2, 3, 4, 5]);
+    await expect(repo.createMap(createMap('Sixth'), 'Garage')).rejects.toThrow(/All 5 map slots at “Garage” are in use/);
+
+    await repo.trashMap(made[1].id);
+    expect((await repo.listTrash())[0].slot).toBeUndefined();
+    const sixth = await repo.createMap(createMap('Sixth'), 'Garage');
+    expect((await repo.listMaps()).find((m) => m.id === sixth.id)?.slot).toBe(2);
+    await expect(repo.restoreMap(made[1].id)).rejects.toThrow(/All 5 map slots/);
+
+    // Another site has its own slots; moving into a full site is refused.
+    const other = await repo.createMap(createMap('Lot'), 'Surface lot');
+    await expect(repo.moveToSite(other.id, 'Garage')).rejects.toThrow(/All 5 map slots/);
+    expect((await repo.listMaps()).find((m) => m.id === other.id)?.slot).toBe(1);
+  });
+
+  it('a new map can go into a chosen empty slot', async () => {
+    const repo = fresh();
+    const m = await repo.createMap(createMap('A'), 'Garage', 4);
+    const taken = await repo.createMap(createMap('B'), 'Garage', 4);
+    const slots = Object.fromEntries((await repo.listMaps()).map((x) => [x.id, x.slot]));
+    expect([slots[m.id], slots[taken.id]]).toEqual([4, 1]);
+  });
+
+  it('allows 2 published maps per site; unpublishing frees a place', async () => {
+    const repo = fresh();
+    const [a, b, c] = [await repo.createMap(createMap('A'), 'Garage'), await repo.createMap(createMap('B'), 'Garage'), await repo.createMap(createMap('C'), 'Garage')];
+    await repo.publishMap(a.id);
+    await repo.publishMap(b.id);
+    await repo.publishMap(b.id); // publishing changes to a live map is always fine
+    await expect(repo.publishMap(c.id)).rejects.toThrow(/already has 2 live maps/);
+
+    await repo.unpublishMap(a.id);
+    expect(await repo.getPublishedMap(a.id)).toBeNull();
+    expect(await repo.getMap(a.id)).not.toBeNull();
+    await repo.publishMap(c.id);
+
+    // A deleted live map doesn't count, but can't come back while 2 others are live.
+    await repo.trashMap(c.id);
+    await repo.publishMap(a.id);
+    await expect(repo.restoreMap(c.id)).rejects.toThrow(/already has 2 live maps/);
+  });
 });

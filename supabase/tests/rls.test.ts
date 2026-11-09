@@ -448,3 +448,62 @@ describe('custom site links', () => {
   });
 });
 });
+
+describe('map slots and live maps per site', () => {
+  const newMap = (site: string, name: string, slot?: number) =>
+    as<{ id: string; slot: number }>(w.manager, 'insert into maps (facility_id, name, draft, slot) values ($1, $2, $3, $4) returning id, slot', [site, name, doc(name), slot ?? null]);
+
+  it('a site holds at most 5 maps, each in its own numbered slot', async () => {
+    const [{ slot: first }] = await as<{ slot: number }>(w.manager, 'select slot from maps where id = $1', [w.map]);
+    expect(first).toBe(1);
+    const slots = [];
+    for (let i = 2; i <= 5; i++) slots.push((await newMap(w.facilityA, `Map ${i}`))[0].slot);
+    expect(slots).toEqual([2, 3, 4, 5]);
+    await expect(newMap(w.facilityA, 'Sixth')).rejects.toThrow(/All 5 map slots at “Harbor Hotel” are in use/);
+    // Other sites are not affected.
+    expect((await newMap(w.facilityB, 'Lot'))[0].slot).toBe(1);
+  });
+
+  it('the trash frees a slot, and restoring needs a free one', async () => {
+    for (let i = 2; i <= 5; i++) await newMap(w.facilityA, `Map ${i}`);
+    await as(w.manager, 'update maps set deleted_at = now() where id = $1', [w.map]);
+    const [{ slot }] = await newMap(w.facilityA, 'Replacement');
+    expect(slot).toBe(1);
+    await expect(as(w.manager, 'update maps set deleted_at = null where id = $1', [w.map])).rejects.toThrow(/All 5 map slots/);
+  });
+
+  it('moving a map into a full site is refused; clients cannot pick slots on existing maps', async () => {
+    for (let i = 2; i <= 5; i++) await newMap(w.facilityA, `Map ${i}`);
+    const [{ id }] = await newMap(w.facilityB, 'Lot');
+    await expect(as(w.manager, 'update maps set facility_id = $1 where id = $2', [w.facilityA, id])).rejects.toThrow(/All 5 map slots/);
+    await as(w.manager, 'update maps set slot = 4 where id = $1', [id]);
+    expect((await as<{ slot: number }>(w.manager, 'select slot from maps where id = $1', [id]))[0].slot).toBe(1);
+  });
+
+  it('a new map may ask for a free slot', async () => {
+    expect((await newMap(w.facilityA, 'Fourth', 4))[0].slot).toBe(4);
+    expect((await newMap(w.facilityA, 'Taken', 4))[0].slot).toBe(2);
+  });
+
+  it('at most 2 maps per site are live; unpublishing frees a place', async () => {
+    const [{ id: b }] = await newMap(w.facilityA, 'B');
+    const [{ id: c }] = await newMap(w.facilityA, 'C');
+    await as(w.manager, 'select public.publish_map($1)', [w.map]);
+    await as(w.manager, 'select public.publish_map($1)', [b]);
+    await as(w.manager, 'select public.publish_map($1)', [b]); // republishing a live map is fine
+    await expect(as(w.manager, 'select public.publish_map($1)', [c])).rejects.toThrow(/already has 2 live maps/);
+
+    await expect(as(w.employee, 'select public.unpublish_map($1)', [b])).rejects.toThrow(/permission/);
+    await as(w.manager, 'select public.unpublish_map($1)', [b]);
+    expect((await as(w.employee, 'select map_id from published_maps')).map((r) => r.map_id)).toEqual([w.map]);
+    await as(w.manager, 'select public.publish_map($1)', [c]);
+
+    // A live map in the trash doesn't count, but can't come back while 2 others are live.
+    await as(w.manager, 'update maps set deleted_at = now() where id = $1', [c]);
+    await as(w.manager, 'select public.publish_map($1)', [b]);
+    await expect(as(w.manager, 'update maps set deleted_at = null where id = $1', [c])).rejects.toThrow(/already has 2 live maps/);
+    const [{ id: d }] = await newMap(w.facilityB, 'D');
+    await as(w.manager, 'select public.publish_map($1)', [d]);
+    await expect(as(w.manager, 'update maps set facility_id = $1 where id = $2', [w.facilityA, d])).rejects.toThrow(/already has 2 live maps/);
+  });
+});
