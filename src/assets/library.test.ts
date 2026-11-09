@@ -90,3 +90,19 @@ describe('space number fitting', () => {
     expect(fitLabel('12', 15, 45, 90)).toEqual({ lines: ['12'], size: 15 });
   });
 });
+
+describe('schools and campuses', () => {
+  it('lists every school item once, reusing general assets instead of copying them', () => {
+    const school = assetsIn('Schools and campuses');
+    const names = school.map((a) => a.name.toLowerCase());
+    expect(new Set(names).size).toBe(names.length);
+    for (const k of ['stop-sign', 'crosswalk', 'hydrant', 'speed-bump', 'loading-dock', 'turnaround', 'bike-rack', 'school-bus', 'football-field']) {
+      expect(school.map((a) => a.key), k).toContain(k);
+    }
+    // No two assets anywhere in the library share a name.
+    const all = ASSETS.map((a) => a.name.toLowerCase());
+    expect(new Set(all).size).toBe(all.length);
+    expect(searchAssets('parent pickup').map((a) => a.key)).toContain('valet-pickup');
+    expect(searchAssets('manhole').map((a) => a.key)).toContain('sewer-access');
+  });
+});

@@ -10,6 +10,7 @@
 import { BACKGROUNDS, CUSTOM, DRAWING, MARKERS, TEXTS, ZONES } from './catalog/misc';
 import { OUTDOOR, SIGNS } from './catalog/outdoor-signs';
 import { BUILDINGS, GARAGE, PEDESTRIAN, SERVICE } from './catalog/places';
+import { SCHOOL, SCHOOL_SHARED, SCHOOLS } from './catalog/school';
 import { SPACES } from './catalog/spaces';
 import { isSafePath, type MapSymbol } from './symbols';
 import { bandWidth, DEFAULT_BLEND, type ShapeSource } from '../model/shape';
@@ -33,6 +34,7 @@ export const ASSETS: AssetDef[] = [
   ...GARAGE,
   ...BUILDINGS,
   ...SERVICE,
+  ...SCHOOLS,
   ...OUTDOOR,
   ...SIGNS,
   ...ZONES,
@@ -47,6 +49,15 @@ export const ASSETS: AssetDef[] = [
 const ALIASES: Record<string, string> = {
   office: 'lobby-entrance',
 };
+
+// General assets that also cover items on the school list are shown there too,
+// with school words added to search, so the library has one of each.
+for (const a of ASSETS) {
+  const extra = SCHOOL_SHARED[a.key];
+  if (!extra) continue;
+  a.also = [...(a.also ?? []), SCHOOL];
+  a.keywords = [...a.keywords, ...extra];
+}
 
 export const ASSET_BY_KEY: Record<string, AssetDef> = Object.fromEntries(ASSETS.map((a) => [a.key, a]));
 for (const [old, now] of Object.entries(ALIASES)) ASSET_BY_KEY[old] ??= ASSET_BY_KEY[now];
