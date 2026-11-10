@@ -14,6 +14,8 @@ export interface MapSummary {
   publishedAt?: string;
   /** Draft revision that was published; lower than `revision` means unpublished changes. */
   publishedRevision?: number;
+  /** Numbered save slot at its site (1 to SITE_MAP_SLOTS). Missing for maps in the trash. */
+  slot?: number;
 }
 
 export interface PublishInfo {
@@ -41,6 +43,23 @@ export class ConflictError extends Error {
 }
 
 export const TRASH_RETENTION_DAYS = 30;
+/** Each site has this many numbered map slots. A map in the trash frees its slot. */
+export const SITE_MAP_SLOTS = 5;
+/** At most this many maps per site can be live (published) at once. */
+export const SITE_LIVE_MAPS = 2;
+
+export const slotsFullMessage = (site: string) =>
+  `All ${SITE_MAP_SLOTS} map slots at “${site}” are in use. Delete one of its maps to free a slot.`;
+export const liveFullMessage = (site: string) =>
+  `“${site}” already has ${SITE_LIVE_MAPS} live maps, the most a site can have. Take one offline from the Sites page, then publish this one.`;
+
+/** Lowest slot number not in `used`, or null when every slot is taken. */
+export function firstFreeSlot(used: Iterable<number | undefined>, wanted?: number): number | null {
+  const taken = new Set(used);
+  if (wanted && wanted >= 1 && wanted <= SITE_MAP_SLOTS && !taken.has(wanted)) return wanted;
+  for (let s = 1; s <= SITE_MAP_SLOTS; s++) if (!taken.has(s)) return s;
+  return null;
+}
 export const MAX_AUTO_VERSIONS = 50;
 
 /**
@@ -52,8 +71,12 @@ export interface MapRepository {
   listMaps(): Promise<MapSummary[]>;
   listTrash(): Promise<MapSummary[]>;
   getMap(id: string): Promise<MapDocument | null>;
-  /** `site` defaults to the map name, so a one-map location needs no extra step. */
-  createMap(doc: MapDocument, site?: string): Promise<MapDocument>;
+  /**
+   * `site` defaults to the map name, so a one-map location needs no extra step.
+   * `slot` asks for a particular free slot; otherwise the lowest free one is used.
+   * Fails when all of the site's slots are in use.
+   */
+  createMap(doc: MapDocument, site?: string, slot?: number): Promise<MapDocument>;
   moveToSite(id: string, site: string): Promise<void>;
   /** Sites the person can add maps to, including ones without maps yet. */
   listSites?(): Promise<string[]>;
@@ -62,6 +85,8 @@ export interface MapRepository {
    * to employees; they keep seeing the last published version until this runs.
    */
   publishMap(id: string): Promise<PublishInfo>;
+  /** Takes the map offline: employees stop seeing it. The draft is kept. */
+  unpublishMap(id: string): Promise<void>;
   getPublishInfo(id: string): Promise<PublishInfo | null>;
   /** The employee view. Null when the map was never published (or is deleted). */
   getPublishedMap(id: string): Promise<(MapDocument & { publishedAt: string }) | null>;
@@ -76,8 +101,9 @@ export interface MapRepository {
   getVersion(versionId: string): Promise<MapDocument | null>;
 }
 
-export function summarize(doc: MapDocument, deletedAt?: string, extra: { site?: string; publish?: PublishInfo } = {}): MapSummary {
+export function summarize(doc: MapDocument, deletedAt?: string, extra: { site?: string; publish?: PublishInfo; slot?: number | null } = {}): MapSummary {
   return {
+    slot: deletedAt ? undefined : extra.slot ?? undefined,
     site: extra.site?.trim() || doc.name,
     revision: doc.revision,
     publishedAt: extra.publish?.publishedAt,

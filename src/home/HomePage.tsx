@@ -2,7 +2,7 @@ import { BrandMark, BrandWordmark } from '../ui/Brand';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { newId } from '../model/ids';
 import { MAP_FILE_EXTENSION, MAX_MAP_FILE_BYTES, parseMapFile } from '../storage/mapFile';
-import { TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
+import { SITE_LIVE_MAPS, SITE_MAP_SLOTS, TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
 import { navigate } from '../router';
 import { ConfirmDialog } from '../ui/Dialog';
 import { NewMapDialog } from './NewMapDialog';
@@ -16,8 +16,27 @@ function groupBySite(maps: MapSummary[], sites: string[] = []): [string, MapSumm
   return [...by.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/**
+ * A site's maps laid out in its numbered slots. Maps without a slot (only
+ * possible for sites that had more than the limit before slots existed) come
+ * after the slots.
+ */
+function slotLayout(list: MapSummary[]): { slots: (MapSummary | null)[]; extra: MapSummary[] } {
+  const slots: (MapSummary | null)[] = Array.from({ length: SITE_MAP_SLOTS }, () => null);
+  const extra: MapSummary[] = [];
+  for (const m of list) {
+    if (m.slot && m.slot <= SITE_MAP_SLOTS && !slots[m.slot - 1]) slots[m.slot - 1] = m;
+    else extra.push(m);
+  }
+  return { slots, extra };
+}
+
+const SLOTS_FULL = `All ${SITE_MAP_SLOTS} slots are in use. Delete a map to free a slot.`;
+
 function publishStatus(m: MapSummary): { text: string; tone: string } {
-  if (!m.publishedAt) return { text: 'Draft · not published', tone: 'draft' };
+  if (!m.publishedAt) return { text: 'Draft', tone: 'draft' };
   if (m.publishedRevision !== m.revision) return { text: 'Unpublished changes', tone: 'changes' };
   return { text: 'Published', tone: 'live' };
 }
@@ -50,8 +69,9 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
   const [sites, setSites] = useState<string[]>([]);
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
   const [trash, setTrash] = useState<MapSummary[]>([]);
-  const [creating, setCreating] = useState<false | { site?: string }>(false);
+  const [creating, setCreating] = useState<false | { site?: string; slot?: number }>(false);
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
+  const [unpublishing, setUnpublishing] = useState<MapSummary | null>(null);
   const [purging, setPurging] = useState<MapSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -142,50 +162,75 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
           </div>
         ) : (
           <div className="sites" data-testid="map-list">
-            {groupBySite(maps, sites).map(([site, list]) => (
-              <section key={site} className="site" data-testid={`site-${site}`}>
-                <header className="site-head">
-                  <h3>{site}</h3>
-                  <span className="site-meta">{list.length} map{list.length === 1 ? '' : 's'} · {list.reduce((n, m) => n + m.spaceCount, 0)} space{list.reduce((n, m) => n + m.spaceCount, 0) === 1 ? '' : 's'}</span>
-                  <button className="btn small" onClick={() => setCreating({ site })} data-testid={`add-map-${site}`}>
-                    <Icon name="plus" size={14} /> Add map
-                  </button>
-                </header>
-                <ul className="map-grid">
-                  {list.map((m) => {
-                    const st = publishStatus(m);
-                    return (
-                      <li key={m.id} className="map-card">
-                        <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
-                          <span className={`pub-pill ${st.tone}`}>{st.text}</span>
-                          <strong>{m.name}</strong>
-                          <span className="map-meta">
-                            {m.floorCount} floor{m.floorCount === 1 ? '' : 's'} · {m.spaceCount} space{m.spaceCount === 1 ? '' : 's'}
-                          </span>
-                          <span className="map-edited">Edited {when(m.updatedAt)}</span>
-                        </button>
-                        <div className="card-actions">
-                          <button className="btn small" onClick={() => navigate(m.publishedAt ? `/view/${m.id}` : `/view/${m.id}?preview=1`)}>
-                            {m.publishedAt ? 'Employee view' : 'Preview'}
-                          </button>
-                          <button className="btn small" onClick={() => copyMap(m)} title="Use as a starting point for another map">Copy</button>
-                          <button className="btn small card-delete" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                  {list.length === 0 && (
-                    <li className="map-card map-card-empty">
-                      <button className="map-add" onClick={() => setCreating({ site })}>
-                        <Icon name="plus" size={18} />
-                        <strong>Add the first map</strong>
-                        <span>Build one from a few numbers in about a minute.</span>
+            {groupBySite(maps, sites).map(([site, list]) => {
+              const { slots, extra } = slotLayout(list);
+              const full = list.length >= SITE_MAP_SLOTS;
+              const live = list.filter((m) => m.publishedAt).length;
+              const spaces = list.reduce((n, m) => n + m.spaceCount, 0);
+              const card = (m: MapSummary, label: string) => {
+                const st = publishStatus(m);
+                return (
+                  <li key={m.id} className="map-card map-card-filled" data-testid={`slot-${site}-${m.slot ?? 'extra'}`}>
+                    <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
+                      <span className="card-top">
+                        <span className="slot-num">{label}</span>
+                        <span className={`pub-pill ${st.tone}`}>{st.text}</span>
+                      </span>
+                      <strong>{m.name}</strong>
+                      <span className="map-meta">
+                        {plural(m.floorCount, 'floor')} · {plural(m.spaceCount, 'space')}
+                      </span>
+                      <span className="map-edited">Edited {when(m.updatedAt)}</span>
+                    </button>
+                    <div className="card-actions">
+                      <button className="btn small" onClick={() => navigate(m.publishedAt ? `/view/${m.id}` : `/view/${m.id}?preview=1`)}>
+                        {m.publishedAt ? 'Employee view' : 'Preview'}
                       </button>
-                    </li>
-                  )}
-                </ul>
-              </section>
-            ))}
+                      <button className="btn small" onClick={() => copyMap(m)} disabled={full}
+                        title={full ? SLOTS_FULL : 'Use as a starting point for another map at this site'}>Copy</button>
+                      {m.publishedAt && (
+                        <button className="btn small" onClick={() => setUnpublishing(m)} data-testid={`unpublish-${m.name}`}
+                          title="Stop showing this map to employees. The map itself is kept.">Unpublish</button>
+                      )}
+                      <button className="btn small card-delete" onClick={() => setTrashing(m)} data-testid={`delete-${m.name}`}>Delete</button>
+                    </div>
+                  </li>
+                );
+              };
+              return (
+                <section key={site} className="site" data-testid={`site-${site}`}>
+                  <header className="site-head">
+                    <h3>{site}</h3>
+                    <span className="site-meta" data-testid={`site-meta-${site}`}>
+                      {list.length} of {SITE_MAP_SLOTS} slots used · {live} of {SITE_LIVE_MAPS} published · {plural(spaces, 'space')}
+                    </span>
+                    <button className="btn small" onClick={() => setCreating({ site })} disabled={full} title={full ? SLOTS_FULL : undefined}
+                      data-testid={`add-map-${site}`}>
+                      <Icon name="plus" size={14} /> Add map
+                    </button>
+                  </header>
+                  {full && <p className="site-note" data-testid={`slots-full-${site}`}>{SLOTS_FULL}</p>}
+                  <ul className="map-grid slot-grid">
+                    {slots.map((m, i) =>
+                      m ? card(m, `Slot ${i + 1}`) : (
+                        <li key={`empty-${i}`} className="map-card map-card-empty" data-testid={`slot-${site}-${i + 1}`}>
+                          <button className="map-add" onClick={() => setCreating({ site, slot: i + 1 })} disabled={full}
+                            aria-label={`Add a map in slot ${i + 1} of ${site}`}>
+                            <span className="slot-num">Slot {i + 1}</span>
+                            {list.length === 0 && i === 0 ? (
+                              <><Icon name="plus" size={18} /><strong>Add the first map</strong><span>Build one from a few numbers in about a minute.</span></>
+                            ) : (
+                              <><strong>Empty</strong><span>Add a map here</span></>
+                            )}
+                          </button>
+                        </li>
+                      ),
+                    )}
+                    {extra.map((m) => card(m, 'No slot'))}
+                  </ul>
+                </section>
+              );
+            })}
           </div>
         )}
 
@@ -218,7 +263,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
           onClose={() => setCreating(false)}
           onCreate={async (doc, site) => {
             try {
-              const stored = await repo.createMap(doc, site);
+              const stored = await repo.createMap(doc, site, creating.slot);
               navigate(`/edit/${stored.id}`);
             } catch (e) {
               setCreating(false);
@@ -235,6 +280,15 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
           onCancel={() => setTrashing(null)}
           onConfirm={async () => { setTrashing(null); await act(() => repo.trashMap(trashing.id)); }}
           message={<p>You can restore it from “Recently deleted” for {TRASH_RETENTION_DAYS} days.</p>}
+        />
+      )}
+      {unpublishing && (
+        <ConfirmDialog
+          title={`Unpublish “${unpublishing.name}”?`}
+          confirmLabel="Unpublish"
+          onCancel={() => setUnpublishing(null)}
+          onConfirm={async () => { setUnpublishing(null); await act(() => repo.unpublishMap(unpublishing.id)); }}
+          message={<p>Employees will stop seeing this map. It stays in its slot, and you can publish it again any time. Each site can have {SITE_LIVE_MAPS} published maps at once.</p>}
         />
       )}
       {purging && (

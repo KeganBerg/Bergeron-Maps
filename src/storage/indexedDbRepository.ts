@@ -4,7 +4,12 @@ import type { MapDocument } from '../model/types';
 import {
   ConflictError,
   MAX_AUTO_VERSIONS,
+  SITE_LIVE_MAPS,
+  SITE_MAP_SLOTS,
   TRASH_RETENTION_DAYS,
+  firstFreeSlot,
+  liveFullMessage,
+  slotsFullMessage,
   summarize,
   type MapRepository,
   type MapSummary,
@@ -20,6 +25,35 @@ interface MapRecord {
   site?: string;
   published?: MapDocument;
   publish?: PublishInfo;
+  slot?: number;
+}
+
+const siteOf = (r: MapRecord) => r.site?.trim() || r.doc.name;
+const active = (all: MapRecord[], site: string, except?: string) =>
+  all.filter((r) => !r.deletedAt && r.id !== except && siteOf(r) === site);
+
+/** Checks that `r` may arrive at `site` (new, moved or restored) and gives it a free slot there. */
+function placeAt(all: MapRecord[], r: MapRecord, site: string, wanted?: number): MapRecord {
+  const others = active(all, site, r.id);
+  const slot = others.length < SITE_MAP_SLOTS ? firstFreeSlot(others.map((o) => o.slot), wanted) : null;
+  if (!slot) throw new Error(slotsFullMessage(site));
+  if (r.publish && others.filter((o) => o.publish).length >= SITE_LIVE_MAPS) throw new Error(`“${site}” already has ${SITE_LIVE_MAPS} live maps, the most a site can have. Take one offline first.`);
+  return { ...r, site, slot, deletedAt: undefined };
+}
+
+/** Maps saved before slots existed get the lowest free slot at their site, oldest first. */
+function withSlots(all: MapRecord[]): MapRecord[] {
+  const changed: MapRecord[] = [];
+  const live = all.filter((r) => !r.deletedAt).sort((a, b) => a.doc.createdAt.localeCompare(b.doc.createdAt));
+  for (const r of live) {
+    const others = active(all, siteOf(r), r.id);
+    if (r.slot && !others.some((o) => o.slot === r.slot)) continue;
+    const slot = firstFreeSlot(others.map((o) => o.slot));
+    if (!slot || slot === r.slot) continue;
+    r.slot = slot;
+    changed.push(r);
+  }
+  return changed;
 }
 
 interface VersionRecord extends VersionMeta {
@@ -73,10 +107,29 @@ export class IndexedDbRepository implements MapRepository {
     return req(db.transaction('maps').objectStore('maps').getAll() as IDBRequest<MapRecord[]>);
   }
 
+  /** Runs `fn` over every stored map inside one readwrite transaction, then stores what it returns. */
+  private async change<T>(fn: (all: MapRecord[]) => { put: MapRecord[]; result: T }): Promise<T> {
+    const db = await this.db();
+    const tx = db.transaction('maps', 'readwrite');
+    const store = tx.objectStore('maps');
+    const all = (await req(store.getAll())) as MapRecord[];
+    let out: { put: MapRecord[]; result: T };
+    try {
+      out = fn(all);
+    } catch (e) {
+      tx.abort();
+      throw e;
+    }
+    for (const r of out.put) store.put(r);
+    await done(tx);
+    return out.result;
+  }
+
   async listMaps(): Promise<MapSummary[]> {
-    return (await this.all())
+    const fresh = await this.change((all) => ({ put: withSlots(all), result: all }));
+    return fresh
       .filter((r) => !r.deletedAt)
-      .map((r) => summarize(r.doc, undefined, r))
+      .map((r) => summarize(r.doc, undefined, { ...r, site: siteOf(r) }))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
@@ -94,13 +147,14 @@ export class IndexedDbRepository implements MapRepository {
     return migrateDocument(r.doc);
   }
 
-  async createMap(doc: MapDocument, site?: string): Promise<MapDocument> {
-    const db = await this.db();
-    const tx = db.transaction('maps', 'readwrite');
+  async createMap(doc: MapDocument, site?: string, slot?: number): Promise<MapDocument> {
     const stored = { ...clone(doc), revision: 1 };
-    tx.objectStore('maps').add({ id: doc.id, doc: stored, site: site?.trim() || doc.name } satisfies MapRecord);
-    await done(tx);
-    return stored;
+    const name = site?.trim() || doc.name;
+    return this.change((all) => {
+      if (all.some((r) => r.id === doc.id)) throw new Error('A map with this id already exists.');
+      const fixed = withSlots(all);
+      return { put: [...fixed, placeAt(all, { id: doc.id, doc: stored }, name, slot)], result: stored };
+    });
   }
 
   async saveMap(doc: MapDocument, baseRevision: number): Promise<MapDocument> {
@@ -147,10 +201,23 @@ export class IndexedDbRepository implements MapRepository {
   async moveToSite(id: string, site: string): Promise<void> {
     const name = site.trim();
     if (!name) throw new Error('Enter a site name.');
-    await this.update(id, (r) => ({ ...r, site: name }));
+    await this.change((all) => {
+      const r = all.find((x) => x.id === id && !x.deletedAt);
+      if (!r) throw new Error('This map no longer exists. It may have been deleted.');
+      if (siteOf(r) === name) return { put: [], result: undefined };
+      const fixed = withSlots(all).filter((x) => x.id !== id);
+      return { put: [...fixed, placeAt(all, r, name)], result: undefined };
+    });
   }
 
   async publishMap(id: string): Promise<PublishInfo> {
+    await this.change((all) => {
+      const r = all.find((x) => x.id === id && !x.deletedAt);
+      if (r && !r.publish && active(all, siteOf(r), id).filter((o) => o.publish).length >= SITE_LIVE_MAPS) {
+        throw new Error(liveFullMessage(siteOf(r)));
+      }
+      return { put: [], result: undefined };
+    });
     const r = await this.update(id, (r) => ({
       ...r,
       published: clone(r.doc),
@@ -158,6 +225,10 @@ export class IndexedDbRepository implements MapRepository {
     }));
     await this.saveVersion(r.doc, 'publish');
     return r.publish!;
+  }
+
+  async unpublishMap(id: string): Promise<void> {
+    await this.update(id, ({ published: _p, publish: _i, ...r }) => r);
   }
 
   async getPublishInfo(id: string): Promise<PublishInfo | null> {
@@ -170,21 +241,22 @@ export class IndexedDbRepository implements MapRepository {
     return { ...migrateDocument(r.published), publishedAt: r.publish.publishedAt };
   }
 
-  private async setDeleted(id: string, deletedAt: string | undefined): Promise<void> {
-    const db = await this.db();
-    const tx = db.transaction('maps', 'readwrite');
-    const store = tx.objectStore('maps');
-    const r = (await req(store.get(id))) as MapRecord | undefined;
-    if (r) store.put({ ...r, deletedAt });
-    await done(tx);
+  /** A map in the trash gives its slot back. */
+  async trashMap(id: string): Promise<void> {
+    await this.change((all) => {
+      const r = all.find((x) => x.id === id);
+      return { put: r ? [{ ...r, deletedAt: new Date().toISOString(), slot: undefined }] : [], result: undefined };
+    });
   }
 
-  trashMap(id: string) {
-    return this.setDeleted(id, new Date().toISOString());
-  }
-
-  restoreMap(id: string) {
-    return this.setDeleted(id, undefined);
+  /** Restoring needs a free slot at the map's site (and room for it to be live, if it was). */
+  async restoreMap(id: string): Promise<void> {
+    await this.change((all) => {
+      const r = all.find((x) => x.id === id);
+      if (!r || !r.deletedAt) return { put: [], result: undefined };
+      const fixed = withSlots(all);
+      return { put: [...fixed, placeAt(all, r, siteOf(r))], result: undefined };
+    });
   }
 
   async purgeMap(id: string): Promise<void> {

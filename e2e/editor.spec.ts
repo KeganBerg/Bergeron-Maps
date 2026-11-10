@@ -178,7 +178,7 @@ test('a map can be downloaded as a file and imported again as a new map', async 
   await page.getByTestId('import-map-input').setInputFiles(file!);
   await expect(page.getByTestId('canvas').locator('canvas').first()).toBeVisible();
   await page.getByRole('button', { name: 'All maps' }).click();
-  await expect(page.getByTestId('map-list').locator('li')).toHaveCount(2);
+  await expect(page.getByTestId('map-list').locator('li.map-card-filled')).toHaveCount(2);
   await expect(page.getByTestId('map-list')).toContainText('6 spaces');
 
   await page.getByTestId('import-map-input').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"hi":1}') });
