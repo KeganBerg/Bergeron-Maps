@@ -45,7 +45,7 @@ function LotPreview({ doc }: { doc: MapDocument }) {
         )}
       </div>
       {doc.floors.length > 1 && (
-        <div className="lot-floors" role="group" aria-label="Preview a level">
+        <div className="lot-floors" role="group" aria-label="Preview a floor">
           {doc.floors.map((f, i) => (
             <button key={f.id} type="button" className={f.id === floor.id ? 'active' : ''} aria-pressed={f.id === floor.id}
               style={{ ['--floor-color' as string]: floorColor(i) }} onClick={() => setIndex(i)}>
@@ -59,8 +59,8 @@ function LotPreview({ doc }: { doc: MapDocument }) {
 }
 
 const FIELDS: { key: keyof QuickLotSpec; label: string; hint: string }[] = [
-  { key: 'floors', label: 'Levels', hint: '1 for a surface lot' },
-  { key: 'rows', label: 'Rows per level', hint: 'Lettered A, B, C…' },
+  { key: 'floors', label: 'Floors', hint: '1 for a surface lot' },
+  { key: 'rows', label: 'Rows per floor', hint: 'Lettered A, B, C…' },
   { key: 'spacesPerRow', label: 'Spaces per row', hint: 'Numbered 1, 2, 3…' },
   { key: 'accessible', label: 'Accessible spaces', hint: 'Start of row A' },
 ];
@@ -131,7 +131,7 @@ export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCre
             <figure className="quick-preview">
               <LotPreview doc={preview} />
               <figcaption>
-                {spec.floors > 1 ? `${spec.floors} levels, ${total} spaces. ` : `${total} spaces. `}Lanes, entrance{spec.floors > 1 ? ', ramps and stairs' : ' and exit'} are added for you. Move or renumber anything afterward.
+                {spec.floors > 1 ? `${spec.floors} floors, ${total} spaces. ` : `${total} spaces. `}Lanes, entrance{spec.floors > 1 ? ', ramps and stairs' : ' and exit'} are added for you. Move or renumber anything afterward.
               </figcaption>
             </figure>
           </div>
