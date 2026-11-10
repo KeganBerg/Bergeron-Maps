@@ -29,7 +29,7 @@ describe('quick lot builder', () => {
 
   it('prefixes levels and links ramps between them', () => {
     const doc = createQuickLot('Garage', { floors: 3, rows: 2, spacesPerRow: 5, accessible: 1 });
-    expect(doc.floors.map((f) => f.name)).toEqual(['Level 1', 'Level 2', 'Level 3']);
+    expect(doc.floors.map((f) => f.name)).toEqual(['Floor 1', 'Floor 2', 'Floor 3']);
     expect(spaces(doc.floors[1].objects)[0].label).toBe('2A1');
     const ramp2 = doc.floors[1].objects.find((o) => o.kind === 'asset' && o.assetKey === 'ramp');
     expect(ramp2 && ramp2.kind === 'asset' && ramp2.connectsTo).toEqual([doc.floors[0].id, doc.floors[2].id]);

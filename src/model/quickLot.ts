@@ -106,9 +106,9 @@ function buildLevel(floor: Floor, index: number, spec: QuickLotSpec): void {
 export function createQuickLot(name: string, input: QuickLotSpec): MapDocument {
   const spec = clampQuickLot(input);
   const doc = createMap(name);
-  doc.floors = Array.from({ length: spec.floors }, (_, i) => createFloor(spec.floors > 1 ? `Level ${i + 1}` : 'Floor 1'));
+  doc.floors = Array.from({ length: spec.floors }, (_, i) => createFloor(`Floor ${i + 1}`));
   doc.floors.forEach((f, i) => buildLevel(f, i, spec));
-  // Floor connectors know which levels they reach, so the viewer can say "Goes to Level 2".
+  // Floor connectors know which levels they reach, so the viewer can say "Goes to Floor 2".
   doc.floors.forEach((f, i) => {
     const near = [doc.floors[i - 1]?.id, doc.floors[i + 1]?.id].filter((x): x is string => !!x);
     for (const o of f.objects) if (o.kind === 'asset' && ASSET_BY_KEY[o.assetKey]?.connector) o.connectsTo = near;
