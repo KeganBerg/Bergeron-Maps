@@ -14,3 +14,12 @@ $$;
 grant usage on schema auth to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;
 grant usage on schema public to anon, authenticated;
+-- Supabase gives anon and authenticated every privilege on new tables and
+-- functions in public by default; the migrations must take away what they
+-- shouldn't have, so the tests start from the same defaults.
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then create role supabase_auth_admin nologin; end if;
+end $$;
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
