@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { MapDocument } from '../model/types';
-import { ConflictError, type MapRepository } from '../storage/repository';
+import { ConflictError, MapGoneError, type MapRepository } from '../storage/repository';
 import { useEditor } from './store';
 
 const DEBOUNCE_MS = 800;
@@ -41,18 +41,17 @@ export function readBackup(id: string): { savedAt: string; doc: MapDocument } | 
  */
 export function useAutosave(repo: MapRepository) {
   const editSeq = useEditor((s) => s.editSeq);
-  const saving = useRef(false);
+  const inFlight = useRef<Promise<boolean> | null>(null);
   const lastVersionAt = useRef(0);
   const timer = useRef<number>();
 
-  const saveNow = useCallback(
+  const saveOnce = useCallback(
     async (opts?: { version?: 'manual'; label?: string }) => {
       const s = useEditor.getState();
-      if (!s.doc || saving.current || s.saveStatus === 'conflict') return false;
+      if (!s.doc || s.saveStatus === 'conflict') return false;
       const seq = s.editSeq;
       const doc = s.doc;
       const needsSave = seq !== s.savedSeq;
-      saving.current = true;
       if (needsSave) s.setSaveState({ status: 'saving' });
       try {
         let stored = doc;
@@ -79,6 +78,11 @@ export function useAutosave(repo: MapRepository) {
         if (e instanceof ConflictError) {
           writeBackup(doc);
           useEditor.getState().setSaveState({ status: 'conflict', conflict: e.current, error: e.message });
+        } else if (e instanceof MapGoneError) {
+          writeBackup(doc);
+          const st = useEditor.getState();
+          if (st.saveError !== e.message) st.notify({ tone: 'error', message: e.message });
+          st.setSaveState({ status: 'failed', error: e.message });
         } else {
           writeBackup(doc);
           useEditor.getState().setSaveState({
@@ -87,11 +91,28 @@ export function useAutosave(repo: MapRepository) {
           });
         }
         return false;
-      } finally {
-        saving.current = false;
       }
     },
     [repo],
+  );
+
+  /**
+   * Saves now. If a save is already running (autosave fired a moment ago),
+   * waits for it and then saves whatever changed since, so Save, Publish and
+   * leaving the editor never give up just because autosave got there first.
+   */
+  const saveNow = useCallback(
+    async (opts?: { version?: 'manual'; label?: string }) => {
+      while (inFlight.current) await inFlight.current;
+      const run = saveOnce(opts);
+      inFlight.current = run;
+      try {
+        return await run;
+      } finally {
+        if (inFlight.current === run) inFlight.current = null;
+      }
+    },
+    [saveOnce],
   );
 
   // Debounced autosave after each change (and retry after failures).
@@ -111,17 +132,34 @@ export function useAutosave(repo: MapRepository) {
     return () => window.clearTimeout(timer.current);
   }, [editSeq, saveNow]);
 
-  // Warn before leaving with unsaved work.
+  // Warn before leaving with unsaved work, and keep a copy in this browser in
+  // case they leave anyway (a refresh within a second of an edit, a closed
+  // tab, a phone killing the page, or being signed out mid-edit). Opening the
+  // map again offers to recover it.
   useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    const unsaved = () => {
       const s = useEditor.getState();
-      if (s.doc && (s.editSeq !== s.savedSeq || s.saveStatus === 'conflict')) {
+      return s.doc && (s.editSeq !== s.savedSeq || s.saveStatus === 'conflict') ? s.doc : null;
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const doc = unsaved();
+      if (doc) {
+        writeBackup(doc);
         e.preventDefault();
         e.returnValue = '';
       }
     };
+    const onHide = () => {
+      const doc = unsaved();
+      if (doc) writeBackup(doc);
+    };
     window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('pagehide', onHide);
+      onHide();
+    };
   }, []);
 
   /** Resolve a conflict by keeping this editor's version; the other version goes to history. */

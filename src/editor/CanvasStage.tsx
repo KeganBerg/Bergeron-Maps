@@ -184,9 +184,13 @@ export function CanvasStage() {
     const stage = stageRef.current;
     const tr = trRef.current;
     if (!stage || !tr) return;
+    // One pass over the drawn objects: looking each selected id up separately
+    // took seconds on big lots (select all on 2,000 spaces).
+    const byId = new Map<string, Konva.Node>();
+    if (!bgSelected && selection.length) for (const n of stage.find('.obj')) if (!byId.has(n.id())) byId.set(n.id(), n);
     const nodes = bgSelected
       ? [stage.findOne('#__background')].filter(Boolean)
-      : (selection.map((id) => stage.findOne(`#${id}`)).filter(Boolean) as Konva.Node[]);
+      : (selection.map((id) => byId.get(id)).filter(Boolean) as Konva.Node[]);
     tr.nodes(nodes as Konva.Node[]);
     tr.getLayer()?.batchDraw();
   }, [selection, doc, floorId, bgSelected]);

@@ -69,9 +69,12 @@ const FIELDS: { key: keyof QuickLotSpec; label: string; hint: string }[] = [
  * New map, built for the busy manager: answer four numbers and get a full,
  * numbered layout to adjust, or start from an empty canvas.
  */
-export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCreate: (doc: MapDocument, site?: string) => void; onClose: () => void }) {
+export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCreate: (doc: MapDocument, site?: string) => void | Promise<void>; onClose: () => void }) {
   const [name, setName] = useState('');
   const [mode, setMode] = useState<'quick' | 'blank'>('quick');
+  // A double-click (or Enter then a click) must not create the map twice and use up two slots.
+  const busy = useRef(false);
+  const [creating, setCreating] = useState(false);
   const [raw, setRaw] = useState<Record<keyof QuickLotSpec, string>>({
     floors: String(QUICK_LOT_DEFAULTS.floors),
     rows: String(QUICK_LOT_DEFAULTS.rows),
@@ -87,19 +90,29 @@ export function NewMapDialog({ site, onCreate, onClose }: { site?: string; onCre
   // A new site needs a real name; otherwise empty "Untitled site" entries pile up on the home page.
   const needsName = !site && !name.trim();
   const fallback = 'New map';
-  const create = () => !needsName && onCreate(mode === 'quick' ? createQuickLot(name.trim() || fallback, spec) : createMap(name.trim() || fallback), site);
+  const create = async () => {
+    if (needsName || busy.current) return;
+    busy.current = true;
+    setCreating(true);
+    try {
+      await onCreate(mode === 'quick' ? createQuickLot(name.trim() || fallback, spec) : createMap(name.trim() || fallback), site);
+    } finally {
+      busy.current = false;
+      setCreating(false);
+    }
+  };
 
   return (
     <Dialog title={site ? `New map at ${site}` : 'New site map'} wide onClose={onClose}
       footer={
         <>
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={create} disabled={needsName} title={needsName ? 'Enter a site name first' : undefined} data-testid="create-map">
+          <button className="btn primary" onClick={() => void create()} disabled={needsName || creating} title={needsName ? 'Enter a site name first' : undefined} data-testid="create-map">
             {mode === 'quick' ? `Create map with ${total} spaces` : 'Create blank map'}
           </button>
         </>
       }>
-      <form className="new-map" onSubmit={(e) => { e.preventDefault(); create(); }}>
+      <form className="new-map" onSubmit={(e) => { e.preventDefault(); void create(); }}>
         <label className="stack">
           {site ? 'Map name' : 'Site name'}
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={site ? 'e.g. Overflow lot' : 'Site Name'} maxLength={80} data-testid="map-name-input" />

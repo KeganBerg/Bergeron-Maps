@@ -10,11 +10,14 @@ import '@fontsource/overpass/700.css';
 import '@fontsource/overpass/900.css';
 import './styles.css';
 import { applyTheme } from './theme';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 
 applyTheme();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

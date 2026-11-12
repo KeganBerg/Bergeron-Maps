@@ -42,6 +42,14 @@ export class ConflictError extends Error {
   }
 }
 
+/** Thrown when saving a map that was deleted (for example in another tab) or that this account can no longer reach. */
+export class MapGoneError extends Error {
+  constructor(message = 'This map was deleted, so your latest changes couldn’t be saved. They are kept in this browser: restore the map from “Recently deleted”, then open it again to recover them.') {
+    super(message);
+    this.name = 'MapGoneError';
+  }
+}
+
 export const TRASH_RETENTION_DAYS = 30;
 /** Each site has this many numbered map slots. A map in the trash frees its slot. */
 export const SITE_MAP_SLOTS = 5;
