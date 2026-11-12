@@ -135,12 +135,25 @@ test.describe('every action in sequence', () => {
     });
 
     await test.step('after zooming in and panning, select and drag still land on the right thing', async () => {
+      const v0 = (await editorState(page)).viewport;
       await trackpadPinch(page, P(0.5, 0.5), -150);
+      const v1 = (await editorState(page)).viewport;
       await spacePan(page, P(0.5, 0.5), P(0.4, 0.45));
       await settle(page);
+      const v2 = (await editorState(page)).viewport;
+      expect(v1.scale, 'trackpad pinch zooms in').toBeGreaterThan(v0.scale * 1.05);
+      expect(Math.round(v2.x - v1.x), 'space + drag pans').toBe(Math.round(-0.1 * c.width));
       const t = await obj(page, 'Tree 1');
-      await realClick(page, await center(page, t));
-      expect(await selectedNames(page)).toEqual(['Tree 1']);
+      const at = await center(page, t);
+      await realClick(page, at);
+      const why = await page.evaluate(([x, y]) => {
+        type N = { className: string; findAncestor: (s: string) => { id: () => string } | undefined };
+        const st = (window as unknown as { Konva: { stages: { getIntersection: (p: object) => N | null; container: () => HTMLElement }[] } }).Konva.stages[0];
+        const b = st.container().getBoundingClientRect();
+        const n = st.getIntersection({ x: x - b.left, y: y - b.top });
+        return { hit: n?.className, obj: n?.findAncestor('.obj')?.id(), focus: document.activeElement?.tagName, zoom: window.devicePixelRatio };
+      }, [at.x, at.y]);
+      expect(await selectedNames(page), JSON.stringify({ why, v0, v1, v2, t, at })).toEqual(['Tree 1']);
       const from = await center(page, t);
       await realDrag(page, from, { x: from.x - 50, y: from.y });
       const v = (await editorState(page)).viewport;
