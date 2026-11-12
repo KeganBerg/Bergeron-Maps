@@ -451,7 +451,7 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 
 /* Brand: the official BM monogram and wordmark (src/ui/Brand.tsx). */
 .brand-mark { display: inline-grid; place-items: center; background: #0b0b0c; color: #fff; border-radius: 22%; flex: none; }
-.brand-mark-glyph { display: block; width: 70%; line-height: 0; }
+.brand-mark-glyph { display: block; width: 80%; line-height: 0; }
 .brand-mark-glyph svg { display: block; width: 100%; height: auto; }
 .brand-wordmark { display: inline-block; color: inherit; line-height: 0; }
 .brand-wordmark svg { display: block; height: 100%; width: auto; }
