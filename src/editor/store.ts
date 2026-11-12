@@ -288,6 +288,17 @@ export const useEditor = create<EditorStore>()((set, get) => {
     const result = preparePaste(floor, clip, dx, dy, (o) =>
       resolveTargetLayer(floor, activeLayer, roleForObject(o, o.kind === 'asset' ? ASSET_BY_KEY[o.assetKey]?.layer : undefined)),
     );
+    // Copies of named things ("Stairway 3") get the next free number, so names stay unique for search and tap-to-identify.
+    const taken = new Set<string>();
+    for (const fl of doc.floors) for (const o of fl.objects) if (o.name) taken.add(o.name);
+    for (const o of result.objects) {
+      const m = o.kind !== 'space' && o.name ? /^(.*\S) (\d+)$/.exec(o.name) : null;
+      if (!m || !taken.has(o.name!)) { if (o.name) taken.add(o.name); continue; }
+      let n = parseInt(nextName(doc, m[1]).slice(m[1].length + 1), 10);
+      while (taken.has(`${m[1]} ${n}`)) n++;
+      o.name = `${m[1]} ${n}`;
+      taken.add(o.name);
+    }
     commit((_d, f) => {
       f.objects.push(...(result.objects as Draft<MapObject>[]));
       Object.assign(f.rows, result.rows);

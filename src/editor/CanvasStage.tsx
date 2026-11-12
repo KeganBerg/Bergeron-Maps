@@ -108,6 +108,35 @@ export function CanvasStage() {
     if (selection.length) setBgSelected(false);
   }, [selection]);
 
+  // A drag that ends outside the map (over the sidebar, the floor tabs or off
+  // the window) must still finish: otherwise the selection box stays on screen
+  // and a half-done move never reaches undo history. Panning handles this itself.
+  const moveRef = useRef<() => void>(() => {});
+  const upRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const outside = (e: PointerEvent) => !containerRef.current?.contains(e.target as Node);
+    const move = (e: PointerEvent) => {
+      const g = gesture.current;
+      if (!g || g.type === 'pan' || !outside(e)) return;
+      stageRef.current?.setPointersPositions(e);
+      moveRef.current();
+    };
+    const up = (e: PointerEvent) => {
+      const g = gesture.current;
+      if (!g || g.type === 'pan' || !outside(e)) return;
+      stageRef.current?.setPointersPositions(e);
+      upRef.current();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, []);
+
   // Attach the transformer to the selected nodes.
   useEffect(() => {
     const stage = stageRef.current;
@@ -294,6 +323,9 @@ export function CanvasStage() {
       );
     }
   };
+
+  moveRef.current = onPointerMove;
+  upRef.current = onPointerUp;
 
   const onDblClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const id = objFromTarget(e.target);

@@ -33,7 +33,7 @@ const PALETTES: Record<ThemeName, MapPalette> = {
 };
 
 /** Real garages color-code their levels; floors get the same treatment. */
-export const FLOOR_COLORS = ['#c8102e', '#e87722', '#007a33', '#0057b8', '#6a1b9a', '#00838f', '#8d6e63', '#455a64'];
+export const FLOOR_COLORS = ['#c8102e', '#d4650f', '#007a33', '#0057b8', '#6a1b9a', '#00838f', '#8d6e63', '#455a64'];
 export const floorColor = (index: number) => FLOOR_COLORS[index % FLOOR_COLORS.length];
 
 function readTheme(): ThemeName {
