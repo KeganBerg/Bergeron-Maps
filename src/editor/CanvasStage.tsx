@@ -1,9 +1,9 @@
 import Konva from 'konva';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Label, Layer, Line, Rect, Shape, Stage, Tag, Text, Transformer } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
-import { objectBox, normalizeRotation, unionBoxes } from '../model/geometry';
+import { boxContains, objectBox, normalizeRotation, unionBoxes } from '../model/geometry';
 import { snapMove, snapToGrid, type Guide } from '../model/snapping';
 import { simplifyStroke } from '../model/shape';
 import { DEFAULT_ROW } from '../model/rows';
@@ -14,9 +14,15 @@ import { fitViewport, floorBounds } from '../render/viewport';
 import { hasInterior } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
 import { MAP_PALETTE } from '../theme';
-import { currentFloor, useEditor } from './store';
+import { currentFloor, selectionBox, useEditor } from './store';
 
 const DRAG_THRESHOLD = 3;
+/**
+ * Above this many selected objects, a drag moves the drawn objects directly and
+ * saves the move once on release, instead of rebuilding the map on every mouse
+ * move (about 0.7s per move with 6,000 spaces selected).
+ */
+const LIVE_DRAG_LIMIT = 150;
 const ALL_ANCHORS = ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right'];
 const COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
@@ -34,6 +40,9 @@ type Gesture =
       others: Box[];
       started: boolean;
       additiveClickId?: string;
+      /** Big selections move the drawn objects directly while dragging (see LIVE_DRAG_LIMIT). */
+      nodes?: Map<string, Konva.Node>;
+      last?: { dx: number; dy: number };
     }
   | { type: 'marquee'; start: { x: number; y: number }; additive: boolean }
   | { type: 'row'; start: { x: number; y: number } }
@@ -49,6 +58,7 @@ export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
+  const objLayerRef = useRef<Konva.Layer>(null);
   const gesture = useRef<Gesture | null>(null);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [cutDraft, setCutDraft] = useState<number[] | null>(null);
@@ -182,6 +192,31 @@ export function CanvasStage() {
     return () => window.removeEventListener('pointermove', move);
   }, []);
 
+  // Konva re-measures the whole selection every time any one selected object
+  // changes, so moving 2,000 selected spaces did 2,000 x 2,000 measurements
+  // (over a minute on a big lot). Outside a resize or rotate, gather those
+  // into one re-measure after the change has been applied.
+  useEffect(() => {
+    const tr = trRef.current as (Konva.Transformer & { _transforming?: boolean }) | null;
+    if (!tr) return;
+    const update = tr.update.bind(tr);
+    let queued = false;
+    tr.update = () => {
+      if (tr._transforming) return update();
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        if (!tr.getStage()) return;
+        update();
+        tr.getLayer()?.batchDraw();
+      });
+    };
+    return () => {
+      tr.update = update;
+    };
+  }, [doc !== null]);
+
   // Attach the transformer to the selected nodes.
   useEffect(() => {
     const stage = stageRef.current;
@@ -208,13 +243,61 @@ export function CanvasStage() {
     return g ? g.id() : null;
   };
 
+  /**
+   * The object to pick instead of the resize handle that was pressed, or null to
+   * let the handle resize. The rotate handle always wins.
+   */
+  const handleFallThrough = (handle: Konva.Node, tr: Konva.Transformer): Konva.Node | null => {
+    if (handle.name().includes('rotater') || !handle.hasName('_anchor')) return null;
+    const stage = stageRef.current;
+    const pos = stage?.getPointerPosition();
+    if (!stage || !pos) return null;
+    // Where the handle is drawn. Its position is the corner it belongs to, which the
+    // Transformer's padding pushes the drawn square away from, so measure the square.
+    const r = handle.getClientRect();
+    const c = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    const size = tr.anchorSize();
+    // The middle of the handle always resizes.
+    if (Math.hypot(pos.x - c.x, pos.y - c.y) <= size * 0.3) return null;
+    const hit = objLayerRef.current?.getIntersection(pos);
+    const g = hit && (hit.hasName('obj') ? hit : hit.findAncestor('.obj'));
+    if (!g || useEditor.getState().selection.includes(g.id())) return null;
+    // Only a neighbour takes the press, never something the selection sits inside
+    // (a building's outer walls, a zone, the lot boundary): inside a building every
+    // handle is over the outer walls, so resizing there picked the walls instead.
+    const st = useEditor.getState();
+    const f = currentFloor(st);
+    const under = f?.objects.find((o) => o.id === g.id());
+    const sel = f && selectionBox(f, st.selection);
+    if (under && sel && boxContains(objectBox(under), sel)) return null;
+    // Keep the Transformer from starting a resize on the mouse/touch event that follows.
+    tr.listening(false);
+    const back = () => {
+      tr.listening(true);
+      window.removeEventListener('pointerup', back);
+      window.removeEventListener('pointercancel', back);
+    };
+    window.addEventListener('pointerup', back);
+    window.addEventListener('pointercancel', back);
+    return g;
+  };
+
   const onPointerDown = (e: Konva.KonvaEventObject<PointerEvent>) => {
     const st = useEditor.getState();
     const evt = e.evt;
     const isTouch = evt.pointerType === 'touch';
     // Second finger: the pinch has taken over (see the listeners above).
     if (isTouch && touch.current.pinching) return;
-    if (e.target.findAncestor('Transformer')) return; // resize/rotate handles
+    let target: Konva.Node = e.target;
+    const tr = e.target.findAncestor('Transformer') as Konva.Transformer | null;
+    if (tr) {
+      // A resize handle sits half over the neighbor (often right on its number).
+      // Pressing the outer part of a handle that covers another object picks that
+      // object; only the handle's middle, or a handle over empty map, resizes.
+      const under = handleFallThrough(e.target, tr);
+      if (!under) return; // resize/rotate handles
+      target = under;
+    }
     const p = pointer();
     const w = toWorld(p);
     const v = st.viewport;
@@ -259,13 +342,13 @@ export function CanvasStage() {
     }
 
     const additive = evt.shiftKey || evt.ctrlKey || evt.metaKey;
-    const id = objFromTarget(e.target);
-    if (isTouch && !(id && st.selection.includes(id)) && !(e.target.hasName('background') && bgSelected)) {
+    const id = objFromTarget(target);
+    if (isTouch && !(id && st.selection.includes(id)) && !(target.hasName('background') && bgSelected)) {
       // On a phone a finger drag over the map pans it. Objects are moved by
       // tapping them first, then dragging. A tap selects as usual.
       touch.current.startPan(evt.pointerId, v);
       if (id) gesture.current = { type: 'touch-tap', id, additive };
-      else if (e.target.hasName('background') && bgEditable) gesture.current = { type: 'touch-tap', id: '__background', additive };
+      else if (target.hasName('background') && bgEditable) gesture.current = { type: 'touch-tap', id: '__background', additive };
       else gesture.current = { type: 'touch-tap', id: '', additive };
       return;
     }
@@ -283,13 +366,13 @@ export function CanvasStage() {
         startWorld: w,
         startPos: new Map(moving.map((o) => [o.id, { x: o.x, y: o.y }])),
         box: unionBoxes(moving.map(objectBox))!,
-        others: f.objects.filter((o) => !selSet.has(o.id) && !hidden.has(o.layerId)).map(objectBox),
+        others: f.objects.filter((o) => !selSet.has(o.id) && !o.hidden && !hidden.has(o.layerId)).map(objectBox),
         started: false,
         additiveClickId: additive && wasSelected ? id : undefined,
       };
       return;
     }
-    if (e.target.hasName('background') && bgEditable) {
+    if (target.hasName('background') && bgEditable) {
       st.clearSelection();
       setBgSelected(true);
       return;
@@ -333,12 +416,25 @@ export function CanvasStage() {
         g.started = true;
         g.additiveClickId = undefined;
         st.beginGesture();
+        if (g.startPos.size > LIVE_DRAG_LIMIT && stageRef.current) {
+          g.nodes = new Map();
+          for (const n of stageRef.current.find('.obj')) if (g.startPos.has(n.id()) && !g.nodes.has(n.id())) g.nodes.set(n.id(), n);
+        }
       }
       const snap = snapMove(st.snapMode, g.box, rawDx, rawDy, g.others, {
         threshold: 6 / viewport.scale,
         gridSize,
       });
       setGuides(snap.guides);
+      if (g.nodes) {
+        g.last = { dx: snap.dx, dy: snap.dy };
+        for (const [id, n] of g.nodes) {
+          const s = g.startPos.get(id)!;
+          n.position({ x: s.x + snap.dx, y: s.y + snap.dy });
+        }
+        stageRef.current?.batchDraw();
+        return;
+      }
       st.previewGesture((_d, f) => {
         for (const o of f.objects) {
           const s = g.startPos.get(o.id);
@@ -382,7 +478,19 @@ export function CanvasStage() {
       if (marquee && marquee.width * viewport.scale > 2) st.selectInBox(marquee, g.additive);
       setMarquee(null);
     } else if (g.type === 'move') {
-      if (g.started) st.endGesture();
+      if (g.started && g.nodes) {
+        const d = g.last ?? { dx: 0, dy: 0 };
+        st.previewGesture((_d, f) => {
+          for (const o of f.objects) {
+            const s = g.startPos.get(o.id);
+            if (s) {
+              o.x = s.x + d.dx;
+              o.y = s.y + d.dy;
+            }
+          }
+        });
+        st.endGesture();
+      } else if (g.started) st.endGesture();
       else if (g.additiveClickId) st.clickObject(g.additiveClickId, { additive: true });
       setGuides([]);
     } else if (g.type === 'row') {
@@ -419,7 +527,14 @@ export function CanvasStage() {
     const g = gesture.current;
     gesture.current = null;
     if (!g) return;
-    if (g.type === 'move' && g.started) useEditor.getState().cancelGesture();
+    if (g.type === 'move' && g.started) {
+      useEditor.getState().cancelGesture();
+      // Directly moved objects go back where they were.
+      if (g.nodes) {
+        for (const [id, n] of g.nodes) n.position(g.startPos.get(id)!);
+        stageRef.current?.batchDraw();
+      }
+    }
     setGuides([]);
     setMarquee(null);
     setCutDraft(null);
@@ -427,7 +542,7 @@ export function CanvasStage() {
     setPanning(false);
   };
 
-  const onDblClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const onDblClick = (e: Konva.KonvaEventObject<Event>) => {
     const id = objFromTarget(e.target);
     if (!id) return;
     const st = useEditor.getState();
@@ -524,27 +639,13 @@ export function CanvasStage() {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onDblClick={onDblClick}
+        // A double tap does on a phone or tablet what a double click does with a mouse.
+        onDblTap={onDblClick}
         onContextMenu={(e) => e.evt.preventDefault()}
       >
-        <Layer>
+        <Layer ref={objLayerRef}>
           {(snapMode === 'grid' || (tool.type === 'cut' && tool.mode === 'grid')) && <GridLines viewport={viewport} size={viewSize} grid={gridSize} />}
-          {floor.layers.map((layer) => {
-            if (!layer.visible) return null;
-            const listening = !layer.locked;
-            return (
-              <Group key={layer.id} listening={listening}>
-                {floor.background?.layerId === layer.id && (
-                  <BackgroundShape
-                    bg={floor.background}
-                    listening={bgEditable}
-                    draggable={bgSelected}
-                    onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
-                  />
-                )}
-                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} curbs={floor.objects} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
-              </Group>
-            );
-          })}
+          <FloorObjects floor={floor} duplicates={duplicates} bgEditable={bgEditable} bgSelected={bgSelected} />
           {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={viewport.scale} />}
         </Layer>
         <Layer>
@@ -618,6 +719,47 @@ export function CanvasStage() {
     </div>
   );
 }
+
+/**
+ * The floor's drawn objects. Kept apart from the canvas so zooming, panning and
+ * selecting don't re-check thousands of objects that haven't changed.
+ */
+const FloorObjects = memo(function FloorObjects({ floor, duplicates, bgEditable, bgSelected }: {
+  floor: Floor; duplicates: Set<string>; bgEditable: boolean; bgSelected: boolean;
+}) {
+  const objProps = useCallback((o: MapObject) => ({ duplicate: duplicates.has(o.id) }), [duplicates]);
+  const byLayer = useMemo(() => {
+    const m = new Map<string, MapObject[]>();
+    for (const o of floor.objects) {
+      const list = m.get(o.layerId);
+      if (list) list.push(o);
+      else m.set(o.layerId, [o]);
+    }
+    return m;
+  }, [floor.objects]);
+  return (
+    <>
+      {floor.layers.map((layer) => {
+        if (!layer.visible) return null;
+        const listening = !layer.locked;
+        return (
+          <Group key={layer.id} listening={listening}>
+            {floor.background?.layerId === layer.id && (
+              <BackgroundShape
+                bg={floor.background}
+                listening={bgEditable}
+                draggable={bgSelected}
+                onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
+              />
+            )}
+            <LayerObjects honorLocks objects={byLayer.get(layer.id) ?? NO_OBJECTS} curbs={floor.objects} objProps={objProps} />
+          </Group>
+        );
+      })}
+    </>
+  );
+});
+const NO_OBJECTS: MapObject[] = [];
 
 function rowPreview(d: { a: { x: number; y: number }; b: { x: number; y: number } }) {
   const len = Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y);

@@ -114,3 +114,27 @@ test('an employee typing just the number finds spaces numbered per floor ("F6 37
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('info-card')).toContainText('Space F6 37');
 });
+
+test('inside a building, the resize handles resize instead of picking the outer walls', async ({ page }) => {
+  await newMap(page, 'Walls');
+  await page.getByTestId('snap-mode').selectOption('free');
+  await addFromLibrary(page, 'office-building');
+  await page.getByTestId('enter-building').click();
+  await addFromLibrary(page, 'conference-table');
+  await page.getByTestId('asset-search').blur();
+  const t0 = (await editorState(page)).objects.find((o) => o.name === 'Conference table 1')!;
+  for (const name of ['bottom-right', 'middle-right']) {
+    const h = await page.evaluate((n) => {
+      type A = { getClientRect: () => { x: number; y: number; width: number; height: number } };
+      const st = (window as unknown as { Konva: { stages: { findOne: (s: string) => A; container: () => HTMLElement }[] } }).Konva.stages[0];
+      const r = st.findOne(`.${n}`).getClientRect();
+      const b = st.container().getBoundingClientRect();
+      return { x: b.left + r.x + r.width / 2, y: b.top + r.y + r.height / 2 };
+    }, name);
+    // Press a little off the handle's middle, as a person does.
+    await realDrag(page, { x: h.x + 2, y: h.y + 2 }, { x: h.x + 32, y: h.y + 22 });
+    await expect(page.getByTestId('selected-name')).toHaveText('Conference table 1');
+  }
+  const t1 = (await editorState(page)).objects.find((o) => o.name === 'Conference table 1')!;
+  expect(t1.width).toBeGreaterThan(t0.width + 20);
+});

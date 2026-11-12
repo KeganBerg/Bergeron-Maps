@@ -16,6 +16,16 @@ export const normalizeQuery = (s: string) => s.toUpperCase().replace(/[\s\-_.]/g
 const MAX_HITS = 30;
 
 /**
+ * A bare number finds the spaces with that number after their prefix, so
+ * "12" finds F1 12, F2 12… on a garage whose spaces carry a floor prefix.
+ */
+const numberOnly = (label: string, q: string) => {
+  if (!/^\d+$/.test(q)) return false;
+  const n = label.trim().match(/(?:^|\D)(\d+)$/)?.[1];
+  return n !== undefined && Number(n) === Number(q);
+};
+
+/**
  * Finds parking spaces by identifier (exact matches first, then identifiers that
  * start with the query) and landmarks by name or label, across every floor.
  * Hidden layers are skipped so viewers never land on something they can't see.
@@ -31,7 +41,7 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
     const floorName = floorTitle(doc, f);
     const hidden = new Set(f.layers.filter((l) => !l.visible).map((l) => l.id));
     for (const o of f.objects) {
-      if (hidden.has(o.layerId)) continue;
+      if (o.hidden || hidden.has(o.layerId)) continue;
       if (o.kind === 'space') {
         const id = normalizeQuery(o.label);
         if (!id) continue;
@@ -41,7 +51,7 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
         const tail = normalizeQuery(o.label.split(/[\s\-_.]+/).filter(Boolean).pop() ?? '');
         if (id === q) exact.push({ ...hit, exact: true });
         // Quick lots put the floor number in front ("1B1" is floor 1, row B, space 1).
-        else if ((tail !== id && tail === q) || (id.length > q.length && id.endsWith(q) && /^\d+$/.test(id.slice(0, -q.length)) && /^[A-Z]/.test(q)))
+        else if ((tail !== id && tail === q) || numberOnly(o.label, q) || (id.length > q.length && id.endsWith(q) && /^\d+$/.test(id.slice(0, -q.length)) && /^[A-Z]/.test(q)))
           byNumber.push({ ...hit, exact: true });
         else if (id.startsWith(q) || (tail !== id && tail.startsWith(q))) partial.push({ ...hit, exact: false });
       } else {

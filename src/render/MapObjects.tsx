@@ -4,7 +4,7 @@ import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { badgeLayout } from '../assets/draw';
-import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
+import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
 import { bandWidth, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
 import { roadExtensions, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
 import { P, svgDoc, withAlpha } from '../assets/style';
@@ -181,11 +181,12 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [shaped, merged, obj.width, obj.height, src.outline, obj.corner, obj.bevel, src.band, obj.cuts],
   );
+  const upsideDown = isUpsideDown(obj.rotation);
   const markup = useMemo(
     // Shaped pieces draw their own border along the outline, so the box border is left off.
     () => (def && !obj.imageSrc && !merged ? renderAssetSvg(def, shaped || mode ? { ...obj, strokeWidth: 0, marksOnly: mode === 'marks' } : obj) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [def, merged, shaped, mode, obj.band, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden],
+    [def, merged, shaped, mode, obj.band, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden, upsideDown],
   );
   const drawn = useSvgImage(markup);
   const photo = useImage(obj.imageSrc);
@@ -625,12 +626,16 @@ const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster })
  * one shape where their bottom-most piece sits; each piece still gets its own
  * invisible outline for clicking, selecting and labels.
  */
-export function LayerObjects({ objects, curbs, objProps }: {
+export function LayerObjects({ objects: all, curbs, objProps, honorLocks }: {
   objects: MapObject[];
   /** The floor's parking spaces (on any layer): road paint gives way to rows beside it. */
   curbs?: MapObject[];
   objProps?: (o: MapObject) => Omit<ObjProps, 'obj'>;
+  /** Editor: locked objects ignore the pointer, so clicks and drags pass through them. */
+  honorLocks?: boolean;
 }) {
+  // Objects hidden from the Layers panel aren't drawn anywhere.
+  const objects = useMemo(() => (all.some((o) => o.hidden) ? all.filter((o) => !o.hidden) : all), [all]);
   // Re-merge only when a mergeable piece changes, not on every pan, zoom or unrelated edit.
   const signature = JSON.stringify(
     objects.map((o) => (o.kind === 'asset' && ASSET_BY_KEY[o.assetKey] && mergeKey(ASSET_BY_KEY[o.assetKey]!) ? [o.id, o.x, o.y, o.width, o.height, o.rotation, o.corner, o.bevel, o.band, o.cuts, o.blend, o.merge, o.fill, o.fillOpacity, o.stroke, o.strokeWidth] : 0)),
@@ -644,10 +649,11 @@ export function LayerObjects({ objects, curbs, objProps }: {
       {objects.map((o) => {
         const lead = leads.get(o.id);
         const props = objProps?.(o) ?? {};
+        const shape = o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} markShift={shifts.get(o.id)} /> : <MapObjectShape obj={o} {...props} />;
         return (
           <Fragment key={o.id}>
             {lead && <MergedShape cluster={lead} />}
-            {o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} markShift={shifts.get(o.id)} /> : <MapObjectShape obj={o} {...props} />}
+            {honorLocks && o.locked ? <Group listening={false}>{shape}</Group> : shape}
           </Fragment>
         );
       })}
