@@ -114,9 +114,9 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
           </label>
         )}
         <span className="sep" />
-        <ToolButton icon="zoomOut" label="Zoom out (Ctrl+scroll)" onClick={() => zoomBy(1 / 1.25)} />
+        <ToolButton icon="zoomOut" label="Zoom out (scroll wheel or pinch)" onClick={() => zoomBy(1 / 1.25)} />
         <button className="zoom-pct" onClick={() => zoomBy(1 / scale)} title="Reset to 100%">{Math.round(scale * 100)}%</button>
-        <ToolButton icon="zoomIn" label="Zoom in (Ctrl+scroll)" onClick={() => zoomBy(1.25)} />
+        <ToolButton icon="zoomIn" label="Zoom in (scroll wheel or pinch)" onClick={() => zoomBy(1.25)} />
         <ToolButton icon="fit" label="Fit floor to screen" onClick={fit} testId="fit" />
       </div>
 

@@ -27,6 +27,8 @@ const ALONG_STEP = 1;
 const END_MATCH = 4;
 /** Stop bar thickness and its distance outside the junction. */
 export const STOP_LINE = { width: 4, offset: 3 };
+/** How far stop bars stop short of a road's painted edge lines. */
+export const STOP_TRIM = 5.5;
 
 const inAny = (bodies: Ring[][], x: number, y: number) => bodies.some((b) => insideRings(b, x, y));
 
@@ -177,6 +179,33 @@ function turned(pts: { nx: number; ny: number }[], i: number): boolean {
   return a.nx * b.nx + a.ny * b.ny < 0.87;
 }
 
+/**
+ * The arms of one junction that get a stop bar. At a T (or wherever a road
+ * runs straight through and others join it from the side) the through road
+ * keeps going without bars and only the joining roads stop, as painted on a
+ * real street or a parking lot's main drive aisle. Where every arm has one
+ * across from it (a crossroads), every arm stops.
+ */
+function stemArms(runs: Sample[][]): Sample[][] {
+  const info = runs.map((r) => {
+    const a = r[0], b = r[r.length - 1];
+    const nx = (a.nx + b.nx) / 2, ny = (a.ny + b.ny) / 2;
+    // Extent across the arm (along the junction edge).
+    const ta = -a.x * ny + a.y * nx, tb = -b.x * ny + b.y * nx;
+    return { nx, ny, lo: Math.min(ta, tb), hi: Math.max(ta, tb) };
+  });
+  const through = info.map((p, i) =>
+    info.some((q, j) => {
+      if (j === i || p.nx * q.nx + p.ny * q.ny > -0.95) return false;
+      // q's extent measured on p's axis is reversed, since its normal points the other way.
+      const lo = Math.max(p.lo, -q.hi), hi = Math.min(p.hi, -q.lo);
+      return hi - lo > 0.5 * Math.min(p.hi - p.lo, q.hi - q.lo);
+    }),
+  );
+  if (through.every(Boolean)) return runs;
+  return runs.filter((_, i) => !through[i]);
+}
+
 export interface Junctions {
   /** Intersection areas: centre lines and arrows stop here. */
   areas: Ring[];
@@ -237,12 +266,12 @@ export function roadJunctions(pieces: RoadPiece[], road: Ring[]): Junctions {
   if (!junctions.length) return { areas: [], stops: [] };
   const areas = unionRings(junctions.flat());
   const stops: Ring[] = [];
-  for (const run of armRuns(areas, road, minW * 0.3)) {
+  for (const ring of areas) for (const run of stemArms(armRuns([ring], road, minW * 0.3))) {
     const a = run[0], b = run[run.length - 1];
     const len = Math.hypot(b.x - a.x, b.y - a.y);
     const ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
     // Stop short of the road's painted edge lines.
-    const trim = 5.5;
+    const trim = STOP_TRIM;
     const nx = (a.nx + b.nx) / 2, ny = (a.ny + b.ny) / 2;
     const o = STOP_LINE.offset;
     stops.push([a.x + ux * trim + nx * o, a.y + uy * trim + ny * o, b.x - ux * trim + nx * o, b.y - uy * trim + ny * o]);

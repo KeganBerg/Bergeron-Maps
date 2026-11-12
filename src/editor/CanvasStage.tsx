@@ -9,7 +9,8 @@ import { simplifyStroke } from '../model/shape';
 import { DEFAULT_ROW } from '../model/rows';
 import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
-import { fitViewport, floorBounds, zoomAt } from '../render/viewport';
+import { PanZoomTracker, wheelView } from '../render/panZoom';
+import { fitViewport, floorBounds } from '../render/viewport';
 import { MAP_PALETTE } from '../theme';
 import { currentFloor, useEditor } from './store';
 
@@ -19,6 +20,10 @@ const COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: c
 
 type Gesture =
   | { type: 'pan'; startX: number; startY: number; vx: number; vy: number }
+  // A finger on an object it hasn't selected yet: a tap selects it, a drag pans.
+  | { type: 'touch-tap'; id: string; additive: boolean }
+  // A finger with the asset or text tool: places on lift, so a pinch doesn't drop things.
+  | { type: 'touch-place'; at: { x: number; y: number } }
   | {
       type: 'move';
       startWorld: { x: number; y: number };
@@ -50,6 +55,10 @@ export function CanvasStage() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [panning, setPanning] = useState(false);
   const [bgSelected, setBgSelected] = useState(false);
+  const touch = useRef(new PanZoomTracker());
+  // Latest versions of the gesture handlers, for the window listeners above.
+  const endGesture = useRef<() => void>(() => {});
+  const cancelGesture = useRef<() => void>(() => {});
 
   const doc = useEditor((s) => s.doc);
   const floorId = useEditor((s) => s.floorId);
@@ -98,6 +107,53 @@ export function CanvasStage() {
     };
   }, []);
 
+  // Fingers: pinch zooms (and pans with the midpoint) from anywhere, a drag on
+  // empty map pans. Listens in the capture phase on the box so it sees every
+  // finger before Konva does, and can stop a half-started drag when a second
+  // finger lands. Wheel and trackpad are handled here too.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const t = touch.current;
+    const at = (e: PointerEvent | WheelEvent) => {
+      const r = el.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const view = () => useEditor.getState().viewport;
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      if (t.down(e.pointerId, at(e), view())) cancelGesture.current();
+    };
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      const v = t.move(e.pointerId, at(e));
+      if (v) useEditor.getState().setViewport(v);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') t.up(e.pointerId, view());
+      // A finger or button let go outside the canvas still ends the gesture.
+      endGesture.current();
+    };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const st = useEditor.getState();
+      st.setViewport(wheelView(st.viewport, e, at(e), el.clientHeight));
+    };
+    el.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      t.reset();
+      el.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, []);
+
   // Background deselects when it becomes locked/hidden or floor changes.
   const bgLayer = floor?.layers.find((l) => l.id === floor.background?.layerId);
   const bgEditable = !!(floor?.background && bgLayer && bgLayer.visible && !bgLayer.locked);
@@ -108,33 +164,19 @@ export function CanvasStage() {
     if (selection.length) setBgSelected(false);
   }, [selection]);
 
-  // A drag that ends outside the map (over the sidebar, the floor tabs or off
-  // the window) must still finish: otherwise the selection box stays on screen
-  // and a half-done move never reaches undo history. Panning handles this itself.
+  // A drag that leaves the map (over the sidebar or floor tabs) keeps tracking
+  // the pointer, so a selection box or move follows it; letting go out there
+  // is ended by the window pointerup listener above.
   const moveRef = useRef<() => void>(() => {});
-  const upRef = useRef<() => void>(() => {});
   useEffect(() => {
-    const outside = (e: PointerEvent) => !containerRef.current?.contains(e.target as Node);
     const move = (e: PointerEvent) => {
       const g = gesture.current;
-      if (!g || g.type === 'pan' || !outside(e)) return;
+      if (!g || g.type === 'pan' || containerRef.current?.contains(e.target as Node)) return;
       stageRef.current?.setPointersPositions(e);
       moveRef.current();
     };
-    const up = (e: PointerEvent) => {
-      const g = gesture.current;
-      if (!g || g.type === 'pan' || !outside(e)) return;
-      stageRef.current?.setPointersPositions(e);
-      upRef.current();
-    };
     window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-    };
+    return () => window.removeEventListener('pointermove', move);
   }, []);
 
   // Attach the transformer to the selected nodes.
@@ -162,12 +204,23 @@ export function CanvasStage() {
   const onPointerDown = (e: Konva.KonvaEventObject<PointerEvent>) => {
     const st = useEditor.getState();
     const evt = e.evt;
+    const isTouch = evt.pointerType === 'touch';
+    // Second finger: the pinch has taken over (see the listeners above).
+    if (isTouch && touch.current.pinching) return;
     if (e.target.findAncestor('Transformer')) return; // resize/rotate handles
     const p = pointer();
     const w = toWorld(p);
+    const v = st.viewport;
+    // Keep getting moves (and the release) when the mouse leaves the canvas mid-drag.
+    if (!isTouch) stageRef.current?.content.setPointerCapture?.(evt.pointerId);
 
     if (evt.button === 1 || spaceHeld || st.tool.type === 'hand') {
-      gesture.current = { type: 'pan', startX: p.x, startY: p.y, vx: viewport.x, vy: viewport.y };
+      if (evt.button === 1) evt.preventDefault(); // no browser autoscroll
+      if (isTouch) {
+        touch.current.startPan(evt.pointerId, v);
+        return;
+      }
+      gesture.current = { type: 'pan', startX: p.x, startY: p.y, vx: v.x, vy: v.y };
       setPanning(true);
       return;
     }
@@ -176,6 +229,11 @@ export function CanvasStage() {
     if (st.tool.type === 'row') {
       gesture.current = { type: 'row', start: w };
       setRowDraft({ a: w, b: w });
+      return;
+    }
+    if (isTouch && (st.tool.type === 'asset' || st.tool.type === 'text')) {
+      touch.current.startPan(evt.pointerId, v);
+      gesture.current = { type: 'touch-place', at: w };
       return;
     }
     if (st.tool.type === 'asset') {
@@ -195,6 +253,15 @@ export function CanvasStage() {
 
     const additive = evt.shiftKey || evt.ctrlKey || evt.metaKey;
     const id = objFromTarget(e.target);
+    if (isTouch && !(id && st.selection.includes(id)) && !(e.target.hasName('background') && bgSelected)) {
+      // On a phone a finger drag over the map pans it. Objects are moved by
+      // tapping them first, then dragging. A tap selects as usual.
+      touch.current.startPan(evt.pointerId, v);
+      if (id) gesture.current = { type: 'touch-tap', id, additive };
+      else if (e.target.hasName('background') && bgEditable) gesture.current = { type: 'touch-tap', id: '__background', additive };
+      else gesture.current = { type: 'touch-tap', id: '', additive };
+      return;
+    }
     if (id) {
       const wasSelected = st.selection.includes(id);
       if (!(additive && wasSelected)) st.clickObject(id, { additive });
@@ -227,12 +294,12 @@ export function CanvasStage() {
 
   const onPointerMove = () => {
     const g = gesture.current;
-    if (!g) return;
+    if (!g || g.type === 'touch-tap' || g.type === 'touch-place') return;
     const p = pointer();
     const w = toWorld(p);
     const st = useEditor.getState();
     if (g.type === 'pan') {
-      st.setViewport({ ...viewport, x: g.vx + p.x - g.startX, y: g.vy + p.y - g.startY });
+      st.setViewport({ ...st.viewport, x: g.vx + p.x - g.startX, y: g.vy + p.y - g.startY });
     } else if (g.type === 'row') {
       setRowDraft({ a: g.start, b: w });
     } else if (g.type === 'cut') {
@@ -283,7 +350,21 @@ export function CanvasStage() {
     const st = useEditor.getState();
     if (!g) return;
     if (g.type === 'pan') setPanning(false);
-    else if (g.type === 'cut') {
+    else if (g.type === 'touch-place') {
+      if (touch.current.moved) return;
+      if (st.tool.type === 'asset') st.addAsset(st.tool.key, g.at);
+      else if (st.tool.type === 'text') st.addText(g.at);
+    } else if (g.type === 'touch-tap') {
+      if (touch.current.moved) return; // it was a pan or a pinch
+      if (g.id === '__background') {
+        st.clearSelection();
+        setBgSelected(true);
+      } else if (g.id) st.clickObject(g.id, { additive: g.additive });
+      else {
+        setBgSelected(false);
+        st.clearSelection();
+      }
+    } else if (g.type === 'cut') {
       setCutDraft(null);
       const ring = g.mode === 'free' ? simplifyStroke(g.points, 2 / viewport.scale) : g.points;
       const xs = ring.filter((_, i) => i % 2 === 0);
@@ -325,7 +406,19 @@ export function CanvasStage() {
   };
 
   moveRef.current = onPointerMove;
-  upRef.current = onPointerUp;
+  endGesture.current = onPointerUp;
+  /** A second finger landed: undo whatever the first finger started. */
+  cancelGesture.current = () => {
+    const g = gesture.current;
+    gesture.current = null;
+    if (!g) return;
+    if (g.type === 'move' && g.started) useEditor.getState().cancelGesture();
+    setGuides([]);
+    setMarquee(null);
+    setCutDraft(null);
+    setRowDraft(null);
+    setPanning(false);
+  };
 
   const onDblClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const id = objFromTarget(e.target);
@@ -338,16 +431,6 @@ export function CanvasStage() {
       return;
     }
     window.dispatchEvent(new CustomEvent('bm:edit-label'));
-  };
-
-  const onWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault();
-    const st = useEditor.getState();
-    if (e.evt.ctrlKey || e.evt.metaKey) {
-      st.setViewport(zoomAt(viewport, pointer(), viewport.scale * Math.exp(-e.evt.deltaY * 0.01)));
-    } else {
-      st.setViewport({ ...viewport, x: viewport.x - e.evt.deltaX, y: viewport.y - e.evt.deltaY });
-    }
   };
 
   const onTransformEnd = () => {
@@ -428,9 +511,7 @@ export function CanvasStage() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerLeave={() => gesture.current?.type === 'pan' && onPointerUp()}
         onDblClick={onDblClick}
-        onWheel={onWheel}
         onContextMenu={(e) => e.evt.preventDefault()}
       >
         <Layer>
@@ -448,7 +529,7 @@ export function CanvasStage() {
                     onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
                   />
                 )}
-                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
+                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} curbs={floor.objects} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
               </Group>
             );
           })}

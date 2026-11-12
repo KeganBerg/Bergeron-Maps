@@ -5,7 +5,8 @@ import { ASSET_BY_KEY } from '../assets/library';
 import { searchMap, type SearchHit } from '../model/search';
 import type { MapDocument, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
-import { clampScale, fitViewport, floorBounds, zoomAt } from '../render/viewport';
+import { PanZoomTracker, wheelView } from '../render/panZoom';
+import { clampScale, fitViewport, floorBounds } from '../render/viewport';
 import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
@@ -26,7 +27,7 @@ function describe(o: MapObject, doc: MapDocument): { title: string; detail?: str
 
 /**
  * The employee view: read-only, phone-first, uses exactly the same map data
- * as the editor. Pan by dragging, pinch or Ctrl+scroll to zoom, tap to identify.
+ * as the editor. Pan by dragging, pinch or scroll to zoom, tap to identify.
  */
 export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapRepository; preview: boolean }) {
   const [doc, setDoc] = useState<(MapDocument & { publishedAt?: string }) | null>(null);
@@ -39,7 +40,53 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
   const [focus, setFocus] = useState<{ id: string; floorId: string } | null>(null);
   const [tapped, setTapped] = useState<MapObject | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
-  const pinch = useRef<{ dist: number; center: { x: number; y: number } } | null>(null);
+  const tracker = useRef(new PanZoomTracker());
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  // Drag to pan, pinch to zoom, wheel/trackpad. Native listeners on the canvas box
+  // so every finger is seen (Konva only reports one pointer at a time).
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const t = tracker.current;
+    const at = (e: PointerEvent | WheelEvent) => {
+      const r = el.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const set = (v: { x: number; y: number; scale: number }) => {
+      viewRef.current = v;
+      setView(v);
+    };
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0 || (e.target as HTMLElement).closest('button, .info-card')) return;
+      t.down(e.pointerId, at(e), viewRef.current);
+      t.startPan(e.pointerId, viewRef.current);
+      if (e.pointerType === 'mouse') el.setPointerCapture?.(e.pointerId);
+    };
+    const onMove = (e: PointerEvent) => {
+      const v = t.move(e.pointerId, at(e));
+      if (v) set(v);
+    };
+    const onUp = (e: PointerEvent) => t.up(e.pointerId, viewRef.current);
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      set(wheelView(viewRef.current, e, at(e), el.clientHeight));
+    };
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      t.reset();
+      el.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [doc]);
 
   const load = () => {
     setError(null);
@@ -111,33 +158,8 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
   const info = tapped ? describe(tapped, doc) : null;
   const tappedFloor = tapped && doc.floors.find((f) => f.objects.some((o) => o.id === tapped.id));
 
-  const onWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault();
-    const p = e.target.getStage()!.getPointerPosition()!;
-    setView((v) => zoomAt(v, p, v.scale * Math.exp(-e.evt.deltaY * 0.0025)));
-  };
-
-  const onTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
-    const t = e.evt.touches;
-    if (t.length !== 2) return;
-    e.evt.preventDefault();
-    const stage = e.target.getStage()!;
-    stage.stopDrag();
-    const rect = stage.container().getBoundingClientRect();
-    const p1 = { x: t[0].clientX - rect.left, y: t[0].clientY - rect.top };
-    const p2 = { x: t[1].clientX - rect.left, y: t[1].clientY - rect.top };
-    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-    const center = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-    const prev = pinch.current;
-    pinch.current = { dist, center };
-    if (!prev) return;
-    setView((v) => {
-      const z = zoomAt(v, center, v.scale * (dist / prev.dist));
-      return { ...z, x: z.x + center.x - prev.center.x, y: z.y + center.y - prev.center.y };
-    });
-  };
-
   const onTap = (e: Konva.KonvaEventObject<Event>) => {
+    if (tracker.current.moved) return; // the end of a drag or pinch, not a tap
     const g = e.target.hasName('obj') ? e.target : e.target.findAncestor('.obj');
     const o = g ? floor.objects.find((x) => x.id === g.id()) : undefined;
     setTapped(o ?? null);
@@ -202,11 +224,6 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
           y={view.y}
           scaleX={view.scale}
           scaleY={view.scale}
-          draggable
-          onDragEnd={(e) => e.target === e.target.getStage() && setView((v) => ({ ...v, x: e.target.x(), y: e.target.y() }))}
-          onWheel={onWheel}
-          onTouchMove={onTouchMove}
-          onTouchEnd={() => (pinch.current = null)}
           onClick={onTap}
           onTap={onTap}
         >
@@ -215,7 +232,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
               !l.visible ? null : (
                 <Group key={l.id}>
                   {floor.background?.layerId === l.id && <BackgroundShape bg={floor.background} listening={false} />}
-                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} objProps={(o) => ({ highlighted: o.id === focused?.id })} />
+                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} curbs={floor.objects} objProps={(o) => ({ highlighted: o.id === focused?.id })} />
                 </Group>
               ),
             )}

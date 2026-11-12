@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cutForObject, localOutline, maxCorner, mergeClusters, mergeOutlines, ringsArea, insetLines } from './shape';
+import { cutForObject, localOutline, maxCorner, mergeClusters, mergeOutlines, ringsArea, insetLines, linesOutside } from './shape';
 
 const box = { x: 50, y: 25, width: 100, height: 50, rotation: 0 };
 
@@ -107,5 +107,15 @@ describe('insetLines (merged road edge lines)', () => {
     const lines = insetLines([[0, 0, 100, 0, 100, 50, 0, 50]], [], 3.5).map(round);
     expect(lines).toHaveLength(1);
     expect(lines[0].slice(0, 2)).toEqual(lines[0].slice(-2));
+  });
+});
+
+describe('linesOutside', () => {
+  it('cuts the part of a line inside a box and keeps both ends', () => {
+    const out = linesOutside([[0, 0, 100, 0]], [[40, -5, 60, -5, 60, 5, 40, 5]]);
+    expect(out).toEqual([[0, 0, 40, 0], [60, 0, 100, 0]]);
+  });
+  it('drops a line wholly inside', () => {
+    expect(linesOutside([[45, 0, 55, 0]], [[40, -5, 60, -5, 60, 5, 40, 5]])).toEqual([]);
   });
 });

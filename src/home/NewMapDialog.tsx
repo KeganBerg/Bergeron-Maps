@@ -37,7 +37,7 @@ function LotPreview({ doc }: { doc: MapDocument }) {
             <Layer>
               {floor.layers.map((l) => (
                 <Group key={l.id}>
-                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} />
+                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} curbs={floor.objects} />
                 </Group>
               ))}
             </Layer>
