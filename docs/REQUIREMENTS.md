@@ -167,7 +167,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Implementation | Status |
 |---|---|---|---|
-| 20 | Responsive with large lots, many floors/spaces/assets | Canvas rendering (Konva), memoized shapes, only the current floor is drawn, snapping candidates computed once per drag | Implemented. Not yet load-tested; a benchmark with ~5,000 spaces is planned for Phase 3 |
+| 20 | Responsive with large lots, many floors/spaces/assets | Canvas rendering (Konva), memoized shapes, only the current floor is drawn, snapping candidates computed once per drag; the selection box re-measures once per change, not once per selected object; drags of more than 150 objects move the drawn objects directly and save once on release; zoom, pan and viewer search skip re-checking unchanged objects | Load-tested 2026-11-12 on the largest quick lot (12 floors x 2,080 spaces, up to 6,300 objects on one floor): every edit, undo, drag step and zoom step under 0.7s. `e2e/big-lot.spec.ts` guards it |
 
 ## Part 21: Security and privacy
 

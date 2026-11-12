@@ -1,11 +1,11 @@
 import Konva from 'konva';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Layer, Rect, Stage } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { searchMap, type SearchHit } from '../model/search';
 import { buildingName, buildingOf, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
-import type { MapDocument, MapObject } from '../model/types';
+import type { Floor, MapDocument, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
@@ -286,14 +286,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
           onPointerClick={onTap}
         >
           <Layer>
-            {floor.layers.map((l) =>
-              !l.visible ? null : (
-                <Group key={l.id}>
-                  {floor.background?.layerId === l.id && <BackgroundShape bg={floor.background} listening={false} />}
-                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} curbs={floor.objects} objProps={(o) => ({ highlighted: o.id === focused?.id })} />
-                </Group>
-              ),
-            )}
+            <ViewerFloor floor={floor} focusedId={focused?.id} />
             {matches.map((m) => (
               <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation} listening={false}>
                 <Rect
@@ -361,3 +354,23 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
     </div>
   );
 }
+
+/**
+ * The floor's drawn objects. Kept apart so pinching, panning and typing in the
+ * search box don't re-check thousands of spaces that haven't changed.
+ */
+const ViewerFloor = memo(function ViewerFloor({ floor, focusedId }: { floor: Floor; focusedId?: string }) {
+  const objProps = useCallback((o: MapObject) => ({ highlighted: o.id === focusedId }), [focusedId]);
+  return (
+    <>
+      {floor.layers.map((l) =>
+        !l.visible ? null : (
+          <Group key={l.id}>
+            {floor.background?.layerId === l.id && <BackgroundShape bg={floor.background} listening={false} />}
+            <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} curbs={floor.objects} objProps={objProps} />
+          </Group>
+        ),
+      )}
+    </>
+  );
+});
