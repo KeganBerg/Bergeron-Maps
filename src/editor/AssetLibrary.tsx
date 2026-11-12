@@ -12,7 +12,7 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 /** Previews for tiles that aren't drawn assets: spaces, text styles, uploads. */
 const extraPreviews = new Map<string, string>();
-function previewUrl(def: AssetDef): string | undefined {
+export function previewUrl(def: AssetDef): string | undefined {
   const creates = def.creates ?? 'asset';
   if (creates === 'asset') return assetPreviewUrl(def);
   let url = extraPreviews.get(def.key);

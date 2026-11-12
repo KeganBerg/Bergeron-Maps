@@ -74,7 +74,7 @@
 
 .am-top { position: absolute; inset: 0 0 auto 0; height: 46px; background: #0b2545; color: #fff; display: flex; align-items: center; gap: 8px; padding: 0 10px; }
 .am-logo { width: 30px; height: 30px; border-radius: 3px; background: #0b0b0b; display: grid; place-items: center; }
-.am-logo svg { width: 26px; }
+.am-logo svg { width: 23px; height: auto; color: #fff; }
 .am-name { width: 188px; height: 30px; padding: 6px 8px; border-radius: 3px; background: rgba(255,255,255,.08); font-weight: 800; font-size: 14px; }
 .am-saved { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.12); color: #c8f2d2; font-size: 12px; }
 .am-saved b { font-weight: 400; }
@@ -178,7 +178,9 @@
 .dm-dot { position: absolute; z-index: 10; width: 30px; height: 30px; translate: -50% -50%; border-radius: 50%; border: 0; background: var(--color-ink); color: #fff; font: 600 13px var(--font-mono); box-shadow: 0 0 0 3px var(--color-sign); cursor: pointer; transition: transform .15s; }
 .dm-dot:hover { transform: scale(1.12); }
 .dm-dot.on { background: var(--color-sign); color: var(--color-ink); box-shadow: 0 0 0 3px var(--color-ink); }
-@media (max-width: 640px) { .dm-dot { width: 17px; height: 17px; font-size: 9px; box-shadow: 0 0 0 2px var(--color-sign); } }
+/* On phones the editor copy is too small for the dots: 3 and 4 sit on top of each other and cover the buttons.
+   The numbered list under the demo does the same job there. */
+@media (max-width: 640px) { .dm-dot { display: none; } }
 /* Keep a 28px tap target even when the visible dot is small. */
 .dm-dot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; translate: -50% -50%; border-radius: 50%; }
 

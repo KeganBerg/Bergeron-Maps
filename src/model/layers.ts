@@ -52,3 +52,34 @@ export function roleForObject(o: Pick<MapObject, 'kind'> & { assetKey?: string }
   if (o.kind === 'text') return 'labels';
   return assetLayer ?? 'landmarks';
 }
+
+/**
+ * Moves objects to `layerId` and places them in the drawing order: directly
+ * above or below `anchor`, or on top of that layer when there is no anchor.
+ * The moved objects keep their order relative to each other. Mutates `floor`.
+ */
+export function placeObjects(floor: Floor, ids: string[], layerId: string, anchor: { id: string; side: 'above' | 'below' } | null): boolean {
+  const sel = new Set(ids);
+  if (anchor && sel.has(anchor.id)) return false;
+  if (!floor.layers.some((l) => l.id === layerId)) return false;
+  const moving = floor.objects.filter((o) => sel.has(o.id));
+  if (!moving.length) return false;
+  const before = floor.objects.map((o) => `${o.id}@${o.layerId}`).join();
+  const rest = floor.objects.filter((o) => !sel.has(o.id));
+  for (const o of moving) o.layerId = layerId;
+  let at = -1;
+  if (anchor) {
+    const i = rest.findIndex((o) => o.id === anchor.id);
+    if (i >= 0) at = anchor.side === 'above' ? i + 1 : i;
+  }
+  if (at < 0) {
+    // Top of the layer: just after its current topmost object (or at the end).
+    let last = -1;
+    rest.forEach((o, i) => { if (o.layerId === layerId) last = i; });
+    at = last >= 0 ? last + 1 : rest.length;
+  }
+  rest.splice(at, 0, ...moving);
+  if (rest.map((o) => `${o.id}@${o.layerId}`).join() === before) return false;
+  floor.objects = rest;
+  return true;
+}

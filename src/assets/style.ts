@@ -80,6 +80,8 @@ export interface DrawCtx {
   marksOnly?: boolean;
   /** Band thickness of curved ('arc') and L pieces, in map pixels. */
   band?: number;
+  /** The object is turned so far that text drawn on it would read upside down. */
+  upsideDown?: boolean;
 }
 
 export type DrawFn = (c: DrawCtx) => string;

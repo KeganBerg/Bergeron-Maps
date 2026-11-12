@@ -23,7 +23,6 @@
   var hero = heroMap(reduced);
   productDemo(reduced);
   if (!window.gsap || reduced) return;
-  gsap.registerPlugin(ScrollTrigger);
 
   heroIntro();
 
@@ -32,9 +31,16 @@
   var sl = sec.querySelectorAll('path, circle');
   sl.forEach(function (el) { var len = el.getTotalLength(); gsap.set(el, { strokeDasharray: len, strokeDashoffset: len }); });
   gsap.set(sec.querySelectorAll('text, .callout'), { opacity: 0 });
-  gsap.timeline({ scrollTrigger: { trigger: sec, start: 'top 75%', once: true } })
+  var draw = gsap.timeline({ paused: true })
     .to(sl, { strokeDashoffset: 0, duration: 1.2, ease: 'power2.out', stagger: { amount: 0.6 } })
     .to(sec.querySelectorAll('text, .callout'), { opacity: 1, duration: 0.5 }, '-=0.4');
+  // Plays once when the top of the drawing passes 75% of the screen height.
+  if (window.IntersectionObserver) {
+    var seen = new IntersectionObserver(function (entries) {
+      if (entries.some(function (e) { return e.isIntersecting; })) { seen.disconnect(); draw.play(); }
+    }, { rootMargin: '0px 0px -25% 0px' });
+    seen.observe(sec);
+  } else draw.play();
 
   /* ===== Product demo: the copy of the editor plays four short walkthroughs ===== */
   function productDemo(reduced) {
@@ -80,7 +86,7 @@
     function move(tl, p, dur, pos) { return tl.to(cursor, { x: p.x, y: p.y, duration: dur || 0.7, ease: 'power2.inOut' }, pos); }
     function click(tl) { return tl.to(cursor, { scale: 0.8, duration: 0.08, yoyo: true, repeat: 1, transformOrigin: '20% 10%' }); }
 
-    // Everything back to the finished Level 1 map.
+    // Everything back to the finished Floor 1 map.
     function base() {
       gsap.set([rowD, '#dm-drop', '#dm-stairs', '#dm-elevator', '#dm-ramp'], { opacity: 1 });
       gsap.set('#dm-drop', { opacity: 0 });
@@ -260,7 +266,7 @@
       [ring, pring].forEach(function (r) { r.setAttribute('x', x - w / 2 - 7); r.setAttribute('y', y - h / 2 - 7); r.setAttribute('width', w + 14); r.setAttribute('height', h + 14); });
       it.textContent = el.getAttribute('data-find');
       var kind = el.getAttribute('data-kind');
-      idt.textContent = 'Level 1';
+      idt.textContent = 'Floor 1';
       if (kind && kind !== el.getAttribute('data-find')) { var sep = document.createElement('i'); sep.className = 'sep'; sep.textContent = '\u00b7'; idt.appendChild(sep); idt.appendChild(document.createTextNode(kind)); }
       route.setAttribute('d', el === entry ? 'M0 0' : pathTo(el));
       var vw = 260, vh = 340;
@@ -285,11 +291,11 @@
       var m = matches(text);
       res.innerHTML = '';
       if (!text.trim()) return;
-      if (!m.length) { var li = document.createElement('li'); li.className = 'none'; li.textContent = 'Nothing called “' + text.trim() + '” on this level.'; res.appendChild(li); return; }
+      if (!m.length) { var li = document.createElement('li'); li.className = 'none'; li.textContent = 'Nothing called “' + text.trim() + '” on this floor.'; res.appendChild(li); return; }
       m.forEach(function (e, i) {
         var li = document.createElement('li'), b = document.createElement('button'), n = document.createElement('b'), s = document.createElement('span');
         b.type = 'button'; if (i === 0) b.className = 'on';
-        n.textContent = e.getAttribute('data-find'); s.textContent = 'Level 1';
+        n.textContent = e.getAttribute('data-find'); s.textContent = 'Floor 1';
         b.appendChild(n); b.appendChild(s);
         b.addEventListener('click', function () { stop(); select(e); });
         li.appendChild(b); res.appendChild(li);

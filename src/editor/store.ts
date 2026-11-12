@@ -11,7 +11,7 @@ import { boxesIntersect, objectBox, unionBoxes } from '../model/geometry';
 import { reorderObjects, type OrderOp } from '../model/order';
 import { cutForObject } from '../model/shape';
 import { newId } from '../model/ids';
-import { deleteLayer, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
+import { deleteLayer, placeObjects as placeObjectsOn, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
 import { highestNumber } from '../model/numbering';
 import { buildRowSpaces, normalizeRows, regenerateRow, SPACE_FILL, type RowAnchor } from '../model/rows';
 import type { SnapMode } from '../model/snapping';
@@ -108,6 +108,14 @@ interface EditorActions {
   moveSelection(moves: Moves): void;
   updateObjects(ids: string[], patch: Partial<MapObject>): void;
   moveToLayer(ids: string[], layerId: string): void;
+  /** Layers panel drag and drop: move to a layer, above or below another object (or on top). */
+  placeObjects(ids: string[], layerId: string, anchor: { id: string; side: 'above' | 'below' } | null): void;
+  /** Per-object eye and lock toggles in the Layers panel. */
+  setObjectFlag(ids: string[], key: 'hidden' | 'locked', value: boolean): void;
+  /** Renames from the Layers panel: a space's number, a text's words, or an object's name. */
+  renameObject(id: string, name: string): void;
+  /** Deletes objects even when they're locked or hidden (from the Layers panel). */
+  deleteObjects(ids: string[]): void;
   align(op: AlignOp): void;
   distribute(op: DistributeOp): void;
   renumber(ids: string[]): void;
@@ -174,11 +182,11 @@ const writePref = (k: string, v: unknown) => {
 export const currentFloor = (s: Pick<EditorState, 'doc' | 'floorId'>): Floor | undefined =>
   s.doc?.floors.find((f) => f.id === s.floorId) ?? s.doc?.floors[0];
 
-/** Layers that are locked or hidden cannot be selected or edited. */
+/** Objects that are locked or hidden, or on a locked or hidden layer, cannot be selected or edited. */
 export function editableIds(floor: Floor, ids: Iterable<string>): string[] {
   const blocked = new Set(floor.layers.filter((l) => l.locked || !l.visible).map((l) => l.id));
   const set = new Set(ids);
-  return floor.objects.filter((o) => set.has(o.id) && !blocked.has(o.layerId)).map((o) => o.id);
+  return floor.objects.filter((o) => set.has(o.id) && !o.locked && !o.hidden && !blocked.has(o.layerId)).map((o) => o.id);
 }
 
 const initialState: EditorState = {
@@ -491,9 +499,11 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (clip) pasteClip(clip, 1);
     },
     deleteSelection() {
-      const { selection } = get();
-      if (!selection.length) return;
-      const ids = new Set(selection);
+      get().deleteObjects(get().selection);
+    },
+    deleteObjects(list) {
+      if (!list.length) return;
+      const ids = new Set(list);
       commit((d, f) => {
         f.objects = f.objects.filter((o) => !ids.has(o.id));
         normalizeRows(f);
@@ -503,7 +513,7 @@ export const useEditor = create<EditorStore>()((set, get) => {
           if (gone.size) d.floors = d.floors.filter((x) => !gone.has(x.id));
         }
       });
-      set({ selection: [] });
+      set({ selection: get().selection.filter((id) => !ids.has(id)) });
     },
     nudge(dx, dy) {
       const { selection } = get();
@@ -536,6 +546,46 @@ export const useEditor = create<EditorStore>()((set, get) => {
         set({ selection: get().selection.filter((id) => !ids.includes(id)) });
         notify({ tone: 'info', message: `Moved to “${layer.name}”, which is ${layer.locked ? 'locked' : 'hidden'}.` });
       }
+    },
+    placeObjects(ids, layerId, anchor) {
+      const floor = currentFloor(get());
+      const layer = floor?.layers.find((l) => l.id === layerId);
+      if (!floor || !layer) return;
+      if (layer.role === 'background') {
+        notify({ tone: 'info', message: 'The background image layer only holds the site plan or photo.' });
+        return;
+      }
+      if (layer.locked) {
+        notify({ tone: 'info', message: `“${layer.name}” is locked. Unlock it to move objects onto it.` });
+        return;
+      }
+      commit((_d, f) => {
+        placeObjectsOn(f as Floor, ids, layerId, anchor);
+      });
+      const after = currentFloor(get());
+      if (after) set({ selection: editableIds(after, get().selection) });
+    },
+    setObjectFlag(ids, key, value) {
+      const set_ = new Set(ids);
+      commit((_d, f) => {
+        for (const o of f.objects) if (set_.has(o.id)) {
+          if (value) o[key] = true;
+          else delete o[key];
+        }
+      });
+      const floor = currentFloor(get());
+      if (floor) set({ selection: editableIds(floor, get().selection) });
+    },
+    renameObject(id, name) {
+      commit((_d, f) => {
+        const o = f.objects.find((x) => x.id === id);
+        if (!o) return;
+        const v = name.trim();
+        if (o.kind === 'space') o.label = v;
+        else if (o.kind === 'text') { if (v) o.text = v; }
+        else if (v) o.name = v;
+        else delete o.name;
+      });
     },
     align(op) {
       const floor = currentFloor(get());
