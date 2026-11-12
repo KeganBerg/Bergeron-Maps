@@ -9,10 +9,33 @@ import type { Floor, MapDocument, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
+import type { Box } from '../model/types';
 import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
 import { floorColor, MAP_PALETTE } from '../theme';
+import { feet, findRoute, isBig, minutes, placeLabel, startPlaces, type Place, type Route } from '../model/route';
+import { RouteOverlay } from './RouteOverlay';
+
+const ROADLIKE = /road|lane|drive|walk|sidewalk|path|zone|area|grass|crosswalk/;
+
+interface Goal { floorId: string; objectId: string; x: number; y: number; name: string }
+interface Start extends Place { name: string }
+/** Directions, from asking where you are to the route on the map. */
+type Directions =
+  | { stage: 'pick'; goal: Goal }
+  | { stage: 'tap'; goal: Goal }
+  | { stage: 'busy'; goal: Goal; start: Start }
+  | { stage: 'route'; goal: Goal; start: Start; route: Route }
+  | { stage: 'none'; goal: Goal; start: Start; reason: 'same' | 'none' };
+
+/** Room the directions panel takes at the bottom of the map, so the route isn't hidden under it. */
+const sheetRoom = (h: number) => Math.min(Math.round(h * 0.5), 260);
+
+/** "#/view/abc?from=el_1": a sign's QR code can say where people are standing. */
+function fromHint(): string | null {
+  return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('from');
+}
 
 const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -45,6 +68,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [showResults, setShowResults] = useState(false);
   const [focus, setFocus] = useState<{ id: string; floorId: string } | null>(null);
   const [tapped, setTapped] = useState<MapObject | null>(null);
+  const [dir, setDir] = useState<Directions | null>(null);
+  const [avoidStairs, setAvoidStairs] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const tracker = useRef(new PanZoomTracker());
   /** Where the site map was when someone went inside a building, to come back to. */
@@ -67,7 +92,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       setView(v);
     };
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || (e.target as HTMLElement).closest('button, .info-card')) return;
+      if (e.button !== 0 || (e.target as HTMLElement).closest('button, .info-card, .dir-sheet')) return;
       t.down(e.pointerId, at(e), viewRef.current);
       t.startPan(e.pointerId, viewRef.current);
       // No pointer capture: it would steal the pointerup from Konva, so mouse clicks on a
@@ -197,6 +222,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const group = floorGroup(doc, floor);
   const interiorIds = new Set(doc.floors.map((f) => f.interiorOf).filter((x): x is string => !!x));
   const canGoIn = !!tapped && !floor.interiorOf && interiorIds.has(tapped.id);
+  const route = dir?.stage === 'route' ? dir.route : null;
+  const routeFloors = new Set(route ? [...route.legs.map((l) => l.floorId), ...route.steps.map((s) => s.floorId)] : []);
 
   const goInside = (buildingId: string) => {
     const first = interiorFloors(doc, buildingId)[0];
@@ -219,10 +246,82 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     }
   };
 
+  // ------------------------------------------------------------ directions
+
+  /** Shows one floor of the route, zoomed to fit above the directions panel. */
+  const showFloorOfRoute = (route: Route, floorId: string) => {
+    const f = doc.floors.find((x) => x.id === floorId);
+    if (!f) return;
+    setFloorId(floorId);
+    lastFit.current = `${floorId}:${size.width}x${size.height}`;
+    const pts = route.legs.filter((l) => l.floorId === floorId).flatMap((l) => l.points);
+    const box = pts.length ? boxOf(pts) : floorBounds(f);
+    const room = { width: size.width, height: Math.max(160, size.height - sheetRoom(size.height)) };
+    const v = fitViewport(box && { x: box.x - 30, y: box.y - 30, width: box.width + 60, height: box.height + 60 }, room, 24);
+    const next = { ...v, scale: Math.min(v.scale, 2.5) };
+    // fitViewport centers in the room above the panel; recenter for the capped scale.
+    if (box) {
+      next.x = room.width / 2 - (box.x + box.width / 2) * next.scale;
+      next.y = room.height / 2 - (box.y + box.height / 2) * next.scale;
+    }
+    viewRef.current = next;
+    setView(next);
+  };
+
+  const runRoute = (goal: Goal, start: Start, avoid = avoidStairs) => {
+    setDir({ stage: 'busy', goal, start });
+    setFocus({ id: goal.objectId, floorId: goal.floorId });
+    // Let the "Finding the way" panel paint before the search runs.
+    setTimeout(() => {
+      const r = findRoute(doc, start, goal, { avoidStairs: avoid });
+      if (!r.ok) return setDir({ stage: 'none', goal, start, reason: r.reason });
+      setDir({ stage: 'route', goal, start, route: r.route });
+      showFloorOfRoute(r.route, r.route.legs[0]?.floorId ?? r.route.steps[0]?.floorId ?? start.floorId);
+    }, 30);
+  };
+
+  const startDirections = (o: MapObject) => {
+    const f = doc.floors.find((x) => x.objects.includes(o));
+    if (!f) return;
+    const goal: Goal = { floorId: f.id, objectId: o.id, x: o.x, y: o.y, name: placeLabel(o) };
+    const hint = fromHint();
+    const hf = hint ? doc.floors.find((x) => x.objects.some((y) => y.id === hint)) : undefined;
+    const ho = hf?.objects.find((y) => y.id === hint);
+    if (hf && ho && ho.id !== o.id) return runRoute(goal, { floorId: hf.id, objectId: ho.id, x: ho.x, y: ho.y, name: placeLabel(ho) });
+    setDir({ stage: 'pick', goal });
+  };
+
+  const endDirections = () => {
+    const goal = dir?.goal;
+    setDir(null);
+    if (goal) {
+      const f = doc.floors.find((x) => x.id === goal.floorId);
+      const o = f?.objects.find((x) => x.id === goal.objectId);
+      if (f && o) {
+        setFloorId(f.id);
+        setTapped(o);
+        setFocus({ id: o.id, floorId: f.id });
+      }
+    }
+  };
+
   const onTap = (e: Konva.KonvaEventObject<Event>) => {
     if (tracker.current.moved) return; // the end of a drag or pinch, not a tap
     const g = e.target.hasName('obj') ? e.target : e.target.findAncestor('.obj');
     const o = g ? floor.objects.find((x) => x.id === g.id()) : undefined;
+    if (dir?.stage === 'tap') {
+      // Starting from what was tapped (an elevator, your car's space), or just that spot.
+      const p = e.target.getStage()!.getRelativePointerPosition();
+      if (!p) return;
+      // A tap on a road, a lot or a building means "here", not "the whole thing".
+      const start: Start = o && o.id !== dir.goal.objectId && !isBig(o) && !(o.kind === 'asset' && ROADLIKE.test(o.assetKey))
+        ? { floorId: floor.id, objectId: o.id, x: o.x, y: o.y, name: placeLabel(o) }
+        : { floorId: floor.id, x: p.x, y: p.y, name: 'the spot you picked' };
+      runRoute(dir.goal, start);
+      return;
+    }
+    if (dir && dir.stage !== 'pick') return; // the route stays up until it's closed
+    if (dir) setDir(null);
     setTapped(o ?? null);
     setFocus(o ? { id: o.id, floorId: floor.id } : null);
     if (o) keepInView(o);
@@ -324,12 +423,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               </Group>
             )}
             {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
+            {route && <RouteOverlay route={route} floorId={floor.id} scale={view.scale} />}
           </Layer>
         </Stage>
         <button className="fab" onClick={resetView} aria-label="Show whole floor" title="Show whole floor" data-testid="reset-view">
           <Icon name="fit" />
         </button>
-        {info && (
+        {info && !dir && (
           <div className="info-card" data-testid="info-card">
             <div>
               <strong>{info.title}</strong>
@@ -340,8 +440,34 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
                 <Icon name="enter" size={16} /> Go inside
               </button>
             )}
+            <button className={`btn directions-btn${canGoIn ? '' : ' primary'}`} onClick={() => startDirections(tapped!)} data-testid="directions">
+              <Icon name="directions" size={16} /> Directions
+            </button>
             <button className="icon-btn" aria-label="Close" onClick={() => { setTapped(null); setFocus(null); }}><Icon name="close" /></button>
           </div>
+        )}
+        {dir?.stage === 'tap' && (
+          <div className="dir-banner dir-sheet" data-testid="dir-tap-banner">
+            <span>Tap where you are now</span>
+            <button className="btn" onClick={() => setDir({ stage: 'pick', goal: dir.goal })}>Cancel</button>
+          </div>
+        )}
+        {dir && dir.stage !== 'tap' && (
+          <DirectionsSheet
+            dir={dir}
+            doc={doc}
+            floorId={floor.id}
+            avoidStairs={avoidStairs}
+            onPick={(start) => runRoute(dir.goal, start)}
+            onTapMode={() => setDir({ stage: 'tap', goal: dir.goal })}
+            onChangeStart={() => setDir({ stage: 'pick', goal: dir.goal })}
+            onStep={(fid) => route && showFloorOfRoute(route, fid)}
+            onAvoidStairs={(v) => {
+              setAvoidStairs(v);
+              if ('start' in dir) runRoute(dir.goal, dir.start, v);
+            }}
+            onClose={endDirections}
+          />
         )}
       </div>
 
@@ -353,9 +479,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         )}
         {inside && <span className="viewer-building" data-testid="viewer-building">{buildingName(inside.building)}</span>}
         {(inside && group.length < 2 ? [] : group).map((f, i) => (
-          <button key={f.id} className={f.id === floor.id ? 'active' : ''} aria-pressed={f.id === floor.id}
+          <button key={f.id} className={[f.id === floor.id ? 'active' : '', routeFloors.has(f.id) ? 'on-route' : ''].join(' ').trim() || undefined} aria-pressed={f.id === floor.id}
             style={{ ['--floor-color' as string]: floorColor(i) }}
-            onClick={() => { setFloorId(f.id); setTapped(null); setFocus(null); }} data-testid={`viewer-floor-${f.name}`}>
+            onClick={() => {
+              if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
+              setFloorId(f.id);
+              if (!dir) { setTapped(null); setFocus(null); }
+            }} data-testid={`viewer-floor-${f.name}`}>
             {f.name}
           </button>
         ))}
@@ -383,3 +513,133 @@ const ViewerFloor = memo(function ViewerFloor({ floor, focusedId }: { floor: Flo
     </>
   );
 });
+
+function boxOf(p: number[]): Box {
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  for (let i = 0; i < p.length; i += 2) {
+    x1 = Math.min(x1, p[i]); x2 = Math.max(x2, p[i]);
+    y1 = Math.min(y1, p[i + 1]); y2 = Math.max(y2, p[i + 1]);
+  }
+  return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
+}
+
+const STEP_ICON: Record<string, string> = { walk: 'directions', elevator: 'up', stairs: 'up', escalator: 'up', ramp: 'up', walkway: 'forward', inside: 'enter', outside: 'back' };
+
+/** The panel at the bottom of the map: where are you starting, then the steps. */
+function DirectionsSheet(p: {
+  dir: Exclude<Directions, { stage: 'tap' }>;
+  doc: MapDocument;
+  floorId: string;
+  avoidStairs: boolean;
+  onPick: (s: Start) => void;
+  onTapMode: () => void;
+  onChangeStart: () => void;
+  onStep: (floorId: string) => void;
+  onAvoidStairs: (v: boolean) => void;
+  onClose: () => void;
+}) {
+  const { dir, doc } = p;
+  const floorName = (id: string) => {
+    const f = doc.floors.find((x) => x.id === id);
+    return f ? floorTitle(doc, f) : '';
+  };
+  const places = useMemo(() => {
+    const all = startPlaces(doc).filter((s) => s.obj.id !== dir.goal.objectId);
+    // Ways in first, then this floor's elevators and stairs, then everything else; ramps (for cars) last.
+    const rank = (s: (typeof all)[number]) => {
+      const k = s.obj.kind === 'asset' ? s.obj.assetKey : '';
+      const here = s.floor.id === p.floorId ? 0 : 1;
+      if (/entrance|^exit$|ped-exit|checkpoint/.test(k)) return here;
+      if (k.includes('ramp')) return 6 + here;
+      if (/elevator|stair|escalator/.test(k)) return 2 + here * 2;
+      return 3 + here * 2;
+    };
+    return all.map((s, i) => ({ s, i, r: rank(s) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.s);
+  }, [doc, dir.goal.objectId]);
+  const close = <button className="icon-btn" aria-label="Close directions" onClick={p.onClose} data-testid="dir-close"><Icon name="close" /></button>;
+  const multiFloor = doc.floors.length > 1;
+
+  if (dir.stage === 'pick') {
+    return (
+      <div className="dir-sheet" data-testid="directions-sheet">
+        <div className="dir-head">
+          <div>
+            <strong>Directions to {dir.goal.name}</strong>
+            <span className="muted">Where are you starting from?</span>
+          </div>
+          {close}
+        </div>
+        <div className="dir-list">
+          <button className="dir-option primary" onClick={p.onTapMode} data-testid="dir-tap">
+            <Icon name="locate" size={18} /> <span>Tap where you are on the map</span>
+          </button>
+          {places.map((s) => (
+            <button key={s.obj.id} className="dir-option" data-testid="dir-start"
+              onClick={() => p.onPick({ floorId: s.floor.id, objectId: s.obj.id, x: s.obj.x, y: s.obj.y, name: s.name })}>
+              <span>{s.name}</span>
+              {multiFloor && <span className="muted">{floorTitle(doc, s.floor)}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (dir.stage === 'busy') {
+    return (
+      <div className="dir-sheet" data-testid="directions-sheet">
+        <div className="dir-head"><div><strong>To {dir.goal.name}</strong><span className="muted">Finding the way…</span></div>{close}</div>
+      </div>
+    );
+  }
+  if (dir.stage === 'none') {
+    return (
+      <div className="dir-sheet" data-testid="directions-sheet">
+        <div className="dir-head"><div><strong>To {dir.goal.name}</strong></div>{close}</div>
+        <p className="dir-note" data-testid="dir-none">
+          {dir.reason === 'same'
+            ? 'You’re already there.'
+            : `We couldn’t find a way there from ${dir.start.name}${p.avoidStairs ? ' without stairs' : ''}. The map may be missing a door, walkway or floor connection. Ask your manager to check it.`}
+        </p>
+        <div className="dir-actions">
+          <button className="btn" onClick={p.onChangeStart}>Change start</button>
+          {p.avoidStairs && <button className="btn" onClick={() => p.onAvoidStairs(false)}>Allow stairs</button>}
+        </div>
+      </div>
+    );
+  }
+  const { route } = dir;
+  const mins = minutes(route);
+  return (
+    <div className="dir-sheet" data-testid="directions-sheet">
+      <div className="dir-head">
+        <div>
+          <strong>To {dir.goal.name}</strong>
+          <span className="muted" data-testid="dir-summary">
+            {feet(route.length)} ft · about {mins} min · from {dir.start.name}
+          </span>
+        </div>
+        {close}
+      </div>
+      <ol className="dir-steps">
+        {route.steps.map((s, i) => (
+          <li key={i}>
+            <button className={s.floorId === p.floorId ? 'here' : ''} onClick={() => p.onStep(s.kind === 'walk' ? s.floorId : s.toFloorId ?? s.floorId)} data-testid="route-step">
+              <Icon name={STEP_ICON[s.kind] ?? 'directions'} size={16} />
+              <span>{s.text}</span>
+              {multiFloor && <span className="muted">{s.kind === 'walk' ? `${floorName(s.floorId)} · ${feet(route.legs[s.leg!]?.length ?? 0)} ft` : floorName(s.floorId)}</span>}
+            </button>
+          </li>
+        ))}
+      </ol>
+      {route.squeezed && <p className="dir-note">No walkway is drawn here, so this way goes between parked cars. Take care.</p>}
+      <div className="dir-actions">
+        <button className="btn" onClick={p.onChangeStart} data-testid="dir-change-start">Change start</button>
+        {multiFloor && (
+          <label className="dir-check">
+            <input type="checkbox" checked={p.avoidStairs} onChange={(e) => p.onAvoidStairs(e.target.checked)} data-testid="dir-avoid-stairs" /> Avoid stairs
+          </label>
+        )}
+      </div>
+    </div>
+  );
+}

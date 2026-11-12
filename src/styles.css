@@ -379,6 +379,39 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .viewer-floors button.outside { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
 .viewer-building { flex: none; align-self: center; font-weight: 700; padding: 0 6px; max-width: 45vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .info-card .go-inside { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.info-card { flex-wrap: wrap; }
+.info-card .directions-btn { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+@media (max-width: 420px) {
+  .info-card > div { flex-basis: calc(100% - 52px); }
+  .info-card > .icon-btn { order: 1; align-self: flex-start; }
+  .info-card > .btn { order: 2; }
+}
+
+/* Walking directions */
+.dir-sheet { position: absolute; left: 12px; right: 12px; bottom: 12px; max-height: 50%; display: flex; flex-direction: column; background: var(--panel); color: var(--text); border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); z-index: 5; }
+.dir-head { display: flex; align-items: flex-start; gap: 8px; padding: 12px 8px 8px 14px; }
+.dir-head > div { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dir-head strong { font-family: var(--font-display); font-size: 19px; overflow: hidden; text-overflow: ellipsis; }
+.dir-list, .dir-steps { overflow-y: auto; padding: 0 8px 8px; margin: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.dir-option, .dir-steps button { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px; min-height: 48px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); font-size: 15px; cursor: pointer; }
+.dir-option > span:first-of-type, .dir-steps button > span:first-of-type { flex: 1; }
+.dir-option .muted, .dir-steps .muted { font-size: 13px; text-align: right; }
+.dir-option.primary { border: 2px solid var(--primary); font-weight: 700; }
+.dir-option:hover, .dir-steps button:hover { background: var(--hover); }
+.dir-steps button.here { border: 2px solid var(--floor-color, var(--primary)); font-weight: 700; }
+.dir-steps { counter-reset: step; }
+.dir-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 12px 12px; }
+.dir-check { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; min-height: 44px; }
+.dir-check input { width: 20px; height: 20px; }
+.dir-note { margin: 0 14px 8px; font-size: 14px; color: var(--muted); }
+@media (min-width: 900px) { .dir-sheet:not(.dir-banner) { right: auto; width: 420px; max-height: calc(100% - 24px); } .dir-banner { right: auto; width: 420px; } }
+.dir-banner { top: 12px; bottom: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 14px; font-weight: 700; max-height: none; }
+.viewer-floors button.on-route { position: relative; }
+.viewer-floors button.on-route::after { content: ''; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--text); border: 2px solid var(--panel); }
+:root[data-theme='signage'] .dir-sheet { border-radius: 4px; border-top: 6px solid var(--floor-color, var(--text)); }
+:root[data-theme='signage'] .dir-banner { border-top: 0; border-left: 6px solid var(--floor-color, var(--text)); }
+:root[data-theme='signage'] .dir-option, :root[data-theme='signage'] .dir-steps button { border-radius: 4px; }
+:root[data-theme='night'] .dir-sheet { background: #232428; border-left: 6px solid var(--primary); }
 @media (min-width: 900px) {
   .viewer-search { max-width: 520px; }
 }
