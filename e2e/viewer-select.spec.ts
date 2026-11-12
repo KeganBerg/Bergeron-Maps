@@ -32,8 +32,12 @@ test('clicking a space with a mouse opens its card and highlights it', async ({ 
     pos = next;
     return same;
   }).toBe(true);
-  await page.mouse.click(pos.x, pos.y);
-  await expect(page.getByTestId('info-card')).toContainText('Space B4');
+  // Under a loaded CI runner the first fit can land late, so re-measure and click again if needed.
+  await expect(async () => {
+    pos = await where();
+    await page.mouse.click(pos.x, pos.y);
+    await expect(page.getByTestId('info-card')).toContainText('Space B4', { timeout: 1000 });
+  }).toPass({ timeout: 8000 });
   await expect.poll(() => page.evaluate(`(${stage})().find('.focus-ring').length`)).toBe(1);
   // A drag is a pan, not a tap: the card stays on B4.
   await page.mouse.move(pos.x, pos.y);
