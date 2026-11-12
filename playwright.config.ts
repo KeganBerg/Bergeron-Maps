@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /** Specs that drive real mouse, keyboard and wheel input: these also run in WebKit (Safari) and Firefox. */
-const REAL_INPUT = /(click-accuracy|action-sequence|workflow|audit-regressions|regressions|editor|interiors)\.spec\.ts/;
+const REAL_INPUT = /(click-accuracy|action-sequence|workflow|audit-regressions|regressions|editor|interiors|directions)\.spec\.ts/;
 // WebKit and Firefox are installed in CI; locally only Chromium may be present. Phone specs stay on
 // Chromium: they send multi-finger touch through Chrome DevTools, and Playwright's WebKit touch sends
 // touch events without the pointer events a real iPhone sends, so it can't stand in for one.
