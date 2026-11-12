@@ -7,7 +7,7 @@ INK = "currentColor"
 
 
 def plan():
-    """Plan of a fictional garage level, drawn like an architect's sheet."""
+    """Plan of a fictional garage floor, drawn like an architect's sheet."""
     W, H = 1200, 600
     o = []
     # slab: double wall line
@@ -68,32 +68,32 @@ def plan():
     defs = ('<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
             '<path d="M0 0v10" stroke="currentColor" stroke-width=".8"/></pattern></defs>')
     return (f'<svg id="plan" viewBox="-40 0 {W+40} {H}" class="drawing block h-auto w-full" fill="none" stroke="{INK}" '
-            f'role="img" aria-label="Plan drawing of a garage level with space C12 found and the route to it">{defs}{"".join(o)}</svg>')
+            f'role="img" aria-label="Plan drawing of a garage floor with space C12 found and the route to it">{defs}{"".join(o)}</svg>')
 
 
 def section():
-    """Cross-section through a four-level garage, ramps between floors."""
+    """Cross-section through a four-story garage, ramps between floors."""
     o = []
-    levels = [("L4", "#0057b8", 70), ("L3", "#007a33", 160), ("L2", "#e87722", 250), ("L1", "#c8102e", 340)]
+    floors = [("L4", "#0057b8", 70), ("L3", "#007a33", 160), ("L2", "#e87722", 250), ("L1", "#c8102e", 340)]
     # ground
     o.append('<path d="M0 380H1200" stroke-width="2"/>')
     for x in range(0, 1200, 14):
         o.append(f'<path d="M{x} 380l-10 12" stroke-width=".7"/>')
-    for name, color, y in levels:
+    for name, color, y in floors:
         o.append(f'<path class="slab" d="M120 {y}H1080" stroke-width="5"/>')
         o.append(f'<g transform="translate(40 {y-28})"><rect width="56" height="34" fill="{color}" stroke="none"/>'
                  f'<text x="28" y="26" class="lvl">{name}</text></g>')
     # columns
     for x in (120, 360, 600, 840, 1080):
         o.append(f'<path class="colm" d="M{x} 70V380" stroke-width="2"/>')
-    # ramps between levels, alternating ends
+    # ramps between floors, alternating ends
     ramps = [(860, 340, 1060, 250), (140, 250, 340, 160), (860, 160, 1060, 70)]
     for x1, y1, x2, y2 in ramps:
         o.append(f'<path class="ramp" d="M{x1} {y1}L{x2} {y2}" stroke-width="3"/>')
     # parked cars (simple side profiles) on each slab
     import random
     random.seed(4)
-    for name, color, y in levels:
+    for name, color, y in floors:
         for x in range(390, 830, 62):
             if random.random() < .72:
                 hit = name == "L3" and x == 638
@@ -102,9 +102,9 @@ def section():
                          f'<circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g>')
     # callout to the found car
     o.append('<g class="callout"><path d="M664 132 720 40H900" stroke-width="1"/><circle cx="664" cy="132" r="4" fill="currentColor" stroke="none"/>'
-             '<text x="728" y="32" class="note" text-anchor="start">3C21 · LEVEL 3 · NORTH STAIRS</text></g>')
+             '<text x="728" y="32" class="note" text-anchor="start">3C21 · FLOOR 3 · NORTH STAIRS</text></g>')
     return ('<svg id="section" viewBox="0 0 1200 400" class="drawing block h-auto w-full" fill="none" stroke="currentColor" '
-            f'role="img" aria-label="Cross-section of a four-level garage with the found car on Level 3">{"".join(o)}</svg>')
+            f'role="img" aria-label="Cross-section of a four-story garage with the found car on Floor 3">{"".join(o)}</svg>')
 
 
 p = pathlib.Path(__file__).with_name("index.html")

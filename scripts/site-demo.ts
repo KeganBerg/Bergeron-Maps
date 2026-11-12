@@ -97,7 +97,7 @@ const found = searchAssets('stair').slice(0, 6).map((d) => tile(d, d.key === 'st
 
 
 // ---------------------------------------------------------------- hero
-// The hero shows one level twice: first as a line drawing, then as the real
+// The hero shows one floor twice: first as a line drawing, then as the real
 // app renders it. Both are drawn from the same quick-lot layout, plus a few
 // things that aren't parking spaces (office, key box, chargers, restrooms).
 const heroDoc = createQuickLot('Site Name', { floors: 2, rows: 4, spacesPerRow: 16, accessible: 2 });
@@ -156,7 +156,7 @@ const roads = hf.objects.filter((o) => o.kind === 'asset' && o.assetKey === 'roa
 const lanesY = roads.filter((o) => o.rotation === 0).map((o) => r2(o.y));
 const mainX = r2(roads.find((o) => o.rotation === 90)!.x);
 const heroIds: Record<string, string> = { entrance: 'hr-entrance' };
-const real = `<svg id="hr-real" viewBox="${vb}" class="hero-svg hero-real" role="img" aria-label="Level 1 of a sample site as the app draws it. Click a space or a landmark to find it.">` +
+const real = `<svg id="hr-real" viewBox="${vb}" class="hero-svg hero-real" role="img" aria-label="Floor 1 of a sample site as the app draws it. Click a space or a landmark to find it.">` +
   `<rect x="${r2(hb.x - pad)}" y="${r2(hb.y - pad - 40)}" width="${r2(hb.w + pad * 2)}" height="${r2(hb.h + pad * 2 + 70)}" fill="#e7e4dd"/>` +
   `<g id="hr-world" data-box="${r2(hb.x)} ${r2(hb.y)} ${r2(hb.w)} ${r2(hb.h)}" data-lanes="${lanesY.join(',')}" data-main="${mainX}">${hByLayer.map((o) => objectSvg(o, heroIds, true)).join('')}</g>` +
   `<path id="hr-route" d="M0 0" fill="none"/><rect id="hr-ring" fill="none" rx="5"/></svg>`;
