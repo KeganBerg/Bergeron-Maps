@@ -106,3 +106,12 @@ describe('schools and campuses', () => {
     expect(searchAssets('manhole').map((a) => a.key)).toContain('sewer-access');
   });
 });
+
+describe('garage openings', () => {
+  it('turn their ENTER/EXIT tag to stay readable when placed upside down', () => {
+    const def = ASSET_BY_KEY.entrance;
+    expect(renderAssetSvg(def, { width: 120, height: 44 })).not.toContain('rotate(180');
+    expect(renderAssetSvg(def, { width: 120, height: 44, rotation: 180 })).toContain('rotate(180 76 26)');
+    expect(renderAssetSvg(def, { width: 120, height: 44, rotation: -90 })).not.toContain('rotate(180');
+  });
+});
