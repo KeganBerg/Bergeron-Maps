@@ -74,9 +74,9 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
       <div className="group">
         <button className="icon-btn brand-home" title="All maps" aria-label="All maps" onClick={onHome}><BrandMark size={28} title="All maps" /></button>
         <CommitInput className="map-name" value={doc.name} maxLength={80} aria-label="Map name" data-testid="map-name-input-top" onCommit={(v) => st().renameMap(v)} />
-        <span className={`save-status ${info.tone}`} title={error ?? (status === 'saved' ? 'Saved in this browser on this device' : undefined)} data-testid="save-status" role="status">
+        <span className={`save-status ${info.tone}`} title={error ?? (status === 'saved' ? 'Saved in this browser on this device' : info.text)} data-testid="save-status" role="status">
           {info.tone === 'ok' ? <Icon name="check" size={14} /> : info.tone === 'error' ? <Icon name="alert" size={14} /> : null}
-          {info.text}
+          <span className="save-text">{info.text}</span>
         </span>
         <button className="btn small" onClick={onSave} title={`Save now and keep a version (${modLabel}S)`} data-testid="save">
           <Icon name="save" size={14} /> Save

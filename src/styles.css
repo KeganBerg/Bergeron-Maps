@@ -227,7 +227,11 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .map-name { font-weight: 600; border-color: transparent !important; width: 160px; }
 .snap select { width: 96px; }
 .map-name:hover, .map-name:focus { border-color: var(--border-strong) !important; }
-.save-status { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+/* One fixed width for every save state: when the pill grew from "Saved" to "Unsaved changes" the
+   top bar wrapped to two lines and back, and the map jumped 40px under the pointer mid-click. */
+.save-status { display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+  width: 116px; flex: none; }
+.save-status .save-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .save-status.ok { color: var(--ok); background: #f0fdf4; }
 .save-status.pending { color: var(--muted); background: var(--hover); }
 .save-status.error { color: var(--danger); background: #fef2f2; }

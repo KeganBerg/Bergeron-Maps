@@ -228,13 +228,22 @@ export const useEditor = create<EditorStore>()((set, get) => {
     }));
   };
 
-  const sanitize = (doc: MapDocument) => {
+  /**
+   * State that must stay valid after the document is swapped. With `from` (undo/redo),
+   * the objects the step brought back or changed become the selection, as in other
+   * design tools, so an undone delete can be moved or deleted again straight away.
+   */
+  const sanitize = (doc: MapDocument, from?: MapDocument) => {
     const s = get();
     const floor = doc.floors.find((f) => f.id === s.floorId) ?? doc.floors[0];
     const live = new Set(floor.objects.map((o) => o.id));
+    const before = from?.floors.find((f) => f.id === floor.id);
+    const was = new Map(before?.objects.map((o) => [o.id, o]));
+    const touched = before && before !== floor ? floor.objects.filter((o) => was.get(o.id) !== o).map((o) => o.id) : [];
+    const touchedEditable = touched.length ? editableIds(floor, touched) : [];
     return {
       floorId: floor.id,
-      selection: s.selection.filter((id) => live.has(id)),
+      selection: touchedEditable.length ? touchedEditable : s.selection.filter((id) => live.has(id)),
       enteredRowId: s.enteredRowId && floor.rows[s.enteredRowId] ? s.enteredRowId : null,
       activeLayer: s.activeLayer !== 'auto' && !floor.layers.some((l) => l.id === s.activeLayer) ? 'auto' : s.activeLayer,
     };
@@ -391,14 +400,14 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (!past.length || !doc) return;
       const prev = past[past.length - 1];
       set((s) => ({ doc: prev, past: past.slice(0, -1), future: [doc, ...future], editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
-      set(sanitize(prev));
+      set(sanitize(prev, doc));
     },
     redo() {
       const { past, doc, future } = get();
       if (!future.length || !doc) return;
       const next = future[0];
       set((s) => ({ doc: next, past: [...past, doc], future: future.slice(1), editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
-      set(sanitize(next));
+      set(sanitize(next, doc));
     },
 
     setFloor(id) {
