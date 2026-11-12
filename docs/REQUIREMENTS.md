@@ -24,7 +24,7 @@ Last updated: 2026-10-30 (Phase 1).
 |---|---|---|---|---|
 | 3.1-a | Top toolbar: save status, undo, redo, copy, paste, snapping, zoom, preview, publish | `editor/TopBar.tsx` | e2e: editor.spec (save status, undo, snapping) | Tested. Publish shows Publish / Publish changes / Published |
 | 3.1-b | Left sidebar: asset library, space tools, layers, properties; collapsible | `editor/Sidebar.tsx` | e2e: editor.spec | Tested |
-| 3.1-c | Center canvas with handles, alignment guides, zoom/pan, feedback | `editor/CanvasStage.tsx` | manual; unit: snapping.test | Implemented |
+| 3.1-c | Center canvas with handles, alignment guides, zoom/pan, feedback | `editor/CanvasStage.tsx`, `render/panZoom.ts` (mouse wheel zooms, trackpad scroll pans, pinch zooms; on phones a finger drag pans and a selected object drags) | unit: snapping.test, panZoom.test; e2e: zoom.spec, zoom.mobile.spec | Tested |
 | 3.1-d | Bottom floor tabs with obvious Add Floor | `editor/FloorTabs.tsx` | e2e: floors test | Tested |
 | 3.2-a | Create and open maps | `home/HomePage.tsx` | e2e: all editor tests | Tested |
 | 3.2-b | Add, select (single, multiple, marquee), move, resize, rotate | `CanvasStage.tsx` (custom drag + Konva Transformer) | unit: store.test; manual drag/resize/rotate | Implemented. Drag/resize/rotate are not yet covered by an automated test |
@@ -139,7 +139,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Implementation | Test | Status |
 |---|---|---|---|---|
-| 16.1 | Fast, smooth zoom/pan, floor selection, readable labels, identification, search, reset view, no admin controls | `viewer/ViewerPage.tsx` (pinch, drag, wheel zoom, floor pills, info card) | e2e: viewer.mobile.spec | Tested (pinch gesture checked manually only) |
+| 16.1 | Fast, smooth zoom/pan, floor selection, readable labels, identification, search, reset view, no admin controls | `viewer/ViewerPage.tsx` (pinch, drag, wheel zoom via `render/panZoom.ts`, floor pills, info card) | e2e: viewer.mobile.spec, zoom.mobile.spec | Tested |
 | 16.2 | Search B16 → floor, navigate, highlight, show identifier; disambiguate multiple; explain no result | `model/search.ts` (ignores case, spaces, dashes) | unit: search.test; e2e: viewer.mobile.spec | Tested |
 | 16.3 | Same data for desktop and mobile | Viewer reads the same `MapDocument` | e2e | Tested |
 | 16-auth | Access to authorized maps only | — | — | Not started (Phase 2) |

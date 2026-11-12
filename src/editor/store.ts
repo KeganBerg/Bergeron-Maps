@@ -74,6 +74,8 @@ interface EditorActions {
   beginGesture(): void;
   previewGesture(recipe: (doc: Draft<MapDocument>, floor: Draft<Floor>) => void): void;
   endGesture(): void;
+  /** Drops a gesture's preview and puts the map back as it was (e.g. a drag turned into a pinch). */
+  cancelGesture(): void;
   undo(): void;
   redo(): void;
 
@@ -345,6 +347,10 @@ export const useEditor = create<EditorStore>()((set, get) => {
           recipe(d, d.floors.find((x) => x.id === floorId) ?? d.floors[0]);
         }),
       });
+    },
+    cancelGesture() {
+      const { gestureBase } = get();
+      set(gestureBase ? { gestureBase: null, doc: gestureBase } : { gestureBase: null });
     },
     endGesture() {
       const { gestureBase, doc } = get();
