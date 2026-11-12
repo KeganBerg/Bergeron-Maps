@@ -136,7 +136,10 @@ test.describe('every action in sequence', () => {
 
     await test.step('after zooming in and panning, select and drag still land on the right thing', async () => {
       const v0 = (await editorState(page)).viewport;
-      await trackpadPinch(page, P(0.5, 0.5), -150);
+      // Pinch over the tree, as a person zooms in on what they want to touch: the point
+      // under the fingers stays put, so the tree stays on screen whatever the browser's zoom step.
+      const treeAt = await center(page, await obj(page, 'Tree 1'));
+      await trackpadPinch(page, treeAt, -150);
       const v1 = (await editorState(page)).viewport;
       await spacePan(page, P(0.5, 0.5), P(0.4, 0.45));
       await settle(page);
@@ -145,6 +148,7 @@ test.describe('every action in sequence', () => {
       expect(Math.round(v2.x - v1.x), 'space + drag pans').toBe(Math.round(-0.1 * c.width));
       const t = await obj(page, 'Tree 1');
       const at = await center(page, t);
+      expect(at.x > c.x && at.x < c.x + c.width && at.y > c.y && at.y < c.y + c.height, `tree on screen at ${JSON.stringify(at)}`).toBe(true);
       await realClick(page, at);
       const why = await page.evaluate(([x, y]) => {
         type N = { className: string; findAncestor: (s: string) => { id: () => string } | undefined };
