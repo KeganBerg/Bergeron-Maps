@@ -43,6 +43,15 @@ describe('map search', () => {
     expect(hits.filter((h) => h.exact).map((h) => h.floorName).sort()).toEqual(['Floor 1', 'Level 2']);
   });
 
+  it('finds spaces by their number alone, after any prefix', () => {
+    const titles = searchMap(garage(), '3').map((h) => h.title);
+    expect(titles).toEqual(['Space B3', 'Space C3']);
+    expect(searchMap(garage(), '16').map((h) => h.title)).toEqual(['Space B16']);
+    const doc = garage();
+    doc.floors[1].objects.push(...buildRowSpaces({ ...DEFAULT_ROW, id: 'r4', prefix: 'F2 ', start: 12, count: 1 }, { x: 0, y: 0, rotation: 0 }, doc.floors[1].layers[2].id));
+    expect(searchMap(doc, '12').map((h) => h.title)).toEqual(['Space B12', 'Space F2 12']);
+  });
+
   it('returns nothing for unknown identifiers', () => {
     expect(searchMap(garage(), 'Z99')).toEqual([]);
   });

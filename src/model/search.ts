@@ -16,6 +16,16 @@ export const normalizeQuery = (s: string) => s.toUpperCase().replace(/[\s\-_.]/g
 const MAX_HITS = 30;
 
 /**
+ * A bare number finds the spaces with that number after their prefix, so
+ * "12" finds F1 12, F2 12… on a garage whose spaces carry a floor prefix.
+ */
+const numberOnly = (label: string, q: string) => {
+  if (!/^\d+$/.test(q)) return false;
+  const n = label.trim().match(/(?:^|\D)(\d+)$/)?.[1];
+  return n !== undefined && Number(n) === Number(q);
+};
+
+/**
  * Finds parking spaces by identifier (exact matches first, then identifiers that
  * start with the query) and landmarks by name or label, across every floor.
  * Hidden layers are skipped so viewers never land on something they can't see.
@@ -36,7 +46,7 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
         if (!id) continue;
         const hit = { floorId: f.id, floorName, object: o, title: `Space ${o.label}` };
         if (id === q) exact.push({ ...hit, exact: true });
-        else if (id.startsWith(q)) partial.push({ ...hit, exact: false });
+        else if (id.startsWith(q) || numberOnly(o.label, q)) partial.push({ ...hit, exact: false });
       } else {
         const name = o.kind === 'text' ? o.text : [o.name, o.label, ASSET_BY_KEY[o.assetKey]?.name].filter(Boolean).join(' ');
         const hay = name.toLowerCase();
