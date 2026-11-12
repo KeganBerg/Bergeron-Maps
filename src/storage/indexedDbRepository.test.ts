@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createMap } from '../model/factory';
 import { IndexedDbRepository } from './indexedDbRepository';
-import { ConflictError } from './repository';
+import { ConflictError, MapGoneError } from './repository';
 
 let n = 0;
 const fresh = () => new IndexedDbRepository(`test-${++n}`);
@@ -141,5 +141,12 @@ describe('publishing', () => {
     await repo.trashMap(c.id);
     await repo.publishMap(a.id);
     await expect(repo.restoreMap(c.id)).rejects.toThrow(/already has 2 live maps/);
+  });
+
+  it('refuses to keep saving a map that was deleted in another tab', async () => {
+    const repo = fresh();
+    const doc = await repo.createMap(createMap('Deleted Elsewhere'));
+    await repo.trashMap(doc.id);
+    await expect(repo.saveMap({ ...doc, name: 'Still editing' }, doc.revision)).rejects.toBeInstanceOf(MapGoneError);
   });
 });

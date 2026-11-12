@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 /**
  * Text/number input that commits on Enter or blur (not every keystroke), so
@@ -14,9 +14,14 @@ export const CommitInput = forwardRef<HTMLInputElement, CommitInputProps>(functi
   ref,
 ) {
   const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
+  useLayoutEffect(() => setDraft(String(value)), [value]);
   const commit = () => {
-    if (draft !== String(value)) onCommit(draft);
+    if (draft === String(value)) return;
+    onCommit(draft);
+    // If the change was refused (a blank name, a letter in a number field) the
+    // field goes back to the real value instead of showing text that wasn't
+    // saved. An accepted change arrives through `value` and replaces this.
+    setDraft(String(value));
   };
   return (
     <input
@@ -43,7 +48,10 @@ export const CommitInput = forwardRef<HTMLInputElement, CommitInputProps>(functi
   );
 });
 
-export const toNumber = (v: string, fallback: number, min = -Infinity, max = Infinity) => {
+/** No real map needs numbers past this; bigger ones (a stray 1e30) only break the drawing. */
+const NUMBER_LIMIT = 1_000_000;
+
+export const toNumber = (v: string, fallback: number, min = -NUMBER_LIMIT, max = NUMBER_LIMIT) => {
   const n = Number(v);
   return Number.isFinite(n) && v.trim() !== '' ? Math.max(min, Math.min(max, n)) : fallback;
 };

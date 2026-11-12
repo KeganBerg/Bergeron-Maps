@@ -4,6 +4,7 @@ import type { MapDocument } from '../model/types';
 import {
   ConflictError,
   MAX_AUTO_VERSIONS,
+  MapGoneError,
   SITE_LIVE_MAPS,
   SITE_MAP_SLOTS,
   TRASH_RETENTION_DAYS,
@@ -164,9 +165,10 @@ export class IndexedDbRepository implements MapRepository {
     const tx = db.transaction('maps', 'readwrite');
     const store = tx.objectStore('maps');
     const current = (await req(store.get(doc.id))) as MapRecord | undefined;
-    if (!current) {
+    // A map moved to Recently deleted in another tab must not keep quietly saving.
+    if (!current || current.deletedAt) {
       tx.abort();
-      throw new Error('This map no longer exists. It may have been deleted.');
+      throw new MapGoneError();
     }
     if (current.doc.revision !== baseRevision) {
       tx.abort();

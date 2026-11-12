@@ -611,3 +611,10 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .seg .btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1px; }
 .seg .btn.on { background: var(--text); color: var(--panel); border-color: var(--text); }
 .shape-fields label.check { display: flex; font-size: 12px; margin: 6px 0; }
+
+/* Long names with no spaces (or a row of emoji) wrap instead of pushing the page sideways on phones. */
+h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
+.site-head h3 { min-width: 0; }
+/* The smallest phones (320px): the editor's first toolbar group wraps so Save and Publish stay on screen. */
+.topbar .group { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.topbar .map-name { max-width: 100%; min-width: 0; }

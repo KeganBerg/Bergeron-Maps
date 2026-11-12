@@ -3,6 +3,7 @@ import { migrateDocument } from '../model/migrate';
 import type { MapDocument } from '../model/types';
 import {
   ConflictError,
+  MapGoneError,
   summarize,
   type MapRepository,
   type MapSummary,
@@ -142,7 +143,8 @@ export class SupabaseRepository implements MapRepository {
     ) as unknown as MapRow[];
     if (r.length) return toDoc(r[0]);
     const current = await this.getMap(doc.id);
-    if (!current) throw new Error('This map no longer exists or you no longer have access to it.');
+    if (!current)
+      throw new MapGoneError('This map was deleted, or you no longer have access to it, so your latest changes couldn’t be saved. They are kept in this browser: restore the map from “Recently deleted”, then open it again to recover them.');
     throw new ConflictError(current);
   }
 

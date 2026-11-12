@@ -11,6 +11,11 @@
 import ClipperLib from 'clipper-lib';
 import type { MapObject } from './types';
 
+// Clipper reports internal problems with a blocking browser alert() and then
+// carries on. A pop-up the person can't act on is worse than a slightly off
+// outline, so log it instead.
+(ClipperLib as unknown as { Error: (m: string) => void }).Error = (message: string) => console.warn(`Shape engine: ${message}`);
+
 export type OutlineKind = 'rect' | 'ellipse' | 'half' | 'quarter' | 'arc' | 'L';
 
 /** A ring as flat x,y pairs. */

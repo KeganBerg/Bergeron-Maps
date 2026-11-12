@@ -103,9 +103,24 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
     // refresh only on mount
   }, []);
 
+  const copying = useRef(false);
   const copyMap = async (m: MapSummary) => {
-    const src = await repo.getMap(m.id);
-    if (!src) return;
+    // A double-click on Copy must not make two copies.
+    if (copying.current) return;
+    copying.current = true;
+    try {
+      await copyOnce(m);
+    } finally {
+      copying.current = false;
+    }
+  };
+  const copyOnce = async (m: MapSummary) => {
+    setError(null);
+    const src = await repo.getMap(m.id).catch(() => null);
+    if (!src) {
+      setError(`“${m.name}” couldn’t be copied. It may have been deleted. Refresh the page and try again.`);
+      return;
+    }
     const now = new Date().toISOString();
     const copy = { ...structuredClone(src), id: newId('map'), name: `${src.name} (copy)`, createdAt: now, updatedAt: now, revision: 0 };
     try {
@@ -116,8 +131,10 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
     await refresh();
   };
 
+  const importing = useRef(false);
   const importFile = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || importing.current) return;
+    importing.current = true;
     setError(null);
     try {
       if (file.size > MAX_MAP_FILE_BYTES) throw new Error('This file is too large to be a map file.');
@@ -127,6 +144,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
     } catch (e) {
       setError(`“${file.name}” couldn’t be imported. ${e instanceof Error ? e.message : ''}`);
     } finally {
+      importing.current = false;
       if (fileInput.current) fileInput.current.value = '';
     }
   };
