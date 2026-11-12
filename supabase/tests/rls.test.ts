@@ -568,3 +568,22 @@ describe('third audit (2026-11-10)', () => {
     expect((ok as unknown as { claims: { sub: string } }).claims.sub).toBe(w.owner);
   });
 });
+
+describe('protecting sites that have maps', () => {
+  it('a site with maps (even trashed ones) cannot be deleted; an empty one can; deleting a company still works', async () => {
+    await expect(as(w.owner, 'delete from facilities where id = $1', [w.facilityA])).rejects.toThrow(/still has maps/);
+    const [{ id: lot }] = await as<{ id: string }>(w.owner, `insert into facilities (company_id, name) values ($1, 'Spare Lot') returning id`, [w.company]);
+    const [{ id: m }] = await as<{ id: string }>(w.owner, `insert into maps (facility_id, name, draft) values ($1, 'Spare', $2) returning id`, [lot, doc('s')]);
+    await as(w.owner, 'update maps set deleted_at = now() where id = $1', [m]);
+    await expect(as(w.owner, 'delete from facilities where id = $1', [lot])).rejects.toThrow(/still has maps/);
+    await as(w.owner, 'delete from maps where id = $1', [m]);
+    expect(await as(w.owner, 'delete from facilities where id = $1 returning id', [lot])).toHaveLength(1);
+
+    const c = (await db.query<{ id: string }>(`insert into companies (name) values ('Gone Co') returning id`)).rows[0].id;
+    const f = (await db.query<{ id: string }>(`insert into facilities (company_id, name) values ($1, 'Gone Lot') returning id`, [c])).rows[0].id;
+    await db.query(`insert into maps (facility_id, name, draft) values ($1, 'Gone', '{}')`, [f]);
+    await db.query('delete from companies where id = $1', [c]);
+    expect((await db.query('select 1 from facilities where id = $1', [f])).rows).toHaveLength(0);
+  });
+});
+
