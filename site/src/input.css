@@ -178,7 +178,9 @@
 .dm-dot { position: absolute; z-index: 10; width: 30px; height: 30px; translate: -50% -50%; border-radius: 50%; border: 0; background: var(--color-ink); color: #fff; font: 600 13px var(--font-mono); box-shadow: 0 0 0 3px var(--color-sign); cursor: pointer; transition: transform .15s; }
 .dm-dot:hover { transform: scale(1.12); }
 .dm-dot.on { background: var(--color-sign); color: var(--color-ink); box-shadow: 0 0 0 3px var(--color-ink); }
-@media (max-width: 640px) { .dm-dot { width: 17px; height: 17px; font-size: 9px; box-shadow: 0 0 0 2px var(--color-sign); } }
+/* On phones the editor copy is too small for the dots: 3 and 4 sit on top of each other and cover the buttons.
+   The numbered list under the demo does the same job there. */
+@media (max-width: 640px) { .dm-dot { display: none; } }
 /* Keep a 28px tap target even when the visible dot is small. */
 .dm-dot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; translate: -50% -50%; border-radius: 50%; }
 
