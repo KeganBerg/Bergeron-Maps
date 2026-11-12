@@ -99,6 +99,7 @@ export interface PaintSource {
   symbolHidden?: boolean;
   band?: number;
   marksOnly?: boolean;
+  rotation?: number;
 }
 
 /** The asset's paint with the object's own overrides applied. */
@@ -112,12 +113,18 @@ export function resolvePaint(def: AssetDef, o: Partial<PaintSource> = {}) {
 }
 
 /** Full SVG document for an asset at the object's size and paint. */
+/** Would text drawn on an object turned this far (degrees) read upside down? */
+export function isUpsideDown(rotation = 0): boolean {
+  const r = ((rotation % 360) + 360) % 360;
+  return r > 90 && r < 270;
+}
+
 export function renderAssetSvg(def: AssetDef, o: PaintSource): string {
   if (!def.draw) return svgDoc(o.width, o.height, '');
   const p = resolvePaint(def, o);
   const symbol = o.symbolHidden ? null : o.symbol && isSafePath(o.symbol.path) ? o.symbol : undefined;
   const band = def.outline === 'arc' || def.outline === 'L' ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band }) : undefined;
-  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly };
+  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly, upsideDown: isUpsideDown(o.rotation) };
   return svgDoc(o.width, o.height, def.draw(ctx));
 }
 
