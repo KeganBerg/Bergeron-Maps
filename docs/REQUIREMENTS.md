@@ -228,5 +228,6 @@ Last updated: 2026-10-30 (Phase 1).
 | Employee My Locations, join with 6-character code, leave a site | `my_locations`, `join_site`, `leave_site` |
 | Public link with no sign-in | `get_public_site`; `…/app/#/view/<site-link>`; Make public on a published map |
 | Delete companies, sites (only once empty), people | `admin_delete_company` (type the name), `admin_delete_site`, `remove_member` |
+| Back up and restore whole companies (a deleted client that comes back) | All accounts → Download backup / Restore from backup: `src/cloud/backup.ts` (`.bmbackup.json`), `admin_restore_company` + `admin_restore_versions` (migration 20261112020000); tests `supabase/tests/backups.test.ts`, `e2e/online/backups.online.spec.ts` |
 
 Still deferred, waiting on Kegan: Stripe setup fee and per-site billing; custom client domains (needs the move to Cloudflare); email alerts for manager requests (needs an email sender).
