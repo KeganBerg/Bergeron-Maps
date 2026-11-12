@@ -1,5 +1,5 @@
 import Konva from 'konva';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Label, Layer, Line, Rect, Shape, Stage, Tag, Text, Transformer } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
@@ -17,6 +17,12 @@ import { MAP_PALETTE } from '../theme';
 import { currentFloor, useEditor } from './store';
 
 const DRAG_THRESHOLD = 3;
+/**
+ * Above this many selected objects, a drag moves the drawn objects directly and
+ * saves the move once on release, instead of rebuilding the map on every mouse
+ * move (about 0.7s per move with 6,000 spaces selected).
+ */
+const LIVE_DRAG_LIMIT = 150;
 const ALL_ANCHORS = ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right'];
 const COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
@@ -34,6 +40,9 @@ type Gesture =
       others: Box[];
       started: boolean;
       additiveClickId?: string;
+      /** Big selections move the drawn objects directly while dragging (see LIVE_DRAG_LIMIT). */
+      nodes?: Map<string, Konva.Node>;
+      last?: { dx: number; dy: number };
     }
   | { type: 'marquee'; start: { x: number; y: number }; additive: boolean }
   | { type: 'row'; start: { x: number; y: number } }
@@ -181,6 +190,31 @@ export function CanvasStage() {
     window.addEventListener('pointermove', move);
     return () => window.removeEventListener('pointermove', move);
   }, []);
+
+  // Konva re-measures the whole selection every time any one selected object
+  // changes, so moving 2,000 selected spaces did 2,000 x 2,000 measurements
+  // (over a minute on a big lot). Outside a resize or rotate, gather those
+  // into one re-measure after the change has been applied.
+  useEffect(() => {
+    const tr = trRef.current as (Konva.Transformer & { _transforming?: boolean }) | null;
+    if (!tr) return;
+    const update = tr.update.bind(tr);
+    let queued = false;
+    tr.update = () => {
+      if (tr._transforming) return update();
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        if (!tr.getStage()) return;
+        update();
+        tr.getLayer()?.batchDraw();
+      });
+    };
+    return () => {
+      tr.update = update;
+    };
+  }, [doc !== null]);
 
   // Attach the transformer to the selected nodes.
   useEffect(() => {
@@ -333,12 +367,25 @@ export function CanvasStage() {
         g.started = true;
         g.additiveClickId = undefined;
         st.beginGesture();
+        if (g.startPos.size > LIVE_DRAG_LIMIT && stageRef.current) {
+          g.nodes = new Map();
+          for (const n of stageRef.current.find('.obj')) if (g.startPos.has(n.id()) && !g.nodes.has(n.id())) g.nodes.set(n.id(), n);
+        }
       }
       const snap = snapMove(st.snapMode, g.box, rawDx, rawDy, g.others, {
         threshold: 6 / viewport.scale,
         gridSize,
       });
       setGuides(snap.guides);
+      if (g.nodes) {
+        g.last = { dx: snap.dx, dy: snap.dy };
+        for (const [id, n] of g.nodes) {
+          const s = g.startPos.get(id)!;
+          n.position({ x: s.x + snap.dx, y: s.y + snap.dy });
+        }
+        stageRef.current?.batchDraw();
+        return;
+      }
       st.previewGesture((_d, f) => {
         for (const o of f.objects) {
           const s = g.startPos.get(o.id);
@@ -382,7 +429,19 @@ export function CanvasStage() {
       if (marquee && marquee.width * viewport.scale > 2) st.selectInBox(marquee, g.additive);
       setMarquee(null);
     } else if (g.type === 'move') {
-      if (g.started) st.endGesture();
+      if (g.started && g.nodes) {
+        const d = g.last ?? { dx: 0, dy: 0 };
+        st.previewGesture((_d, f) => {
+          for (const o of f.objects) {
+            const s = g.startPos.get(o.id);
+            if (s) {
+              o.x = s.x + d.dx;
+              o.y = s.y + d.dy;
+            }
+          }
+        });
+        st.endGesture();
+      } else if (g.started) st.endGesture();
       else if (g.additiveClickId) st.clickObject(g.additiveClickId, { additive: true });
       setGuides([]);
     } else if (g.type === 'row') {
@@ -419,7 +478,14 @@ export function CanvasStage() {
     const g = gesture.current;
     gesture.current = null;
     if (!g) return;
-    if (g.type === 'move' && g.started) useEditor.getState().cancelGesture();
+    if (g.type === 'move' && g.started) {
+      useEditor.getState().cancelGesture();
+      // Directly moved objects go back where they were.
+      if (g.nodes) {
+        for (const [id, n] of g.nodes) n.position(g.startPos.get(id)!);
+        stageRef.current?.batchDraw();
+      }
+    }
     setGuides([]);
     setMarquee(null);
     setCutDraft(null);
@@ -528,23 +594,7 @@ export function CanvasStage() {
       >
         <Layer>
           {(snapMode === 'grid' || (tool.type === 'cut' && tool.mode === 'grid')) && <GridLines viewport={viewport} size={viewSize} grid={gridSize} />}
-          {floor.layers.map((layer) => {
-            if (!layer.visible) return null;
-            const listening = !layer.locked;
-            return (
-              <Group key={layer.id} listening={listening}>
-                {floor.background?.layerId === layer.id && (
-                  <BackgroundShape
-                    bg={floor.background}
-                    listening={bgEditable}
-                    draggable={bgSelected}
-                    onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
-                  />
-                )}
-                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} curbs={floor.objects} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
-              </Group>
-            );
-          })}
+          <FloorObjects floor={floor} duplicates={duplicates} bgEditable={bgEditable} bgSelected={bgSelected} />
           {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={viewport.scale} />}
         </Layer>
         <Layer>
@@ -618,6 +668,47 @@ export function CanvasStage() {
     </div>
   );
 }
+
+/**
+ * The floor's drawn objects. Kept apart from the canvas so zooming, panning and
+ * selecting don't re-check thousands of objects that haven't changed.
+ */
+const FloorObjects = memo(function FloorObjects({ floor, duplicates, bgEditable, bgSelected }: {
+  floor: Floor; duplicates: Set<string>; bgEditable: boolean; bgSelected: boolean;
+}) {
+  const objProps = useCallback((o: MapObject) => ({ duplicate: duplicates.has(o.id) }), [duplicates]);
+  const byLayer = useMemo(() => {
+    const m = new Map<string, MapObject[]>();
+    for (const o of floor.objects) {
+      const list = m.get(o.layerId);
+      if (list) list.push(o);
+      else m.set(o.layerId, [o]);
+    }
+    return m;
+  }, [floor.objects]);
+  return (
+    <>
+      {floor.layers.map((layer) => {
+        if (!layer.visible) return null;
+        const listening = !layer.locked;
+        return (
+          <Group key={layer.id} listening={listening}>
+            {floor.background?.layerId === layer.id && (
+              <BackgroundShape
+                bg={floor.background}
+                listening={bgEditable}
+                draggable={bgSelected}
+                onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
+              />
+            )}
+            <LayerObjects objects={byLayer.get(layer.id) ?? NO_OBJECTS} curbs={floor.objects} objProps={objProps} />
+          </Group>
+        );
+      })}
+    </>
+  );
+});
+const NO_OBJECTS: MapObject[] = [];
 
 function rowPreview(d: { a: { x: number; y: number }; b: { x: number; y: number } }) {
   const len = Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y);
