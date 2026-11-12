@@ -6,11 +6,11 @@
 // Writes favicon-16.png, favicon-32.png, favicon.ico (16/32/48), apple-touch-icon.png,
 // favicon.svg and logo.svg into public/ (the app) and site/ (the marketing site).
 //
-// The card mark is 3.3 times wider than tall. At tab size a straight scale lands its five
-// horizontal bands (B top bar, gap, middle bar, counter, bottom bar) between pixels and it
-// turns to grey mush, so the small PNGs place the mark on whole pixels: at 16px it is
-// exactly 5 rows tall (one row per band) and 16 wide. The width/height ratio never moves
-// more than 3% from the card's. Large sizes are a plain uniform scale.
+// The card mark is 3.3 times wider than tall, which reads as stretched inside a small
+// square. Square icons use the compact icon version: the same artwork drawn 30% taller
+// (ICON_RATIO 2.5 to 1, Kegan's pick). Headers and wordmarks keep the exact card shape.
+// The small PNGs place the mark on whole pixels so its bands stay sharp; 16px is a
+// hand-fitted bitmap.
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -19,13 +19,14 @@ const svg = readFileSync(`${root}src/assets/brand/monogram.svg`, 'utf8');
 const d = svg.match(/ d="([^"]+)"/)[1];
 const [VX, VY, VW, VH] = svg.match(/viewBox="([^"]+)"/)[1].split(/\s+/).map(Number);
 const TILE = '#0b0b0b';
+const ICON_RATIO = 2.5;
 
 // size: [mark x, mark y, mark width, mark height, tile corner radius] in output pixels.
 const PNG = {
-  16: [0, 5, 16, 5, 3],
-  32: [1, 11, 30, 9, 6],
-  48: [3, 17, 42, 13, 9],
-  180: [18, (180 - 144 / (VW / VH)) / 2, 144, 144 / (VW / VH), 0], // iOS rounds the corners itself
+  16: [0, 5, 16, 6, 3],
+  32: [1, 10, 30, 12, 6],
+  48: [3, 16, 42, 17, 9],
+  180: [20, 62, 140, 56, 0], // iOS rounds the corners itself
 };
 
 const browser = await chromium.launch();
@@ -74,15 +75,16 @@ for (const [size, [x, y, w, h, r]] of Object.entries(PNG)) {
 }
 await browser.close();
 
-// 16px is hand-fitted, like a hinted font: one pixel row per band of the card mark, so the
-// B's open top-left and the M's raised left stem stay sharp instead of greying out.
+// 16px is hand-fitted, like a hinted font: one pixel row per band of the mark (two for the
+// B's counter), so the B's open top-left and the M's raised left stem stay sharp.
 // '#' full white, '+' half, '.' tile. Columns 0-6 are the B, 7 the gap, 8-15 the M.
 const HINT16 = [
   '######+.#.....##',
   '.....##..#...###',
   '#######.#.#.#.##',
-  '#.....#.#..#..##',
-  '######+.#..+..##',
+  '#.....#.#..##.##',
+  '#.....#.#..+..##',
+  '######+.#.....##',
 ];
 {
   const p = await chromium.launch();
@@ -126,10 +128,10 @@ function ico(entries) {
   return Buffer.concat([head, ...entries.map(([, png]) => png)]);
 }
 
-// Scalable icon: same tile, uniform scale, mark 84% of the tile width, centred.
-const mw = 84, mh = mw / (VW / VH), mx = (100 - mw) / 2, my = (100 - mh) / 2;
-const k = mw / VW;
-const scalable = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="${TILE}"/><path fill="#fff" fill-rule="evenodd" transform="matrix(${+k.toFixed(6)} 0 0 ${+k.toFixed(6)} ${+(mx - VX * k).toFixed(4)} ${+(my - VY * k).toFixed(4)})" d="${d}"/></svg>\n`;
+// Scalable icon: same tile, compact icon mark 80% of the tile width, centred.
+const mw = 80, mh = mw / ICON_RATIO, mx = (100 - mw) / 2, my = (100 - mh) / 2;
+const kx = mw / VW, ky = mh / VH;
+const scalable = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="${TILE}"/><path fill="#fff" fill-rule="evenodd" transform="matrix(${+kx.toFixed(6)} 0 0 ${+ky.toFixed(6)} ${+(mx - VX * kx).toFixed(4)} ${+(my - VY * ky).toFixed(4)})" d="${d}"/></svg>\n`;
 
 for (const dir of ['public', 'site']) {
   writeFileSync(`${root}${dir}/favicon-16.png`, out[16]);
