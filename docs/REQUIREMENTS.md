@@ -64,6 +64,7 @@ Last updated: 2026-10-30 (Phase 1).
 | 6.1 | Create, rename, reorder, delete, show/hide, lock/unlock, move objects between layers, identify object's layer and active layer | `editor/LayersPanel.tsx`, `model/layers.ts` | unit: floors-layers.test, store.test; e2e: layers test | Tested |
 | 6.2 | Layer list shows name, visibility, lock, selected/active; locked objects can't be modified; new objects go to active layer | Active-layer picker with "Automatic (by type)" default; dot marks layers holding the selection | unit: store.test | Tested |
 | 6.3 | Sensible default layers; no setup needed; warn before deleting a non-empty layer and explain | Five default layers; delete dialog offers move-or-delete | unit: floors-layers.test | Tested |
+| 6.4 | Each layer lists its objects (name, icon) like Figma or Photoshop; list and canvas select each other; per-object show/hide, lock, rename, delete; drag to reorder or move to another layer; Shift/Ctrl multi-select; fast with thousands of spaces | `editor/LayerTree.tsx`, `model/layerTree.ts`, `placeObjects` in `model/layers.ts`; rows of spaces grouped, long lists windowed | unit: layerTree.test; e2e: layer-tree.spec | Tested |
 
 ## Part 7: Multilevel garages
 
@@ -166,7 +167,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Implementation | Status |
 |---|---|---|---|
-| 20 | Responsive with large lots, many floors/spaces/assets | Canvas rendering (Konva), memoized shapes, only the current floor is drawn, snapping candidates computed once per drag | Implemented. Not yet load-tested; a benchmark with ~5,000 spaces is planned for Phase 3 |
+| 20 | Responsive with large lots, many floors/spaces/assets | Canvas rendering (Konva), memoized shapes, only the current floor is drawn, snapping candidates computed once per drag; the selection box re-measures once per change, not once per selected object; drags of more than 150 objects move the drawn objects directly and save once on release; zoom, pan and viewer search skip re-checking unchanged objects | Load-tested 2026-11-12 on the largest quick lot (12 floors x 2,080 spaces, up to 6,300 objects on one floor): every edit, undo, drag step and zoom step under 0.7s. `e2e/big-lot.spec.ts` guards it |
 
 ## Part 21: Security and privacy
 

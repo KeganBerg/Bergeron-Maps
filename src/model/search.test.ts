@@ -66,3 +66,27 @@ describe('map search', () => {
     expect(searchMap(doc, 'B16')).toEqual([]);
   });
 });
+
+describe('per-floor space numbers', () => {
+  it('finds "F6 37" when the employee types just 37, one hit per floor', () => {
+    const doc = createMap('Garage');
+    const f6 = createFloor('F6');
+    doc.floors.push(f6);
+    const sp = (label: string, layerId: string) => ({ id: label, kind: 'space' as const, label, layerId, x: 0, y: 0, width: 9, height: 18, rotation: 0, labelPlacement: 'center' as const, fill: '#fff' });
+    doc.floors[0].objects.push(sp('F1 37', doc.floors[0].layers[2].id), sp('F1 370', doc.floors[0].layers[2].id));
+    f6.objects.push(sp('F6 37', f6.layers[2].id));
+    const hits = searchMap(doc, '37');
+    expect(hits.map((h) => h.title)).toEqual(['Space F1 37', 'Space F6 37', 'Space F1 370']);
+    expect(hits[0].exact && hits[1].exact && !hits[2].exact).toBe(true);
+    expect(searchMap(doc, 'F6 37').map((h) => h.title)).toEqual(['Space F6 37']);
+  });
+
+  it('finds quick-lot space "1B1" when the employee types B1', () => {
+    const doc = createMap('Lot');
+    const l = doc.floors[0].layers[2].id;
+    const sp = (label: string) => ({ id: label, kind: 'space' as const, label, layerId: l, x: 0, y: 0, width: 9, height: 18, rotation: 0, labelPlacement: 'center' as const, fill: '#fff' });
+    doc.floors[0].objects.push(sp('1B1'), sp('1B10'), sp('2B1'));
+    expect(searchMap(doc, 'B1').map((h) => h.title)).toEqual(['Space 1B1', 'Space 2B1']);
+    expect(searchMap(doc, '1').map((h) => h.title)[0]).toBe('Space 1B1');
+  });
+});

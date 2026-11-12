@@ -28,13 +28,16 @@ interface ObjProps {
  * `fitW`/`fitH` (the room the object leaves for it) it shrinks or breaks onto
  * two lines so it never spills into neighbouring objects.
  */
-function UprightLabel({ text, x, y, rotation, size, color = MAP_PALETTE.label, maxWidth, fitW, fitH }: {
+function UprightLabel({ text, x, y, rotation, size, color = MAP_PALETTE.label, maxWidth, fitW, fitH, growDown }: {
   text: string; x: number; y: number; rotation: number; size: number; color?: string; maxWidth: number; fitW?: number; fitH?: number;
+  /** `y` is the middle of the first line and extra lines go below it (a name under a badge). */
+  growDown?: boolean;
 }) {
   const fitted = fitW ? fitLabel(text, size, fitW, fitH ?? size * 3) : { lines: [text], size };
   const fs = fitted.size;
   const body = fitted.lines.join('\n');
   const h = fs * LABEL_LINE_HEIGHT * fitted.lines.length;
+  if (growDown) y += (h - fs * LABEL_LINE_HEIGHT) / 2;
   const w = fitW ? Math.max(fitW, ...fitted.lines.map((l) => fs * l.length * 0.7)) : Math.max(maxWidth, fs * text.length * 0.7);
   return (
     <Text
@@ -134,8 +137,18 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
   );
 });
 
+/** The room an inside label has, as seen upright on screen (a turned room swaps width and height). */
+function insideRoom(obj: AssetObject, y: number, underBadge: boolean): { fitW: number; fitH: number; growDown: boolean } {
+  const rot = ((obj.rotation % 180) + 180) % 180;
+  const sideways = rot > 45 && rot < 135;
+  const across = (sideways ? obj.height : obj.width) * 0.92;
+  // Under a badge the name may only grow downwards, toward the bottom wall.
+  const tall = underBadge ? 1.6 * (obj.height - y) : 2 * Math.min(y, obj.height - y);
+  return { fitW: across, fitH: Math.max(tall, 8), growDown: underBadge };
+}
+
 /** Where an asset's name label goes, in the object's own coordinates. */
-function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; size: number } | null {
+function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; size: number; badge: boolean } | null {
   const { width: w, height: h } = obj;
   let pos = def?.labelPos ?? 'below';
   // The name sits under the badge only while there is a badge.
@@ -144,9 +157,9 @@ function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; si
     pos = shows ? 'badge' : 'center';
   }
   if (pos === 'inside') return null;
-  if (pos === 'below') return { y: h + 10, size: Math.max(10, Math.min(14, Math.max(w, h) * 0.22)) };
+  if (pos === 'below') return { y: h + 10, size: Math.max(10, Math.min(14, Math.max(w, h) * 0.22)), badge: false };
   const size = Math.max(10, Math.min(20, Math.min(w, h) * 0.16, (w / 8) * 1.6));
-  return { y: pos === 'badge' ? badgeLayout(w, h).labelY : h / 2, size };
+  return { y: pos === 'badge' ? badgeLayout(w, h).labelY : h / 2, size, badge: pos === 'badge' };
 }
 
 /**
@@ -224,6 +237,9 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
           rotation={obj.rotation}
           size={spot.size}
           maxWidth={obj.width}
+          // A name drawn inside the object shrinks or wraps to stay inside it
+          // ("Customer waiting room" used to spill past the walls of its room).
+          {...(spot.y < obj.height ? insideRoom(obj, spot.y, spot.badge) : {})}
           color={spot.y < obj.height && def?.labelColor ? def.labelColor : MAP_PALETTE.label}
         />
       )}
@@ -610,12 +626,16 @@ const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster })
  * one shape where their bottom-most piece sits; each piece still gets its own
  * invisible outline for clicking, selecting and labels.
  */
-export function LayerObjects({ objects, curbs, objProps }: {
+export function LayerObjects({ objects: all, curbs, objProps, honorLocks }: {
   objects: MapObject[];
   /** The floor's parking spaces (on any layer): road paint gives way to rows beside it. */
   curbs?: MapObject[];
   objProps?: (o: MapObject) => Omit<ObjProps, 'obj'>;
+  /** Editor: locked objects ignore the pointer, so clicks and drags pass through them. */
+  honorLocks?: boolean;
 }) {
+  // Objects hidden from the Layers panel aren't drawn anywhere.
+  const objects = useMemo(() => (all.some((o) => o.hidden) ? all.filter((o) => !o.hidden) : all), [all]);
   // Re-merge only when a mergeable piece changes, not on every pan, zoom or unrelated edit.
   const signature = JSON.stringify(
     objects.map((o) => (o.kind === 'asset' && ASSET_BY_KEY[o.assetKey] && mergeKey(ASSET_BY_KEY[o.assetKey]!) ? [o.id, o.x, o.y, o.width, o.height, o.rotation, o.corner, o.bevel, o.band, o.cuts, o.blend, o.merge, o.fill, o.fillOpacity, o.stroke, o.strokeWidth] : 0)),
@@ -629,10 +649,11 @@ export function LayerObjects({ objects, curbs, objProps }: {
       {objects.map((o) => {
         const lead = leads.get(o.id);
         const props = objProps?.(o) ?? {};
+        const shape = o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} markShift={shifts.get(o.id)} /> : <MapObjectShape obj={o} {...props} />;
         return (
           <Fragment key={o.id}>
             {lead && <MergedShape cluster={lead} />}
-            {o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} markShift={shifts.get(o.id)} /> : <MapObjectShape obj={o} {...props} />}
+            {honorLocks && o.locked ? <Group listening={false}>{shape}</Group> : shape}
           </Fragment>
         );
       })}

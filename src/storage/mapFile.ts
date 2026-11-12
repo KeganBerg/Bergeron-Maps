@@ -60,6 +60,7 @@ function repairObject(o: MapObject & Record<string, unknown>) {
     if (cuts.length) o.cuts = cuts;
     else delete o.cuts;
   }
+  for (const k of ['hidden', 'locked'] as const) if (k in o && o[k] !== true) delete o[k];
   if ('connectsTo' in o && !(Array.isArray(o.connectsTo) && o.connectsTo.every((v) => typeof v === 'string'))) delete o.connectsTo;
   if ('symbol' in o && !(isObj(o.symbol) && typeof o.symbol.name === 'string' && typeof o.symbol.path === 'string')) delete o.symbol;
   if (o.kind === 'text') {

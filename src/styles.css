@@ -224,16 +224,21 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .topbar .group { display: flex; align-items: center; gap: 4px; }
 .topbar .tools { flex-wrap: wrap; }
 .topbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 3px; }
-.map-name { font-weight: 600; border-color: transparent !important; width: 160px; }
+.map-name { font-weight: 600; border-color: transparent !important; width: 124px; }
 .snap select { width: 96px; }
 .map-name:hover, .map-name:focus { border-color: var(--border-strong) !important; }
-.save-status { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+/* One fixed width for every save state: when the pill grew from "Saved" to "Unsaved changes" the
+   top bar wrapped to two lines and back, and the map jumped 40px under the pointer mid-click. */
+.save-status { display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+  width: 112px; flex: none; }
+.save-status .save-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .save-status.ok { color: var(--ok); background: #f0fdf4; }
 .save-status.pending { color: var(--muted); background: var(--hover); }
 .save-status.error { color: var(--danger); background: #fef2f2; }
 .snap { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
 .grid-size { width: 56px; }
 .zoom-pct { border: 0; background: transparent; width: 52px; cursor: pointer; font-size: 13px; }
+@media (pointer: coarse) { .zoom-pct { min-height: 36px; } }
 
 .sidebar { width: 280px; flex: none; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .sidebar.collapsed { width: 44px; align-items: center; padding-top: 8px; }
@@ -265,12 +270,40 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .layer.active { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary); }
 .layer.hidden .layer-name { color: var(--muted); text-decoration: line-through; }
 .layer .icon-btn { width: 26px; height: 26px; }
-.layer-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.layer .icon-btn.tiny { width: 18px; height: 22px; }
+.layer-actions .icon-btn { width: 24px; }
+.layer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .layer-name-input { flex: 1; width: 0; }
 .sel-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex: none; }
 .count { font-size: 11px; color: var(--muted); min-width: 18px; text-align: right; }
 .layer-actions { display: none; }
-.layer:hover .layer-actions, .layer.active .layer-actions { display: flex; }
+.layer:hover .layer-actions { display: flex; }
+@media (hover: none) { .layer.active .layer-actions { display: flex; } }
+.layer-item { border-bottom: 1px solid var(--border); }
+.layer-item:last-child { border-bottom: 0; }
+.layer-item > .layer { border-bottom: 0; }
+.layer.drop-into { box-shadow: inset 0 0 0 2px var(--primary); }
+.twisty { color: var(--text-soft); flex: none; }
+.twisty-gap { width: 18px; flex: none; }
+.obj-row .twisty-gap, .obj-row .twisty { width: 18px; }
+.obj-list { overflow-y: auto; border-top: 1px solid var(--border); background: var(--panel); }
+.obj-empty { padding: 6px 12px 8px 50px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
+.obj-row { display: flex; align-items: center; gap: 4px; padding: 0 4px 0 22px; font-size: 13px; cursor: pointer; box-sizing: border-box; user-select: none; }
+.obj-row.child { padding-left: 44px; }
+.obj-row:hover { background: var(--hover-2); }
+.obj-row.selected { background: var(--primary-soft); color: var(--primary); }
+.obj-row.partial { box-shadow: inset 3px 0 0 var(--primary); }
+.obj-row.is-hidden .obj-name, .obj-row.is-hidden .obj-icon { opacity: 0.45; }
+.obj-row.drop-above { box-shadow: inset 0 2px 0 var(--primary); }
+.obj-row.drop-below { box-shadow: inset 0 -2px 0 var(--primary); }
+.obj-icon { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--text-soft); }
+.obj-icon img { max-width: 18px; max-height: 18px; object-fit: contain; }
+.obj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obj-name-input { flex: 1; width: 0; font-size: 12px; padding: 1px 4px !important; }
+.obj-actions { display: flex; flex: none; }
+.obj-actions .icon-btn { visibility: hidden; }
+.obj-row:hover .obj-actions .icon-btn, .obj-row.selected .obj-actions .icon-btn, .obj-actions .icon-btn.on { visibility: visible; }
+@media (hover: none) { .obj-actions .icon-btn { visibility: visible; } }
 .bg-section { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 4px; }
 .bg-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 
@@ -451,7 +484,7 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 
 /* Brand: the official BM monogram and wordmark (src/ui/Brand.tsx). */
 .brand-mark { display: inline-grid; place-items: center; background: #0b0b0c; color: #fff; border-radius: 22%; flex: none; }
-.brand-mark-glyph { display: block; width: 70%; line-height: 0; }
+.brand-mark-glyph { display: block; width: 80%; line-height: 0; }
 .brand-mark-glyph svg { display: block; width: 100%; height: auto; }
 .brand-wordmark { display: inline-block; color: inherit; line-height: 0; }
 .brand-wordmark svg { display: block; height: 100%; width: auto; }
@@ -503,6 +536,8 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 .pub-pill.live { background: #dcfce7; color: #166534; }
 .btn.published { background: transparent; color: inherit; border-color: var(--chrome-border); }
 .topbar .btn.published { color: var(--ok); border-color: currentColor; }
+/* Same width for Publish, Published and Publish changes, so publishing doesn't re-flow the bar. */
+.topbar [data-testid='publish'] { min-width: 136px; justify-content: center; }
 :root[data-theme='night'] .topbar .btn.published, :root[data-theme='signage'] .topbar .btn.published { color: #b7f0c4; border-color: rgba(183, 240, 196, 0.5); }
 
 /* Online mode: header, sign-in, team */

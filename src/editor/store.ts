@@ -11,7 +11,7 @@ import { boxesIntersect, objectBox, unionBoxes } from '../model/geometry';
 import { reorderObjects, type OrderOp } from '../model/order';
 import { cutForObject } from '../model/shape';
 import { newId } from '../model/ids';
-import { deleteLayer, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
+import { deleteLayer, placeObjects as placeObjectsOn, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
 import { highestNumber } from '../model/numbering';
 import { buildRowSpaces, normalizeRows, regenerateRow, SPACE_FILL, type RowAnchor } from '../model/rows';
 import type { SnapMode } from '../model/snapping';
@@ -108,6 +108,14 @@ interface EditorActions {
   moveSelection(moves: Moves): void;
   updateObjects(ids: string[], patch: Partial<MapObject>): void;
   moveToLayer(ids: string[], layerId: string): void;
+  /** Layers panel drag and drop: move to a layer, above or below another object (or on top). */
+  placeObjects(ids: string[], layerId: string, anchor: { id: string; side: 'above' | 'below' } | null): void;
+  /** Per-object eye and lock toggles in the Layers panel. */
+  setObjectFlag(ids: string[], key: 'hidden' | 'locked', value: boolean): void;
+  /** Renames from the Layers panel: a space's number, a text's words, or an object's name. */
+  renameObject(id: string, name: string): void;
+  /** Deletes objects even when they're locked or hidden (from the Layers panel). */
+  deleteObjects(ids: string[]): void;
   align(op: AlignOp): void;
   distribute(op: DistributeOp): void;
   renumber(ids: string[]): void;
@@ -174,11 +182,28 @@ const writePref = (k: string, v: unknown) => {
 export const currentFloor = (s: Pick<EditorState, 'doc' | 'floorId'>): Floor | undefined =>
   s.doc?.floors.find((f) => f.id === s.floorId) ?? s.doc?.floors[0];
 
-/** Layers that are locked or hidden cannot be selected or edited. */
+/**
+ * Makes a text box big enough for its words (it never shrinks one a person sized).
+ * The box used to stay 120 wide, so "Administration office" was drawn as "Administratio".
+ */
+export function growTextBox(o: { text: string; fontSize: number; width: number; height: number; strokeWidth?: number; fill?: string }) {
+  const charW = o.fontSize * 0.62;
+  const pad = o.fill || (o.strokeWidth ?? 0) > 0 ? 8 : 0;
+  const lines = o.text.split('\n');
+  const longestWord = Math.max(0, ...o.text.split(/\s+/).map((w) => w.length)) * charW + pad;
+  const longestLine = Math.max(0, ...lines.map((l) => l.length)) * charW + pad;
+  const width = Math.min(Math.max(o.width, longestWord, Math.min(longestLine, 480)), 1000);
+  const perLine = Math.max(1, (width - pad) / charW);
+  const rows = lines.reduce((n, l) => n + Math.max(1, Math.ceil(l.length / perLine)), 0);
+  o.width = Math.round(width);
+  o.height = Math.round(Math.max(o.height, rows * o.fontSize * 1.15 + 6));
+}
+
+/** Objects that are locked or hidden, or on a locked or hidden layer, cannot be selected or edited. */
 export function editableIds(floor: Floor, ids: Iterable<string>): string[] {
   const blocked = new Set(floor.layers.filter((l) => l.locked || !l.visible).map((l) => l.id));
   const set = new Set(ids);
-  return floor.objects.filter((o) => set.has(o.id) && !blocked.has(o.layerId)).map((o) => o.id);
+  return floor.objects.filter((o) => set.has(o.id) && !o.locked && !o.hidden && !blocked.has(o.layerId)).map((o) => o.id);
 }
 
 const initialState: EditorState = {
@@ -228,13 +253,24 @@ export const useEditor = create<EditorStore>()((set, get) => {
     }));
   };
 
-  const sanitize = (doc: MapDocument) => {
+  /**
+   * State that must stay valid after the document is swapped. With `from` (undo/redo),
+   * the objects the step brought back or changed become the selection, as in other
+   * design tools, so an undone delete can be moved or deleted again straight away.
+   */
+  const sanitize = (doc: MapDocument, from?: MapDocument) => {
     const s = get();
     const floor = doc.floors.find((f) => f.id === s.floorId) ?? doc.floors[0];
     const live = new Set(floor.objects.map((o) => o.id));
+    const before = from?.floors.find((f) => f.id === floor.id);
+    const was = new Map(before?.objects.map((o) => [o.id, o]));
+    // Compared by value: a step can rebuild objects it didn't really change.
+    const same = (a: MapObject | undefined, b: MapObject) => a === b || (!!a && JSON.stringify(a) === JSON.stringify(b));
+    const touched = before && before !== floor ? floor.objects.filter((o) => !same(was.get(o.id), o)).map((o) => o.id) : [];
+    const touchedEditable = touched.length ? editableIds(floor, touched) : [];
     return {
       floorId: floor.id,
-      selection: s.selection.filter((id) => live.has(id)),
+      selection: touchedEditable.length ? touchedEditable : s.selection.filter((id) => live.has(id)),
       enteredRowId: s.enteredRowId && floor.rows[s.enteredRowId] ? s.enteredRowId : null,
       activeLayer: s.activeLayer !== 'auto' && !floor.layers.some((l) => l.id === s.activeLayer) ? 'auto' : s.activeLayer,
     };
@@ -391,14 +427,14 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (!past.length || !doc) return;
       const prev = past[past.length - 1];
       set((s) => ({ doc: prev, past: past.slice(0, -1), future: [doc, ...future], editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
-      set(sanitize(prev));
+      set(sanitize(prev, doc));
     },
     redo() {
       const { past, doc, future } = get();
       if (!future.length || !doc) return;
       const next = future[0];
       set((s) => ({ doc: next, past: [...past, doc], future: future.slice(1), editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
-      set(sanitize(next));
+      set(sanitize(next, doc));
     },
 
     setFloor(id) {
@@ -491,9 +527,11 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (clip) pasteClip(clip, 1);
     },
     deleteSelection() {
-      const { selection } = get();
-      if (!selection.length) return;
-      const ids = new Set(selection);
+      get().deleteObjects(get().selection);
+    },
+    deleteObjects(list) {
+      if (!list.length) return;
+      const ids = new Set(list);
       commit((d, f) => {
         f.objects = f.objects.filter((o) => !ids.has(o.id));
         normalizeRows(f);
@@ -503,7 +541,7 @@ export const useEditor = create<EditorStore>()((set, get) => {
           if (gone.size) d.floors = d.floors.filter((x) => !gone.has(x.id));
         }
       });
-      set({ selection: [] });
+      set({ selection: get().selection.filter((id) => !ids.has(id)) });
     },
     nudge(dx, dy) {
       const { selection } = get();
@@ -526,7 +564,11 @@ export const useEditor = create<EditorStore>()((set, get) => {
     updateObjects(ids, patch) {
       const set_ = new Set(ids);
       commit((_d, f) => {
-        for (const o of f.objects) if (set_.has(o.id)) Object.assign(o, patch);
+        for (const o of f.objects) {
+          if (!set_.has(o.id)) continue;
+          Object.assign(o, patch);
+          if (o.kind === 'text' && ('text' in patch || 'fontSize' in patch)) growTextBox(o);
+        }
       });
     },
     moveToLayer(ids, layerId) {
@@ -536,6 +578,46 @@ export const useEditor = create<EditorStore>()((set, get) => {
         set({ selection: get().selection.filter((id) => !ids.includes(id)) });
         notify({ tone: 'info', message: `Moved to “${layer.name}”, which is ${layer.locked ? 'locked' : 'hidden'}.` });
       }
+    },
+    placeObjects(ids, layerId, anchor) {
+      const floor = currentFloor(get());
+      const layer = floor?.layers.find((l) => l.id === layerId);
+      if (!floor || !layer) return;
+      if (layer.role === 'background') {
+        notify({ tone: 'info', message: 'The background image layer only holds the site plan or photo.' });
+        return;
+      }
+      if (layer.locked) {
+        notify({ tone: 'info', message: `“${layer.name}” is locked. Unlock it to move objects onto it.` });
+        return;
+      }
+      commit((_d, f) => {
+        placeObjectsOn(f as Floor, ids, layerId, anchor);
+      });
+      const after = currentFloor(get());
+      if (after) set({ selection: editableIds(after, get().selection) });
+    },
+    setObjectFlag(ids, key, value) {
+      const set_ = new Set(ids);
+      commit((_d, f) => {
+        for (const o of f.objects) if (set_.has(o.id)) {
+          if (value) o[key] = true;
+          else delete o[key];
+        }
+      });
+      const floor = currentFloor(get());
+      if (floor) set({ selection: editableIds(floor, get().selection) });
+    },
+    renameObject(id, name) {
+      commit((_d, f) => {
+        const o = f.objects.find((x) => x.id === id);
+        if (!o) return;
+        const v = name.trim();
+        if (o.kind === 'space') o.label = v;
+        else if (o.kind === 'text') { if (v) o.text = v; }
+        else if (v) o.name = v;
+        else delete o.name;
+      });
     },
     align(op) {
       const floor = currentFloor(get());
@@ -684,6 +766,8 @@ export const useEditor = create<EditorStore>()((set, get) => {
           layerId: resolveTargetLayer(floor, get().activeLayer, 'labels'),
           x: at.x, y: at.y, width: 120, height: 28, rotation: 0,
         });
+        const added = f.objects[f.objects.length - 1];
+        if (added.kind === 'text') growTextBox(added);
       });
       set({ selection: [id], tool: { type: 'select' } });
     },
