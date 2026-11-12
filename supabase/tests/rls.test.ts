@@ -319,7 +319,7 @@ describe('sites: join codes and contract limits', () => {
     expect(fresh).not.toBe(old);
     const late = await user(`late${seq}@gmail.test`);
     expect((await as<{ join_site: string | null }>(late, 'select public.join_site($1)', [old]))[0].join_site).toBeNull();
-    await expect(as(w.manager, `update facilities set join_code = 'AAAAAA' where id = $1`, [w.facilityA])).rejects.toThrow(/New join code/);
+    await expect(as(w.manager, `update facilities set join_code = 'AAAAAA' where id = $1`, [w.facilityA])).rejects.toThrow(/New join code|permission denied/);
   });
 
   it('enforces the contracted number of sites, which customers cannot change', async () => {
@@ -505,5 +505,66 @@ describe('map slots and live maps per site', () => {
     const [{ id: d }] = await newMap(w.facilityB, 'D');
     await as(w.manager, 'select public.publish_map($1)', [d]);
     await expect(as(w.manager, 'update maps set facility_id = $1 where id = $2', [w.facilityA, d])).rejects.toThrow(/already has 2 live maps/);
+  });
+});
+
+describe('third audit (2026-11-10)', () => {
+  const codeOf = async (facility: string) =>
+    (await as<{ get_join_code: string }>(w.owner, 'select public.get_join_code($1)', [facility]))[0].get_join_code;
+
+  it('a site manager cannot use an employee join code to manage another site', async () => {
+    const siteMgr = await user(`site${seq}@acme.test`);
+    await as(w.owner, `select public.add_member($1, $2, 'manager', array[$3]::uuid[])`, [w.company, `site${seq}@acme.test`, w.facilityB]);
+    await expect(as(siteMgr, 'select public.join_site($1)', [await codeOf(w.facilityA)])).rejects.toThrow(/already manage/);
+    expect(await as(siteMgr, 'select public.can_edit_facility($1) ok', [w.facilityA])).toEqual([{ ok: false }]);
+    // Employees still join extra sites with a code, as before.
+    expect((await as<{ join_site: string }>(w.scopedEmployee, 'select public.join_site($1)', [await codeOf(w.facilityA)]))[0].join_site).toBe(w.facilityA);
+  });
+
+  it('the last owner cannot demote themselves and leave a company without an owner', async () => {
+    await expect(as(w.owner, `select public.add_member($1, $2, 'manager')`, [w.company, `owner${seq}@acme.test`])).rejects.toThrow(/at least one owner/);
+    const second = await user(`owner2-${seq}@acme.test`);
+    await as(w.owner, `select public.add_member($1, $2, 'owner')`, [w.company, `owner2-${seq}@acme.test`]);
+    await as(second, `select public.add_member($1, $2, 'manager')`, [w.company, `owner${seq}@acme.test`]);
+  });
+
+  it('a live map moved to another site is shown to that site, not the old one', async () => {
+    await as(w.manager, 'select public.publish_map($1)', [w.map]);
+    await as(w.manager, 'update maps set facility_id = $1 where id = $2', [w.facilityB, w.map]);
+    const [p] = await as<{ facility_id: string }>(w.manager, 'select facility_id from published_maps where map_id = $1', [w.map]);
+    expect(p.facility_id).toBe(w.facilityB);
+    expect(await as(w.scopedEmployee, 'select map_id from published_maps where map_id = $1', [w.map])).toHaveLength(1);
+  });
+
+  it('sites cannot be moved to another company or renumbered from the app', async () => {
+    await expect(as(w.owner, 'update facilities set company_id = $1 where id = $2', [w.otherCompany, w.facilityA])).rejects.toThrow(/permission denied/);
+    await as(w.owner, `update facilities set slug = 'harbor' where id = $1`, [w.facilityA]);
+  });
+
+  it('nothing is callable or writable by a visitor who is not signed in, beyond the public map link', async () => {
+    const fns = await db.query<{ proname: string }>(`
+      select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.prorettype <> 'trigger'::regtype and has_function_privilege('anon', p.oid, 'execute')
+      order by 1`);
+    expect(fns.rows.map((r) => r.proname)).toEqual(['get_public_map']);
+  });
+
+  it('signed-in people hold no write privileges on tables they may only read', async () => {
+    const r = await db.query<{ t: string; p: string }>(`
+      select t, p from unnest(array['companies','memberships','invitations','published_maps','audit_log','map_versions']) t,
+        unnest(array['INSERT','UPDATE','DELETE','TRUNCATE']) p
+      where has_table_privilege('authenticated', 'public.' || t, p)
+        and not (t = 'map_versions' and p = 'INSERT')`);
+    // companies keeps its column-level rename right only
+    expect(r.rows).toEqual([]);
+  });
+
+  it('password sign-ins are refused by the access token hook; email links are not', async () => {
+    const hook = (amr: unknown) =>
+      db.query<{ r: { error?: { http_code: number } } }>('select public.block_password_sign_in($1::jsonb) r', [JSON.stringify({ claims: { sub: w.owner, amr } })]);
+    expect((await hook([{ method: 'password', timestamp: 1 }])).rows[0].r.error?.http_code).toBe(403);
+    const ok = (await hook([{ method: 'otp', timestamp: 1 }])).rows[0].r;
+    expect(ok.error).toBeUndefined();
+    expect((ok as unknown as { claims: { sub: string } }).claims.sub).toBe(w.owner);
   });
 });

@@ -172,7 +172,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 21 | Server-side authorization, private maps, company separation, secure sessions, input validation, audit logs, backup access control | Not started (Phase 2). Phase 1 has no server and no accounts; nothing in it should be described as secure access control. Inputs are validated client-side (sizes, counts, image type/size) and stored maps are validated and migrated on load (`model/migrate.ts`) |
+| 21 | Server-side authorization, private maps, company separation, secure sessions, input validation, audit logs, backup access control | Done in the database (`supabase/migrations`, tested in `supabase/tests/rls.test.ts` against Supabase's default grants): row-level security on every table, company and site separation, draft vs published, audit log, join-code guess limit, document size limits, admin rights need a confirmed email. Third audit (2026-11-10) closed a join-code privilege escalation, trimmed default grants and added an optional hook that refuses password sign-ins. Open: no backups/export policy beyond map files |
 
 ## Part 22: Testing and traceability
 
