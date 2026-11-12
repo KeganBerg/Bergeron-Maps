@@ -609,12 +609,16 @@ const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster })
  * one shape where their bottom-most piece sits; each piece still gets its own
  * invisible outline for clicking, selecting and labels.
  */
-export function LayerObjects({ objects, curbs, objProps }: {
+export function LayerObjects({ objects: all, curbs, objProps, honorLocks }: {
   objects: MapObject[];
   /** The floor's parking spaces (on any layer): road paint gives way to rows beside it. */
   curbs?: MapObject[];
   objProps?: (o: MapObject) => Omit<ObjProps, 'obj'>;
+  /** Editor: locked objects ignore the pointer, so clicks and drags pass through them. */
+  honorLocks?: boolean;
 }) {
+  // Objects hidden from the Layers panel aren't drawn anywhere.
+  const objects = useMemo(() => (all.some((o) => o.hidden) ? all.filter((o) => !o.hidden) : all), [all]);
   // Re-merge only when a mergeable piece changes, not on every pan, zoom or unrelated edit.
   const signature = JSON.stringify(
     objects.map((o) => (o.kind === 'asset' && ASSET_BY_KEY[o.assetKey] && mergeKey(ASSET_BY_KEY[o.assetKey]!) ? [o.id, o.x, o.y, o.width, o.height, o.rotation, o.corner, o.bevel, o.band, o.cuts, o.blend, o.merge, o.fill, o.fillOpacity, o.stroke, o.strokeWidth] : 0)),
@@ -628,10 +632,11 @@ export function LayerObjects({ objects, curbs, objProps }: {
       {objects.map((o) => {
         const lead = leads.get(o.id);
         const props = objProps?.(o) ?? {};
+        const shape = o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} markShift={shifts.get(o.id)} /> : <MapObjectShape obj={o} {...props} />;
         return (
           <Fragment key={o.id}>
             {lead && <MergedShape cluster={lead} />}
-            {o.kind === 'asset' ? <AssetShape obj={o} {...props} merged={modes.get(o.id)} markClip={clips.get(o.id)} markShift={shifts.get(o.id)} /> : <MapObjectShape obj={o} {...props} />}
+            {honorLocks && o.locked ? <Group listening={false}>{shape}</Group> : shape}
           </Fragment>
         );
       })}

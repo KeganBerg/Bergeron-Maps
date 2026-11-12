@@ -52,6 +52,10 @@ interface BaseObject extends ObjectStyle {
   bevel?: boolean;
   /** Cut-outs, each a flat [x0, y0, x1, y1, ...] ring in fractions (0..1) of width and height. */
   cuts?: number[][];
+  /** Hidden from the editor canvas and the viewer (set from the Layers panel). */
+  hidden?: boolean;
+  /** Can't be selected or moved on the canvas until unlocked. */
+  locked?: boolean;
 }
 
 /** Painted markings that tell drivers what a space is for. */
