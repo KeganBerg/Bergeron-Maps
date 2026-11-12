@@ -55,6 +55,7 @@ const paths: Record<string, string> = {
   forward: 'M12 19V6M7 11l5-5 5 5',
   backward: 'M12 5v13M7 13l5 5 5-5',
   toBack: 'M12 4v11M7 10l5 5 5-5M5 20h14',
+  enter: 'M13 4h6v16h-6M3 12h11M10 8l4 4-4 4',
 };
 
 export type IconName = keyof typeof paths;

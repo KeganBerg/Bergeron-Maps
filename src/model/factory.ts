@@ -30,10 +30,11 @@ export function createMap(name: string, now = new Date()): MapDocument {
   };
 }
 
-/** "Floor N" using the first N not already taken. */
+/** "Floor N" using the first N not already taken on the site map (building interiors number their own floors). */
 export function nextFloorName(doc: MapDocument): string {
-  const taken = new Set(doc.floors.map((f) => f.name.trim().toLowerCase()));
-  let n = doc.floors.length + 1;
+  const site = doc.floors.filter((f) => !f.interiorOf);
+  const taken = new Set(site.map((f) => f.name.trim().toLowerCase()));
+  let n = site.length + 1;
   while (taken.has(`floor ${n}`)) n++;
   return `Floor ${n}`;
 }

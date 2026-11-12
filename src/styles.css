@@ -303,6 +303,11 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .floor-tab.active { background: var(--primary-soft); color: var(--primary); font-weight: 700; border-color: #bfdbfe; border-bottom: 3px solid var(--primary); }
 .tab-input { width: 120px; }
 .add-floor { flex: none; }
+.building-crumb { display: flex; align-items: center; gap: 8px; flex: none; padding-right: 8px; border-right: 1px solid var(--border); }
+.building-crumb .btn { gap: 4px; }
+.crumb-name { font-weight: 700; color: var(--text); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.interior-field { display: flex; flex-direction: column; gap: 6px; }
+.interior-field .btn { justify-content: center; gap: 6px; }
 .menu { position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); padding: 4px; display: flex; flex-direction: column; min-width: 170px; }
 .menu button { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 4px; cursor: pointer; }
 .menu button:hover:not(:disabled) { background: var(--hover); }
@@ -338,6 +343,9 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .viewer-floors { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
 .viewer-floors button { flex: none; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--panel); font-size: 15px; cursor: pointer; }
 .viewer-floors button.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+.viewer-floors button.outside { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+.viewer-building { flex: none; align-self: center; font-weight: 700; padding: 0 6px; max-width: 45vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-card .go-inside { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 @media (min-width: 900px) {
   .viewer-search { max-width: 520px; }
 }

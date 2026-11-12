@@ -1,3 +1,4 @@
+import { repairInteriors } from './interiors';
 import { SCHEMA_VERSION, type MapDocument } from './types';
 
 /**
@@ -14,6 +15,7 @@ export function migrateDocument(raw: unknown): MapDocument {
     f.rows ??= {};
     f.objects ??= [];
   }
+  repairInteriors(doc);
   doc.schemaVersion = SCHEMA_VERSION;
   return doc;
 }

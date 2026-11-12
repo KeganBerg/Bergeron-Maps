@@ -6,6 +6,11 @@ import type { Floor, MapDocument } from './types';
  * edits to the copy can never affect the original.
  */
 export function duplicateFloor(floor: Floor, name: string): Floor {
+  return duplicateFloorWithIds(floor, name).floor;
+}
+
+/** `duplicateFloor`, also returning old object id -> new object id. */
+export function duplicateFloorWithIds(floor: Floor, name: string): { floor: Floor; idMap: Map<string, string> } {
   const copy: Floor = structuredClone(floor);
   copy.id = newId('fl');
   copy.name = name;
@@ -23,18 +28,20 @@ export function duplicateFloor(floor: Floor, name: string): Floor {
     rows[id] = { ...spec, id };
   }
   copy.rows = rows;
+  const idMap = new Map<string, string>();
   copy.objects = copy.objects.map((o) => {
     const n = { ...o, id: newId(o.kind === 'space' ? 'sp' : o.kind === 'asset' ? 'as' : 'tx'), layerId: layerMap.get(o.layerId) ?? o.layerId };
+    idMap.set(o.id, n.id);
     if (n.kind === 'space' && n.rowId) n.rowId = rowMap.get(n.rowId);
     return n;
   });
   if (copy.background) copy.background.layerId = layerMap.get(copy.background.layerId) ?? copy.background.layerId;
-  return copy;
+  return { floor: copy, idMap };
 }
 
 /** "Floor 2 (copy)", "Floor 2 (copy 2)", ... */
-export function copyName(doc: MapDocument, base: string): string {
-  const names = new Set(doc.floors.map((f) => f.name));
+export function copyName(doc: MapDocument, base: string, group: Floor[] = doc.floors): string {
+  const names = new Set(group.map((f) => f.name));
   let name = `${base} (copy)`;
   for (let i = 2; names.has(name); i++) name = `${base} (copy ${i})`;
   return name;

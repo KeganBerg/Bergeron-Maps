@@ -4,7 +4,7 @@ import { boxRect, F, FS, icon, P, r2, shade, text, type DrawCtx } from '../style
 
 const s = category('Structural objects');
 
-const ROOM = { layer: 'structure' as const, fill: P.room, stroke: P.wall, strokeWidth: 3, labelPos: 'badge' as const };
+const ROOM = { enterable: true, layer: 'structure' as const, fill: P.room, stroke: P.wall, strokeWidth: 3, labelPos: 'badge' as const };
 
 export const STRUCTURE = [
   s('wall', 'Wall', { draw: (c) => boxRect(c), width: 240, height: 10, layer: 'structure', fill: P.wall, stroke: shade(P.wall, 0.3), strokeWidth: 1, keywords: ['partition', 'barrier'] }),
@@ -60,7 +60,7 @@ export const STRUCTURE = [
     },
   }),
   s('building-outline', 'Building outline', {
-    width: 280, height: 180, layer: 'structure', fill: P.building, fillOpacity: 0, stroke: P.wall, strokeWidth: 4, keywords: ['footprint', 'perimeter', 'outline'],
+    enterable: true, width: 280, height: 180, layer: 'structure', fill: P.building, fillOpacity: 0, stroke: P.wall, strokeWidth: 4, keywords: ['footprint', 'perimeter', 'outline'],
     label: 'Building', labelPos: 'center', draw: (c) => boxRect(c),
   }),
   s('utility-room', 'Utility room', { ...ROOM, draw: room('bolt'), width: 140, height: 100, label: 'Utility', keywords: ['electrical', 'meter'] }),

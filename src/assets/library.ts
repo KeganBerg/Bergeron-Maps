@@ -11,6 +11,7 @@ import { BACKGROUNDS, CUSTOM, DRAWING, MARKERS, TEXTS, ZONES } from './catalog/m
 import { OUTDOOR, SIGNS } from './catalog/outdoor-signs';
 import { BUILDINGS, GARAGE, PEDESTRIAN, SERVICE } from './catalog/places';
 import { SCHOOL, SCHOOL_SHARED, SCHOOLS } from './catalog/school';
+import { OFFICE, OFFICE_SHARED, OFFICES } from './catalog/office';
 import { SPACES } from './catalog/spaces';
 import { isSafePath, type MapSymbol } from './symbols';
 import { bandWidth, DEFAULT_BLEND, type ShapeSource } from '../model/shape';
@@ -35,6 +36,7 @@ export const ASSETS: AssetDef[] = [
   ...BUILDINGS,
   ...SERVICE,
   ...SCHOOLS,
+  ...OFFICES,
   ...OUTDOOR,
   ...SIGNS,
   ...ZONES,
@@ -50,13 +52,15 @@ const ALIASES: Record<string, string> = {
   office: 'lobby-entrance',
 };
 
-// General assets that also cover items on the school list are shown there too,
-// with school words added to search, so the library has one of each.
-for (const a of ASSETS) {
-  const extra = SCHOOL_SHARED[a.key];
-  if (!extra) continue;
-  a.also = [...(a.also ?? []), SCHOOL];
-  a.keywords = [...a.keywords, ...extra];
+// General assets that also cover items on the school or office lists are shown
+// there too, with their words added to search, so the library has one of each.
+for (const [cat, shared] of [[SCHOOL, SCHOOL_SHARED], [OFFICE, OFFICE_SHARED]] as const) {
+  for (const a of ASSETS) {
+    const extra = shared[a.key];
+    if (!extra) continue;
+    a.also = [...(a.also ?? []), cat];
+    a.keywords = [...a.keywords, ...extra];
+  }
 }
 
 export const ASSET_BY_KEY: Record<string, AssetDef> = Object.fromEntries(ASSETS.map((a) => [a.key, a]));
@@ -76,6 +80,9 @@ export function searchAssets(query: string, assets: AssetDef[] = ASSETS): AssetD
     return terms.every((t) => hay.includes(t));
   });
 }
+
+/** Buildings and rooms on a site floor can be clicked into to see their floor plan. */
+export const canHaveInterior = (def: AssetDef | undefined) => !!def?.enterable;
 
 /** Can this tile be placed on the map as a drawn asset object? */
 export const isDrawn = (def: AssetDef) => (def.creates ?? 'asset') === 'asset' && !!def.draw;

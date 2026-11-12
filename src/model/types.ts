@@ -148,6 +148,11 @@ export interface Floor {
   objects: MapObject[];
   rows: Record<string, RowSpec>;
   background?: BackgroundImage;
+  /**
+   * Set on a building's interior floors: the id of the building or room
+   * object (on a site floor) this floor plan is inside. See model/interiors.ts.
+   */
+  interiorOf?: string;
 }
 
 export interface MapSettings {

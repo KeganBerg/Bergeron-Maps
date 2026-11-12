@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Layer, Rect, Stage } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { searchMap, type SearchHit } from '../model/search';
+import { buildingName, buildingOf, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
+import { InteriorMarkers } from '../render/InteriorMarkers';
 import type { MapDocument, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
@@ -41,6 +43,8 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
   const [tapped, setTapped] = useState<MapObject | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const tracker = useRef(new PanZoomTracker());
+  /** Where the site map was when someone went inside a building, to come back to. */
+  const outside = useRef<{ x: number; y: number; scale: number } | null>(null);
   const viewRef = useRef(view);
   viewRef.current = view;
 
@@ -182,6 +186,31 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
     : [];
   const info = tapped ? describe(tapped, doc) : null;
   const tappedFloor = tapped && doc.floors.find((f) => f.objects.some((o) => o.id === tapped.id));
+  const inside = buildingOf(doc, floor);
+  const group = floorGroup(doc, floor);
+  const interiorIds = new Set(doc.floors.map((f) => f.interiorOf).filter((x): x is string => !!x));
+  const canGoIn = !!tapped && !floor.interiorOf && interiorIds.has(tapped.id);
+
+  const goInside = (buildingId: string) => {
+    const first = interiorFloors(doc, buildingId)[0];
+    if (!first) return;
+    outside.current = viewRef.current;
+    setTapped(null);
+    setFocus(null);
+    setFloorId(first.id);
+  };
+  const goOutside = () => {
+    if (!inside) return;
+    const b = inside.building;
+    setFloorId(inside.floor.id);
+    setTapped(b);
+    setFocus({ id: b.id, floorId: inside.floor.id });
+    if (outside.current) {
+      lastFit.current = `${inside.floor.id}:${size.width}x${size.height}`;
+      setView(outside.current);
+      outside.current = null;
+    }
+  };
 
   const onTap = (e: Konva.KonvaEventObject<Event>) => {
     if (tracker.current.moved) return; // the end of a drag or pinch, not a tap
@@ -193,7 +222,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
   };
 
   return (
-    <div className="viewer" style={{ ['--floor-color' as string]: floorColor(doc.floors.indexOf(floor)) }}>
+    <div className="viewer" style={{ ['--floor-color' as string]: floorColor(group.indexOf(floor)) }}>
       {preview && (
         <div className="preview-banner">
           Preview — this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
@@ -206,7 +235,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
         <div className="titles">
           <strong data-testid="viewer-facility">{doc.name}</strong>
           <span className="muted small">
-            {floor.name} · {preview ? 'Draft' : 'Updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
+            {floorTitle(doc, floor)} · {preview ? 'Draft' : 'Updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
           </span>
         </div>
         <button className="icon-btn" aria-label="Refresh map" title="Get the latest version" onClick={load}><Icon name="restore" /></button>
@@ -289,6 +318,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
                 />
               </Group>
             )}
+            {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
           </Layer>
         </Stage>
         <button className="fab" onClick={resetView} aria-label="Show whole floor" title="Show whole floor" data-testid="reset-view">
@@ -298,15 +328,26 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
           <div className="info-card" data-testid="info-card">
             <div>
               <strong>{info.title}</strong>
-              <span className="muted">{[tappedFloor?.name, info.detail].filter(Boolean).join(' · ')}</span>
+              <span className="muted">{[tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(' · ')}</span>
             </div>
+            {canGoIn && (
+              <button className="btn primary go-inside" onClick={() => goInside(tapped!.id)} data-testid="go-inside">
+                <Icon name="enter" size={16} /> Go inside
+              </button>
+            )}
             <button className="icon-btn" aria-label="Close" onClick={() => { setTapped(null); setFocus(null); }}><Icon name="close" /></button>
           </div>
         )}
       </div>
 
       <nav className="viewer-floors" aria-label="Floors">
-        {doc.floors.map((f, i) => (
+        {inside && (
+          <button className="outside" onClick={goOutside} data-testid="go-outside" title={`Back outside to ${inside.floor.name}`}>
+            <Icon name="back" size={16} /> Outside
+          </button>
+        )}
+        {inside && <span className="viewer-building" data-testid="viewer-building">{buildingName(inside.building)}</span>}
+        {(inside && group.length < 2 ? [] : group).map((f, i) => (
           <button key={f.id} className={f.id === floor.id ? 'active' : ''} aria-pressed={f.id === floor.id}
             style={{ ['--floor-color' as string]: floorColor(i) }}
             onClick={() => { setFloorId(f.id); setTapped(null); setFocus(null); }} data-testid={`viewer-floor-${f.name}`}>

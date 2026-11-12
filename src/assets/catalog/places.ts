@@ -132,8 +132,8 @@ export const GARAGE = [
 // ---------------------------------------------------------------- buildings & departments
 
 const bd = category('Buildings and departments');
-const BLD = { layer: 'structure' as const, fill: P.building, stroke: P.wall, strokeWidth: 2.5, labelPos: 'badge' as const, width: 280, height: 180 };
-const RM = { layer: 'structure' as const, fill: P.room, stroke: P.wall, strokeWidth: 3, labelPos: 'badge' as const, width: 160, height: 110 };
+const BLD = { enterable: true, layer: 'structure' as const, fill: P.building, stroke: P.wall, strokeWidth: 2.5, labelPos: 'badge' as const, width: 280, height: 180 };
+const RM = { enterable: true, layer: 'structure' as const, fill: P.room, stroke: P.wall, strokeWidth: 3, labelPos: 'badge' as const, width: 160, height: 110 };
 const b = (key: string, name: string, g: string, color: string, keywords: string[] = []) => bd(key, name, { ...BLD, draw: building(g, color), label: name, keywords: ['building', ...keywords] });
 const r = (key: string, name: string, g: string, color: string, keywords: string[] = [], size: Partial<typeof RM> = {}) =>
   bd(key, name, { ...RM, ...size, draw: room(g, color), label: name, keywords: ['room', 'department', ...keywords] });

@@ -53,10 +53,10 @@ export const SCHOOL_SHARED: Record<string, string[]> = {
 
 // ---------------------------------------------------------------- buildings and rooms
 
-const BLD = { layer: 'structure' as const, fill: P.building, stroke: P.wall, strokeWidth: 2.5, labelPos: 'badge' as const };
+const BLD = { enterable: true, layer: 'structure' as const, fill: P.building, stroke: P.wall, strokeWidth: 2.5, labelPos: 'badge' as const };
 const bld = (key: string, name: string, g: string, color: string, w: number, h: number, keywords: string[] = []) =>
   sc(key, name, { ...BLD, width: w, height: h, draw: building(g, color), label: name, keywords: ['building', 'school', 'campus', ...keywords] });
-const RM = { layer: 'structure' as const, fill: P.room, stroke: P.wall, strokeWidth: 3, labelPos: 'badge' as const, width: 160, height: 110 };
+const RM = { enterable: true, layer: 'structure' as const, fill: P.room, stroke: P.wall, strokeWidth: 3, labelPos: 'badge' as const, width: 160, height: 110 };
 
 /** A modular classroom: flat standing-seam roof, skirting, and steps up to the door. */
 const portable: DrawFn = (c) => {

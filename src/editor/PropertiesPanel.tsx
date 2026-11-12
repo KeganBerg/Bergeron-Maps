@@ -12,6 +12,8 @@ import { StyleFields } from './StyleFields';
 import { Icon, type IconName } from '../ui/icons';
 import { objectDisplayName } from './CanvasStage';
 import { currentFloor, useEditor } from './store';
+import { floorGroup, interiorFloors } from '../model/interiors';
+import { canHaveInterior } from '../assets/library';
 import type { OrderOp } from '../model/order';
 
 export function PropertiesPanel() {
@@ -207,7 +209,9 @@ function AssetFields({ a }: { a: AssetObject }) {
   const ref = useFocusOnEdit();
   const st = useEditor.getState;
   const def = ASSET_BY_KEY[a.assetKey];
-  const others = doc.floors.filter((f) => f.id !== floorId);
+  const here = doc.floors.find((f) => f.id === floorId) ?? doc.floors[0];
+  const others = floorGroup(doc, here).filter((f) => f.id !== floorId);
+  const inside = interiorFloors(doc, a.id);
   return (
     <div className="fields">
       <label>
@@ -222,6 +226,19 @@ function AssetFields({ a }: { a: AssetObject }) {
       </label>
       {def && symbolSupport(def).custom && !a.imageSrc && <SymbolField a={a} builtIn={symbolSupport(def).builtIn} />}
       {def?.note && def.creates !== 'image' && <p className="hint">{def.note}</p>}
+      {def && canHaveInterior(def) && !here.interiorOf && (
+        <div className="interior-field" data-testid="interior-field">
+          <span className="field-label">Inside</span>
+          <button className="btn" onClick={() => st().enterBuilding(a.id)} data-testid="enter-building">
+            <Icon name="enter" size={16} /> {inside.length ? 'Open floor plan' : 'Build the inside'}
+          </button>
+          <p className="hint">
+            {inside.length
+              ? `${inside.length} floor${inside.length > 1 ? 's' : ''} inside. Double-click the ${def.name.toLowerCase()} to go in too.`
+              : 'Lay out offices, cubicles, desks and more. People viewing the map can tap it to go inside.'}
+          </p>
+        </div>
+      )}
       {def?.connector && (
         <fieldset className="connects">
           <legend>Connects to</legend>
