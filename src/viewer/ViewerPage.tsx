@@ -145,7 +145,10 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
 
   const submitSearch = () => {
     const exact = hits.filter((h) => h.exact);
+    // "37" on a garage numbered per floor matches once per floor: the floor on screen wins.
+    const here = exact.filter((h) => h.floorId === floor?.id);
     if (exact.length === 1) goTo(exact[0]);
+    else if (here.length === 1) goTo(here[0]);
     else setShowResults(true);
   };
 

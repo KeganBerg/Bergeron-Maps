@@ -3,6 +3,8 @@ name: CI
 on:
   push:
   pull_request:
+  # GitHub merge queue: runs the suite on main with the PR merged in, before it lands.
+  merge_group:
 
 jobs:
   test:
@@ -17,8 +19,17 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit firefox
+      # Real mouse, wheel and touch input in Chromium, WebKit (Safari) and Firefox, desktop and phone sizes.
       - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
 
   database:
     runs-on: ubuntu-latest

@@ -224,13 +224,13 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .topbar .group { display: flex; align-items: center; gap: 4px; }
 .topbar .tools { flex-wrap: wrap; }
 .topbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 3px; }
-.map-name { font-weight: 600; border-color: transparent !important; width: 160px; }
+.map-name { font-weight: 600; border-color: transparent !important; width: 124px; }
 .snap select { width: 96px; }
 .map-name:hover, .map-name:focus { border-color: var(--border-strong) !important; }
 /* One fixed width for every save state: when the pill grew from "Saved" to "Unsaved changes" the
    top bar wrapped to two lines and back, and the map jumped 40px under the pointer mid-click. */
 .save-status { display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
-  width: 116px; flex: none; }
+  width: 112px; flex: none; }
 .save-status .save-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .save-status.ok { color: var(--ok); background: #f0fdf4; }
 .save-status.pending { color: var(--muted); background: var(--hover); }
@@ -238,6 +238,7 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .snap { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
 .grid-size { width: 56px; }
 .zoom-pct { border: 0; background: transparent; width: 52px; cursor: pointer; font-size: 13px; }
+@media (pointer: coarse) { .zoom-pct { min-height: 36px; } }
 
 .sidebar { width: 280px; flex: none; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .sidebar.collapsed { width: 44px; align-items: center; padding-top: 8px; }
@@ -507,6 +508,8 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 .pub-pill.live { background: #dcfce7; color: #166534; }
 .btn.published { background: transparent; color: inherit; border-color: var(--chrome-border); }
 .topbar .btn.published { color: var(--ok); border-color: currentColor; }
+/* Same width for Publish, Published and Publish changes, so publishing doesn't re-flow the bar. */
+.topbar [data-testid='publish'] { min-width: 136px; justify-content: center; }
 :root[data-theme='night'] .topbar .btn.published, :root[data-theme='signage'] .topbar .btn.published { color: #b7f0c4; border-color: rgba(183, 240, 196, 0.5); }
 
 /* Online mode: header, sign-in, team */
