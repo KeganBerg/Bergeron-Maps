@@ -162,7 +162,12 @@ test.describe('every action in sequence', () => {
       await realDrag(page, from, { x: from.x - 50, y: from.y });
       const v = (await editorState(page)).viewport;
       expect((await obj(page, 'Tree 1')).x - t.x).toBeCloseTo(-50 / v.scale, 0);
-      await realClick(page, await center(page, await obj(page, 'Column 1')));
+      // The column is off-screen at this zoom; fit the view, then pick it.
+      await page.getByTestId('fit').click();
+      await settle(page);
+      const colAt = await center(page, await obj(page, 'Column 1'));
+      expect(colAt.x > c.x && colAt.x < c.x + c.width && colAt.y > c.y && colAt.y < c.y + c.height, `column on screen at ${JSON.stringify(colAt)}`).toBe(true);
+      await realClick(page, colAt);
       expect(await selectedNames(page)).toEqual(['Column 1']);
     });
 
