@@ -164,6 +164,21 @@ export function CanvasStage() {
     if (selection.length) setBgSelected(false);
   }, [selection]);
 
+  // A drag that leaves the map (over the sidebar or floor tabs) keeps tracking
+  // the pointer, so a selection box or move follows it; letting go out there
+  // is ended by the window pointerup listener above.
+  const moveRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      const g = gesture.current;
+      if (!g || g.type === 'pan' || containerRef.current?.contains(e.target as Node)) return;
+      stageRef.current?.setPointersPositions(e);
+      moveRef.current();
+    };
+    window.addEventListener('pointermove', move);
+    return () => window.removeEventListener('pointermove', move);
+  }, []);
+
   // Attach the transformer to the selected nodes.
   useEffect(() => {
     const stage = stageRef.current;
@@ -390,6 +405,7 @@ export function CanvasStage() {
     }
   };
 
+  moveRef.current = onPointerMove;
   endGesture.current = onPointerUp;
   /** A second finger landed: undo whatever the first finger started. */
   cancelGesture.current = () => {
