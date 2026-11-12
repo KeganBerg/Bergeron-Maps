@@ -49,6 +49,7 @@ export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
+  const objLayerRef = useRef<Konva.Layer>(null);
   const gesture = useRef<Gesture | null>(null);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [cutDraft, setCutDraft] = useState<number[] | null>(null);
@@ -208,13 +209,50 @@ export function CanvasStage() {
     return g ? g.id() : null;
   };
 
+  /**
+   * The object to pick instead of the resize handle that was pressed, or null to
+   * let the handle resize. The rotate handle always wins.
+   */
+  const handleFallThrough = (handle: Konva.Node, tr: Konva.Transformer): Konva.Node | null => {
+    if (handle.name().includes('rotater') || !handle.hasName('_anchor')) return null;
+    const stage = stageRef.current;
+    const pos = stage?.getPointerPosition();
+    if (!stage || !pos) return null;
+    const c = handle.getAbsolutePosition();
+    const size = tr.anchorSize();
+    // The middle of the handle always resizes.
+    if (Math.hypot(pos.x - c.x, pos.y - c.y) <= size * 0.3) return null;
+    const hit = objLayerRef.current?.getIntersection(pos);
+    const g = hit && (hit.hasName('obj') ? hit : hit.findAncestor('.obj'));
+    if (!g || useEditor.getState().selection.includes(g.id())) return null;
+    // Keep the Transformer from starting a resize on the mouse/touch event that follows.
+    tr.listening(false);
+    const back = () => {
+      tr.listening(true);
+      window.removeEventListener('pointerup', back);
+      window.removeEventListener('pointercancel', back);
+    };
+    window.addEventListener('pointerup', back);
+    window.addEventListener('pointercancel', back);
+    return g;
+  };
+
   const onPointerDown = (e: Konva.KonvaEventObject<PointerEvent>) => {
     const st = useEditor.getState();
     const evt = e.evt;
     const isTouch = evt.pointerType === 'touch';
     // Second finger: the pinch has taken over (see the listeners above).
     if (isTouch && touch.current.pinching) return;
-    if (e.target.findAncestor('Transformer')) return; // resize/rotate handles
+    let target: Konva.Node = e.target;
+    const tr = e.target.findAncestor('Transformer') as Konva.Transformer | null;
+    if (tr) {
+      // A resize handle sits half over the neighbor (often right on its number).
+      // Pressing the outer part of a handle that covers another object picks that
+      // object; only the handle's middle, or a handle over empty map, resizes.
+      const under = handleFallThrough(e.target, tr);
+      if (!under) return; // resize/rotate handles
+      target = under;
+    }
     const p = pointer();
     const w = toWorld(p);
     const v = st.viewport;
@@ -259,13 +297,13 @@ export function CanvasStage() {
     }
 
     const additive = evt.shiftKey || evt.ctrlKey || evt.metaKey;
-    const id = objFromTarget(e.target);
-    if (isTouch && !(id && st.selection.includes(id)) && !(e.target.hasName('background') && bgSelected)) {
+    const id = objFromTarget(target);
+    if (isTouch && !(id && st.selection.includes(id)) && !(target.hasName('background') && bgSelected)) {
       // On a phone a finger drag over the map pans it. Objects are moved by
       // tapping them first, then dragging. A tap selects as usual.
       touch.current.startPan(evt.pointerId, v);
       if (id) gesture.current = { type: 'touch-tap', id, additive };
-      else if (e.target.hasName('background') && bgEditable) gesture.current = { type: 'touch-tap', id: '__background', additive };
+      else if (target.hasName('background') && bgEditable) gesture.current = { type: 'touch-tap', id: '__background', additive };
       else gesture.current = { type: 'touch-tap', id: '', additive };
       return;
     }
@@ -289,7 +327,7 @@ export function CanvasStage() {
       };
       return;
     }
-    if (e.target.hasName('background') && bgEditable) {
+    if (target.hasName('background') && bgEditable) {
       st.clearSelection();
       setBgSelected(true);
       return;
@@ -427,7 +465,7 @@ export function CanvasStage() {
     setPanning(false);
   };
 
-  const onDblClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const onDblClick = (e: Konva.KonvaEventObject<Event>) => {
     const id = objFromTarget(e.target);
     if (!id) return;
     const st = useEditor.getState();
@@ -524,9 +562,11 @@ export function CanvasStage() {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onDblClick={onDblClick}
+        // A double tap does on a phone or tablet what a double click does with a mouse.
+        onDblTap={onDblClick}
         onContextMenu={(e) => e.evt.preventDefault()}
       >
-        <Layer>
+        <Layer ref={objLayerRef}>
           {(snapMode === 'grid' || (tool.type === 'cut' && tool.mode === 'grid')) && <GridLines viewport={viewport} size={viewSize} grid={gridSize} />}
           {floor.layers.map((layer) => {
             if (!layer.visible) return null;
