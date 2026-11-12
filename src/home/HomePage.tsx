@@ -4,7 +4,7 @@ import { newId } from '../model/ids';
 import { MAP_FILE_EXTENSION, MAX_MAP_FILE_BYTES, parseMapFile } from '../storage/mapFile';
 import { SITE_LIVE_MAPS, SITE_MAP_SLOTS, TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
 import { navigate } from '../router';
-import { ConfirmDialog } from '../ui/Dialog';
+import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { NewMapDialog } from './NewMapDialog';
 import { Icon } from '../ui/icons';
 
@@ -73,6 +73,8 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
   const [unpublishing, setUnpublishing] = useState<MapSummary | null>(null);
   const [purging, setPurging] = useState<MapSummary | null>(null);
+  const [sharing, setSharing] = useState<MapSummary | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -206,6 +208,12 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                       </button>
                       <button className="btn small" onClick={() => copyMap(m)} disabled={full}
                         title={full ? SLOTS_FULL : 'Use as a starting point for another map at this site'}>Copy</button>
+                      {m.publishedAt && repo.setMapPublic && m.siteSlug && (
+                        <button className={`btn small${m.isPublic ? ' is-public' : ''}`} onClick={() => { setCopied(false); setSharing(m); }} data-testid={`public-${m.name}`}
+                          title={m.isPublic ? 'Anyone with the site’s public link can see this map' : 'Let anyone see this map without signing in'}>
+                          {m.isPublic ? 'Public link' : 'Make public'}
+                        </button>
+                      )}
                       {m.publishedAt && (
                         <button className="btn small" onClick={() => setUnpublishing(m)} data-testid={`unpublish-${m.name}`}
                           title="Stop showing this map to employees. The map itself is kept.">Unpublish</button>
@@ -309,6 +317,46 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
           message={<p>Employees will stop seeing this map. It stays in its slot, and you can publish it again any time. Each site can have {SITE_LIVE_MAPS} published maps at once.</p>}
         />
       )}
+      {sharing && (() => {
+        const link = `${window.location.origin}${window.location.pathname}#/view/${sharing.siteSlug}`;
+        const setPublic = async (on: boolean) => {
+          const m = sharing;
+          try {
+            await repo.setMapPublic!(m.id, on);
+            setSharing(on ? { ...m, isPublic: true } : null);
+          } catch (e) {
+            setSharing(null);
+            setError((e as Error).message || 'That didn’t go through. Try again.');
+          }
+          await refresh();
+        };
+        return (
+          <Dialog title={sharing.isPublic ? `“${sharing.name}” is public` : `Make “${sharing.name}” public?`} onClose={() => setSharing(null)}
+            footer={sharing.isPublic ? (
+              <>
+                <button className="btn danger-text" onClick={() => void setPublic(false)} data-testid="make-private">Make private</button>
+                <button className="btn primary" onClick={() => setSharing(null)}>Done</button>
+              </>
+            ) : (
+              <>
+                <button className="btn" onClick={() => setSharing(null)}>Cancel</button>
+                <button className="btn primary" onClick={() => void setPublic(true)} data-testid="make-public">Make public</button>
+              </>
+            )}>
+            {sharing.isPublic ? (
+              <>
+                <p>Anyone with this link sees the published version of the public maps at {sharing.site}, without signing in.</p>
+                <div className="share-link">
+                  <input readOnly value={link} aria-label="Public link" onFocus={(e) => e.currentTarget.select()} data-testid="public-link" />
+                  <button className="btn" onClick={() => void navigator.clipboard?.writeText(link).then(() => setCopied(true))}>{copied ? 'Copied' : 'Copy'}</button>
+                </div>
+              </>
+            ) : (
+              <p>Anyone with the site’s public link will see the published version of this map, without signing in. Drafts and unpublished changes stay private.</p>
+            )}
+          </Dialog>
+        );
+      })()}
       {purging && (
         <ConfirmDialog
           title={`Permanently delete “${purging.name}”?`}

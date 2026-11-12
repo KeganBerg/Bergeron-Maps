@@ -541,12 +541,12 @@ describe('third audit (2026-11-10)', () => {
     await as(w.owner, `update facilities set slug = 'harbor' where id = $1`, [w.facilityA]);
   });
 
-  it('nothing is callable or writable by a visitor who is not signed in, beyond the public map link', async () => {
+  it('nothing is callable or writable by a visitor who is not signed in, beyond the public map and site links', async () => {
     const fns = await db.query<{ proname: string }>(`
       select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.prorettype <> 'trigger'::regtype and has_function_privilege('anon', p.oid, 'execute')
       order by 1`);
-    expect(fns.rows.map((r) => r.proname)).toEqual(['get_public_map']);
+    expect(fns.rows.map((r) => r.proname)).toEqual(['get_public_map', 'get_public_site']);
   });
 
   it('signed-in people hold no write privileges on tables they may only read', async () => {

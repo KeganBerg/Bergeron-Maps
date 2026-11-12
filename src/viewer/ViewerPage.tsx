@@ -31,7 +31,11 @@ function describe(o: MapObject, doc: MapDocument): { title: string; detail?: str
  * The employee view: read-only, phone-first, uses exactly the same map data
  * as the editor. Pan by dragging, pinch or scroll to zoom, tap to identify.
  */
-export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapRepository; preview: boolean }) {
+export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
+  mapId: string; repo: MapRepository; preview: boolean;
+  /** Where the back button goes; null hides it (a public link to a site's only map). */
+  backTo?: string | null;
+}) {
   const [doc, setDoc] = useState<(MapDocument & { publishedAt?: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [floorId, setFloorId] = useState('');
@@ -157,7 +161,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
       <div className="page-message">
         <p>{error}</p>
         <button className="btn primary" onClick={load}>Try again</button>
-        <button className="btn" onClick={() => navigate('/')}>All maps</button>
+        {backTo !== null && <button className="btn" onClick={() => navigate(backTo)}>All maps</button>}
       </div>
     );
   if (!doc || !floor) return <div className="page-message"><p>Loading map…</p></div>;
@@ -232,9 +236,11 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
         </div>
       )}
       <header className="viewer-header">
-        <button className="icon-btn" aria-label={preview ? 'Back to editor' : 'All maps'} onClick={() => navigate(preview ? `/edit/${doc.id}` : '/')}>
-          <Icon name="back" />
-        </button>
+        {(preview || backTo !== null) && (
+          <button className="icon-btn" aria-label={preview ? 'Back to editor' : 'All maps'} onClick={() => navigate(preview ? `/edit/${doc.id}` : backTo ?? '/')}>
+            <Icon name="back" />
+          </button>
+        )}
         <div className="titles">
           <strong data-testid="viewer-facility">{doc.name}</strong>
           <span className="muted small">

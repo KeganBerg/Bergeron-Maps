@@ -6,15 +6,14 @@ import { ViewerPage } from '../viewer/ViewerPage';
 import { AccountMenu } from './AccountMenu';
 import { AdminPage } from './AdminPage';
 import { supabase } from './client';
-import { EmployeeHome } from './EmployeeHome';
-import { NoAccessPage } from './NoAccessPage';
+import { MyLocationsPage } from './MyLocationsPage';
 import { canEdit, canManageCompany, useSession } from './session';
 import { SignInPage, takeReturnRoute } from './SignInPage';
 import { SupabaseRepository } from './supabaseRepository';
 import { TeamPage } from './TeamPage';
 
 const COMPANY_KEY = 'bm.company';
-const RESERVED = new Set(['edit', 'view', 'team', 'site', 'admin']);
+const RESERVED = new Set(['edit', 'view', 'team', 'site', 'admin', 'locations']);
 const readCompany = () => { try { return localStorage.getItem(COMPANY_KEY); } catch { return null; } };
 
 /**
@@ -67,6 +66,17 @@ export function OnlineApp() {
   }, [s.memberships, companyId, siteParam, site]);
   const repo = useMemo(() => (membership ? new SupabaseRepository(supabase!, membership.companyId, siteParam) : null), [membership, siteParam]);
 
+  // Open manager requests, shown on the Sites & people tab for the people who can answer them.
+  const [requests, setRequests] = useState(0);
+  const answersRequests = !!membership && canManageCompany(membership);
+  useEffect(() => {
+    if (!answersRequests || !membership) return setRequests(0);
+    let alive = true;
+    supabase!.from('manager_requests').select('id', { count: 'exact', head: true }).eq('company_id', membership.companyId).eq('status', 'pending')
+      .then(({ count }) => { if (alive) setRequests(count ?? 0); });
+    return () => { alive = false; };
+  }, [answersRequests, membership?.companyId, parts[0]]);
+
   if (!s.loading && !s.session) return <SignInPage siteLink={!!linkKey} />;
   if (s.loading || (resolving && s.memberships.length)) return <div className="page-message"><p>Loading…</p></div>;
   // A failed lookup must not look like "you have no access".
@@ -94,13 +104,15 @@ export function OnlineApp() {
       {tabs.map(([key, to, label]) => (
         <a key={key} href={`#${to}`} className={`nav-tab${section === key ? ' on' : ''}`} aria-current={section === key ? 'page' : undefined} data-testid={`nav-${key}`}>
           {label}
+          {key === 'team' && requests > 0 && <span className="nav-count" aria-label={`${requests} manager ${requests === 1 ? 'request' : 'requests'} waiting`}>{requests}</span>}
         </a>
       ))}
     </>
   ) : undefined;
 
-  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage nav={nav} account={accountMenu} onOpen={switchCompany} onCreated={s.reload} />;
-  if (!membership || !repo) return <NoAccessPage email={s.email ?? ''} isAdmin={s.isAdmin} onJoined={s.reload} />;
+  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage nav={nav} account={accountMenu} email={s.email ?? ''} onOpen={switchCompany} onCreated={s.refresh} />;
+  const locations = <MyLocationsPage email={s.email ?? ''} account={accountMenu} onChanged={s.refresh} />;
+  if (!membership || !repo) return locations;
 
   if (parts[0] === 'view' && parts[1])
     return <ViewerPage key={parts[1]} mapId={parts[1]} repo={repo} preview={editor && query.get('preview') === '1'} />;
@@ -119,7 +131,7 @@ export function OnlineApp() {
       </div>
     );
 
-  if (!editor) return <EmployeeHome repo={repo} account={accountMenu} />;
+  if (!editor) return locations;
   return (
     <HomePage key={`${membership.companyId}:${siteParam ?? ''}`} repo={repo} nav={nav} headerExtra={accountMenu} banner={null}
       title={siteParam ? 'Your site' : `${membership.companyName} sites`} canAddSite={canManageCompany(membership) && !siteParam} />

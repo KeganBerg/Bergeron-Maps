@@ -88,7 +88,7 @@ test.describe('opening another role’s page by its link', () => {
     await sb.install(USERS.employee);
     for (const hash of ['/', '/team', '/admin', '/edit/00000000-0000-4000-8000-000000000000']) {
       await page.goto(`/#${hash}`);
-      await expect(page.getByRole('heading', { name: 'Your maps' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'My Locations' })).toBeVisible();
       await expect(page.getByTestId('nav-team')).toHaveCount(0);
       await expect(page.getByTestId('nav-admin')).toHaveCount(0);
       await expect(page.getByText('All accounts')).toHaveCount(0);
@@ -150,14 +150,14 @@ test.describe('site join codes', () => {
     const sb = new MockSupabase(page);
     await sb.install(USERS.newcomer);
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'You don’t have access to a site yet' })).toBeVisible();
+    await expect(page.getByTestId('no-locations')).toBeVisible();
     await page.getByTestId('join-code').fill('zzzzzz');
     await expect(page.getByTestId('join-code')).toHaveValue('ZZZZZZ');
     await page.getByRole('button', { name: 'Join site' }).click();
     await expect(page.getByRole('alert')).toContainText('didn’t match a site');
     await page.getByTestId('join-code').fill(SITE_A.code.toLowerCase());
     await page.getByRole('button', { name: 'Join site' }).click();
-    await expect(page.getByRole('heading', { name: 'Your maps' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My Locations' })).toBeVisible();
     expect(sb.members.find((m) => m.user_id === USERS.newcomer.id)).toMatchObject({ role: 'employee', facility_ids: [SITE_A.id] });
   });
 
@@ -177,6 +177,6 @@ test.describe('site join codes', () => {
     await page.goto('/');
     await page.getByTestId('join-code').fill('K7M 2QX');
     await page.getByRole('button', { name: 'Join site' }).click();
-    await expect(page.getByRole('heading', { name: 'Your maps' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My Locations' })).toBeVisible();
   });
 });

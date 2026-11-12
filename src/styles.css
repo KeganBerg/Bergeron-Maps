@@ -670,3 +670,32 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 /* The smallest phones (320px): the editor's first toolbar group wraps so Save and Publish stay on screen. */
 .topbar .group { flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .topbar .map-name { max-width: 100%; min-width: 0; }
+
+/* White-label roles: My Locations, manager requests, contract setup, deleting */
+.nav-count { margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.locations { display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
+.loc-company { display: flex; flex-direction: column; gap: 10px; }
+.loc-company-name { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.loc-site { display: flex; flex-direction: column; gap: 10px; }
+.loc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.loc-head > span { display: flex; flex-direction: column; gap: 2px; }
+.loc-name { font-size: 17px; font-family: var(--font-display); }
+.loc-maps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.loc-map { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; min-height: 48px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.loc-map:hover { border-color: var(--border-strong); }
+.loc-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 10px; }
+.muted-link { color: var(--muted) !important; }
+.loc-join { display: flex; flex-direction: column; gap: 12px; }
+.loc-join .btn { align-self: flex-start; }
+.setup-company { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: end; margin-top: 8px; }
+.setup-company .setup-wide { grid-column: span 1; }
+@media (max-width: 700px) { .setup-company { grid-template-columns: 1fr; } }
+.admin-contract { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.admin-contract .link-edit input { width: 110px; }
+.admin-add-site { margin-top: 8px; flex-wrap: wrap; }
+.admin-danger { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.share-link { display: flex; gap: 8px; }
+.share-link input { flex: 1; min-width: 0; }
+.btn.is-public { border-color: var(--primary); }
+.people li > span.site-actions { flex-direction: row; }

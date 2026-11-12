@@ -22,11 +22,12 @@ interface MapRow {
   deleted_at: string | null;
   facility_id: string;
   slot: number | null;
-  facilities: { name: string } | null;
+  is_public: boolean;
+  facilities: { name: string; slug: string } | null;
   published_maps: { published_at: string; revision: number } | null;
 }
 
-const MAP_COLUMNS = 'id, name, draft, revision, created_at, updated_at, deleted_at, facility_id, slot, facilities(name), published_maps(published_at, revision)';
+const MAP_COLUMNS = 'id, name, draft, revision, created_at, updated_at, deleted_at, facility_id, slot, is_public, facilities(name, slug), published_maps(published_at, revision)';
 
 const LABELS: Record<VersionReason, string> = {
   auto: 'Automatic save point',
@@ -56,11 +57,15 @@ function toDoc(row: Pick<MapRow, 'id' | 'name' | 'draft' | 'revision' | 'created
 
 function toSummary(row: MapRow): MapSummary {
   const pub = row.published_maps;
-  return summarize(toDoc(row), row.deleted_at ?? undefined, {
-    site: row.facilities?.name,
-    publish: pub ? { publishedAt: pub.published_at, publishedRevision: pub.revision } : undefined,
-    slot: row.slot,
-  });
+  return {
+    ...summarize(toDoc(row), row.deleted_at ?? undefined, {
+      site: row.facilities?.name,
+      publish: pub ? { publishedAt: pub.published_at, publishedRevision: pub.revision } : undefined,
+      slot: row.slot,
+    }),
+    isPublic: row.is_public,
+    siteSlug: row.facilities?.slug,
+  };
 }
 
 /**
@@ -163,6 +168,10 @@ export class SupabaseRepository implements MapRepository {
 
   async unpublishMap(id: string): Promise<void> {
     check(await this.db.rpc('unpublish_map', { p_map: id }));
+  }
+
+  async setMapPublic(id: string, on: boolean): Promise<void> {
+    changed(await this.db.from('maps').update({ is_public: on }).eq('id', id).select('id'));
   }
 
   async getPublishInfo(id: string): Promise<PublishInfo | null> {

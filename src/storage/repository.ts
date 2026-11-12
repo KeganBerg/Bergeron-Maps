@@ -16,6 +16,10 @@ export interface MapSummary {
   publishedRevision?: number;
   /** Numbered save slot at its site (1 to SITE_MAP_SLOTS). Missing for maps in the trash. */
   slot?: number;
+  /** Online only: anyone with the site's public link can see the published version. */
+  isPublic?: boolean;
+  /** Online only: the site's link name, for its public link (…/#/view/<siteSlug>). */
+  siteSlug?: string;
 }
 
 export interface PublishInfo {
@@ -95,6 +99,8 @@ export interface MapRepository {
   publishMap(id: string): Promise<PublishInfo>;
   /** Takes the map offline: employees stop seeing it. The draft is kept. */
   unpublishMap(id: string): Promise<void>;
+  /** Online only: shows or hides the published map on the site's public link. */
+  setMapPublic?(id: string, on: boolean): Promise<void>;
   getPublishInfo(id: string): Promise<PublishInfo | null>;
   /** The employee view. Null when the map was never published (or is deleted). */
   getPublishedMap(id: string): Promise<(MapDocument & { publishedAt: string }) | null>;
