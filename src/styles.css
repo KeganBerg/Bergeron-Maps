@@ -699,3 +699,14 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .share-link input { flex: 1; min-width: 0; }
 .btn.is-public { border-color: var(--primary); }
 .people li > span.site-actions { flex-direction: row; }
+
+/* Account backups (All accounts) */
+.backup-actions { flex-wrap: wrap; justify-content: flex-start; margin-top: 8px; }
+.backup-before-delete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; }
+.ok-inline { color: #166534; font-size: 0.9em; }
+.restore-list { list-style: none; margin: 8px 0; padding: 0; }
+.restore-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.restore-list label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.restore-list label > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.restore-list input { margin-top: 3px; }
+.restore-result { margin-bottom: 10px; }

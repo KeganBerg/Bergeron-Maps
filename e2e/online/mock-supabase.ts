@@ -60,6 +60,10 @@ export class MockSupabase {
   published = new Map<string, { isPublic: boolean }>();
   /** Users whose sessions were ended (removed from a company). */
   signedOut: string[] = [];
+  /** Saved versions of maps. */
+  versions: { id: string; map_id: string; created_at: string; reason: string; label: string; revision: number; doc: unknown }[] = [];
+  /** Companies sent to admin_restore_company, as received. */
+  restoredPayloads: Record<string, unknown>[] = [];
   private users = new Map<string, User>(Object.values(USERS).map((u) => [u.id, u]));
 
   constructor(private page: Page) {}
@@ -157,8 +161,9 @@ export class MockSupabase {
     }
     if (path === '/rest/v1/maps') {
       let list = this.maps.filter((m) => this.canSee(u, this.sites.find((s) => s.id === m.facility_id)!));
-      const id = eq('id');
+      const id = eq('id'), mapCompany = eq('company_id');
       if (id) list = list.filter((m) => m.id === id);
+      if (mapCompany) list = list.filter((m) => m.company_id === mapCompany);
       if (req.method() === 'PATCH' && url.searchParams.has('revision')) {
         const rev = Number(eq('revision'));
         list = list.filter((m) => m.revision === rev && this.canManage(u, this.sites.find((s) => s.id === m.facility_id)!));
@@ -179,12 +184,18 @@ export class MockSupabase {
       }));
     }
     if (path === '/rest/v1/published_maps') {
-      const id = eq('map_id');
-      const list = this.maps.filter((m) => this.published.has(m.id) && this.canSee(u, this.sites.find((s) => s.id === m.facility_id)!) && (!id || m.id === id));
+      const id = eq('map_id'), pubCompany = eq('company_id');
+      const list = this.maps.filter((m) => this.published.has(m.id) && this.canSee(u, this.sites.find((s) => s.id === m.facility_id)!) && (!id || m.id === id)
+        && (!pubCompany || m.company_id === pubCompany));
       return rows(list.map((m) => ({ map_id: m.id, name: m.name, facility_id: m.facility_id, published_at: '2026-11-12T00:00:00Z', revision: m.revision, doc: m.draft,
         floors: (m.draft as { floors?: unknown[] }).floors ?? [] })));
     }
-    if (path === '/rest/v1/map_versions') return rows([]);
+    if (path === '/rest/v1/map_versions') {
+      const mapId = eq('map_id');
+      const all = this.versions.filter((v) => !mapId || v.map_id === mapId);
+      const range = req.headers()['range']?.match(/(\d+)-(\d+)/);
+      return rows(range ? all.slice(Number(range[1]), Number(range[2]) + 1) : all);
+    }
 
     const rpc = path.startsWith('/rest/v1/rpc/') ? path.slice('/rest/v1/rpc/'.length) : null;
     const args = (req.postDataJSON() ?? {}) as Record<string, string>;
@@ -274,8 +285,43 @@ export class MockSupabase {
       if (!c || args.p_confirm_name !== c.name) return json({ code: '22023', message: 'Type the company name exactly as shown to confirm.' }, 400);
       this.companies = this.companies.filter((x) => x !== c);
       this.sites = this.sites.filter((x) => x.company_id !== c.id);
+      const gone = new Set(this.maps.filter((m) => m.company_id === c.id).map((m) => m.id));
       this.members = this.members.filter((x) => x.company_id !== c.id);
+      this.maps = this.maps.filter((m) => !gone.has(m.id));
+      this.versions = this.versions.filter((v) => !gone.has(v.map_id));
       return json(null);
+    }
+    if (rpc === 'admin_restore_company') {
+      if (!u.admin) return refuse('Only Bergeron Maps admins can restore a company.');
+      const b = (req.postDataJSON() as { p_backup: {
+        id: string; name: string; max_sites: number | null;
+        sites: { id: string; name: string; slug: string; address: string | null; join_code: string | null }[];
+        people: { email: string; role: Role; facility_ids: string[] | null }[];
+        maps: { id: string; facility_id: string; name: string; draft: Record<string, unknown>; revision: number; slot: number; is_public: boolean; published: unknown }[];
+      } }).p_backup;
+      this.restoredPayloads.push(b as unknown as Record<string, unknown>);
+      if (this.companies.some((c) => c.id === b.id)) return json({ code: '23505', message: `“${b.name}” is still in All accounts, so there is nothing to restore.` }, 409);
+      this.companies.push({ id: b.id, name: b.name, max_sites: b.max_sites });
+      for (const x of b.sites) this.sites.push({ id: x.id, company_id: b.id, name: x.name, slug: x.slug, code: x.join_code ?? 'NEWCDE', address: x.address });
+      const known = [...this.users.values()];
+      let members = 0, invited = 0;
+      for (const p of b.people) {
+        const who = known.find((k) => k.email === p.email);
+        if (who) { this.members.push({ user_id: who.id, email: p.email, company_id: b.id, role: p.role, facility_ids: p.facility_ids }); members++; } else invited++;
+      }
+      for (const m of b.maps) {
+        this.maps.push({ id: m.id, company_id: b.id, facility_id: m.facility_id, name: m.name, draft: m.draft, revision: m.revision, slot: m.slot });
+        if (m.published) this.published.set(m.id, { isPublic: m.is_public });
+      }
+      return json({ company: b.id, name: b.name, sites: b.sites.length, members, invited, maps: b.maps.length, published: b.maps.filter((m) => m.published).length,
+        moved_to_trash: 0, slug_changes: [] });
+    }
+    if (rpc === 'admin_restore_versions') {
+      if (!u.admin) return refuse('Only Bergeron Maps admins can restore a company.');
+      const a = req.postDataJSON() as { p_map: string; p_versions: { id: string }[] };
+      let n = 0;
+      for (const v of a.p_versions as never[]) if (!this.versions.some((x) => x.id === (v as { id: string }).id)) { this.versions.push({ ...(v as object), map_id: a.p_map } as never); n++; }
+      return json(n);
     }
     if (rpc === 'admin_delete_site') {
       if (!u.admin) return refuse('Only Bergeron Maps admins can delete sites here.');
