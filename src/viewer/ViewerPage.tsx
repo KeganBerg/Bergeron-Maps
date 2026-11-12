@@ -62,7 +62,8 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
       if (e.button !== 0 || (e.target as HTMLElement).closest('button, .info-card')) return;
       t.down(e.pointerId, at(e), viewRef.current);
       t.startPan(e.pointerId, viewRef.current);
-      if (e.pointerType === 'mouse') el.setPointerCapture?.(e.pointerId);
+      // No pointer capture: it would steal the pointerup from Konva, so mouse clicks on a
+      // space never registered. The window listeners below already follow drags off the map.
     };
     const onMove = (e: PointerEvent) => {
       const v = t.move(e.pointerId, at(e));
@@ -154,7 +155,31 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
     );
   if (!doc || !floor) return <div className="page-message"><p>Loading map…</p></div>;
 
+  // Room the info card takes at the bottom of the map, so a tapped space never hides under it.
+  const CARD_ROOM = 96;
+  const keepInView = (o: MapObject) => {
+    const v = viewRef.current;
+    const sx = v.x + o.x * v.scale;
+    const sy = v.y + o.y * v.scale;
+    const r = (Math.max(o.width, o.height) / 2) * v.scale + 12;
+    let dx = 0;
+    let dy = 0;
+    if (sx - r < 0) dx = r - sx;
+    else if (sx + r > size.width) dx = size.width - (sx + r);
+    if (sy + r > size.height - CARD_ROOM) dy = size.height - CARD_ROOM - (sy + r);
+    else if (sy - r < 0) dy = r - sy;
+    if (dx || dy) {
+      const next = { ...v, x: v.x + dx, y: v.y + dy };
+      viewRef.current = next;
+      setView(next);
+    }
+  };
+
   const focused = focus && focus.floorId === floor.id ? floor.objects.find((o) => o.id === focus.id) : undefined;
+  // While the results list is open, outline every match on this floor so typing "1" shows where the 1s are.
+  const matches = showResults && query.trim()
+    ? hits.filter((h) => h.floorId === floor.id && h.object.id !== focused?.id).map((h) => h.object)
+    : [];
   const info = tapped ? describe(tapped, doc) : null;
   const tappedFloor = tapped && doc.floors.find((f) => f.objects.some((o) => o.id === tapped.id));
 
@@ -163,7 +188,8 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
     const g = e.target.hasName('obj') ? e.target : e.target.findAncestor('.obj');
     const o = g ? floor.objects.find((x) => x.id === g.id()) : undefined;
     setTapped(o ?? null);
-    if (!o) setFocus(null);
+    setFocus(o ? { id: o.id, floorId: floor.id } : null);
+    if (o) keepInView(o);
   };
 
   return (
@@ -236,6 +262,19 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
                 </Group>
               ),
             )}
+            {matches.map((m) => (
+              <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation} listening={false}>
+                <Rect
+                  x={-m.width / 2 - 2 / view.scale}
+                  y={-m.height / 2 - 2 / view.scale}
+                  width={m.width + 4 / view.scale}
+                  height={m.height + 4 / view.scale}
+                  stroke={MAP_PALETTE.ring}
+                  strokeWidth={3 / view.scale}
+                  name="search-match"
+                />
+              </Group>
+            ))}
             {focused && (
               <Group x={focused.x} y={focused.y} rotation={focused.rotation} listening={false}>
                 <Rect
@@ -246,6 +285,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
                   stroke={MAP_PALETTE.ring}
                   strokeWidth={4 / view.scale}
                   cornerRadius={4 / view.scale}
+                  name="focus-ring"
                 />
               </Group>
             )}
@@ -269,7 +309,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
         {doc.floors.map((f, i) => (
           <button key={f.id} className={f.id === floor.id ? 'active' : ''} aria-pressed={f.id === floor.id}
             style={{ ['--floor-color' as string]: floorColor(i) }}
-            onClick={() => { setFloorId(f.id); setTapped(null); }} data-testid={`viewer-floor-${f.name}`}>
+            onClick={() => { setFloorId(f.id); setTapped(null); setFocus(null); }} data-testid={`viewer-floor-${f.name}`}>
             {f.name}
           </button>
         ))}
