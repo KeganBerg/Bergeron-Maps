@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { useRoute } from '../router';
-import { ConfirmDialog } from '../ui/Dialog';
+import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
 import { friendly, supabase } from './client';
+import { publicSiteLink } from './PublicSitePage';
 import { canManageCompany, type Membership, type Role } from './session';
 
-interface Site { id: string; name: string; slug: string }
+interface Site { id: string; name: string; slug: string; address: string | null }
+interface ManagerRequest { id: string; email: string; facility_id: string; note: string | null; created_at: string }
 interface Member { user_id: string | null; email: string; role: Role; facility_ids: string[] | null; pending: boolean }
 
 /** What each kind of access means, in words a manager would use. */
@@ -22,9 +24,10 @@ export const siteLink = (slug: string) => `${window.location.origin}${window.loc
 const cleanSlug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
 
 function describe(m: Member, sites: Site[]): string {
-  if (m.role === 'owner') return 'Owner (all sites)';
+  if (m.role === 'owner') return 'Account lead (all sites)';
   const where = m.facility_ids === null ? 'all sites' : m.facility_ids.map((id) => sites.find((s) => s.id === id)?.name ?? 'a site').join(', ');
-  return `${m.role === 'manager' ? 'Manager' : 'Employee'} · ${where}`;
+  if (m.role === 'manager' && m.facility_ids === null) return 'Regional manager (all sites)';
+  return `${m.role === 'manager' ? 'Site manager' : 'Employee'} · ${where}`;
 }
 
 /**
@@ -46,6 +49,9 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
   const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
+  const [maxSites, setMaxSites] = useState<number | null>(null);
+  const [requests, setRequests] = useState<ManagerRequest[]>([]);
+  const [moving, setMoving] = useState<{ member: Member; from: string; to: string } | null>(null);
   const { query } = useRoute();
   const [find, setFind] = useState(() => query.get('q') ?? '');
   const f = find.trim().toLowerCase();
@@ -69,7 +75,7 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
 
   const load = async () => {
     const db = supabase!;
-    const s = await db.from('facilities').select('id, name, slug').eq('company_id', company).order('name');
+    const s = await db.from('facilities').select('id, name, slug, address').eq('company_id', company).order('name');
     if (s.error) return setError(friendly(s.error));
     const list = (s.data ?? []) as Site[];
     const mine = membership.siteIds === null ? list : list.filter((x) => membership.siteIds!.includes(x.id));
@@ -81,6 +87,14 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
       if (!r.error) c[x.id] = r.data as string;
     }));
     setCodes(c);
+    if (full) {
+      const [c, q] = await Promise.all([
+        db.from('companies').select('max_sites').eq('id', company).maybeSingle(),
+        db.from('manager_requests').select('id, email, facility_id, note, created_at').eq('company_id', company).eq('status', 'pending').order('created_at'),
+      ]);
+      setMaxSites((c.data as { max_sites: number | null } | null)?.max_sites ?? null);
+      setRequests((q.data ?? []) as ManagerRequest[]);
+    }
     const m = await db.rpc('list_members', { p_company: company });
     if (m.error) setError(friendly(m.error));
     else setMembers(m.data as Member[]);
@@ -110,6 +124,29 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
     if (r.error) return setError(friendly(r.error));
     await load();
   };
+
+  const decide = async (q: ManagerRequest, approve: boolean) => {
+    setError(null);
+    setNote(null);
+    const r = await supabase!.rpc('decide_manager_request', { p_request: q.id, p_approve: approve });
+    if (r.error) return setError(friendly(r.error));
+    const where = sites.find((x) => x.id === q.facility_id)?.name ?? 'the site';
+    setNote(approve ? `${q.email} is now the site manager of ${where}.` : `Request from ${q.email} denied. Their access didn’t change.`);
+    await load();
+  };
+
+  const move = async () => {
+    if (!moving) return;
+    const { member, from, to } = moving;
+    setMoving(null);
+    const r = await supabase!.rpc('move_member', { p_company: company, p_email: member.email, p_from: from, p_to: to });
+    if (r.error) return setError(friendly(r.error));
+    const name = (id: string) => sites.find((x) => x.id === id)?.name ?? 'a site';
+    setNote(`${member.email} moved from ${name(from)} to ${name(to)}. Their next visit opens ${name(to)}.`);
+    await load();
+  };
+
+  const atLimit = maxSites !== null && sites.length >= maxSites;
 
   const addSite = async () => {
     const r = await supabase!.from('facilities').insert({ company_id: company, name: newSite.trim() });
@@ -153,6 +190,7 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
               <li key={s.id} data-testid={`team-site-${s.name}`}>
                 <span className="site-name">
                   <strong>{s.name}</strong>
+                  {s.address && <span className="muted small">{s.address}</span>}
                   {editingLink?.id === s.id ? (
                     <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveLink(); }}>
                       <span className="muted small">…/#/</span>
@@ -167,6 +205,8 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
                 </span>
                 <span className="site-actions">
                   <button className="btn small" onClick={() => copy(siteLink(s.slug), 'Site link')}>Copy link</button>
+                  <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
+                    title="Opens this site’s public maps without signing in. Make a map public from the Maps page.">Copy public link</button>
                   {full && editingLink?.id !== s.id && (
                     <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>
                   )}
@@ -180,13 +220,43 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
               </li>
             ))}
           </ul>
-          {full && (
+          {full && maxSites !== null && (
+            <p className="muted small" data-testid="site-limit">
+              {sites.length} of {maxSites} contracted {maxSites === 1 ? 'site' : 'sites'}.
+              {atLimit && ' To add a site, contact Bergeron Maps to update your contract.'}
+            </p>
+          )}
+          {full && !atLimit && (
             <form className="inline-form" onSubmit={(e) => { e.preventDefault(); void addSite(); }}>
               <input value={newSite} onChange={(e) => setNewSite(e.target.value)} placeholder="Site Name" maxLength={120} />
               <button className="btn" disabled={!newSite.trim()}><Icon name="plus" size={14} /> Add site</button>
             </form>
           )}
         </section>
+
+        {full && requests.length > 0 && (
+          <section className="panel-card requests" data-testid="manager-requests">
+            <h3>Manager requests</h3>
+            <p className="muted small">These people joined a site with its code and asked to manage it. Approve makes them site manager of that site only.</p>
+            <ul className="people">
+              {requests.map((q) => (
+                <li key={q.id} data-testid={`request-${q.email}`}>
+                  <span>
+                    <strong>{q.email}</strong>
+                    <span className="muted small">
+                      {sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'} · asked {new Date(q.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      {q.note ? ` · “${q.note}”` : ''}
+                    </span>
+                  </span>
+                  <span className="site-actions">
+                    <button className="btn small primary" onClick={() => void decide(q, true)} data-testid={`approve-${q.email}`}>Approve</button>
+                    <button className="btn small" onClick={() => void decide(q, false)}>Deny</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="panel-card">
           <h3>Give someone access</h3>
@@ -220,7 +290,13 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
                     <span className="muted small">{describe(m, sites)}{m.pending ? ' · hasn’t signed in yet' : ''}</span>
                   </span>
                   {m.role !== 'owner' && (
-                    <button className="btn small danger-text" onClick={() => setRemoving(m)}>Remove</button>
+                    <span className="site-actions">
+                      {full && m.facility_ids !== null && sites.length > 1 && (
+                        <button className="btn small" onClick={() => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' })}
+                          data-testid={`move-${m.email}`}>Move</button>
+                      )}
+                      <button className="btn small danger-text" onClick={() => setRemoving(m)}>Remove</button>
+                    </span>
                   )}
                 </li>
               ))}
@@ -230,7 +306,28 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
       </main>
       {removing && (
         <ConfirmDialog title={`Remove ${removing.email}?`} confirmLabel="Remove access" danger onCancel={() => setRemoving(null)} onConfirm={() => void remove(removing)}
-          message={<p>They lose access right away, including on any device where they’re signed in.</p>} />
+          message={<p>They lose access right away and are signed out on every device. Maps, site codes and links stay with the site.</p>} />
+      )}
+      {moving && (
+        <Dialog title={`Move ${moving.member.email}`} onClose={() => setMoving(null)}
+          footer={<>
+            <button className="btn" onClick={() => setMoving(null)}>Cancel</button>
+            <button className="btn primary" disabled={!moving.to || moving.to === moving.from} onClick={() => void move()} data-testid="move-confirm">Move</button>
+          </>}>
+          <p>They keep the same role. Maps stay with each site.</p>
+          {moving.member.facility_ids!.length > 1 && (
+            <label className="stack">From
+              <select value={moving.from} onChange={(e) => setMoving({ ...moving, from: e.target.value })}>
+                {moving.member.facility_ids!.map((id) => <option key={id} value={id}>{sites.find((x) => x.id === id)?.name ?? 'A site'}</option>)}
+              </select>
+            </label>
+          )}
+          <label className="stack">To
+            <select value={moving.to} onChange={(e) => setMoving({ ...moving, to: e.target.value })} data-testid="move-to">
+              {sites.filter((x) => !moving.member.facility_ids!.includes(x.id)).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>
+          </label>
+        </Dialog>
       )}
       {rotating && (
         <ConfirmDialog title={`New code for ${rotating.name}?`} confirmLabel="Make new code" onCancel={() => setRotating(null)} onConfirm={() => void rotate(rotating)}

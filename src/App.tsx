@@ -1,5 +1,6 @@
 import { localModeChosen, setLocalMode, supabase } from './cloud/client';
 import { OnlineApp } from './cloud/OnlineApp';
+import { isPublicSiteRoute, PublicSitePage } from './cloud/PublicSitePage';
 import { EditorPage } from './editor/EditorPage';
 import { HomePage } from './home/HomePage';
 import { useRoute } from './router';
@@ -22,5 +23,8 @@ function LocalApp() {
 }
 
 export function App() {
+  const { parts } = useRoute();
+  // Public site links open for anyone, signed in or not, even in a browser that chose browser-only mode.
+  if (supabase && isPublicSiteRoute(parts)) return <PublicSitePage key={parts[1]} slug={parts[1].toLowerCase()} mapId={parts[2]} />;
   return supabase && !localModeChosen() ? <OnlineApp /> : <LocalApp />;
 }
