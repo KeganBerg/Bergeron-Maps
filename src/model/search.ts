@@ -1,4 +1,5 @@
 import { ASSET_BY_KEY } from '../assets/library';
+import { floorTitle } from './interiors';
 import type { MapDocument, MapObject } from './types';
 
 export interface SearchHit {
@@ -26,13 +27,14 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
   const exact: SearchHit[] = [];
   const partial: SearchHit[] = [];
   for (const f of doc.floors) {
+    const floorName = floorTitle(doc, f);
     const hidden = new Set(f.layers.filter((l) => !l.visible).map((l) => l.id));
     for (const o of f.objects) {
       if (hidden.has(o.layerId)) continue;
       if (o.kind === 'space') {
         const id = normalizeQuery(o.label);
         if (!id) continue;
-        const hit = { floorId: f.id, floorName: f.name, object: o, title: `Space ${o.label}` };
+        const hit = { floorId: f.id, floorName, object: o, title: `Space ${o.label}` };
         if (id === q) exact.push({ ...hit, exact: true });
         else if (id.startsWith(q)) partial.push({ ...hit, exact: false });
       } else {
@@ -41,7 +43,7 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
         if (words.every((w) => hay.includes(w))) {
           const title = o.kind === 'text' ? o.text : o.name || o.label || ASSET_BY_KEY[o.assetKey]?.name || 'Object';
           const isExact = title.toLowerCase() === query.toLowerCase().trim();
-          (isExact ? exact : partial).push({ floorId: f.id, floorName: f.name, object: o, title, exact: isExact });
+          (isExact ? exact : partial).push({ floorId: f.id, floorName, object: o, title, exact: isExact });
         }
       }
     }

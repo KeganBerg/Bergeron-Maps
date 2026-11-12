@@ -119,7 +119,7 @@ export function summarize(doc: MapDocument, deletedAt?: string, extra: { site?: 
     id: doc.id,
     name: doc.name,
     updatedAt: doc.updatedAt,
-    floorCount: doc.floors.length,
+    floorCount: doc.floors.filter((f) => !f.interiorOf).length,
     spaceCount: doc.floors.reduce((n, f) => n + f.objects.filter((o) => o.kind === 'space').length, 0),
     deletedAt,
   };

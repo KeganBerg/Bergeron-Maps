@@ -3,7 +3,8 @@ import type { Floor } from '../model/types';
 import { ConfirmDialog } from '../ui/Dialog';
 import { CommitInput } from '../ui/fields';
 import { Icon } from '../ui/icons';
-import { useEditor } from './store';
+import { buildingName, buildingOf, floorGroup } from '../model/interiors';
+import { currentFloor, useEditor } from './store';
 import { floorColor } from '../theme';
 
 export function FloorTabs() {
@@ -25,12 +26,24 @@ export function FloorTabs() {
     const r = el.getBoundingClientRect();
     setMenu({ id, x: r.left, y: r.top });
   };
-  const idx = (id: string) => doc.floors.findIndex((f) => f.id === id);
+  const cur = currentFloor({ doc, floorId })!;
+  const inside = buildingOf(doc, cur);
+  const group = floorGroup(doc, cur);
+  const idx = (id: string) => group.findIndex((f) => f.id === id);
+  const lastSite = !inside && group.length <= 1;
 
   return (
-    <nav className="floor-tabs" aria-label="Floors">
+    <nav className={`floor-tabs${inside ? ' inside' : ''}`} aria-label="Floors">
+      {inside && (
+        <div className="building-crumb">
+          <button className="btn" onClick={() => st().exitBuilding()} data-testid="exit-building" title={`Back to ${inside.floor.name}`}>
+            <Icon name="back" size={16} /> {inside.floor.name}
+          </button>
+          <span className="crumb-name" data-testid="building-crumb">{buildingName(inside.building)}</span>
+        </div>
+      )}
       <div className="tabs-scroll" role="tablist">
-        {doc.floors.map((f, i) => {
+        {group.map((f, i) => {
           const active = f.id === floorId;
           return (
             <div
@@ -78,10 +91,12 @@ export function FloorTabs() {
           <button role="menuitem" onClick={() => { setRenaming(menu.id); setMenu(null); }}>Rename</button>
           <button role="menuitem" onClick={() => { st().duplicateFloor(menu.id); setMenu(null); }} data-testid="floor-duplicate">Duplicate floor</button>
           <button role="menuitem" disabled={idx(menu.id) === 0} onClick={() => { st().moveFloor(menu.id, -1); setMenu(null); }}>Move left</button>
-          <button role="menuitem" disabled={idx(menu.id) === doc.floors.length - 1} onClick={() => { st().moveFloor(menu.id, 1); setMenu(null); }}>Move right</button>
+          <button role="menuitem" disabled={idx(menu.id) === group.length - 1} onClick={() => { st().moveFloor(menu.id, 1); setMenu(null); }}>Move right</button>
           <hr />
-          <button role="menuitem" className="danger-text" disabled={doc.floors.length <= 1}
-            onClick={() => { setDeleting(doc.floors[idx(menu.id)]); setMenu(null); }} data-testid="floor-delete">Delete floor…</button>
+          <button role="menuitem" className="danger-text" disabled={lastSite}
+            onClick={() => { setDeleting(group[idx(menu.id)]); setMenu(null); }} data-testid="floor-delete">
+            {inside && group.length <= 1 ? 'Delete floor plan…' : 'Delete floor…'}
+          </button>
         </div>
       )}
       {deleting && (
@@ -93,8 +108,11 @@ export function FloorTabs() {
           onConfirm={() => { st().deleteFloor(deleting.id); setDeleting(null); }}
           message={
             <p>
-              This removes the floor and its {deleting.objects.length} object(s) from the map. You can undo with Ctrl+Z, or restore it later from
-              version history.
+              This removes the floor and its {deleting.objects.length} object(s) from the map
+              {!deleting.interiorOf && doc.floors.some((f) => f.interiorOf && deleting.objects.some((o) => o.id === f.interiorOf))
+                ? ', along with the floor plans of the buildings on it'
+                : ''}
+              . You can undo with Ctrl+Z, or restore it later from version history.
             </p>
           }
         />

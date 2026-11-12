@@ -14,6 +14,7 @@ export const ASSET_CATEGORIES = [
   'Buildings and departments',
   'Service and preparation',
   'Schools and campuses',
+  'Offices and interiors',
   'Outdoor environment',
   'Signs and safety',
   'Zones and boundaries',
@@ -84,6 +85,8 @@ export interface AssetDef {
   blend?: number;
   /** The border is dashed (zones). */
   dashed?: boolean;
+  /** Buildings and rooms: can hold their own floor plan that people click into. */
+  enterable?: boolean;
 }
 
 type Opts = Omit<AssetDef, 'key' | 'name' | 'category' | 'keywords' | 'namePrefix'> & {

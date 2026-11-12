@@ -11,6 +11,8 @@ import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { fitViewport, floorBounds } from '../render/viewport';
+import { hasInterior } from '../model/interiors';
+import { InteriorMarkers } from '../render/InteriorMarkers';
 import { MAP_PALETTE } from '../theme';
 import { currentFloor, useEditor } from './store';
 
@@ -72,6 +74,7 @@ export function CanvasStage() {
   const duplicates = useMemo(() => (floor ? duplicateSpaceIds(floor) : new Set<string>()), [floor]);
   const selectedSet = useMemo(() => new Set(selection), [selection]);
   const gridSize = doc?.settings.gridSize ?? 10;
+  const interiorIds = useMemo(() => new Set((doc?.floors ?? []).map((f) => f.interiorOf).filter((x): x is string => !!x)), [doc]);
 
   // Track container size.
   useEffect(() => {
@@ -434,6 +437,11 @@ export function CanvasStage() {
       st.select([id]);
       return;
     }
+    // Double-clicking a building that has a floor plan goes inside it.
+    if (o?.kind === 'asset' && !floor.interiorOf && doc && hasInterior(doc, o.id)) {
+      st.enterBuilding(o.id);
+      return;
+    }
     window.dispatchEvent(new CustomEvent('bm:edit-label'));
   };
 
@@ -537,6 +545,7 @@ export function CanvasStage() {
               </Group>
             );
           })}
+          {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={viewport.scale} />}
         </Layer>
         <Layer>
           <Transformer

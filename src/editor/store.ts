@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { ASSET_BY_KEY, isShapeable, shapeSourceFor } from '../assets/library';
+import { ASSET_BY_KEY, canHaveInterior, isShapeable, shapeSourceFor } from '../assets/library';
 import { alignObjects, distributeObjects, type AlignOp, type DistributeOp, type Moves } from '../model/align';
 import { copySelection, preparePaste, renumberSpaces, type ClipboardData } from '../model/clipboard';
 import { createFloor, nextFloorName } from '../model/factory';
-import { copyName, duplicateFloor, removeFloorReferences } from '../model/floors';
+import { copyName, duplicateFloor, duplicateFloorWithIds, removeFloorReferences } from '../model/floors';
+import { buildingOf, copyInteriors, createInteriorFloor, floorGroup, interiorFloors, interiorsOfObjects, siteFloors } from '../model/interiors';
+import { fitViewport, floorBounds } from '../render/viewport';
 import { boxesIntersect, objectBox, unionBoxes } from '../model/geometry';
 import { reorderObjects, type OrderOp } from '../model/order';
 import { cutForObject } from '../model/shape';
@@ -65,6 +67,8 @@ interface EditorState {
   favoriteAssets: string[];
   /** Spaces/rows dialog state. */
   rowDialog: { anchor: RowAnchor; count?: number } | null;
+  /** The site view to return to when leaving a building's floor plan. */
+  outsideView: Viewport | null;
 }
 
 interface EditorActions {
@@ -80,6 +84,8 @@ interface EditorActions {
   redo(): void;
 
   setFloor(id: string): void;
+  /** Zooms so the whole current floor fits the canvas. */
+  fitToFloor(): void;
   setTool(tool: Tool): void;
   setSnapMode(mode: SnapMode): void;
   setViewport(v: Viewport): void;
@@ -129,6 +135,10 @@ interface EditorActions {
   moveFloor(id: string, dir: 1 | -1): void;
   duplicateFloor(id: string): void;
   deleteFloor(id: string): void;
+  /** Opens a building's floor plan, making its first floor if it has none yet. */
+  enterBuilding(id: string): void;
+  /** Back from a building's floor plan to the site floor it is on, with the building selected. */
+  exitBuilding(): void;
 
   setBackground(bg: Omit<BackgroundImage, 'layerId'> | null): void;
   updateBackground(patch: Partial<BackgroundImage>): void;
@@ -196,6 +206,7 @@ const initialState: EditorState = {
   recentAssets: readPref<string[]>('bm.recentAssets', []),
   favoriteAssets: readPref<string[]>('bm.favoriteAssets', []),
   rowDialog: null,
+  outsideView: null,
 };
 
 export const useEditor = create<EditorStore>()((set, get) => {
@@ -483,9 +494,14 @@ export const useEditor = create<EditorStore>()((set, get) => {
       const { selection } = get();
       if (!selection.length) return;
       const ids = new Set(selection);
-      commit((_d, f) => {
+      commit((d, f) => {
         f.objects = f.objects.filter((o) => !ids.has(o.id));
         normalizeRows(f);
+        // A deleted building takes its floor plan with it (undo brings both back).
+        if (!f.interiorOf) {
+          const gone = new Set(interiorsOfObjects(d as MapDocument, ids));
+          if (gone.size) d.floors = d.floors.filter((x) => !gone.has(x.id));
+        }
       });
       set({ selection: [] });
     },
@@ -732,10 +748,14 @@ export const useEditor = create<EditorStore>()((set, get) => {
 
     addFloor() {
       const { doc } = get();
-      if (!doc) return;
-      const floor = createFloor(nextFloorName(doc));
+      const cur = currentFloor(get());
+      if (!doc || !cur) return;
+      const inside = buildingOf(doc, cur);
+      const floor = inside ? createInteriorFloor(doc, inside.building) : createFloor(nextFloorName(doc));
+      const group = floorGroup(doc, cur);
+      const after = doc.floors.indexOf(group[group.length - 1]);
       commit((d) => {
-        d.floors.push(floor);
+        d.floors.splice(after + 1, 0, floor);
       });
       get().setFloor(floor.id);
     },
@@ -748,9 +768,14 @@ export const useEditor = create<EditorStore>()((set, get) => {
     },
     moveFloor(id, dir) {
       commit((d) => {
-        const i = d.floors.findIndex((f) => f.id === id);
-        const j = i + dir;
-        if (i < 0 || j < 0 || j >= d.floors.length) return;
+        const f = d.floors.find((x) => x.id === id);
+        if (!f) return;
+        // Swap with the next floor in the same group (site floors, or one building's floors).
+        const group = floorGroup(d as MapDocument, f as Floor);
+        const g = group.findIndex((x) => x.id === id) + dir;
+        if (g < 0 || g >= group.length) return;
+        const i = d.floors.findIndex((x) => x.id === id);
+        const j = d.floors.findIndex((x) => x.id === group[g].id);
         [d.floors[i], d.floors[j]] = [d.floors[j], d.floors[i]];
       });
     },
@@ -758,24 +783,74 @@ export const useEditor = create<EditorStore>()((set, get) => {
       const { doc } = get();
       const src = doc?.floors.find((f) => f.id === id);
       if (!doc || !src) return;
-      const copy = duplicateFloor(src, copyName(doc, src.name));
+      const { floor: copy, idMap } = duplicateFloorWithIds(src, copyName(doc, src.name, floorGroup(doc, src)));
+      // A copied site floor brings its buildings' floor plans with it.
+      const interiors = src.interiorOf ? [] : copyInteriors(doc, idMap, duplicateFloor);
       commit((d) => {
         d.floors.splice(d.floors.findIndex((f) => f.id === id) + 1, 0, copy);
+        d.floors.push(...interiors);
       });
       get().setFloor(copy.id);
     },
     deleteFloor(id) {
       const { doc } = get();
-      if (!doc || doc.floors.length <= 1) {
+      const target = doc?.floors.find((f) => f.id === id);
+      if (!doc || !target) return;
+      const inside = buildingOf(doc, target);
+      if (!target.interiorOf && siteFloors(doc).length <= 1) {
         notify({ tone: 'info', message: 'A map needs at least one floor.' });
         return;
       }
-      const idx = doc.floors.findIndex((f) => f.id === id);
+      const group = floorGroup(doc, target);
+      const gi = group.indexOf(target);
+      // Deleting a site floor also deletes the floor plans of the buildings on it.
+      const gone = new Set([id, ...(target.interiorOf ? [] : interiorsOfObjects(doc, target.objects.map((o) => o.id)))]);
       commit((d) => {
-        d.floors = d.floors.filter((f) => f.id !== id);
-        removeFloorReferences(d as MapDocument, id);
+        d.floors = d.floors.filter((f) => !gone.has(f.id));
+        for (const g of gone) removeFloorReferences(d as MapDocument, g);
       });
-      if (get().floorId === id) get().setFloor(get().doc!.floors[Math.max(0, idx - 1)].id);
+      if (!gone.has(get().floorId)) return;
+      const left = group.filter((f) => f.id !== id);
+      const next = left[Math.max(0, gi - 1)];
+      if (next) get().setFloor(next.id);
+      else if (inside) {
+        get().setFloor(inside.floor.id);
+        get().select([inside.building.id]);
+        get().fitToFloor();
+      }
+    },
+    enterBuilding(id) {
+      const { doc } = get();
+      const cur = currentFloor(get());
+      if (!doc || !cur || cur.interiorOf) return;
+      const building = cur.objects.find((o) => o.id === id);
+      if (building?.kind !== 'asset' || !canHaveInterior(ASSET_BY_KEY[building.assetKey])) return;
+      set({ outsideView: get().viewport });
+      const existing = interiorFloors(doc, id)[0];
+      if (existing) {
+        get().setFloor(existing.id);
+      } else {
+        const floor = createInteriorFloor(doc, building, 'Floor 1');
+        commit((d) => {
+          d.floors.push(floor);
+        });
+        get().setFloor(floor.id);
+      }
+      get().fitToFloor();
+    },
+    exitBuilding() {
+      const { doc, outsideView } = get();
+      const cur = currentFloor(get());
+      const inside = doc && cur ? buildingOf(doc, cur) : null;
+      if (!inside) return;
+      get().setFloor(inside.floor.id);
+      get().select([inside.building.id]);
+      if (outsideView) set({ viewport: outsideView, outsideView: null });
+      else get().fitToFloor();
+    },
+    fitToFloor() {
+      const f = currentFloor(get());
+      if (f) set({ viewport: fitViewport(floorBounds(f), get().viewSize) });
     },
 
     setBackground(bg) {
