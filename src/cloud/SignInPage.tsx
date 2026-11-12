@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AppHeader } from '../home/HomePage';
-import { friendly, setLocalMode, supabase } from './client';
+import { friendly, setLocalMode, supabase, clearSignInProblem, takeSignInProblem } from './client';
 
 const RETURN_KEY = 'bm.returnTo';
 
@@ -24,7 +24,7 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(takeSignInProblem);
 
   const send = async () => {
     if (!supabase) return;
@@ -32,6 +32,7 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) return setError('Enter your work email address.');
     setBusy(true);
     setError(null);
+    clearSignInProblem();
     try {
       localStorage.setItem(RETURN_KEY, window.location.hash.slice(1) || '/');
     } catch {
