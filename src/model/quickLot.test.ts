@@ -18,6 +18,10 @@ describe('quick lot builder', () => {
     expect(keys.filter((k) => k === 'road')).toHaveLength(3); // main lane + 2 aisles
     expect(keys).toContain('entrance');
     expect(keys).toContain('exit');
+    // The entrance sits below the lot, turned so its arrow points up into it; the exit sits above.
+    const at = (k: string) => f.objects.find((o) => o.kind === 'asset' && o.assetKey === k)!;
+    expect(at('entrance').rotation).toBe(180);
+    expect(at('exit').rotation).toBe(0);
   });
 
   it('never overlaps spaces', () => {

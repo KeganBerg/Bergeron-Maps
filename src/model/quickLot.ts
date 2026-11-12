@@ -92,7 +92,8 @@ function buildLevel(floor: Floor, index: number, spec: QuickLotSpec): void {
 
   const firstLaneY = lanes[1]?.y ?? (top + bottom) / 2;
   if (index === 0) {
-    floor.objects.push(asset(floor, 'entrance', left, bottom + 40, 'Entrance'));
+    // Turned so the wall side faces out and the arrow points up into the lot.
+    floor.objects.push(asset(floor, 'entrance', left, bottom + 40, 'Entrance', { rotation: 180 }));
     floor.objects.push(asset(floor, 'exit', left, top - 40, 'Exit'));
   }
   if (spec.floors > 1) {
