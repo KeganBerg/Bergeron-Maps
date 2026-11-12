@@ -565,6 +565,7 @@ export function CanvasStage() {
             padding={6}
             rotateAnchorOffset={COARSE ? 36 : 28}
             borderStroke={MAP_PALETTE.selection}
+            borderStrokeWidth={2.5}
             anchorStroke={MAP_PALETTE.selection}
             boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 4 || Math.abs(newBox.height) < 4 ? oldBox : newBox)}
             anchorDragBoundFunc={
