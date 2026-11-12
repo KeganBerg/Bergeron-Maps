@@ -212,6 +212,19 @@ Last updated: 2026-10-30 (Phase 1).
 | K-3 | Simple, centered layout; Level signage look by default | `styles.css`, `theme.ts` | screenshots | Implemented |
 | K-4 | Phones: dialogs fit the screen (no iOS zoom) | `styles.css` (16px inputs) | manual on iPhone | Implemented |
 
-## Deferred from the white-label spec (backburner, per Kegan)
+## White-label roles and site workflow (2026-11-12)
 
-Stripe setup fee and per-site billing; custom domains (CNAME); "Request manager status" flow; ending active sessions on removal; site slugs in public URLs. The database already ties roles to company and site, makes maps belong to the site, and has join codes and a site limit, so these can be added without reshaping data.
+| Spec item | Where |
+|---|---|
+| Company (tenant) with contracted site limit, account lead, site addresses | `setup_company`, `set_site_limit`, `set_site_address`, `add_contract_site` (admins only); All accounts page |
+| Regional manager: every site in the company | membership with role manager and no site list |
+| No role self-selection; email decides access | emailed sign-in links; access only from memberships |
+| Request Manager Status with one-tap approve/deny | `request_manager_access`, `decide_manager_request`; My Locations, Sites & people, All accounts |
+| Remove manager ends sessions at once | `remove_member` ends `auth.sessions`; the app re-checks access every minute and on focus |
+| Transfer between sites | `move_member`; Move button on Sites & people |
+| Maps tied to the site, not the manager | `maps.facility_id` |
+| Employee My Locations, join with 6-character code, leave a site | `my_locations`, `join_site`, `leave_site` |
+| Public link with no sign-in | `get_public_site`; `…/app/#/view/<site-link>`; Make public on a published map |
+| Delete companies, sites (only once empty), people | `admin_delete_company` (type the name), `admin_delete_site`, `remove_member` |
+
+Still deferred, waiting on Kegan: Stripe setup fee and per-site billing; custom client domains (needs the move to Cloudflare); email alerts for manager requests (needs an email sender).

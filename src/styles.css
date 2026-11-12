@@ -663,3 +663,4 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .share-link { display: flex; gap: 8px; }
 .share-link input { flex: 1; min-width: 0; }
 .btn.is-public { border-color: var(--primary); }
+.people li > span.site-actions { flex-direction: row; }

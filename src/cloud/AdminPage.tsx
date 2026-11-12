@@ -230,7 +230,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
                 </form>
               ) : (
                 <>
-                  {c.sites.length} of {c.max_sites ?? 'unlimited'} contracted sites{' '}
+                  {c.max_sites == null ? `${c.sites.length} ${c.sites.length === 1 ? 'site' : 'sites'}, no site limit set` : `${c.sites.length} of ${c.max_sites} contracted sites`}{' '}
                   <button className="link" onClick={() => setEditing({ kind: 'limit', id: c.id, value: c.max_sites?.toString() ?? '' })} data-testid={`edit-limit-${c.name}`}>Change</button>
                 </>
               )}
@@ -365,11 +365,11 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
           </>}>
           <p>
             This erases {deletingCompany.sites.length} {deletingCompany.sites.length === 1 ? 'site' : 'sites'},{' '}
-            {deletingCompany.sites.reduce((n, s) => n + s.maps + (s.trashed ?? 0), 0)} maps with all their versions, every site link and join code, and
+            {(() => { const n = deletingCompany.sites.reduce((t, s) => t + s.maps + (s.trashed ?? 0), 0); return `${n} ${n === 1 ? 'map' : 'maps'}`; })()} with all their versions, every site link and join code, and
             the access of {deletingCompany.people.length} {deletingCompany.people.length === 1 ? 'person' : 'people'}, who are signed out right away. It
             can’t be undone. Download any map you want to keep first.
           </p>
-          <label className="stack">Type <strong>{deletingCompany.name}</strong> to confirm
+          <label className="stack"><span>Type <strong>{deletingCompany.name}</strong> to confirm</span>
             <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} autoComplete="off" data-testid="delete-company-name" />
           </label>
         </Dialog>

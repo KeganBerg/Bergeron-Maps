@@ -110,7 +110,7 @@ export function OnlineApp() {
     </>
   ) : undefined;
 
-  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage nav={nav} account={accountMenu} email={s.email ?? ''} onOpen={switchCompany} onCreated={s.reload} />;
+  if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage nav={nav} account={accountMenu} email={s.email ?? ''} onOpen={switchCompany} onCreated={s.refresh} />;
   const locations = <MyLocationsPage email={s.email ?? ''} account={accountMenu} onChanged={s.refresh} />;
   if (!membership || !repo) return locations;
 
