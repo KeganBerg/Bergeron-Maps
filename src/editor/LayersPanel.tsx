@@ -1,10 +1,29 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { layerObjectCount } from '../model/layers';
 import type { Layer } from '../model/types';
 import { ConfirmDialog } from '../ui/Dialog';
 import { CommitInput } from '../ui/fields';
 import { Icon } from '../ui/icons';
+import { layerItems } from '../model/layerTree';
+import { ObjectList, type DropSpot } from './LayerTree';
 import { currentFloor, useEditor } from './store';
+
+// Which layers and rows are open survives switching sidebar tabs.
+const openLayersMemo = new Set<string>();
+const openRowsMemo = new Set<string>();
+
+function useOpenSet(memo: Set<string>) {
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(memo));
+  const update = (fn: (s: Set<string>) => void) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      fn(next);
+      memo.clear();
+      for (const k of next) memo.add(k);
+      return next;
+    });
+  return [open, update] as const;
+}
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
@@ -16,9 +35,39 @@ export function LayersPanel() {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Layer | null>(null);
   const [moveTo, setMoveTo] = useState<string>('');
+  const [openLayers, updateLayers] = useOpenSet(openLayersMemo);
+  const [openRows, updateRows] = useOpenSet(openRowsMemo);
+  const enteredRowId = useEditor((s) => s.enteredRowId);
+  const anchor = useRef<{ layerId: string; key: string } | null>(null);
+  const drag = useRef<string[] | null>(null);
+  const [drop, setDrop] = useState<DropSpot | null>(null);
+  const fromList = useRef<string[] | null>(null);
+  const [revealKey, setRevealKey] = useState<string | null>(null);
 
-  const selectedLayers = new Set(floor.objects.filter((o) => selection.includes(o.id)).map((o) => o.layerId));
+  const selSet = useMemo(() => new Set(selection), [selection]);
+  const selectedLayers = new Set(floor.objects.filter((o) => selSet.has(o.id)).map((o) => o.layerId));
   const topDown = [...floor.layers].reverse();
+
+  // Selecting on the canvas opens the layer (and row) that holds it and scrolls its row into view.
+  useEffect(() => {
+    if (fromList.current === selection) return;
+    if (!selection.length) return;
+    const first = floor.objects.find((o) => o.id === selection[0]);
+    if (!first) return;
+    updateLayers((s) => { s.add(first.layerId); });
+    const rowId = first.kind === 'space' ? first.rowId : undefined;
+    if (rowId && enteredRowId === rowId) updateRows((s) => { s.add(rowId); });
+    setRevealKey(rowId && enteredRowId !== rowId && floor.rows[rowId] ? `row:${rowId}` : first.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection]);
+
+  const items = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof layerItems>>();
+    for (const l of floor.layers) if (openLayers.has(l.id) && l.role !== 'background') m.set(l.id, layerItems(floor, l.id, openRows));
+    return m;
+  }, [floor, openLayers, openRows]);
+
+  const toggleOpen = (id: string) => updateLayers((s) => { if (s.has(id)) s.delete(id); else s.add(id); });
 
   const askDelete = (l: Layer) => {
     if (layerObjectCount(floor, l.id) === 0) {
@@ -45,17 +94,46 @@ export function LayersPanel() {
           ))}
         </select>
       </div>
-      <ul className="layer-list" data-testid="layer-list">
+      <ul className="layer-list" role="tree" aria-label="Layers" data-testid="layer-list">
         {topDown.map((l, i) => {
           const count = layerObjectCount(floor, l.id);
           const isActive = active === l.id;
+          const hasObjects = l.role !== 'background';
+          const isOpen = hasObjects && openLayers.has(l.id);
           return (
-            <li
-              key={l.id}
-              className={`layer${isActive ? ' active' : ''}${!l.visible ? ' hidden' : ''}`}
-              onClick={() => l.role !== 'background' && st().setActiveLayer(l.id)}
+            <li key={l.id} className="layer-item" role="treeitem" aria-expanded={hasObjects ? isOpen : undefined}>
+            <div
+              className={`layer${isActive ? ' active' : ''}${!l.visible ? ' hidden' : ''}${drop?.key === `layer:${l.id}` ? ' drop-into' : ''}`}
+              onClick={() => {
+                if (l.role === 'background') return;
+                st().setActiveLayer(l.id);
+                updateLayers((s) => { s.add(l.id); });
+              }}
+              onDragOver={(e) => {
+                if (!drag.current || l.role === 'background') return;
+                e.preventDefault();
+                if (drop?.key !== `layer:${l.id}`) setDrop({ key: `layer:${l.id}`, side: 'into' });
+              }}
+              onDragLeave={() => drop?.key === `layer:${l.id}` && setDrop(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                const moving = drag.current;
+                drag.current = null;
+                setDrop(null);
+                if (!moving) return;
+                st().placeObjects(moving, l.id, null);
+                updateLayers((s) => { s.add(l.id); });
+              }}
               data-testid={`layer-${l.name}`}
             >
+              {hasObjects ? (
+                <button className="icon-btn tiny twisty" title={isOpen ? 'Hide this layer’s objects' : 'Show this layer’s objects'} aria-label={isOpen ? 'Collapse layer' : 'Expand layer'}
+                  onClick={(e) => { e.stopPropagation(); toggleOpen(l.id); }} data-testid={`expand-${l.name}`}>
+                  <Icon name={isOpen ? 'down' : 'chevronRight'} size={18} strokeWidth={2.2} />
+                </button>
+              ) : (
+                <span className="twisty-gap" />
+              )}
               <button className="icon-btn" title={l.visible ? 'Hide layer' : 'Show layer'} aria-pressed={!l.visible}
                 onClick={(e) => { e.stopPropagation(); st().toggleLayer(l.id, 'visible'); }}>
                 <Icon name={l.visible ? 'eye' : 'eyeOff'} size={16} />
@@ -73,8 +151,8 @@ export function LayersPanel() {
                   onBlur={() => setRenaming(null)}
                 />
               ) : (
-                <span className="layer-name" onDoubleClick={() => setRenaming(l.id)} title="Double-click to rename">
-                  {l.name}
+                <span className="layer-name" onDoubleClick={() => setRenaming(l.id)} title={`${l.name}. Double-click to rename`}>
+                  <span className="ellipsis">{l.name}</span>
                   {selectedLayers.has(l.id) && <span className="sel-dot" title="Contains the selected object" />}
                 </span>
               )}
@@ -96,6 +174,24 @@ export function LayersPanel() {
                   <Icon name="trash" size={14} />
                 </button>
               </span>
+            </div>
+            {isOpen && (
+              <ObjectList
+                floor={floor}
+                layerId={l.id}
+                layerOff={!l.visible}
+                items={items.get(l.id) ?? []}
+                selection={selSet}
+                revealKey={revealKey}
+                openRows={openRows}
+                toggleRow={(rowId) => updateRows((s) => { if (s.has(rowId)) s.delete(rowId); else s.add(rowId); })}
+                anchor={anchor}
+                drag={drag}
+                drop={drop}
+                setDrop={setDrop}
+                markListSelect={() => { fromList.current = useEditor.getState().selection; }}
+              />
+            )}
             </li>
           );
         })}
@@ -103,7 +199,7 @@ export function LayersPanel() {
       <button className="btn small" onClick={() => st().addLayer()} data-testid="add-layer">
         <Icon name="plus" size={14} /> New layer
       </button>
-      <p className="hint">Locked layers can’t be selected or moved. Hidden layers aren’t shown.</p>
+      <p className="hint">Click a layer to see what’s on it. Drag objects to change their order or move them to another layer. Shift or Ctrl-click to pick several. Locked things can’t be selected or moved on the map, and hidden things aren’t shown.</p>
 
       <BackgroundSection />
 

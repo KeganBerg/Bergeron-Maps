@@ -283,7 +283,7 @@ export function CanvasStage() {
         startWorld: w,
         startPos: new Map(moving.map((o) => [o.id, { x: o.x, y: o.y }])),
         box: unionBoxes(moving.map(objectBox))!,
-        others: f.objects.filter((o) => !selSet.has(o.id) && !hidden.has(o.layerId)).map(objectBox),
+        others: f.objects.filter((o) => !selSet.has(o.id) && !o.hidden && !hidden.has(o.layerId)).map(objectBox),
         started: false,
         additiveClickId: additive && wasSelected ? id : undefined,
       };
@@ -541,7 +541,7 @@ export function CanvasStage() {
                     onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
                   />
                 )}
-                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} curbs={floor.objects} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
+                <LayerObjects honorLocks objects={floor.objects.filter((o) => o.layerId === layer.id)} curbs={floor.objects} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
               </Group>
             );
           })}

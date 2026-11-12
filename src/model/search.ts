@@ -40,7 +40,7 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
     const floorName = floorTitle(doc, f);
     const hidden = new Set(f.layers.filter((l) => !l.visible).map((l) => l.id));
     for (const o of f.objects) {
-      if (hidden.has(o.layerId)) continue;
+      if (o.hidden || hidden.has(o.layerId)) continue;
       if (o.kind === 'space') {
         const id = normalizeQuery(o.label);
         if (!id) continue;
