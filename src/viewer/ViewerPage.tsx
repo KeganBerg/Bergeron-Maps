@@ -279,8 +279,11 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
           y={view.y}
           scaleX={view.scale}
           scaleY={view.scale}
-          onClick={onTap}
-          onTap={onTap}
+          // One handler for mouse, pen and finger. Listening to both click and tap
+          // counted a finger tap twice: the tap, then the browser's copy-cat mouse
+          // click a moment later. If the map slid in between (to keep the tapped
+          // space clear of the card), that second click landed on the neighbor.
+          onPointerClick={onTap}
         >
           <Layer>
             {floor.layers.map((l) =>
