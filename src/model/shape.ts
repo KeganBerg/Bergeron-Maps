@@ -383,6 +383,67 @@ export function subtractRings(a: Ring[], b: Ring[]): Ring[] {
   return boolean(a.map(toInt), b.map(toInt), ClipperLib.ClipType.ctDifference).map(fromInt);
 }
 
+/**
+ * The parts of open polylines that lie outside `rings` (e.g. a road's edge
+ * lines with the stretches beside parking rows taken out).
+ */
+export function linesOutside(lines: Ring[], rings: Ring[]): Ring[] {
+  if (!rings.length) return lines;
+  const out: Ring[] = [];
+  for (const l of lines) {
+    let cur: Ring = [];
+    const flush = () => {
+      if (cur.length >= 4) out.push(cur);
+      cur = [];
+    };
+    for (let i = 0; i + 3 < l.length; i += 2) {
+      const ax = l[i], ay = l[i + 1], bx = l[i + 2], by = l[i + 3];
+      // Where this segment crosses the rings' edges, in order along it.
+      const ts = [0, 1];
+      for (const r of rings)
+        for (let k = 0, m = r.length - 2; k < r.length; m = k, k += 2) {
+          const t = segCross(ax, ay, bx, by, r[m], r[m + 1], r[k], r[k + 1]);
+          if (t !== null) ts.push(t);
+        }
+      ts.sort((p, q) => p - q);
+      for (let k = 0; k + 1 < ts.length; k++) {
+        const t0 = ts[k], t1 = ts[k + 1];
+        if (t1 - t0 < 1e-9) continue;
+        const tm = (t0 + t1) / 2;
+        const p0: [number, number] = [ax + (bx - ax) * t0, ay + (by - ay) * t0];
+        const p1: [number, number] = [ax + (bx - ax) * t1, ay + (by - ay) * t1];
+        if (insideRings(rings, ax + (bx - ax) * tm, ay + (by - ay) * tm)) {
+          flush();
+          continue;
+        }
+        const n = cur.length;
+        if (!n || Math.hypot(cur[n - 2] - p0[0], cur[n - 1] - p0[1]) > 1e-6) {
+          flush();
+          cur.push(...p0);
+        }
+        cur.push(...p1);
+      }
+    }
+    flush();
+  }
+  // Drop crumbs shorter than a couple of pixels.
+  return out.filter((l) => {
+    let len = 0;
+    for (let i = 0; i + 3 < l.length; i += 2) len += Math.hypot(l[i + 2] - l[i], l[i + 3] - l[i + 1]);
+    return len >= 2;
+  });
+}
+
+/** Where segment a→b crosses segment c→d, as a fraction along a→b. */
+function segCross(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number): number | null {
+  const rx = bx - ax, ry = by - ay, sx = dx - cx, sy = dy - cy;
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const t = ((cx - ax) * sy - (cy - ay) * sx) / den;
+  const u = ((cx - ax) * ry - (cy - ay) * rx) / den;
+  return t > 0 && t < 1 && u >= 0 && u <= 1 ? t : null;
+}
+
 /** Even-odd point-in-rings test. */
 export function insideRings(rings: Ring[], x: number, y: number): boolean {
   let inside = false;

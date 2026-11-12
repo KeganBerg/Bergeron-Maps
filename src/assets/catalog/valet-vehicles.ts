@@ -1,7 +1,7 @@
 import { category } from '../defs';
 import { badge, pin, raisedShadow, vehicle, zone } from '../draw';
 import { glyph } from '../glyphs';
-import { FS, icon, P, S, text } from '../style';
+import { FS, icon, P, r2, S, text } from '../style';
 
 const v = category('Valet operations');
 
@@ -36,10 +36,13 @@ export const VALET = [
     width: 220, height: 60, layer: 'structure', fill: P.violet, fillOpacity: 0.1, stroke: P.violet, strokeWidth: 2, keywords: ['valet', 'line', 'wait', 'stack'],
     label: 'Queue', labelPos: 'center',
     draw: (c) => {
-      const n = Math.max(1, Math.floor(c.w / 55));
+      // The cars line up behind the arrow at the head of the queue, never under it.
+      const room = c.w - 28; // from the left border to just before the arrow
+      const n = Math.max(1, Math.floor((room + 17) / 55));
+      const first = 8 + (room - (n * 55 - 17)) / 2 + 19;
       let cars = '';
       for (let i = 0; i < n; i++) {
-        const x = c.w - 30 - i * 55;
+        const x = r2(first + i * 55);
         cars += `<rect x="${x - 19}" y="${c.h / 2 - 10}" width="38" height="20" rx="6" fill="none" stroke="${c.stroke}" stroke-width="1.2" stroke-dasharray="3 2"/>`;
       }
       return `<rect x="${c.sw / 2}" y="${c.sw / 2}" width="${c.w - c.sw}" height="${c.h - c.sw}" rx="4" fill="${c.fill}" fill-opacity="${c.fo}" ${S(c)} stroke-dasharray="${c.sw * 4} ${c.sw * 2.5}"/>${cars}<path d="M${c.w - 8} ${c.h / 2}l-8-6v12Z" fill="${c.stroke}"/>`;

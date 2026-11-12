@@ -416,7 +416,7 @@ export function CanvasStage() {
                     onMoved={(x, y) => useEditor.getState().updateBackground({ x, y })}
                   />
                 )}
-                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
+                <LayerObjects objects={floor.objects.filter((o) => o.layerId === layer.id)} curbs={floor.objects} objProps={(o) => ({ duplicate: duplicates.has(o.id) })} />
               </Group>
             );
           })}

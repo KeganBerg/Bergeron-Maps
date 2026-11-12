@@ -123,7 +123,9 @@ const curve = (marks: 'road' | 'lane') => (c: DrawCtx) => {
 };
 
 const ramp = (dir: 'up' | 'down' | 'none') => (c: DrawCtx) => {
-  const chev = along(c, 30, (x) => `<path d="M${r2(x - 6)} ${r2(c.h * 0.25)} L${r2(x + 6)} ${r2(c.h / 2)} L${r2(x - 6)} ${r2(c.h * 0.75)}" fill="none" stroke="${P.paint}" stroke-opacity="0.75" stroke-width="3" stroke-linejoin="round"/>`, 20);
+  // Chevrons leave room around the UP / DOWN tag instead of running under it.
+  const clear = dir === 'none' ? 0 : 26 + 10;
+  const chev = along(c, 30, (x) => Math.abs(x - c.w / 2) < clear ? '' : `<path d="M${r2(x - 6)} ${r2(c.h * 0.25)} L${r2(x + 6)} ${r2(c.h / 2)} L${r2(x - 6)} ${r2(c.h * 0.75)}" fill="none" stroke="${P.paint}" stroke-opacity="0.75" stroke-width="3" stroke-linejoin="round"/>`, 20);
   const walls = `<rect x="0" y="0" width="${c.w}" height="4" fill="${P.wall}"/><rect x="0" y="${c.h - 4}" width="${c.w}" height="4" fill="${P.wall}"/>`;
   const label = dir === 'none' ? '' : `<rect x="${r2(c.w / 2 - 26)}" y="${r2(c.h / 2 - 11)}" width="52" height="22" rx="3" fill="${c.fill}"/>${text(c.w / 2, c.h / 2, 12, dir === 'up' ? 'UP' : 'DOWN', P.paint)}`;
   return `${boxRect(c)}${walls}${chev}${label}`;
@@ -210,7 +212,13 @@ export const ROADS = [
   rd('service-drive', 'Service drive', { ...DRIVE, width: 300, height: 60, keywords: ['service lane', 'dealership'], draw: lane((c) => word(c, 'SERVICE') + laneArrow(c.w * 0.85, c.h / 2, 30)) }),
   rd('service-reception-lane', 'Service reception lane', {
     ...ROAD, fill: '#5f6f82', width: 300, height: 70, keywords: ['service write up', 'service drive', 'reception', 'dealership'],
-    draw: lane((c) => hLine(c.h / 2, 0, c.w, P.paint, 1, '4 6') + text(c.w / 2, c.h / 2, Math.min(c.h * 0.24, 12), 'SERVICE RECEPTION', P.paint) + laneArrow(c.w * 0.9, c.h / 2, 26)),
+    draw: lane((c) => {
+      // The dashed line breaks for the words and stops before the arrow, so neither is drawn over it.
+      const size = Math.min(c.h * 0.24, 12);
+      const gap = size * 0.62 * 17 / 2 + 8;
+      return hLine(c.h / 2, 0, c.w / 2 - gap, P.paint, 1, '4 6') + hLine(c.h / 2, c.w / 2 + gap, c.w * 0.9 - 21, P.paint, 1, '4 6')
+        + text(c.w / 2, c.h / 2, size, 'SERVICE RECEPTION', P.paint) + laneArrow(c.w * 0.9, c.h / 2, 26);
+    }),
   }),
   rd('drive-through-lane', 'Drive-through lane', { ...DRIVE, width: 300, height: 60, keywords: ['drive thru', 'pickup window'], draw: lane((c) => word(c, 'DRIVE THRU', Math.min(c.h * 0.3, 14)) + laneArrow(c.w * 0.12, c.h / 2, 26) + laneArrow(c.w * 0.88, c.h / 2, 26)) }),
   rd('loading-lane', 'Loading lane', {

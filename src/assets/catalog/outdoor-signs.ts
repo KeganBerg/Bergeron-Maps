@@ -29,9 +29,13 @@ const canopy = (lobes: number) => icon(64, 64, (c) => {
 
 const speckle = (c: DrawCtx, color: string, step = 11, r = 1.4) => {
   let s = '';
+  // Every speck stays wholly inside the border, so none spill over the edge.
+  const m = r + c.sw + 2;
   for (let x = step / 2; x < c.w; x += step) for (let y = step / 2; y < c.h; y += step) {
     const j = ((x * 31 + y * 17) % 7) - 3;
-    s += `<circle cx="${r2(x + j)}" cy="${r2(y - j / 2)}" r="${r}" fill="${color}"/>`;
+    const cx = x + j, cy = y - j / 2;
+    if (cx < m || cx > c.w - m || cy < m || cy > c.h - m) continue;
+    s += `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r}" fill="${color}"/>`;
   }
   return s;
 };
@@ -93,7 +97,9 @@ export const OUTDOOR = [
       const colors = ['#e86a8a', '#f2c230', '#f4f4f4', '#b05cc8'];
       let f = '';
       let i = 0;
-      for (let x = 10; x < c.w - 6; x += 12) for (let y = 10; y < c.h - 6; y += 12) f += `<circle cx="${r2(x + (i % 2) * 4)}" cy="${r2(y)}" r="3" fill="${colors[i++ % 4]}" stroke="${P.foliageDark}" stroke-width="0.6"/>`;
+      // Evenly spaced, every other row shifted half a step, so the flowers read as one even bed.
+      let row = 0;
+      for (let y = 10; y < c.h - 6; y += 12, row++) for (let x = 10 + (row % 2) * 6; x < c.w - 6; x += 12) f += `<circle cx="${r2(x)}" cy="${r2(y)}" r="3" fill="${colors[i++ % 4]}" stroke="${P.foliageDark}" stroke-width="0.6"/>`;
       return `${boxRect(c, 4)}${f}`;
     },
   }),

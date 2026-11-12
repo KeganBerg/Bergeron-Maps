@@ -215,7 +215,7 @@ export function ViewerPage({ mapId, repo, preview }: { mapId: string; repo: MapR
               !l.visible ? null : (
                 <Group key={l.id}>
                   {floor.background?.layerId === l.id && <BackgroundShape bg={floor.background} listening={false} />}
-                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} objProps={(o) => ({ highlighted: o.id === focused?.id })} />
+                  <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} curbs={floor.objects} objProps={(o) => ({ highlighted: o.id === focused?.id })} />
                 </Group>
               ),
             )}
