@@ -22,7 +22,8 @@ test('manager creates a numbered row, copies and pastes it, renumbers and undoes
 
   await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
-  await expect(page.getByTestId('selected-name')).toHaveCount(0);
+  // Undoing the renumber selects the row it changed back, as design tools do.
+  await expect(page.getByTestId('selected-name')).toHaveText('Row B1–B20');
   await page.keyboard.press('Control+Shift+z');
   await waitSaved(page);
   await page.getByRole('button', { name: 'All maps' }).click();

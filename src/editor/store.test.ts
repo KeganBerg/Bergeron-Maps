@@ -167,3 +167,15 @@ describe('editor operations', () => {
     expect(a.y).toBe(b.y);
   });
 });
+
+describe('text boxes', () => {
+  it('grow to fit longer text instead of cutting it off', async () => {
+    const { growTextBox } = await import('./store');
+    const o = { text: 'Administration office', fontSize: 18, width: 120, height: 28 };
+    growTextBox(o);
+    expect(o.width).toBeGreaterThanOrEqual(Math.ceil('Administration office'.length * 18 * 0.6));
+    const big = { text: 'Hi', fontSize: 18, width: 300, height: 80 };
+    growTextBox(big);
+    expect([big.width, big.height]).toEqual([300, 80]);
+  });
+});

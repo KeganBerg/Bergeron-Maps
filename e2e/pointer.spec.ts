@@ -145,12 +145,13 @@ test('editor: a click on a neighbor right next to the selection handles picks th
   await page.mouse.click(a5.x, a5.y);
   await page.mouse.dblclick(a5.x, a5.y);
   await expect.poll(() => editorSelection(page)).toEqual(['A5']);
+  // The middle of the handle as drawn (its position is the corner, which padding moves it away from).
   const anchor = (name: string) => page.evaluate((name) => {
-    type A = { getAbsolutePosition: () => { x: number; y: number } };
+    type A = { getClientRect: () => { x: number; y: number; width: number; height: number } };
     const st = (window as unknown as { Konva: { stages: { findOne: (s: string) => A; container: () => HTMLElement }[] } }).Konva.stages[0];
-    const p = st.findOne(`.${name}`).getAbsolutePosition();
+    const r = st.findOne(`.${name}`).getClientRect();
     const b = st.container().getBoundingClientRect();
-    return { x: b.left + p.x, y: b.top + p.y };
+    return { x: b.left + r.x + r.width / 2, y: b.top + r.y + r.height / 2 };
   }, name);
   // Just outside the middle of the right-hand handle, toward A6's number.
   const mr = await anchor('middle-right');

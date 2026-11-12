@@ -182,6 +182,23 @@ const writePref = (k: string, v: unknown) => {
 export const currentFloor = (s: Pick<EditorState, 'doc' | 'floorId'>): Floor | undefined =>
   s.doc?.floors.find((f) => f.id === s.floorId) ?? s.doc?.floors[0];
 
+/**
+ * Makes a text box big enough for its words (it never shrinks one a person sized).
+ * The box used to stay 120 wide, so "Administration office" was drawn as "Administratio".
+ */
+export function growTextBox(o: { text: string; fontSize: number; width: number; height: number; strokeWidth?: number; fill?: string }) {
+  const charW = o.fontSize * 0.62;
+  const pad = o.fill || (o.strokeWidth ?? 0) > 0 ? 8 : 0;
+  const lines = o.text.split('\n');
+  const longestWord = Math.max(0, ...o.text.split(/\s+/).map((w) => w.length)) * charW + pad;
+  const longestLine = Math.max(0, ...lines.map((l) => l.length)) * charW + pad;
+  const width = Math.min(Math.max(o.width, longestWord, Math.min(longestLine, 480)), 1000);
+  const perLine = Math.max(1, (width - pad) / charW);
+  const rows = lines.reduce((n, l) => n + Math.max(1, Math.ceil(l.length / perLine)), 0);
+  o.width = Math.round(width);
+  o.height = Math.round(Math.max(o.height, rows * o.fontSize * 1.15 + 6));
+}
+
 /** Objects that are locked or hidden, or on a locked or hidden layer, cannot be selected or edited. */
 export function editableIds(floor: Floor, ids: Iterable<string>): string[] {
   const blocked = new Set(floor.layers.filter((l) => l.locked || !l.visible).map((l) => l.id));
@@ -236,13 +253,24 @@ export const useEditor = create<EditorStore>()((set, get) => {
     }));
   };
 
-  const sanitize = (doc: MapDocument) => {
+  /**
+   * State that must stay valid after the document is swapped. With `from` (undo/redo),
+   * the objects the step brought back or changed become the selection, as in other
+   * design tools, so an undone delete can be moved or deleted again straight away.
+   */
+  const sanitize = (doc: MapDocument, from?: MapDocument) => {
     const s = get();
     const floor = doc.floors.find((f) => f.id === s.floorId) ?? doc.floors[0];
     const live = new Set(floor.objects.map((o) => o.id));
+    const before = from?.floors.find((f) => f.id === floor.id);
+    const was = new Map(before?.objects.map((o) => [o.id, o]));
+    // Compared by value: a step can rebuild objects it didn't really change.
+    const same = (a: MapObject | undefined, b: MapObject) => a === b || (!!a && JSON.stringify(a) === JSON.stringify(b));
+    const touched = before && before !== floor ? floor.objects.filter((o) => !same(was.get(o.id), o)).map((o) => o.id) : [];
+    const touchedEditable = touched.length ? editableIds(floor, touched) : [];
     return {
       floorId: floor.id,
-      selection: s.selection.filter((id) => live.has(id)),
+      selection: touchedEditable.length ? touchedEditable : s.selection.filter((id) => live.has(id)),
       enteredRowId: s.enteredRowId && floor.rows[s.enteredRowId] ? s.enteredRowId : null,
       activeLayer: s.activeLayer !== 'auto' && !floor.layers.some((l) => l.id === s.activeLayer) ? 'auto' : s.activeLayer,
     };
@@ -399,14 +427,14 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (!past.length || !doc) return;
       const prev = past[past.length - 1];
       set((s) => ({ doc: prev, past: past.slice(0, -1), future: [doc, ...future], editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
-      set(sanitize(prev));
+      set(sanitize(prev, doc));
     },
     redo() {
       const { past, doc, future } = get();
       if (!future.length || !doc) return;
       const next = future[0];
       set((s) => ({ doc: next, past: [...past, doc], future: future.slice(1), editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
-      set(sanitize(next));
+      set(sanitize(next, doc));
     },
 
     setFloor(id) {
@@ -536,7 +564,11 @@ export const useEditor = create<EditorStore>()((set, get) => {
     updateObjects(ids, patch) {
       const set_ = new Set(ids);
       commit((_d, f) => {
-        for (const o of f.objects) if (set_.has(o.id)) Object.assign(o, patch);
+        for (const o of f.objects) {
+          if (!set_.has(o.id)) continue;
+          Object.assign(o, patch);
+          if (o.kind === 'text' && ('text' in patch || 'fontSize' in patch)) growTextBox(o);
+        }
       });
     },
     moveToLayer(ids, layerId) {
@@ -734,6 +766,8 @@ export const useEditor = create<EditorStore>()((set, get) => {
           layerId: resolveTargetLayer(floor, get().activeLayer, 'labels'),
           x: at.x, y: at.y, width: 120, height: 28, rotation: 0,
         });
+        const added = f.objects[f.objects.length - 1];
+        if (added.kind === 'text') growTextBox(added);
       });
       set({ selection: [id], tool: { type: 'select' } });
     },

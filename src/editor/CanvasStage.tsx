@@ -3,7 +3,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Label, Layer, Line, Rect, Shape, Stage, Tag, Text, Transformer } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
-import { objectBox, normalizeRotation, unionBoxes } from '../model/geometry';
+import { boxContains, objectBox, normalizeRotation, unionBoxes } from '../model/geometry';
 import { snapMove, snapToGrid, type Guide } from '../model/snapping';
 import { simplifyStroke } from '../model/shape';
 import { DEFAULT_ROW } from '../model/rows';
@@ -14,7 +14,7 @@ import { fitViewport, floorBounds } from '../render/viewport';
 import { hasInterior } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
 import { MAP_PALETTE } from '../theme';
-import { currentFloor, useEditor } from './store';
+import { currentFloor, selectionBox, useEditor } from './store';
 
 const DRAG_THRESHOLD = 3;
 /**
@@ -252,13 +252,24 @@ export function CanvasStage() {
     const stage = stageRef.current;
     const pos = stage?.getPointerPosition();
     if (!stage || !pos) return null;
-    const c = handle.getAbsolutePosition();
+    // Where the handle is drawn. Its position is the corner it belongs to, which the
+    // Transformer's padding pushes the drawn square away from, so measure the square.
+    const r = handle.getClientRect();
+    const c = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     const size = tr.anchorSize();
     // The middle of the handle always resizes.
     if (Math.hypot(pos.x - c.x, pos.y - c.y) <= size * 0.3) return null;
     const hit = objLayerRef.current?.getIntersection(pos);
     const g = hit && (hit.hasName('obj') ? hit : hit.findAncestor('.obj'));
     if (!g || useEditor.getState().selection.includes(g.id())) return null;
+    // Only a neighbour takes the press, never something the selection sits inside
+    // (a building's outer walls, a zone, the lot boundary): inside a building every
+    // handle is over the outer walls, so resizing there picked the walls instead.
+    const st = useEditor.getState();
+    const f = currentFloor(st);
+    const under = f?.objects.find((o) => o.id === g.id());
+    const sel = f && selectionBox(f, st.selection);
+    if (under && sel && boxContains(objectBox(under), sel)) return null;
     // Keep the Transformer from starting a resize on the mouse/touch event that follows.
     tr.listening(false);
     const back = () => {
@@ -277,6 +288,11 @@ export function CanvasStage() {
     const isTouch = evt.pointerType === 'touch';
     // Second finger: the pinch has taken over (see the listeners above).
     if (isTouch && touch.current.pinching) return;
+    // Pressing the map leaves any panel field, as in design tools: otherwise a snap
+    // menu or number box kept focus in some browsers, and Space, Delete or the
+    // arrow keys went to it (Space even opened the menu) instead of the map.
+    const focused = document.activeElement as HTMLElement | null;
+    if (focused && focused !== document.body && focused.closest('input, select, textarea, button')) focused.blur();
     let target: Konva.Node = e.target;
     const tr = e.target.findAncestor('Transformer') as Konva.Transformer | null;
     if (tr) {
