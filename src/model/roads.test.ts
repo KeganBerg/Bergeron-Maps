@@ -12,11 +12,26 @@ function road(x1: number, y1: number, x2: number, y2: number, dir: 'h' | 'v'): R
 const merged = (ps: RoadPiece[]) => unionRings(ps.flatMap((p) => p.body));
 
 describe('road junctions', () => {
-  it('a T gets stop bars on all three arms', () => {
+  it('a T gets a stop bar only on the road joining it; the through road carries on', () => {
     const ps = [road(0, 0, 300, 120, 'h'), road(300, 0, 600, 120, 'h'), road(240, 120, 360, 400, 'v')];
     const j = roadJunctions(ps, merged(ps));
     expect(j.areas.length).toBe(1);
-    expect(j.stops.length).toBe(3);
+    expect(j.stops.length).toBe(1);
+    // Across the joining road (horizontal), just below the through road.
+    const [x1, y1, x2, y2] = j.stops[0];
+    expect(Math.abs(y1 - y2)).toBeLessThan(1);
+    expect(y1).toBeGreaterThan(120);
+    expect(Math.min(x1, x2)).toBeGreaterThan(240);
+    expect(Math.max(x1, x2)).toBeLessThan(360);
+  });
+
+  it('a parking lot spine with aisles off one side: bars on the aisles only', () => {
+    const spine = road(-110, 0, 0, 1000, 'v');
+    const aisles = [road(0, 180, 600, 290, 'h'), road(0, 650, 600, 760, 'h')];
+    const ps = [spine, ...aisles];
+    const j = roadJunctions(ps, merged(ps));
+    expect(j.stops.length).toBe(2);
+    for (const [x1, , x2] of j.stops) expect(Math.abs(x1 - x2)).toBeLessThan(1);
   });
 
   it('a crossroads gets four stop bars', () => {

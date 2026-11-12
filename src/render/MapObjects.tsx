@@ -5,8 +5,8 @@ import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { badgeLayout } from '../assets/draw';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
-import { bandWidth, growRings, insetLines, insideRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
-import { roadExtensions, roadJunctions, STOP_LINE, type RoadEnd, type RoadPiece } from '../model/roads';
+import { bandWidth, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
+import { roadExtensions, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
 import { P, svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
@@ -402,7 +402,34 @@ function roadMarks(members: AssetObject[], pieces: RoadPiece[], junction: Ring[]
  * (or any grass piece) that overlap or sit within their blend distance.
  * A piece on its own keeps its normal drawing.
  */
-export function mergePlan(objects: MapObject[]): {
+/**
+ * Parking spaces on the floor, grown to cover the road paint beside them: a
+ * row of spaces along a road is its edge, so the road's own edge line is left
+ * off there instead of running as a second, broken line next to the row.
+ */
+function curbRings(curbs: MapObject[]): Ring[] {
+  const rects: Ring[] = curbs.filter((o) => o.kind === 'space').map((o) => [
+    ...toWorld(o, 0, 0), ...toWorld(o, o.width, 0), ...toWorld(o, o.width, o.height), ...toWorld(o, 0, o.height),
+  ]);
+  return rects.length ? growRings(unionRings(rects), CURB_REACH) : [];
+}
+/** How close (map px) road paint may come to a parking row before the row takes over as the edge. */
+const CURB_REACH = ROAD_EDGE.inset + ROAD_EDGE.width + 1.5;
+
+/** Stop bars stop short of the road's edge lines; where a row is the edge instead, they run on to meet it. */
+function stopsToCurb(stops: Ring[], curb: Ring[]): Ring[] {
+  if (!curb.length) return stops;
+  return stops.map(([x1, y1, x2, y2]) => {
+    const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+    const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+    const reach = STOP_TRIM + 1;
+    const a = insideRings(curb, x1, y1) ? [x1 - ux * reach, y1 - uy * reach] : [x1, y1];
+    const b = insideRings(curb, x2, y2) ? [x2 + ux * reach, y2 + uy * reach] : [x2, y2];
+    return [...a, ...b];
+  });
+}
+
+export function mergePlan(objects: MapObject[], curbs: MapObject[] = []): {
   leads: Map<string, MergeCluster>;
   modes: Map<string, MergedMode>;
   clips: Map<string, Ring[]>;
@@ -420,6 +447,7 @@ export function mergePlan(objects: MapObject[]): {
   const modes = new Map<string, MergedMode>();
   const clips = new Map<string, Ring[]>();
   const shifts = new Map<string, number>();
+  let curb: Ring[] | null = null;
   for (const [key, objs] of byKey) {
     if (objs.length < 2) continue;
     const road = key === 'road';
@@ -436,9 +464,10 @@ export function mergePlan(objects: MapObject[]): {
       const cluster: MergeCluster = { key, members, rings: c.rings };
       if (road) {
         const ps = c.members.map((i) => pieces[i]);
-        cluster.lines = insetLines(c.rings, ps.flatMap((p) => p.ends.map((e) => e.seg)), ROAD_EDGE.inset);
+        curb ??= curbRings(curbs);
+        cluster.lines = linesOutside(insetLines(c.rings, ps.flatMap((p) => p.ends.map((e) => e.seg)), ROAD_EDGE.inset), curb);
         const junctions = roadJunctions(ps, c.rings);
-        cluster.stops = junctions.stops;
+        cluster.stops = stopsToCurb(junctions.stops, curb);
         const marks = roadMarks(members, ps, junctions.areas);
         for (const [id, r] of marks.clips) clips.set(id, r);
         for (const [id, d] of marks.shifts) shifts.set(id, d);
@@ -580,13 +609,20 @@ const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster })
  * one shape where their bottom-most piece sits; each piece still gets its own
  * invisible outline for clicking, selecting and labels.
  */
-export function LayerObjects({ objects, objProps }: { objects: MapObject[]; objProps?: (o: MapObject) => Omit<ObjProps, 'obj'> }) {
+export function LayerObjects({ objects, curbs, objProps }: {
+  objects: MapObject[];
+  /** The floor's parking spaces (on any layer): road paint gives way to rows beside it. */
+  curbs?: MapObject[];
+  objProps?: (o: MapObject) => Omit<ObjProps, 'obj'>;
+}) {
   // Re-merge only when a mergeable piece changes, not on every pan, zoom or unrelated edit.
   const signature = JSON.stringify(
     objects.map((o) => (o.kind === 'asset' && ASSET_BY_KEY[o.assetKey] && mergeKey(ASSET_BY_KEY[o.assetKey]!) ? [o.id, o.x, o.y, o.width, o.height, o.rotation, o.corner, o.bevel, o.band, o.cuts, o.blend, o.merge, o.fill, o.fillOpacity, o.stroke, o.strokeWidth] : 0)),
   );
+  const merging = signature.includes('"');
+  const curbSig = merging && curbs ? JSON.stringify(curbs.map((o) => (o.kind === 'space' ? [o.x, o.y, o.width, o.height, o.rotation] : 0))) : '';
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const { leads, modes, clips, shifts } = useMemo(() => mergePlan(objects), [signature]);
+  const { leads, modes, clips, shifts } = useMemo(() => mergePlan(objects, curbs), [signature, curbSig]);
   return (
     <>
       {objects.map((o) => {
