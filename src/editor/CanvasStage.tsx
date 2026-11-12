@@ -288,6 +288,11 @@ export function CanvasStage() {
     const isTouch = evt.pointerType === 'touch';
     // Second finger: the pinch has taken over (see the listeners above).
     if (isTouch && touch.current.pinching) return;
+    // Pressing the map leaves any panel field, as in design tools: otherwise a snap
+    // menu or number box kept focus in some browsers, and Space, Delete or the
+    // arrow keys went to it (Space even opened the menu) instead of the map.
+    const focused = document.activeElement as HTMLElement | null;
+    if (focused && focused !== document.body && focused.closest('input, select, textarea, button')) focused.blur();
     let target: Konva.Node = e.target;
     const tr = e.target.findAncestor('Transformer') as Konva.Transformer | null;
     if (tr) {

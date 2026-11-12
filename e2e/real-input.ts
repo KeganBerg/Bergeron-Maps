@@ -59,9 +59,11 @@ export async function toScreen(page: Page, o: ObjInfo, local: Pt): Promise<Pt> {
 
 /**
  * The center and the middle of each edge (pulled in by `insetPx` screen pixels),
- * in screen coordinates. Edges are skipped when the object is too small on screen.
+ * in the object's own frame. Edges are skipped when the object is too small on screen.
  */
 export function probePoints(o: ObjInfo, scale: number, insetPx = 3): { name: string; local: Pt }[] {
+  // Under 4px on screen nobody can aim at it (and Firefox and Safari send whole-pixel positions).
+  if (Math.min(o.width, o.height) * scale < 4) return [];
   const pts = [{ name: 'center', local: { x: 0, y: 0 } }];
   const ix = Math.min(insetPx / scale, o.width / 4);
   const iy = Math.min(insetPx / scale, o.height / 4);
