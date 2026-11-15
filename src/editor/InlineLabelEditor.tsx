@@ -19,10 +19,16 @@ export function InlineLabelEditor({ o, onClose }: { o: MapObject; onClose: () =>
   const done = useRef(false);
   const multiline = o.kind === 'text';
 
+  const opened = useRef(Date.now());
   useLayoutEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
+  // The double-click that opened the box can land in it, and some browsers (Firefox) then
+  // select just the word under the pointer: start with all of it selected, so typing replaces it.
+  const selectAllAtFirst = () => {
+    if (Date.now() - opened.current < 600) ref.current?.select();
+  };
 
   const finish = (keep: boolean) => {
     if (done.current) return;
@@ -55,6 +61,8 @@ export function InlineLabelEditor({ o, onClose }: { o: MapObject; onClose: () =>
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => finish(true)}
       onPointerDown={(e) => e.stopPropagation()}
+      onMouseUp={selectAllAtFirst}
+      onDoubleClick={selectAllAtFirst}
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === 'Escape') { e.preventDefault(); finish(false); }

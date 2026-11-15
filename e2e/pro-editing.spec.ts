@@ -211,9 +211,16 @@ test.describe('pro editing', () => {
     await page.keyboard.press('Enter');
     await expect(field).toHaveCount(0);
     expect((await editorState(page)).objects.find((o) => o.id === s3.id)!.name).toBe('B12');
-    // Esc throws the typing away.
+    // A drag followed straight away by a click is not a double-click: no box over the handles.
     const col = await obj(page, 'Column 1');
-    const pc = await center(page, col);
+    const pc0 = await center(page, col);
+    await realDrag(page, pc0, { x: pc0.x + 30, y: pc0.y });
+    await page.mouse.click(pc0.x + 30, pc0.y);
+    await page.waitForTimeout(100);
+    await expect(field).toHaveCount(0);
+    await page.keyboard.press('ControlOrMeta+z');
+    // Esc throws the typing away.
+    const pc = await center(page, await obj(page, 'Column 1'));
     await page.mouse.click(pc.x, pc.y);
     await page.mouse.dblclick(pc.x, pc.y);
     await expect(field).toHaveValue('Column 1');

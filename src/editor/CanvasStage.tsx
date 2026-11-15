@@ -78,6 +78,8 @@ export function CanvasStage() {
   const [menu, setMenu] = useState<{ x: number; y: number; id: string | null } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [finding, setFinding] = useState(false);
+  /** The last two presses on the map, so a drag followed by a quick click doesn't count as a double-click. */
+  const presses = useRef<{ id: string | null; moved: boolean }[]>([]);
   useEffect(() => {
     const open = () => setFinding(true);
     window.addEventListener('bm:find', open);
@@ -315,6 +317,7 @@ export function CanvasStage() {
     const focused = document.activeElement as HTMLElement | null;
     if (focused && focused !== document.body && focused.closest('input, select, textarea, button')) focused.blur();
     let target: Konva.Node = e.target;
+    presses.current = [...presses.current.slice(-1), { id: objFromTarget(e.target), moved: false }];
     const tr = e.target.findAncestor('Transformer') as Konva.Transformer | null;
     if (tr) {
       // A resize handle sits half over the neighbor (often right on its number).
@@ -492,6 +495,10 @@ export function CanvasStage() {
     gesture.current = null;
     const st = useEditor.getState();
     if (!g) return;
+    if ((g.type === 'move' && g.started) || g.type === 'pan' || (g.type === 'touch-tap' && touch.current.moved)) {
+      const last = presses.current[presses.current.length - 1];
+      if (last) last.moved = true;
+    }
     if (g.type === 'pan') setPanning(false);
     else if (g.type === 'touch-place') {
       if (touch.current.moved) return;
@@ -599,7 +606,9 @@ export function CanvasStage() {
     }
     // Type straight onto the map: a space's number, a label's words, an object's name.
     // With a finger the box would cover the neighbouring spaces, so a double tap uses the side panel instead.
-    if (o && e.type !== 'dbltap' && st.selection.length === 1 && st.selection[0] === o.id) setEditing(o.id);
+    const [first, second] = presses.current;
+    const realDouble = !!first && !!second && first.id === o?.id && second.id === o?.id && !first.moved && !second.moved;
+    if (o && realDouble && e.type !== 'dbltap' && st.selection.length === 1 && st.selection[0] === o.id) setEditing(o.id);
     else window.dispatchEvent(new CustomEvent('bm:edit-label'));
   };
 
