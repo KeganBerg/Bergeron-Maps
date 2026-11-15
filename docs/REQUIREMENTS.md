@@ -47,6 +47,7 @@ Last updated: 2026-10-30 (Phase 1).
 | 4.1 | Row generator: draw/position a row, set count and numbering, confirm | Row tool (drag on canvas) + `editor/RowDialog.tsx` + `model/rows.ts` | unit: rows.test; e2e: row test | Tested |
 | 4.2 | Numbering 1,2,3 / A1 / B01 / custom prefix, suffix, digits, start, size, spacing, direction, orientation, label placement; sensible defaults | `model/numbering.ts`, RowDialog ("More options" hides advanced fields) | unit: numbering.test | Tested |
 | 4.3 | Edit generated rows: move, spacing, resize, renumber, reverse, add/remove spaces, duplicate, copy/paste, consistent formatting | Row settings in PropertiesPanel → `regenerateRow` | unit: rows.test, store.test; e2e | Tested |
+| 4.4 | Angled rows (75°, 60°, 45°, 30°, lean left or right) and per-space number size (40% to 300%, with reset), drawn the same in the viewer | `rowGeometry` in `model/rows.ts`, `AngleFields` in RowDialog, `NumberSizeField` in StyleFields, SpaceShape in `render/MapObjects.tsx` | unit: rows.test; e2e: angled-rows.spec | Tested |
 | 4.4 | Duplicate-identifier warnings (floor and facility), renumber tools, allow nonstandard numbering | `model/duplicates.ts`; red dashed outline; Renumber buttons; any label allowed | unit: floors-layers.test, clipboard.test | Tested (facility-wide warnings are computed; surfacing them in a pre-publish check is Part 12) |
 
 ## Part 5: Alignment and snapping

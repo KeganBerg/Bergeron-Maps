@@ -8,7 +8,8 @@ import type { AssetObject, Floor, LabelPlacement, MapObject, SpaceObject, SpaceV
 import { CommitInput, CommitTextarea, toNumber } from '../ui/fields';
 import { SPACES } from '../assets/catalog/spaces';
 import { spaceVariant } from '../render/MapObjects';
-import { StyleFields } from './StyleFields';
+import { NumberSizeField, StyleFields } from './StyleFields';
+import { AngleFields } from './RowDialog';
 import { Icon, type IconName } from '../ui/icons';
 import { objectDisplayName } from './CanvasStage';
 import { currentFloor, useEditor } from './store';
@@ -72,6 +73,8 @@ export function PropertiesPanel() {
           <button className="btn small" onClick={() => st().renumber(spaces.map((s) => s.id))}>Renumber selected spaces</button>
         </div>
       )}
+
+      {spaces.length > 0 && <NumberSizeField spaces={spaces} />}
 
       <StyleFields objs={objs} />
 
@@ -175,6 +178,7 @@ function RowFields({ rowId }: { rowId: string }) {
           <option value={3}>001, 002, 003</option>
         </select>
       </label>
+      <AngleFields angle={spec.angle} lean={spec.lean} onChange={(patch) => up(patch)} />
       <label>
         Gap
         <CommitInput type="number" value={spec.gap} min={0} onCommit={(v) => up({ gap: toNumber(v, spec.gap, 0, 500) })} />

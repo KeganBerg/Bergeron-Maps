@@ -1,7 +1,7 @@
 import { Fragment, memo, useMemo } from 'react';
 import type Konva from 'konva';
 import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
-import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
+import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { badgeLayout } from '../assets/draw';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
@@ -63,8 +63,20 @@ function UprightLabel({ text, x, y, rotation, size, color = MAP_PALETTE.label, m
   );
 }
 
-export function spaceFontSize(s: Pick<SpaceObject, 'width' | 'height'>) {
-  return Math.max(9, Math.min(24, Math.min(s.width, s.height) * 0.34));
+/** Number size limits, as a multiple of the automatic size. */
+export const LABEL_SCALE_MIN = 0.4;
+export const LABEL_SCALE_MAX = 3;
+export const labelScaleOf = (s: Pick<SpaceObject, 'labelScale'>) => {
+  const v = s.labelScale;
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.max(LABEL_SCALE_MIN, Math.min(LABEL_SCALE_MAX, v)) : 1;
+};
+
+/** Width of the stall itself: an angled space's box also holds its lean. */
+export const stallWidth = (s: Pick<SpaceObject, 'width' | 'variant' | 'skew'>) =>
+  s.variant === 'angled' ? Math.max(1, s.width - Math.abs(spaceSkew(s))) : s.width;
+
+export function spaceFontSize(s: Pick<SpaceObject, 'width' | 'height' | 'variant' | 'skew'>) {
+  return Math.max(9, Math.min(24, Math.min(stallWidth(s), s.height) * 0.34));
 }
 
 export const spaceVariant = (s: Pick<SpaceObject, 'variant' | 'accessible'>): SpaceVariant =>
@@ -86,9 +98,12 @@ function useSvgImage(markup: string | null) {
 }
 
 const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: ObjProps & { obj: SpaceObject }) {
-  const size = spaceFontSize(obj);
+  const scale = labelScaleOf(obj);
+  const size = spaceFontSize(obj) * scale;
   const variant = spaceVariant(obj);
   const p = spacePaint(obj);
+  const angled = variant === 'angled';
+  const skew = angled ? spaceSkew(obj) : 0;
   const marks = useMemo(() => {
     const body = spaceMarks(variant, obj.width, obj.height, obj.labelPlacement, p.stroke);
     return body ? svgDoc(obj.width, obj.height, body) : null;
@@ -97,11 +112,14 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
   const ly = obj.labelPlacement === 'top' ? size : obj.labelPlacement === 'bottom' ? obj.height - size : obj.height / 2;
   // Room for the number: the stall width (minus an accessible aisle) by about half its depth.
   const aisle = variant === 'accessible' && obj.width / obj.height >= 0.75 ? obj.width * 0.38 : 0;
-  const labelRoomW = obj.width - aisle;
-  const labelRoomH = obj.labelPlacement === 'center' && variant === 'standard' ? obj.height : obj.height * 0.5;
+  // A bigger number may spill past the lines; a smaller one just shrinks.
+  const grow = Math.max(1, scale);
+  const labelRoomW = (stallWidth(obj) - aisle) * grow;
+  const labelRoomH = (obj.labelPlacement === 'center' && (variant === 'standard' || angled) ? obj.height : obj.height * 0.5) * grow;
   const rot = ((obj.rotation % 180) + 180) % 180;
   const sideways = rot > 45 && rot < 135;
-  const lx = variant === 'accessible' && obj.width / obj.height >= 0.75 ? (obj.width * 0.62) / 2 : obj.width / 2;
+  // An angled stall's middle shifts sideways with the height of the number.
+  const lx = aisle ? (obj.width * 0.62) / 2 : obj.width / 2 + skew * (0.5 - ly / obj.height);
   const fill = highlighted ? MAP_PALETTE.highlightFill : withAlpha(p.fill, p.fo);
   const stroke = duplicate ? '#dc2626' : p.stroke;
   const sw = duplicate ? 3 : p.sw;
@@ -113,13 +131,15 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
     dash: duplicate ? [6, 3] : undefined,
     perfectDrawEnabled: false,
   };
+  const outline = angled ? spaceOutline(variant, obj.width, obj.height, skew) : null;
   return (
     <Group id={obj.id} name="obj" x={obj.x} y={obj.y} rotation={obj.rotation} offsetX={obj.width / 2} offsetY={obj.height / 2}>
-      {variant === 'angled' ? (
+      {outline ? (
         <>
-          {/* Invisible box keeps the whole stall clickable. */}
-          <Rect width={obj.width} height={obj.height} fill="rgba(0,0,0,0.001)" />
-          <Line points={spaceOutline(variant, obj.width, obj.height)} closed {...bodyProps} />
+          {/* Invisible copy keeps the whole stall clickable (even with a clear fill), and
+              only the stall: angled neighbours' boxes overlap. */}
+          <Line points={outline} closed fill="rgba(0,0,0,0.001)" perfectDrawEnabled={false} />
+          <Line points={outline} closed {...bodyProps} listening={false} />
         </>
       ) : (obj.corner ?? 0) > 0 && obj.bevel ? (
         <>
@@ -130,7 +150,7 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
         <Rect width={obj.width} height={obj.height} cornerRadius={Math.min(obj.corner ?? 0, maxCorner(obj))} {...bodyProps} />
       )}
       {marksImg && <KImage image={marksImg} width={obj.width} height={obj.height} listening={false} perfectDrawEnabled={false} />}
-      <UprightLabel text={obj.label} x={lx} y={ly} rotation={obj.rotation} size={size} maxWidth={obj.width}
+      <UprightLabel text={obj.label} x={lx} y={ly} rotation={obj.rotation} size={size} maxWidth={stallWidth(obj)}
         fitW={sideways ? labelRoomH : labelRoomW} fitH={sideways ? labelRoomW : labelRoomH}
         color={highlighted ? MAP_PALETTE.highlightLabel : MAP_PALETTE.label} />
     </Group>
