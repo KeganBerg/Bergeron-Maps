@@ -20,6 +20,8 @@ const SECTIONS: { title: string; rows: [string, string][] }[] = [
       ['Select all', `${modLabel}A`],
       ['Add to or remove from the selection', `Shift+click or ${modLabel}click`],
       ['Select all of the same type', 'Right-click an object'],
+      ['Find a space or object on the map', `${modLabel}F`],
+      ['Type on the map (number, label, name)', 'Double-click a selected object'],
       ['Deselect, or leave a row', 'Esc'],
       ['Nudge 1 px, or 10 px', 'Arrow keys, Shift+arrow keys'],
       ['Bring forward, send backward', `${modLabel}], ${modLabel}[`],

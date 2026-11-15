@@ -17,6 +17,8 @@ import { InteriorMarkers } from '../render/InteriorMarkers';
 import { MAP_PALETTE } from '../theme';
 import { currentFloor, selectionBox, useEditor } from './store';
 import { CanvasMenu } from './CanvasMenu';
+import { InlineLabelEditor } from './InlineLabelEditor';
+import { FindBar } from './FindBar';
 import { registerMapLayer } from './view';
 
 const DRAG_THRESHOLD = 3;
@@ -74,6 +76,13 @@ export function CanvasStage() {
   const [panning, setPanning] = useState(false);
   const [bgSelected, setBgSelected] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; id: string | null } | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [finding, setFinding] = useState(false);
+  useEffect(() => {
+    const open = () => setFinding(true);
+    window.addEventListener('bm:find', open);
+    return () => window.removeEventListener('bm:find', open);
+  }, []);
   const touch = useRef(new PanZoomTracker());
   // Latest versions of the gesture handlers, for the window listeners above.
   const endGesture = useRef<() => void>(() => {});
@@ -185,6 +194,8 @@ export function CanvasStage() {
   }, [bgEditable, floorId]);
   useEffect(() => {
     if (selection.length) setBgSelected(false);
+    // Typing on the map ends when the selection moves on.
+    setEditing((id) => (id && selection.length === 1 && selection[0] === id ? id : null));
   }, [selection]);
 
   // A drag that leaves the map (over the sidebar or floor tabs) keeps tracking
@@ -586,7 +597,10 @@ export function CanvasStage() {
       st.enterBuilding(o.id);
       return;
     }
-    window.dispatchEvent(new CustomEvent('bm:edit-label'));
+    // Type straight onto the map: a space's number, a label's words, an object's name.
+    // With a finger the box would cover the neighbouring spaces, so a double tap uses the side panel instead.
+    if (o && e.type !== 'dbltap' && st.selection.length === 1 && st.selection[0] === o.id) setEditing(o.id);
+    else window.dispatchEvent(new CustomEvent('bm:edit-label'));
   };
 
   /** Right-click: picks what is under the pointer (unless it is already selected) and opens the menu there. */
@@ -657,6 +671,7 @@ export function CanvasStage() {
         : 'crosshair';
 
   const selected = floor.objects.filter((o) => selectedSet.has(o.id));
+  const editingObj = editing && selection.length === 1 && selection[0] === editing ? selected[0] : undefined;
   const selBox = unionBoxes(selected.map(objectBox));
   const chip = selected.length === 1 ? objectDisplayName(selected[0]) : selected.length > 1 ? chipForMany(floor, selected) : null;
   const invScale = 1 / viewport.scale;
@@ -761,7 +776,9 @@ export function CanvasStage() {
           )}
         </Layer>
       </Stage>
+      {finding && <FindBar onClose={() => setFinding(false)} />}
       {menu && <CanvasMenu {...menu} onClose={() => setMenu(null)} />}
+      {editingObj && <InlineLabelEditor key={editingObj.id} o={editingObj} onClose={() => setEditing(null)} />}
     </div>
   );
 }

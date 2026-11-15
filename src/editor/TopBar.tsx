@@ -123,6 +123,7 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
         <button className="zoom-pct" onClick={() => zoomBy(1 / scale)} title={`Reset to 100% (${modLabel}0)`}>{Math.round(scale * 100)}%</button>
         <ToolButton icon="zoomIn" label={`Zoom in (${modLabel}plus, scroll wheel or pinch)`} onClick={() => zoomBy(1.25)} />
         <ToolButton icon="fit" label="Fit floor to screen (Shift+1)" onClick={fit} testId="fit" />
+        <ToolButton icon="search" label={`Find a space or object on the map (${modLabel}F)`} onClick={() => window.dispatchEvent(new CustomEvent('bm:find'))} testId="find" />
       </div>
 
       <div className="group">

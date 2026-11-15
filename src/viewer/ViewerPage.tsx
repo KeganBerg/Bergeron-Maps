@@ -38,6 +38,17 @@ function fromHint(): string | null {
   return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('from');
 }
 
+/** "#/view/abc?at=sp_1": a shared link to one space or place opens on it. */
+function atHint(): string | null {
+  return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('at');
+}
+
+/** A link to this map that opens on one space or place (the published map, never the draft). */
+function linkTo(objectId: string): string {
+  const [route] = window.location.hash.split('?');
+  return `${window.location.origin}${window.location.pathname}${route}?at=${encodeURIComponent(objectId)}`;
+}
+
 const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 function describe(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
@@ -73,6 +84,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [tapped, setTapped] = useState<MapObject | null>(null);
   const [dir, setDir] = useState<Directions | null>(null);
   const [avoidStairs, setAvoidStairs] = useState(false);
+  const [shared, setShared] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const tracker = useRef(new PanZoomTracker());
   /** Where the site map was when someone went inside a building, to come back to. */
@@ -176,6 +188,35 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     const target = Math.min(size.width, size.height) / 5 / Math.max(o.width, o.height);
     const scale = clampScale(Math.max(Math.min(target, 3), 0.6));
     setView({ scale, x: size.width / 2 - o.x * scale, y: size.height / 2 - o.y * scale });
+  };
+
+  // A shared link opens on its space or place, once the map is loaded and measured.
+  const openedAt = useRef(false);
+  useEffect(() => {
+    if (openedAt.current || !doc || !measured) return;
+    const id = atHint();
+    if (!id) return;
+    openedAt.current = true;
+    for (const f of doc.floors) {
+      const o = f.objects.find((x) => x.id === id);
+      if (o) return goTo({ floorId: f.id, floorName: f.name, object: o, title: '', exact: true });
+    }
+  }, [doc, measured, size]);
+
+  const share = async (o: MapObject) => {
+    const url = linkTo(o.id);
+    const title = describe(o, doc!).title;
+    try {
+      // Phones open their own share sheet (Messages, email…); computers copy the link.
+      if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        setTimeout(() => setShared(false), 2500);
+      }
+    } catch {
+      /* closed the share sheet */
+    }
   };
 
   const submitSearch = () => {
@@ -450,7 +491,12 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             <button className={`btn directions-btn${canGoIn ? '' : ' primary'}`} onClick={() => startDirections(tapped!)} data-testid="directions">
               <Icon name="directions" size={16} /> Directions
             </button>
+            <button className={`icon-btn share-btn${shared ? ' done' : ''}`} aria-label={shared ? 'Link copied' : `Share a link to ${info.title}`}
+              title={shared ? 'Link copied' : 'Share a link to this'} onClick={() => void share(tapped!)} data-testid="share">
+              <Icon name={shared ? 'check' : 'share'} />
+            </button>
             <button className="icon-btn" aria-label="Close" onClick={() => { setTapped(null); setFocus(null); }}><Icon name="close" /></button>
+            {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
           </div>
         )}
         {dir?.stage === 'tap' && (

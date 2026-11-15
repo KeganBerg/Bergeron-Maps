@@ -194,4 +194,72 @@ test.describe('pro editing', () => {
     await expect(popup.getByTestId('print-image')).toBeVisible();
     await expect(popup.locator('h1')).toHaveText('Pro · Floor 1');
   });
+
+  test('type a number, a name or a label straight onto the map', async ({ page }) => {
+    const c = await scene(page);
+    // A real double-click: Konva's own double-click window back to its default.
+    await page.evaluate(() => ((window as unknown as { Konva: { dblClickWindow: number } }).Konva.dblClickWindow = 400));
+    const s3 = await obj(page, '3');
+    const p3 = await center(page, s3);
+    await page.mouse.click(p3.x, p3.y);
+    await page.mouse.dblclick(p3.x, p3.y);
+    const field = page.getByTestId('inline-label');
+    await expect(field).toBeVisible();
+    await expect(field).toHaveValue('3');
+    await expect(field).toBeFocused();
+    await page.keyboard.type('B12');
+    await page.keyboard.press('Enter');
+    await expect(field).toHaveCount(0);
+    expect((await editorState(page)).objects.find((o) => o.id === s3.id)!.name).toBe('B12');
+    // Esc throws the typing away.
+    const col = await obj(page, 'Column 1');
+    const pc = await center(page, col);
+    await page.mouse.click(pc.x, pc.y);
+    await page.mouse.dblclick(pc.x, pc.y);
+    await expect(field).toHaveValue('Column 1');
+    await page.keyboard.type('Nope');
+    await page.keyboard.press('Escape');
+    await expect(field).toHaveCount(0);
+    expect((await editorState(page)).objects.find((o) => o.id === col.id)!.name).toBe('Column 1');
+    expect(await names(page), 'Esc in the box leaves the selection alone').toEqual(['Column 1']);
+    // A click elsewhere keeps it, and one undo takes it back.
+    await page.mouse.dblclick(pc.x, pc.y);
+    await page.keyboard.type('Pillar A');
+    await realClick(page, { x: c.x + c.width * 0.05, y: c.y + c.height * 0.9 });
+    await expect(field).toHaveCount(0);
+    expect((await editorState(page)).objects.find((o) => o.id === col.id)!.name).toBe('Pillar A');
+    await page.keyboard.press('ControlOrMeta+z');
+    expect((await editorState(page)).objects.find((o) => o.id === col.id)!.name).toBe('Column 1');
+  });
+
+  test('find a space or object on the map from the editor', async ({ page }) => {
+    await scene(page);
+    await page.getByTestId('add-floor').click();
+    await addFromLibrary(page, 'stairs');
+    await page.getByTestId('asset-search').blur();
+    await page.keyboard.press('Escape');
+    // On Floor 2, find something on Floor 1.
+    await page.keyboard.press('ControlOrMeta+f');
+    await expect(page.getByTestId('find-input')).toBeFocused();
+    await page.keyboard.type('column');
+    await expect(page.getByTestId('find-results')).toContainText('Column 1');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('find-bar')).toHaveCount(0);
+    await expect(page.getByTestId('floor-tab-Floor 1')).toHaveAttribute('aria-selected', 'true');
+    expect(await names(page)).toEqual(['Column 1']);
+    // It is on screen, near the middle, ready to drag.
+    const col = await obj(page, 'Column 1');
+    const at = await center(page, col);
+    const c = (await page.getByTestId('canvas').boundingBox())!;
+    expect(Math.abs(at.x - (c.x + c.width / 2))).toBeLessThan(5);
+    expect(Math.abs(at.y - (c.y + c.height / 2))).toBeLessThan(5);
+    await realDrag(page, at, { x: at.x + 40, y: at.y });
+    expect((await obj(page, 'Column 1')).x).toBeGreaterThan(col.x);
+    // The magnifier button opens it too; Esc closes it.
+    await page.getByTestId('find').click();
+    await page.keyboard.type('zzz');
+    await expect(page.getByTestId('find-results')).toContainText('Nothing on this map');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('find-bar')).toHaveCount(0);
+  });
 });

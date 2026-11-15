@@ -50,6 +50,7 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
     items.push(
       { label: 'Paste', keys: `${modLabel}V`, run: () => st().paste(), disabled: !s.clipboard, testId: 'menu-paste' },
       { label: 'Select all', keys: `${modLabel}A`, run: () => st().selectAll(), disabled: !floor.objects.length, testId: 'menu-select-all' },
+      { label: 'Find on map', keys: `${modLabel}F`, run: () => window.dispatchEvent(new CustomEvent('bm:find')), testId: 'menu-find' },
       'sep',
       { label: 'Fit floor to screen', keys: 'Shift+1', run: fitFloor },
       { label: 'Zoom to 100%', keys: `${modLabel}0`, run: zoomTo100 },
