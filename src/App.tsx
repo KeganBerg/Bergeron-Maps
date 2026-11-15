@@ -1,7 +1,7 @@
 import { localModeChosen, setLocalMode, supabase } from './cloud/client';
 import { OnlineApp } from './cloud/OnlineApp';
 import { isPublicSiteRoute, PublicSitePage } from './cloud/PublicSitePage';
-import { EditorPage } from './editor/EditorPage';
+import { EditorPage } from './lazyPages';
 import { HomePage } from './home/HomePage';
 import { useRoute } from './router';
 import { repository } from './storage/indexedDbRepository';

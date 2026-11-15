@@ -1,5 +1,5 @@
 import Konva from 'konva';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Layer, Rect, Stage } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { searchMap, type SearchHit } from '../model/search';
@@ -10,6 +10,7 @@ import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
 import type { Box } from '../model/types';
+import '../render/konvaSetup';
 import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
@@ -64,6 +65,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [floorId, setFloorId] = useState('');
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [size, setSize] = useState({ width: 360, height: 640 });
+  /** The map stays undrawn until the box has been measured and the floor fitted to it (all before the first paint). */
+  const [measured, setMeasured] = useState(false);
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const [focus, setFocus] = useState<{ id: string; floorId: string } | null>(null);
@@ -138,12 +141,15 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   };
   useEffect(load, [mapId, repo]);
 
-  useEffect(() => {
+  // Measured before the first paint (layout effect), so a big map isn't drawn once at a
+  // made-up size and position and then again for real.
+  useLayoutEffect(() => {
     const el = boxRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => setSize({ width: el.clientWidth, height: el.clientHeight }));
     ro.observe(el);
     setSize({ width: el.clientWidth, height: el.clientHeight });
+    setMeasured(true);
     return () => ro.disconnect();
   }, [doc]);
 
@@ -152,7 +158,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   // Fit when the floor or screen size changes (but not after a search jump).
   const fitKey = `${floor?.id}:${size.width}x${size.height}`;
   const lastFit = useRef('');
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!floor || lastFit.current === fitKey) return;
     lastFit.current = fitKey;
     if (!focus || focus.floorId !== floor.id) resetView();
@@ -381,6 +387,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
       <div className="viewer-canvas" ref={boxRef} onClick={() => setShowResults(false)}>
         <Stage
+          visible={measured}
           width={size.width}
           height={size.height}
           x={view.x}

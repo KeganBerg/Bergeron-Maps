@@ -115,18 +115,35 @@ export interface MapRepository {
   getVersion(versionId: string): Promise<MapDocument | null>;
 }
 
-export function summarize(doc: MapDocument, deletedAt?: string, extra: { site?: string; publish?: PublishInfo; slot?: number | null } = {}): MapSummary {
+/** Floors that aren't the inside of a building. */
+export const countFloors = (doc: Pick<MapDocument, 'floors'>) => doc.floors.filter((f) => !f.interiorOf).length;
+/** Parking spaces on every floor. */
+export const countSpaces = (doc: Pick<MapDocument, 'floors'>) =>
+  doc.floors.reduce((n, f) => n + (f.objects ?? []).filter((o) => o.kind === 'space').length, 0);
+
+type SummaryExtra = { site?: string; publish?: PublishInfo; slot?: number | null };
+
+export function summarize(doc: MapDocument, deletedAt?: string, extra: SummaryExtra = {}): MapSummary {
+  return summaryOf({ ...doc, floorCount: countFloors(doc), spaceCount: countSpaces(doc) }, deletedAt, extra);
+}
+
+/** A list entry from a map's fields and counts alone (online lists don't download the drawing). */
+export function summaryOf(
+  m: Pick<MapDocument, 'id' | 'name' | 'revision' | 'updatedAt'> & { floorCount: number; spaceCount: number },
+  deletedAt?: string,
+  extra: SummaryExtra = {},
+): MapSummary {
   return {
     slot: deletedAt ? undefined : extra.slot ?? undefined,
-    site: extra.site?.trim() || doc.name,
-    revision: doc.revision,
+    site: extra.site?.trim() || m.name,
+    revision: m.revision,
     publishedAt: extra.publish?.publishedAt,
     publishedRevision: extra.publish?.publishedRevision,
-    id: doc.id,
-    name: doc.name,
-    updatedAt: doc.updatedAt,
-    floorCount: doc.floors.filter((f) => !f.interiorOf).length,
-    spaceCount: doc.floors.reduce((n, f) => n + f.objects.filter((o) => o.kind === 'space').length, 0),
+    id: m.id,
+    name: m.name,
+    updatedAt: m.updatedAt,
+    floorCount: m.floorCount,
+    spaceCount: m.spaceCount,
     deletedAt,
   };
 }

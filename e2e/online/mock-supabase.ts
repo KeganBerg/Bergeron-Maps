@@ -58,6 +58,8 @@ export class MockSupabase {
   requests: { id: string; company_id: string; facility_id: string; user_id: string; email: string; note: string | null; status: string; created_at: string }[] = [];
   /** Published copies: map id → whether a manager made it public. */
   published = new Map<string, { isPublic: boolean }>();
+  /** Set to act like a database from before the floor/space counting columns (lighter map lists). */
+  countsMissing = false;
   /** Users whose sessions were ended (removed from a company). */
   signedOut: string[] = [];
   private users = new Map<string, User>(Object.values(USERS).map((u) => [u.id, u]));
@@ -155,6 +157,19 @@ export class MockSupabase {
       if (company) list = list.filter((s) => s.company_id === company);
       return rows(list.map(({ code: _c, ...s }) => ({ ...s, address: s.address ?? null })));
     }
+    // Lists ask the database to count floors and spaces (computed columns) instead of downloading drawings.
+    const select = url.searchParams.get('select') ?? '*';
+    const wants = (col: string) => select === '*' || new RegExp(`(^|[ ,])${col}($|[ ,])`).test(select);
+    const countsOf = (d: Record<string, unknown>) => {
+      const floors = Array.isArray(d.floors) ? (d.floors as { interiorOf?: string; objects?: { kind: string }[] }[]) : [];
+      return {
+        floor_count: floors.filter((f) => !f.interiorOf).length,
+        space_count: floors.reduce((n, f) => n + (f.objects ?? []).filter((o) => o.kind === 'space').length, 0),
+        level_count: Array.isArray(d.floors) ? floors.length : 1,
+      };
+    };
+    if ((path === '/rest/v1/maps' || path === '/rest/v1/published_maps') && /floor_count|space_count|level_count/.test(select) && this.countsMissing)
+      return json({ code: '42703', message: `column ${path.split('/').pop()}.${/level_count/.test(select) ? 'level_count' : 'floor_count'} does not exist` }, 400);
     if (path === '/rest/v1/maps') {
       let list = this.maps.filter((m) => this.canSee(u, this.sites.find((s) => s.id === m.facility_id)!));
       const id = eq('id');
@@ -174,15 +189,27 @@ export class MockSupabase {
       return rows(list.map((m) => {
         const site = this.sites.find((s) => s.id === m.facility_id)!;
         const pub = this.published.get(m.id);
-        return { ...m, created_at: now, updated_at: now, deleted_at: null, is_public: pub?.isPublic ?? false, facilities: { name: site.name, slug: site.slug },
+        const { draft, ...row } = m;
+        const c = countsOf(draft);
+        return { ...row, ...(wants('draft') ? { draft } : {}), ...(wants('floor_count') ? { floor_count: c.floor_count } : {}), ...(wants('space_count') ? { space_count: c.space_count } : {}),
+          created_at: now, updated_at: now, deleted_at: null, is_public: pub?.isPublic ?? false, facilities: { name: site.name, slug: site.slug },
           published_maps: pub ? { published_at: now, revision: m.revision } : null };
       }));
     }
     if (path === '/rest/v1/published_maps') {
       const id = eq('map_id');
       const list = this.maps.filter((m) => this.published.has(m.id) && this.canSee(u, this.sites.find((s) => s.id === m.facility_id)!) && (!id || m.id === id));
-      return rows(list.map((m) => ({ map_id: m.id, name: m.name, facility_id: m.facility_id, published_at: '2026-11-12T00:00:00Z', revision: m.revision, doc: m.draft,
-        floors: (m.draft as { floors?: unknown[] }).floors ?? [] })));
+      return rows(list.map((m) => {
+        const c = countsOf(m.draft);
+        return { map_id: m.id, name: m.name, facility_id: m.facility_id, published_at: '2026-11-12T00:00:00Z', revision: m.revision,
+          ...(wants('doc') ? { doc: m.draft } : {}),
+          ...(/doc->floors/.test(select) ? { floors: (m.draft as { floors?: unknown[] }).floors ?? null } : {}),
+          ...Object.fromEntries(Object.entries(c).filter(([k]) => wants(k))) };
+      }));
+    }
+    if (path === '/rest/v1/map_versions' && req.method() === 'POST') {
+      const v = req.postDataJSON() as { map_id: string; reason: string; label: string; revision: number };
+      return rows([{ id: `v${this.log.length}`, map_id: v.map_id, created_at: '2026-11-12T00:00:00Z', reason: v.reason, label: v.label, revision: v.revision }]);
     }
     if (path === '/rest/v1/map_versions') return rows([]);
 

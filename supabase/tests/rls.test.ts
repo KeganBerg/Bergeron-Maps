@@ -587,3 +587,37 @@ describe('protecting sites that have maps', () => {
   });
 });
 
+
+describe('map list counts', () => {
+  const garage = {
+    id: 'local', name: 'Garage', schemaVersion: 1,
+    floors: [
+      { id: 'f1', objects: [{ kind: 'space' }, { kind: 'space' }, { kind: 'asset' }] },
+      { id: 'f2', objects: [{ kind: 'space' }] },
+      // The inside of a building on floor 1: its spaces count, but it isn't a floor of its own.
+      { id: 'in1', interiorOf: 'b1', objects: [{ kind: 'space' }, { kind: 'text' }] },
+      { id: 'f3' },
+    ],
+  };
+
+  it('counts floors and spaces in the database, the way the maps page does', async () => {
+    await as(w.manager, 'update maps set draft = $1 where id = $2', [garage, w.map]);
+    const [m] = await as<{ floor_count: number; space_count: number }>(w.manager, 'select m.floor_count, m.space_count from maps m where id = $1', [w.map]);
+    expect(m).toEqual({ floor_count: 3, space_count: 4 });
+    await as(w.manager, 'select public.publish_map($1)', [w.map]);
+    const [p] = await as<{ floor_count: number; space_count: number; level_count: number }>(
+      w.employee, 'select p.floor_count, p.space_count, p.level_count from published_maps p where map_id = $1', [w.map]);
+    expect(p).toEqual({ floor_count: 3, space_count: 4, level_count: 4 });
+  });
+
+  it('copes with maps that have no floors list', async () => {
+    await as(w.manager, `update maps set draft = '{"name": "odd"}' where id = $1`, [w.map]);
+    const [m] = await as<{ floor_count: number; space_count: number }>(w.manager, 'select m.floor_count, m.space_count from maps m where id = $1', [w.map]);
+    expect(m).toEqual({ floor_count: 0, space_count: 0 });
+  });
+
+  it('only counts rows the person can already see', async () => {
+    expect(await as(w.manager, 'select m.space_count from maps m where id = $1', [w.otherMap])).toEqual([]);
+    await expect(as(null, 'select p.level_count from published_maps p')).rejects.toThrow(/permission denied/);
+  });
+});

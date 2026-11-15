@@ -1,5 +1,5 @@
 import Konva from 'konva';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Label, Layer, Line, Rect, Shape, Stage, Tag, Text, Transformer } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
@@ -9,6 +9,7 @@ import { simplifyStroke } from '../model/shape';
 import { angledSpecFrom, DEFAULT_ROW } from '../model/rows';
 import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
+import '../render/konvaSetup';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { fitViewport, floorBounds } from '../render/viewport';
 import { hasInterior } from '../model/interiors';
@@ -86,8 +87,10 @@ export function CanvasStage() {
   const gridSize = doc?.settings.gridSize ?? 10;
   const interiorIds = useMemo(() => new Set((doc?.floors ?? []).map((f) => f.interiorOf).filter((x): x is string => !!x)), [doc]);
 
-  // Track container size.
-  useEffect(() => {
+  // Track container size. Measured before the first paint (layout effect), and the map
+  // stays undrawn until then, so a big floor isn't drawn at the default size first.
+  const [measured, setMeasured] = useState(false);
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => useEditor.getState().setViewSize({ width: el.clientWidth, height: el.clientHeight }));
@@ -99,6 +102,7 @@ export function CanvasStage() {
     // smaller than the default size, so fitting earlier cut the map off).
     const f = currentFloor(s);
     if (f) s.setViewport(fitViewport(floorBounds(f), size));
+    setMeasured(true);
     return () => ro.disconnect();
   }, []);
 
@@ -637,6 +641,7 @@ export function CanvasStage() {
     >
       <Stage
         ref={stageRef}
+        visible={measured}
         width={viewSize.width}
         height={viewSize.height}
         x={viewport.x}
