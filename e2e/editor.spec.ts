@@ -171,7 +171,7 @@ test('a map can be downloaded as a file and imported again as a new map', async 
   await page.getByTestId('row-count').fill('6');
   await page.getByTestId('create-row').click();
   await waitSaved(page);
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-map').click()]);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-map').click().then(() => page.getByTestId('download-file').click())]);
   expect(download.suggestedFilename()).toBe('Riverside-Garage.bmap.json');
   const file = await download.path();
 

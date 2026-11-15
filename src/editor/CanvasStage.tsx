@@ -16,6 +16,8 @@ import { hasInterior } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
 import { MAP_PALETTE } from '../theme';
 import { currentFloor, selectionBox, useEditor } from './store';
+import { CanvasMenu } from './CanvasMenu';
+import { registerMapLayer } from './view';
 
 const DRAG_THRESHOLD = 3;
 /**
@@ -41,6 +43,9 @@ type Gesture =
       others: Box[];
       started: boolean;
       additiveClickId?: string;
+      /** Alt/Option held: the drag moves a copy and leaves the originals where they were. */
+      altCopy?: boolean;
+      copied?: boolean;
       /** Big selections move the drawn objects directly while dragging (see LIVE_DRAG_LIMIT). */
       nodes?: Map<string, Konva.Node>;
       last?: { dx: number; dy: number };
@@ -59,7 +64,7 @@ export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const objLayerRef = useRef<Konva.Layer>(null);
+  const objLayerRef = useRef<Konva.Layer | null>(null);
   const gesture = useRef<Gesture | null>(null);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [cutDraft, setCutDraft] = useState<number[] | null>(null);
@@ -68,6 +73,7 @@ export function CanvasStage() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [panning, setPanning] = useState(false);
   const [bgSelected, setBgSelected] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string | null } | null>(null);
   const touch = useRef(new PanZoomTracker());
   // Latest versions of the gesture handlers, for the window listeners above.
   const endGesture = useRef<() => void>(() => {});
@@ -378,6 +384,7 @@ export function CanvasStage() {
         others: f.objects.filter((o) => !selSet.has(o.id) && !o.hidden && !hidden.has(o.layerId)).map(objectBox),
         started: false,
         additiveClickId: additive && wasSelected ? id : undefined,
+        altCopy: evt.altKey,
       };
       return;
     }
@@ -424,6 +431,19 @@ export function CanvasStage() {
         if (Math.hypot(rawDx, rawDy) * viewport.scale < DRAG_THRESHOLD) return;
         g.started = true;
         g.additiveClickId = undefined;
+        if (g.altCopy) {
+          // Copy in place first, then drag the copies (one undo step for both, as in Figma).
+          const originals = [...g.startPos.keys()];
+          const copies = st.duplicateInPlace();
+          if (copies.length) {
+            const f = currentFloor(useEditor.getState())!;
+            const ids = new Set(copies);
+            g.startPos = new Map(f.objects.filter((o) => ids.has(o.id)).map((o) => [o.id, { x: o.x, y: o.y }]));
+            const left = new Set(originals);
+            g.others = [...g.others, ...f.objects.filter((o) => left.has(o.id)).map(objectBox)];
+            g.copied = true;
+          }
+        }
         st.beginGesture();
         if (g.startPos.size > LIVE_DRAG_LIMIT && stageRef.current) {
           g.nodes = new Map();
@@ -498,8 +518,8 @@ export function CanvasStage() {
             }
           }
         });
-        st.endGesture();
-      } else if (g.started) st.endGesture();
+        st.endGesture({ mergeWithPrevious: g.copied });
+      } else if (g.started) st.endGesture({ mergeWithPrevious: g.copied });
       else if (g.additiveClickId) st.clickObject(g.additiveClickId, { additive: true });
       setGuides([]);
     } else if (g.type === 'row') {
@@ -567,6 +587,18 @@ export function CanvasStage() {
       return;
     }
     window.dispatchEvent(new CustomEvent('bm:edit-label'));
+  };
+
+  /** Right-click: picks what is under the pointer (unless it is already selected) and opens the menu there. */
+  const onContextMenu = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    e.evt.preventDefault();
+    gesture.current = null;
+    const st = useEditor.getState();
+    if (st.tool.type !== 'select') st.setTool({ type: 'select' });
+    const id = objFromTarget(e.target);
+    if (id && !st.selection.includes(id)) st.clickObject(id, { additive: false });
+    else if (!id) st.clearSelection();
+    setMenu({ x: e.evt.clientX, y: e.evt.clientY, id: id && useEditor.getState().selection.includes(id) ? id : null });
   };
 
   const onTransformEnd = () => {
@@ -654,9 +686,9 @@ export function CanvasStage() {
         onDblClick={onDblClick}
         // A double tap does on a phone or tablet what a double click does with a mouse.
         onDblTap={onDblClick}
-        onContextMenu={(e) => e.evt.preventDefault()}
+        onContextMenu={onContextMenu}
       >
-        <Layer ref={objLayerRef}>
+        <Layer ref={(l) => { objLayerRef.current = l; registerMapLayer(l); }}>
           {(snapMode === 'grid' || (tool.type === 'cut' && tool.mode === 'grid')) && <GridLines viewport={viewport} size={viewSize} grid={gridSize} />}
           <FloorObjects floor={floor} duplicates={duplicates} bgEditable={bgEditable} bgSelected={bgSelected} />
           {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={viewport.scale} />}
@@ -729,6 +761,7 @@ export function CanvasStage() {
           )}
         </Layer>
       </Stage>
+      {menu && <CanvasMenu {...menu} onClose={() => setMenu(null)} />}
     </div>
   );
 }
@@ -818,6 +851,7 @@ function GridLines({ viewport, size, grid }: { viewport: { x: number; y: number;
   while (step * viewport.scale < 8) step *= 5;
   return (
     <Shape
+      name="grid-lines"
       listening={false}
       sceneFunc={(ctx) => {
         const x0 = Math.floor(-viewport.x / viewport.scale / step) * step;
