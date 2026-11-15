@@ -30,11 +30,18 @@ export const SPACES = [
 /** How far the angled stall leans: the parallelogram's horizontal offset. */
 export const angledSkew = (w: number) => Math.max(0, w - Math.min(w, 45));
 
-/** Outline points of a space (for the angled variant, a parallelogram). */
-export function spaceOutline(variant: SpaceVariant, w: number, h: number): number[] {
+/** The sideways lean of an angled space: its own setting, or the single-space default. */
+export const spaceSkew = (s: { width: number; skew?: number }) =>
+  Math.max(-s.width, Math.min(s.width, s.skew ?? angledSkew(s.width)));
+
+/**
+ * Outline points of a space (for the angled variant, a parallelogram). A
+ * negative skew leans the stall the other way.
+ */
+export function spaceOutline(variant: SpaceVariant, w: number, h: number, skew = angledSkew(w)): number[] {
   if (variant === 'angled') {
-    const k = angledSkew(w);
-    return [k, 0, w, 0, w - k, h, 0, h];
+    const k = Math.min(Math.abs(skew), w);
+    return skew >= 0 ? [k, 0, w, 0, w - k, h, 0, h] : [0, 0, w - k, 0, w, h, k, h];
   }
   return [0, 0, w, 0, w, h, 0, h];
 }

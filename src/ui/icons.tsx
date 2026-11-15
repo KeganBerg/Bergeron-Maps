@@ -55,6 +55,7 @@ const paths: Record<string, string> = {
   forward: 'M12 19V6M7 11l5-5 5 5',
   backward: 'M12 5v13M7 13l5 5 5-5',
   toBack: 'M12 4v11M7 10l5 5 5-5M5 20h14',
+  directions: 'M12 2.5 21.5 12 12 21.5 2.5 12zM9 15v-3.5h6M12.5 9l2.5 2.5-2.5 2.5',
   enter: 'M13 4h6v16h-6M3 12h11M10 8l4 4-4 4',
 };
 

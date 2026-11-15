@@ -68,6 +68,8 @@ function repairObject(o: MapObject & Record<string, unknown>) {
     if (!(typeof o.color === 'string' && COLOR.test(o.color))) o.color = '#111827';
   }
   if (o.kind === 'space' && !(typeof o.fill === 'string' && COLOR.test(o.fill))) o.fill = '#ffffff';
+  if ('skew' in o && !finite(o.skew)) delete o.skew;
+  if ('labelScale' in o) finite(o.labelScale) && (o.labelScale as number) > 0 ? (o.labelScale = clamp(o.labelScale as number, 0.3, 4)) : delete o.labelScale;
 }
 
 function repairBackground(f: Floor): BackgroundImage | undefined {

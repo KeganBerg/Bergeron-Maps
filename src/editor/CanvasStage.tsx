@@ -1,14 +1,15 @@
 import Konva from 'konva';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Label, Layer, Line, Rect, Shape, Stage, Tag, Text, Transformer } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { boxContains, objectBox, normalizeRotation, unionBoxes } from '../model/geometry';
 import { snapMove, snapToGrid, type Guide } from '../model/snapping';
 import { simplifyStroke } from '../model/shape';
-import { DEFAULT_ROW } from '../model/rows';
+import { angledSpecFrom, DEFAULT_ROW } from '../model/rows';
 import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
+import '../render/konvaSetup';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { fitViewport, floorBounds } from '../render/viewport';
 import { hasInterior } from '../model/interiors';
@@ -86,8 +87,10 @@ export function CanvasStage() {
   const gridSize = doc?.settings.gridSize ?? 10;
   const interiorIds = useMemo(() => new Set((doc?.floors ?? []).map((f) => f.interiorOf).filter((x): x is string => !!x)), [doc]);
 
-  // Track container size.
-  useEffect(() => {
+  // Track container size. Measured before the first paint (layout effect), and the map
+  // stays undrawn until then, so a big floor isn't drawn at the default size first.
+  const [measured, setMeasured] = useState(false);
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => useEditor.getState().setViewSize({ width: el.clientWidth, height: el.clientHeight }));
@@ -99,6 +102,7 @@ export function CanvasStage() {
     // smaller than the default size, so fitting earlier cut the map off).
     const f = currentFloor(s);
     if (f) s.setViewport(fitViewport(floorBounds(f), size));
+    setMeasured(true);
     return () => ro.disconnect();
   }, []);
 
@@ -576,16 +580,19 @@ export function CanvasStage() {
       n.scale({ x: 1, y: 1 });
       return;
     }
-    const updates = new Map<string, { x: number; y: number; width: number; height: number; rotation: number }>();
+    const updates = new Map<string, { x: number; y: number; width: number; height: number; rotation: number; skew?: number }>();
     for (const n of tr.nodes()) {
       const o = floor.objects.find((x) => x.id === n.id());
       if (!o) continue;
+      const sx = Math.abs(n.scaleX());
       updates.set(o.id, {
         x: n.x(),
         y: n.y(),
-        width: Math.max(2, o.width * Math.abs(n.scaleX())),
+        width: Math.max(2, o.width * sx),
         height: Math.max(2, o.height * Math.abs(n.scaleY())),
         rotation: normalizeRotation(n.rotation()),
+        // An angled stall's lean stretches with its width.
+        ...(o.kind === 'space' && o.skew !== undefined ? { skew: Math.round(o.skew * sx * 100) / 100 } : {}),
       });
       n.scale({ x: 1, y: 1 });
     }
@@ -634,6 +641,7 @@ export function CanvasStage() {
     >
       <Stage
         ref={stageRef}
+        visible={measured}
         width={viewSize.width}
         height={viewSize.height}
         x={viewport.x}
@@ -789,11 +797,18 @@ function syncRowSpecs(f: Floor, updates: Map<string, { width: number; height: nu
       .filter((o): o is Extract<MapObject, { kind: 'space' }> => o.kind === 'space' && o.rowId === spec.id)
       .sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
     if (!spaces.length || !spaces.every((s) => updates.has(s.id))) continue;
-    spec.spaceWidth = Math.round(spaces[0].width * 10) / 10;
-    spec.spaceDepth = Math.round(spaces[0].height * 10) / 10;
+    let along = spaces[0].width;
+    if (spaces[0].variant === 'angled' && spaces[0].skew !== undefined) {
+      const back = angledSpecFrom(spaces[0].width, spaces[0].height, spaces[0].skew);
+      Object.assign(spec, { spaceWidth: back.spaceWidth, spaceDepth: back.spaceDepth, angle: back.angle });
+      along = back.along;
+    } else {
+      spec.spaceWidth = Math.round(spaces[0].width * 10) / 10;
+      spec.spaceDepth = Math.round(spaces[0].height * 10) / 10;
+    }
     if (spaces.length > 1) {
       const d = Math.hypot(spaces[1].x - spaces[0].x, spaces[1].y - spaces[0].y);
-      spec.gap = Math.max(0, Math.round((d - spaces[0].width) * 10) / 10);
+      spec.gap = Math.max(0, Math.round((d - along) * 10) / 10);
     }
   }
 }

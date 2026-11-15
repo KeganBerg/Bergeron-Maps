@@ -8,7 +8,9 @@ import type { AssetObject, Floor, LabelPlacement, MapObject, SpaceObject, SpaceV
 import { CommitInput, CommitTextarea, toNumber } from '../ui/fields';
 import { SPACES } from '../assets/catalog/spaces';
 import { spaceVariant } from '../render/MapObjects';
-import { StyleFields } from './StyleFields';
+import { NumberSizeField, StyleFields } from './StyleFields';
+import { AngleFields } from './RowDialog';
+import { hasInsideLabel, LabelAdjust } from './LabelAdjust';
 import { Icon, type IconName } from '../ui/icons';
 import { objectDisplayName } from './CanvasStage';
 import { currentFloor, useEditor } from './store';
@@ -72,6 +74,8 @@ export function PropertiesPanel() {
           <button className="btn small" onClick={() => st().renumber(spaces.map((s) => s.id))}>Renumber selected spaces</button>
         </div>
       )}
+
+      {spaces.length > 0 && <NumberSizeField spaces={spaces} />}
 
       <StyleFields objs={objs} />
 
@@ -175,6 +179,7 @@ function RowFields({ rowId }: { rowId: string }) {
           <option value={3}>001, 002, 003</option>
         </select>
       </label>
+      <AngleFields angle={spec.angle} lean={spec.lean} onChange={(patch) => up(patch)} />
       <label>
         Gap
         <CommitInput type="number" value={spec.gap} min={0} onCommit={(v) => up({ gap: toNumber(v, spec.gap, 0, 500) })} />
@@ -224,7 +229,15 @@ function AssetFields({ a }: { a: AssetObject }) {
         <CommitInput value={a.label ?? ''} maxLength={40} placeholder={def?.labelPos === 'inside' ? def.label : '(none)'} data-testid="asset-label"
           onCommit={(v) => st().updateObjects([a.id], { label: v.trim() || undefined })} />
       </label>
+      {def && hasInsideLabel(def) && !a.imageSrc && (
+        <label className="check name-toggle">
+          <input type="checkbox" checked={!a.labelHidden} data-testid="label-toggle"
+            onChange={(e) => st().updateObjects([a.id], { labelHidden: e.target.checked ? undefined : true } as Partial<MapObject>)} />
+          Show the name on the map
+        </label>
+      )}
       {def && symbolSupport(def).custom && !a.imageSrc && <SymbolField a={a} builtIn={symbolSupport(def).builtIn} />}
+      {def && hasInsideLabel(def) && !a.imageSrc && <LabelAdjust a={a} def={def} />}
       {def?.note && def.creates !== 'image' && <p className="hint">{def.note}</p>}
       {def && canHaveInterior(def) && !here.interiorOf && (
         <div className="interior-field" data-testid="interior-field">

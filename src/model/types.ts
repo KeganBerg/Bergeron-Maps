@@ -85,6 +85,14 @@ export interface SpaceObject extends BaseObject {
   labelPlacement: LabelPlacement;
   fill: string;
   accessible?: boolean;
+  /**
+   * Angled spaces only: how far the top edge is shifted sideways from the
+   * bottom edge, in map px (negative leans the other way). Missing = the
+   * library default for a single angled space (see angledSkew).
+   */
+  skew?: number;
+  /** Size of the number as a multiple of the automatic size (1 = automatic). */
+  labelScale?: number;
 }
 
 export interface AssetObject extends BaseObject {
@@ -99,12 +107,28 @@ export interface AssetObject extends BaseObject {
   symbol?: { name: string; path: string };
   /** true = show no symbol at all (the label then centers). */
   symbolHidden?: boolean;
+  /** true = don't draw the name on the map (it still shows in search and the side panel). */
+  labelHidden?: boolean;
+  /** Where the name and symbol sit inside a zone, room or building, and how big. Missing = the default. */
+  labelLayout?: LabelLayout;
   /** Thickness of curved bands and L-shaped corner pieces. */
   band?: number;
   /** Landscape pieces merge with neighbours automatically; false keeps this one separate. */
   merge?: boolean;
   /** How close (map px) neighbours must be to flow together into one shape. */
   blend?: number;
+}
+
+/**
+ * A moved or resized name and symbol. Positions are the middle of each, as
+ * fractions (0..1) of the object's width and height, so they stay put when the
+ * object is resized. Scales multiply the default size (1 = default).
+ */
+export interface LabelLayout {
+  text?: { x: number; y: number };
+  textScale?: number;
+  symbol?: { x: number; y: number };
+  symbolScale?: number;
 }
 
 export interface TextObject extends BaseObject {
@@ -131,6 +155,13 @@ export interface RowSpec {
   /** Number from the far end of the row instead of the near end. */
   reverse: boolean;
   labelPlacement: LabelPlacement;
+  /**
+   * Angle of the stall lines to the row, in degrees. Missing or 90 = straight
+   * (square) spaces; less than 90 = angled spaces, drawn as parallelograms.
+   */
+  angle?: number;
+  /** Which way angled spaces lean. Missing = 'right'. */
+  lean?: 'left' | 'right';
 }
 
 export interface BackgroundImage {

@@ -3,8 +3,10 @@ import { migrateDocument } from '../model/migrate';
 import type { MapDocument } from '../model/types';
 import {
   ConflictError,
+  countFloors,
+  countSpaces,
   MapGoneError,
-  summarize,
+  summaryOf,
   type MapRepository,
   type MapSummary,
   type PublishInfo,
@@ -15,7 +17,10 @@ import {
 interface MapRow {
   id: string;
   name: string;
-  draft: MapDocument;
+  /** Only in rows read for opening a map; lists ask for the counts instead. */
+  draft?: MapDocument;
+  floor_count?: number;
+  space_count?: number;
   revision: number;
   created_at: string;
   updated_at: string;
@@ -27,7 +32,11 @@ interface MapRow {
   published_maps: { published_at: string; revision: number } | null;
 }
 
-const MAP_COLUMNS = 'id, name, draft, revision, created_at, updated_at, deleted_at, facility_id, slot, is_public, facilities(name, slug), published_maps(published_at, revision)';
+/** Everything about a map except its drawing. */
+const META_COLUMNS = 'id, name, revision, created_at, updated_at, deleted_at, facility_id, slot, is_public, facilities(name, slug), published_maps(published_at, revision)';
+const MAP_COLUMNS = `${META_COLUMNS}, draft`;
+/** For lists: the database counts floors and spaces, so whole maps aren't downloaded just to show two numbers. */
+const LIST_COLUMNS = `${META_COLUMNS}, floor_count, space_count`;
 
 const LABELS: Record<VersionReason, string> = {
   auto: 'Automatic save point',
@@ -51,14 +60,23 @@ function changed(r: { data: unknown[] | null; error: { message: string } | null 
 }
 
 /** The stored document, with the server's id, name and revision as the source of truth. */
-function toDoc(row: Pick<MapRow, 'id' | 'name' | 'draft' | 'revision' | 'created_at' | 'updated_at'>): MapDocument {
+function toDoc(row: Pick<MapRow, 'id' | 'name' | 'revision' | 'created_at' | 'updated_at'> & { draft: MapDocument }): MapDocument {
   return migrateDocument({ ...row.draft, id: row.id, name: row.name, revision: row.revision, createdAt: row.created_at, updatedAt: row.updated_at });
+}
+
+/** Counts from the database when it sent them, otherwise from the drawing (older databases). */
+function counts(row: { floor_count?: number | null; space_count?: number | null }, doc: { floors?: unknown } | undefined) {
+  const floors = doc && Array.isArray(doc.floors) ? (doc as Pick<MapDocument, 'floors'>) : null;
+  return {
+    floorCount: row.floor_count ?? (floors ? countFloors(floors) : 0),
+    spaceCount: row.space_count ?? (floors ? countSpaces(floors) : 0),
+  };
 }
 
 function toSummary(row: MapRow): MapSummary {
   const pub = row.published_maps;
   return {
-    ...summarize(toDoc(row), row.deleted_at ?? undefined, {
+    ...summaryOf({ id: row.id, name: row.name, revision: row.revision, updatedAt: row.updated_at, ...counts(row, row.draft) }, row.deleted_at ?? undefined, {
       site: row.facilities?.name,
       publish: pub ? { publishedAt: pub.published_at, publishedRevision: pub.revision } : undefined,
       slot: row.slot,
@@ -69,6 +87,29 @@ function toSummary(row: MapRow): MapSummary {
 }
 
 /**
+ * Databases set up before the counting columns existed (lighter map lists)
+ * answer "column does not exist": then lists ask for the whole maps, as they
+ * used to, for the rest of the visit.
+ */
+let countsMissing = false;
+const MISSING_COUNTS = /floor_count|space_count|level_count/i;
+
+/** Runs a list query with the counting columns, or without them on a database that lacks them. */
+export async function withCounts<T>(run: (counts: boolean) => PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
+  if (!countsMissing) {
+    const r = await run(true);
+    if (!r.error) return r.data;
+    if (!MISSING_COUNTS.test(r.error.message)) throw new Error(r.error.message);
+    countsMissing = true;
+  }
+  return check(await run(false));
+}
+/** For tests: forget that a database lacked the counting columns. */
+export const resetCountsCheck = () => {
+  countsMissing = false;
+};
+
+/**
  * Online storage for one company. Every read and write goes through
  * row-level security, so a person only ever reaches the sites they were given.
  */
@@ -76,10 +117,12 @@ export class SupabaseRepository implements MapRepository {
   constructor(private readonly db: SupabaseClient, readonly companyId: string, private readonly onlySite?: string) {}
 
   private async rows(deleted: boolean): Promise<MapRow[]> {
-    let q = this.db.from('maps').select(MAP_COLUMNS).eq('company_id', this.companyId);
-    q = deleted ? q.not('deleted_at', 'is', null) : q.is('deleted_at', null);
-    if (this.onlySite) q = q.eq('facility_id', this.onlySite);
-    return check(await q.order('updated_at', { ascending: false })) as unknown as MapRow[];
+    return (await withCounts((light) => {
+      let q = this.db.from('maps').select(light ? LIST_COLUMNS : MAP_COLUMNS).eq('company_id', this.companyId);
+      q = deleted ? q.not('deleted_at', 'is', null) : q.is('deleted_at', null);
+      if (this.onlySite) q = q.eq('facility_id', this.onlySite);
+      return q.order('updated_at', { ascending: false });
+    })) as unknown as MapRow[];
   }
 
   async listMaps(): Promise<MapSummary[]> {
@@ -92,13 +135,17 @@ export class SupabaseRepository implements MapRepository {
 
   /** What an employee can open: published maps of the sites they belong to. */
   async listPublishedMaps(): Promise<MapSummary[]> {
-    let q = this.db.from('published_maps').select('map_id, name, doc, revision, published_at, facilities(name)').eq('company_id', this.companyId);
-    if (this.onlySite) q = q.eq('facility_id', this.onlySite);
-    const rows = check(await q.order('name')) as unknown as {
-      map_id: string; name: string; doc: MapDocument; revision: number; published_at: string; facilities: { name: string } | null;
+    const rows = (await withCounts((light) => {
+      let q = this.db.from('published_maps')
+        .select(`map_id, name, revision, published_at, facilities(name), ${light ? 'floor_count, space_count' : 'doc'}`)
+        .eq('company_id', this.companyId);
+      if (this.onlySite) q = q.eq('facility_id', this.onlySite);
+      return q.order('name');
+    })) as unknown as {
+      map_id: string; name: string; doc?: MapDocument; floor_count?: number; space_count?: number; revision: number; published_at: string; facilities: { name: string } | null;
     }[];
     return rows.map((r) =>
-      summarize({ ...r.doc, id: r.map_id, name: r.name, revision: r.revision, updatedAt: r.published_at }, undefined, {
+      summaryOf({ id: r.map_id, name: r.name, revision: r.revision, updatedAt: r.published_at, ...counts(r, r.doc) }, undefined, {
         site: r.facilities?.name,
         publish: { publishedAt: r.published_at, publishedRevision: r.revision },
       }),
@@ -113,7 +160,7 @@ export class SupabaseRepository implements MapRepository {
   }
 
   async getMap(id: string): Promise<MapDocument | null> {
-    const row = check(await this.db.from('maps').select(MAP_COLUMNS).eq('id', id).is('deleted_at', null).maybeSingle()) as MapRow | null;
+    const row = check(await this.db.from('maps').select(MAP_COLUMNS).eq('id', id).is('deleted_at', null).maybeSingle()) as (MapRow & { draft: MapDocument }) | null;
     return row ? toDoc(row) : null;
   }
 
@@ -134,19 +181,26 @@ export class SupabaseRepository implements MapRepository {
     const facility_id = await this.siteId(site?.trim() || doc.name);
     const id = crypto.randomUUID();
     // The database picks the slot (the asked-for one if it is free) and refuses a sixth map.
+    const draft = { ...doc, id };
+    // The new row comes back without its drawing: it is the one just sent.
     const row = check(
-      await this.db.from('maps').insert({ id, facility_id, name: doc.name, draft: { ...doc, id }, slot: slot ?? null }).select(MAP_COLUMNS).single(),
+      await this.db.from('maps').insert({ id, facility_id, name: doc.name, draft, slot: slot ?? null }).select(META_COLUMNS).single(),
     ) as unknown as MapRow;
-    return toDoc(row);
+    return toDoc({ ...row, draft: structuredClone(draft) });
   }
 
   async saveMap(doc: MapDocument, baseRevision: number): Promise<MapDocument> {
     // The revision check happens in the database: the update matches nothing if
     // someone else saved first, and the trigger bumps the revision on success.
+    // Only the new revision and times come back, not the whole drawing just sent (autosave runs
+    // after every change, so echoing a big map back doubled what each save moved).
     const r = check(
-      await this.db.from('maps').update({ name: doc.name, draft: doc }).eq('id', doc.id).eq('revision', baseRevision).is('deleted_at', null).select(MAP_COLUMNS),
-    ) as unknown as MapRow[];
-    if (r.length) return toDoc(r[0]);
+      await this.db.from('maps').update({ name: doc.name, draft: doc }).eq('id', doc.id).eq('revision', baseRevision).is('deleted_at', null).select('id, name, revision, created_at, updated_at'),
+    ) as unknown as Pick<MapRow, 'id' | 'name' | 'revision' | 'created_at' | 'updated_at'>[];
+    if (r.length) {
+      const row = r[0];
+      return { ...doc, id: row.id, name: row.name, revision: row.revision, createdAt: row.created_at, updatedAt: row.updated_at };
+    }
     const current = await this.getMap(doc.id);
     if (!current)
       throw new MapGoneError('This map was deleted, or you no longer have access to it, so your latest changes couldn’t be saved. They are kept in this browser: restore the map from “Recently deleted”, then open it again to recover them.');

@@ -1,7 +1,7 @@
 import { category } from '../defs';
 import { along, customSign, hatched, raisedShadow, signCircle, signDiamond, signOctagon, signRect, signTriangle, zone } from '../draw';
 import { glyph } from '../glyphs';
-import { boxRect, F, FS, fitText, icon, P, r2, S, text, type DrawCtx } from '../style';
+import { boxRect, F, FS, fitText, grassFill, icon, P, r2, S, text, type DrawCtx } from '../style';
 
 // ---------------------------------------------------------------- outdoor
 
@@ -41,7 +41,7 @@ const speckle = (c: DrawCtx, color: string, step = 11, r = 1.4) => {
 };
 
 /** Grass on a curb: shaped and curved pieces clip this to their outline. */
-const grassPiece = (c: DrawCtx) => `${boxRect(c, 4)}${speckle(c, P.grassEdge, 14, 1)}`;
+const grassPiece = (c: DrawCtx) => `${boxRect(c, 4)}${grassFill(c, c.sw, 3)}${boxRect({ ...c, fo: 0 }, 4)}`;
 
 export interface Clump { cx: number; cy: number; rx: number; ry: number }
 
@@ -85,7 +85,7 @@ export const OUTDOOR = [
   }),
   od('grass-area', 'Grass area', {
     width: 200, height: 120, layer: 'structure', fill: P.grass, stroke: P.grassEdge, strokeWidth: 1.5, keywords: ['lawn', 'turf', 'green space'], merge: 'grass',
-    draw: (c) => `${boxRect(c, 4)}${speckle(c, P.grassEdge, 16, 1)}`,
+    draw: grassPiece,
   }),
   od('planter', 'Landscaping bed', {
     width: 180, height: 50, layer: 'structure', fill: P.mulch, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['planter', 'mulch', 'garden bed', 'island'],
@@ -146,6 +146,14 @@ export const OUTDOOR = [
   od('grass-island-quarter', 'Quarter-round grass island', {
     width: 100, height: 100, layer: 'structure', outline: 'quarter', merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['island', 'corner', 'quarter circle', 'round', 'planter'],
     draw: grassPiece,
+  }),
+  od('concrete-area', 'Concrete area', {
+    width: 200, height: 120, layer: 'structure', merge: 'concrete', fill: '#c8c8c4', stroke: '#9a9a95', strokeWidth: 1.5, keywords: ['concrete', 'pavement', 'paved', 'slab', 'gray', 'grey', 'hardscape', 'pad'],
+    draw: (c) => boxRect(c),
+  }),
+  od('asphalt-area', 'Asphalt area', {
+    width: 200, height: 120, layer: 'structure', merge: 'asphalt', fill: P.asphalt, stroke: P.asphaltEdge, strokeWidth: 1.5, keywords: ['asphalt', 'blacktop', 'pavement', 'paved', 'tarmac', 'gray', 'grey', 'lot surface'],
+    draw: (c) => boxRect(c),
   }),
   od('dirt-area', 'Dirt area', { width: 160, height: 100, layer: 'structure', merge: 'dirt', fill: '#b9966b', stroke: '#8c6b4a', strokeWidth: 1.2, keywords: ['soil', 'unpaved', 'earth'], draw: (c) => `${boxRect(c, 6)}${speckle(c, '#8c6b4a', 13, 1.2)}` }),
   od('gravel-area', 'Gravel area', { width: 160, height: 100, layer: 'structure', merge: 'gravel', fill: P.gravel, stroke: '#a89f8c', strokeWidth: 1.2, keywords: ['gravel lot', 'stone', 'unpaved'], draw: (c) => `${boxRect(c, 2)}${speckle(c, '#a39a88', 7, 1.1)}` }),

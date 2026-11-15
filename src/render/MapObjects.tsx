@@ -1,18 +1,18 @@
 import { Fragment, memo, useMemo } from 'react';
 import type Konva from 'konva';
 import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
-import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
+import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
-import { badgeLayout } from '../assets/draw';
-import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
+import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
 import { bandWidth, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
 import { roadExtensions, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
-import { P, svgDoc, withAlpha } from '../assets/style';
+import { GRASS_TEXTURE, P, svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
 import { fitLabel, LABEL_LINE_HEIGHT } from './fitLabel';
 import { MAP_PALETTE } from '../theme';
 import { SPACE_FILL } from '../model/rows';
+import { labelSpot } from './labelSpot';
 
 export const LABEL_FONT = MAP_PALETTE.font;
 
@@ -63,8 +63,20 @@ function UprightLabel({ text, x, y, rotation, size, color = MAP_PALETTE.label, m
   );
 }
 
-export function spaceFontSize(s: Pick<SpaceObject, 'width' | 'height'>) {
-  return Math.max(9, Math.min(24, Math.min(s.width, s.height) * 0.34));
+/** Number size limits, as a multiple of the automatic size. */
+export const LABEL_SCALE_MIN = 0.4;
+export const LABEL_SCALE_MAX = 3;
+export const labelScaleOf = (s: Pick<SpaceObject, 'labelScale'>) => {
+  const v = s.labelScale;
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.max(LABEL_SCALE_MIN, Math.min(LABEL_SCALE_MAX, v)) : 1;
+};
+
+/** Width of the stall itself: an angled space's box also holds its lean. */
+export const stallWidth = (s: Pick<SpaceObject, 'width' | 'variant' | 'skew'>) =>
+  s.variant === 'angled' ? Math.max(1, s.width - Math.abs(spaceSkew(s))) : s.width;
+
+export function spaceFontSize(s: Pick<SpaceObject, 'width' | 'height' | 'variant' | 'skew'>) {
+  return Math.max(9, Math.min(24, Math.min(stallWidth(s), s.height) * 0.34));
 }
 
 export const spaceVariant = (s: Pick<SpaceObject, 'variant' | 'accessible'>): SpaceVariant =>
@@ -86,9 +98,12 @@ function useSvgImage(markup: string | null) {
 }
 
 const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: ObjProps & { obj: SpaceObject }) {
-  const size = spaceFontSize(obj);
+  const scale = labelScaleOf(obj);
+  const size = spaceFontSize(obj) * scale;
   const variant = spaceVariant(obj);
   const p = spacePaint(obj);
+  const angled = variant === 'angled';
+  const skew = angled ? spaceSkew(obj) : 0;
   const marks = useMemo(() => {
     const body = spaceMarks(variant, obj.width, obj.height, obj.labelPlacement, p.stroke);
     return body ? svgDoc(obj.width, obj.height, body) : null;
@@ -97,11 +112,14 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
   const ly = obj.labelPlacement === 'top' ? size : obj.labelPlacement === 'bottom' ? obj.height - size : obj.height / 2;
   // Room for the number: the stall width (minus an accessible aisle) by about half its depth.
   const aisle = variant === 'accessible' && obj.width / obj.height >= 0.75 ? obj.width * 0.38 : 0;
-  const labelRoomW = obj.width - aisle;
-  const labelRoomH = obj.labelPlacement === 'center' && variant === 'standard' ? obj.height : obj.height * 0.5;
+  // A bigger number may spill past the lines; a smaller one just shrinks.
+  const grow = Math.max(1, scale);
+  const labelRoomW = (stallWidth(obj) - aisle) * grow;
+  const labelRoomH = (obj.labelPlacement === 'center' && (variant === 'standard' || angled) ? obj.height : obj.height * 0.5) * grow;
   const rot = ((obj.rotation % 180) + 180) % 180;
   const sideways = rot > 45 && rot < 135;
-  const lx = variant === 'accessible' && obj.width / obj.height >= 0.75 ? (obj.width * 0.62) / 2 : obj.width / 2;
+  // An angled stall's middle shifts sideways with the height of the number.
+  const lx = aisle ? (obj.width * 0.62) / 2 : obj.width / 2 + skew * (0.5 - ly / obj.height);
   const fill = highlighted ? MAP_PALETTE.highlightFill : withAlpha(p.fill, p.fo);
   const stroke = duplicate ? '#dc2626' : p.stroke;
   const sw = duplicate ? 3 : p.sw;
@@ -113,13 +131,15 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
     dash: duplicate ? [6, 3] : undefined,
     perfectDrawEnabled: false,
   };
+  const outline = angled ? spaceOutline(variant, obj.width, obj.height, skew) : null;
   return (
     <Group id={obj.id} name="obj" x={obj.x} y={obj.y} rotation={obj.rotation} offsetX={obj.width / 2} offsetY={obj.height / 2}>
-      {variant === 'angled' ? (
+      {outline ? (
         <>
-          {/* Invisible box keeps the whole stall clickable. */}
-          <Rect width={obj.width} height={obj.height} fill="rgba(0,0,0,0.001)" />
-          <Line points={spaceOutline(variant, obj.width, obj.height)} closed {...bodyProps} />
+          {/* Invisible copy keeps the whole stall clickable (even with a clear fill), and
+              only the stall: angled neighbours' boxes overlap. */}
+          <Line points={outline} closed fill="rgba(0,0,0,0.001)" perfectDrawEnabled={false} />
+          <Line points={outline} closed {...bodyProps} listening={false} />
         </>
       ) : (obj.corner ?? 0) > 0 && obj.bevel ? (
         <>
@@ -130,7 +150,7 @@ const SpaceShape = memo(function SpaceShape({ obj, duplicate, highlighted }: Obj
         <Rect width={obj.width} height={obj.height} cornerRadius={Math.min(obj.corner ?? 0, maxCorner(obj))} {...bodyProps} />
       )}
       {marksImg && <KImage image={marksImg} width={obj.width} height={obj.height} listening={false} perfectDrawEnabled={false} />}
-      <UprightLabel text={obj.label} x={lx} y={ly} rotation={obj.rotation} size={size} maxWidth={obj.width}
+      <UprightLabel text={obj.label} x={lx} y={ly} rotation={obj.rotation} size={size} maxWidth={stallWidth(obj)}
         fitW={sideways ? labelRoomH : labelRoomW} fitH={sideways ? labelRoomW : labelRoomH}
         color={highlighted ? MAP_PALETTE.highlightLabel : MAP_PALETTE.label} />
     </Group>
@@ -147,19 +167,11 @@ function insideRoom(obj: AssetObject, y: number, underBadge: boolean): { fitW: n
   return { fitW: across, fitH: Math.max(tall, 8), growDown: underBadge };
 }
 
-/** Where an asset's name label goes, in the object's own coordinates. */
-function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; size: number; badge: boolean } | null {
-  const { width: w, height: h } = obj;
-  let pos = def?.labelPos ?? 'below';
-  // The name sits under the badge only while there is a badge.
-  if (def && (pos === 'badge' || pos === 'center') && symbolSupport(def).custom) {
-    const shows = !obj.symbolHidden && (!!obj.symbol || (pos === 'badge' && symbolSupport(def).builtIn));
-    pos = shows ? 'badge' : 'center';
-  }
-  if (pos === 'inside') return null;
-  if (pos === 'below') return { y: h + 10, size: Math.max(10, Math.min(14, Math.max(w, h) * 0.22)), badge: false };
-  const size = Math.max(10, Math.min(20, Math.min(w, h) * 0.16, (w / 8) * 1.6));
-  return { y: pos === 'badge' ? badgeLayout(w, h).labelY : h / 2, size, badge: pos === 'badge' };
+/** Room for a name the user moved or resized: anywhere inside the object, as seen upright. */
+function movedRoom(obj: AssetObject): { fitW: number; fitH: number } {
+  const rot = ((obj.rotation % 180) + 180) % 180;
+  const sideways = rot > 45 && rot < 135;
+  return { fitW: (sideways ? obj.height : obj.width) * 0.95, fitH: (sideways ? obj.width : obj.height) * 0.95 };
 }
 
 /**
@@ -186,11 +198,11 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
     // Shaped pieces draw their own border along the outline, so the box border is left off.
     () => (def && !obj.imageSrc && !merged ? renderAssetSvg(def, shaped || mode ? { ...obj, strokeWidth: 0, marksOnly: mode === 'marks' } : obj) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [def, merged, shaped, mode, obj.band, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden, upsideDown],
+    [def, merged, shaped, mode, obj.band, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden, obj.labelHidden, obj.labelLayout, upsideDown],
   );
   const drawn = useSvgImage(markup);
   const photo = useImage(obj.imageSrc);
-  const label = obj.label?.trim();
+  const label = obj.labelHidden ? undefined : obj.label?.trim();
   const spot = label ? labelSpot(def, obj) : null;
   const clipRings = mode === 'marks' && markClip ? markClip : rings;
   const clip = clipRings ? (ctx: Konva.Context) => traceRings(ctx, clipRings) : undefined;
@@ -232,14 +244,14 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
       {label && spot && (
         <UprightLabel
           text={label}
-          x={obj.width / 2}
+          x={spot.x}
           y={spot.y}
           rotation={obj.rotation}
           size={spot.size}
           maxWidth={obj.width}
           // A name drawn inside the object shrinks or wraps to stay inside it
           // ("Customer waiting room" used to spill past the walls of its room).
-          {...(spot.y < obj.height ? insideRoom(obj, spot.y, spot.badge) : {})}
+          {...(spot.moved ? movedRoom(obj) : spot.y < obj.height ? insideRoom(obj, spot.y, spot.badge) : {})}
           color={spot.y < obj.height && def?.labelColor ? def.labelColor : MAP_PALETTE.label}
         />
       )}
@@ -269,7 +281,29 @@ const dots = (color: string, r: number): Painter => (c, n) => {
  * repeat size in map pixels; painters draw in map pixels.
  */
 const MERGE_TEXTURE: Record<string, { tile: number; paint: Painter }> = {
-  grass: { tile: 28, paint: dots(P.grassEdge, 1) },
+  grass: {
+    tile: GRASS_TEXTURE.tile,
+    paint: (c) => {
+      for (const [x, y, r, color, a] of GRASS_TEXTURE.patches) {
+        c.globalAlpha = a;
+        dot(c, x, y, r, color);
+      }
+      c.globalAlpha = 1;
+      c.strokeStyle = GRASS_TEXTURE.blade;
+      c.lineWidth = 0.9;
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      c.beginPath();
+      for (const [x, y] of GRASS_TEXTURE.tufts) {
+        c.moveTo(x - 1.6, y - 3.4);
+        c.lineTo(x, y);
+        c.lineTo(x + 1.6, y - 3.4);
+        c.moveTo(x, y);
+        c.lineTo(x, y - 4.4);
+      }
+      c.stroke();
+    },
+  },
   gravel: { tile: 14, paint: dots('#a39a88', 1.1) },
   dirt: { tile: 26, paint: dots('#8c6b4a', 1.2) },
   'rock-bed': { tile: 18, paint: dots('#8f897d', 2.4) },

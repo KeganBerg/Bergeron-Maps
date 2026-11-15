@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EditorPage } from '../editor/EditorPage';
+import { EditorPage } from '../lazyPages';
 import { AppHeader, HomePage } from '../home/HomePage';
 import { navigate, useRoute } from '../router';
 import { ViewerPage } from '../viewer/ViewerPage';

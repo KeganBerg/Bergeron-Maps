@@ -21,6 +21,7 @@ describe('shape outlines', () => {
   it('draws circles, half circles, quarter rounds, curved bands and L corners', () => {
     expect(ringsArea(localOutline({ width: 100, height: 100, outline: 'ellipse' }))).toBeCloseTo(Math.PI * 2500, -2);
     expect(ringsArea(localOutline({ width: 100, height: 50, outline: 'half' }))).toBeCloseTo((Math.PI * 2500) / 2, -2);
+    expect(ringsArea(localOutline({ width: 120, height: 60, outline: 'triangle' }))).toBeCloseTo(3600, 0);
     expect(ringsArea(localOutline({ width: 100, height: 100, outline: 'quarter' }))).toBeCloseTo((Math.PI * 10000) / 4, -2);
     const band = ringsArea(localOutline({ width: 100, height: 100, outline: 'arc', band: 20 }));
     expect(band).toBeCloseTo((Math.PI * (10000 - 6400)) / 4, -2);

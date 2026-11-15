@@ -82,6 +82,12 @@ export interface DrawCtx {
   band?: number;
   /** The object is turned so far that text drawn on it would read upside down. */
   upsideDown?: boolean;
+  /** The badge moved by the user: its middle as fractions of w and h. */
+  badgeAt?: { x: number; y: number };
+  /** Badge size multiplier (1 = default). */
+  badgeScale?: number;
+  /** The name is hidden, so a badge that isn't moved sits in the middle. */
+  nameHidden?: boolean;
 }
 
 export type DrawFn = (c: DrawCtx) => string;
@@ -155,3 +161,31 @@ export const text = (x: number, y: number, size: number, content: string, color:
 
 /** Fits text of n characters into a width. */
 export const fitText = (width: number, chars: number, max: number) => Math.max(4, Math.min(max, (width / Math.max(chars, 1)) * 1.2));
+
+/**
+ * Lawn texture shared by every grass piece and by merged grass on the map:
+ * lighter and darker mown patches plus little tufts of blades, so grass reads
+ * as grass and not as a flat green box. One tile is `tile` map pixels square.
+ */
+export const GRASS_TEXTURE = {
+  tile: 28,
+  patches: [
+    [7, 7, 6, '#c3e2a8', 0.6],
+    [20, 19, 7, '#8fbe6d', 0.45],
+    [22, 5, 3, '#c3e2a8', 0.5],
+  ] as [number, number, number, string, number][],
+  tufts: [[4, 23], [12, 10], [18, 27], [24, 9], [26, 18], [9, 17]] as [number, number][],
+  blade: '#5f9446',
+};
+
+/** One grass tuft (three blades) rooted at (x, y), as an SVG path. */
+export const grassTuftPath = (x: number, y: number) =>
+  `M${x - 1.6} ${y - 3.4} L${x} ${y} L${x + 1.6} ${y - 3.4} M${x} ${y} L${x} ${y - 4.4}`;
+
+/** SVG lawn pattern filling the object's box (shaped pieces clip it to their outline). */
+export const grassFill = (c: DrawCtx, inset = c.sw / 2, rx = 0) => {
+  const g = GRASS_TEXTURE;
+  const tile = g.patches.map(([x, y, r, col, a]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" fill-opacity="${a}"/>`).join('')
+    + `<path d="${g.tufts.map(([x, y]) => grassTuftPath(x, y)).join(' ')}" fill="none" stroke="${g.blade}" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return `<defs><pattern id="lawn" width="${g.tile}" height="${g.tile}" patternUnits="userSpaceOnUse">${tile}</pattern></defs><rect x="${r2(inset)}" y="${r2(inset)}" width="${r2(Math.max(0, c.w - inset * 2))}" height="${r2(Math.max(0, c.h - inset * 2))}" rx="${rx}" fill="url(#lawn)"/>`;
+};

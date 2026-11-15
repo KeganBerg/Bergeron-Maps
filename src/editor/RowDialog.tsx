@@ -1,11 +1,50 @@
 import { useMemo, useState } from 'react';
 import { highestNumber, rowLabels } from '../model/numbering';
-import { DEFAULT_ROW } from '../model/rows';
+import { DEFAULT_ROW, rowAngle } from '../model/rows';
 import type { LabelPlacement, RowSpec } from '../model/types';
 import { Dialog } from '../ui/Dialog';
 import { currentFloor, useEditor } from './store';
 
 type Form = Omit<RowSpec, 'id'> & { rotation: number };
+
+const ANGLES = [90, 75, 60, 45, 30];
+
+/**
+ * Straight or angled stalls, and which way angled ones lean. Used by the
+ * new-row dialog and by a selected row's settings.
+ */
+export function AngleFields({ angle, lean, onChange }: {
+  angle?: number;
+  lean?: 'left' | 'right';
+  onChange: (patch: Pick<RowSpec, 'angle' | 'lean'>) => void;
+}) {
+  const a = rowAngle({ angle });
+  const shown = Math.round(a * 10) / 10;
+  return (
+    <>
+      <label>
+        Space angle
+        <select value={String(shown)} data-testid="row-angle"
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            onChange({ angle: v === 90 ? undefined : v, lean: v === 90 ? undefined : lean });
+          }}>
+          {!ANGLES.includes(shown) && <option value={String(shown)}>Angled {shown}°</option>}
+          {ANGLES.map((d) => <option key={d} value={String(d)}>{d === 90 ? 'Straight (90°)' : `Angled ${d}°`}</option>)}
+        </select>
+      </label>
+      {a !== 90 && (
+        <label>
+          Lean
+          <select value={lean ?? 'right'} data-testid="row-lean" onChange={(e) => onChange({ angle, lean: e.target.value === 'left' ? 'left' : undefined })}>
+            <option value="right">Leans right ⁄</option>
+            <option value="left">Leans left ∖</option>
+          </select>
+        </label>
+      )}
+    </>
+  );
+}
 
 export function RowDialog() {
   const dlg = useEditor((s) => s.rowDialog)!;
@@ -90,6 +129,7 @@ export function RowDialog() {
             <option value={3}>001, 002, 003</option>
           </select>
         </label>
+        <AngleFields angle={form.angle} lean={form.lean} onChange={(p) => setForm((f) => ({ ...f, ...p }))} />
         {more && (
           <>
             <label>

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { newId } from '../model/ids';
 import { MAP_FILE_EXTENSION, MAX_MAP_FILE_BYTES, parseMapFile } from '../storage/mapFile';
 import { SITE_LIVE_MAPS, SITE_MAP_SLOTS, TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
+import { preloadEditor } from '../lazyPages';
 import { navigate } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { NewMapDialog } from './NewMapDialog';
@@ -92,9 +93,11 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
   const refresh = async () => {
     try {
       await repo.purgeExpiredTrash();
-      setMaps(await repo.listMaps());
-      if (repo.listSites) setSites(await repo.listSites());
-      setTrash(await repo.listTrash());
+      // One round trip's wait instead of three: the lists don't depend on each other.
+      const [maps, sites, trash] = await Promise.all([repo.listMaps(), repo.listSites?.(), repo.listTrash()]);
+      setMaps(maps);
+      if (sites) setSites(sites);
+      setTrash(trash);
     } catch (e) {
       setError(`Your maps couldn’t be loaded. ${(e as Error).message ?? ''}`.trim());
       setMaps([]);
@@ -102,6 +105,9 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
   };
   useEffect(() => {
     void refresh();
+    // The editor is a separate download: fetch it while the page sits idle, so Edit opens at once.
+    if ('requestIdleCallback' in window) window.requestIdleCallback(preloadEditor);
+    else setTimeout(preloadEditor, 1500);
     // refresh only on mount
   }, []);
 

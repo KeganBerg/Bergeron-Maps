@@ -14,8 +14,9 @@ import { SCHOOL, SCHOOL_SHARED, SCHOOLS } from './catalog/school';
 import { OFFICE, OFFICE_SHARED, OFFICES } from './catalog/office';
 import { SPACES } from './catalog/spaces';
 import { isSafePath, type MapSymbol } from './symbols';
-import { bandWidth, DEFAULT_BLEND, type ShapeSource } from '../model/shape';
-import type { AssetObject } from '../model/types';
+import { bandWidth, DEFAULT_BLEND, localOutline, type ShapeSource } from '../model/shape';
+import type { AssetObject, LabelLayout } from '../model/types';
+import { cleanLabelLayout } from '../model/labelLayout';
 import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
 import { VALET, VEHICLES } from './catalog/valet-vehicles';
 import { ASSET_CATEGORIES, type AssetCategory, type AssetDef } from './defs';
@@ -50,6 +51,8 @@ export const ASSETS: AssetDef[] = [
 /** Keys used by earlier versions whose asset now lives under another key. */
 const ALIASES: Record<string, string> = {
   office: 'lobby-entrance',
+  // "Pedestrian crossing" was a second crosswalk; old maps show it as the Crosswalk.
+  'pedestrian-crossing': 'crosswalk',
 };
 
 // General assets that also cover items on the school or office lists are shown
@@ -97,6 +100,8 @@ export interface PaintSource {
   label?: string;
   symbol?: MapSymbol;
   symbolHidden?: boolean;
+  labelHidden?: boolean;
+  labelLayout?: LabelLayout;
   band?: number;
   marksOnly?: boolean;
   rotation?: number;
@@ -124,7 +129,11 @@ export function renderAssetSvg(def: AssetDef, o: PaintSource): string {
   const p = resolvePaint(def, o);
   const symbol = o.symbolHidden ? null : o.symbol && isSafePath(o.symbol.path) ? o.symbol : undefined;
   const band = def.outline === 'arc' || def.outline === 'L' ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band }) : undefined;
-  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly, upsideDown: isUpsideDown(o.rotation) };
+  const lay = cleanLabelLayout(o.labelLayout);
+  const ctx: DrawCtx = {
+    w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly, upsideDown: isUpsideDown(o.rotation),
+    badgeAt: lay?.symbol, badgeScale: lay?.symbolScale, nameHidden: !!o.labelHidden,
+  };
   return svgDoc(o.width, o.height, def.draw(ctx));
 }
 
@@ -149,13 +158,28 @@ export function symbolSupport(def: AssetDef): { custom: boolean; builtIn: boolea
   return s;
 }
 
+/**
+ * A shaped piece (circle, half circle, curved band, triangle...) drawn the way
+ * it looks on the map: its drawing clipped to the outline, with the border
+ * painted along the outline, so the tile shows the real shape and not a box.
+ */
+function shapedPreview(def: AssetDef): string {
+  const { width: w, height: h } = def;
+  const rings = localOutline({ width: w, height: h, outline: def.outline, band: def.band });
+  const d = rings.map((r) => `M${r.map((v) => Math.round(v * 100) / 100).join(' ')}Z`).join('');
+  const inner = renderAssetSvg(def, { width: w, height: h, strokeWidth: 0 }).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+  const sw = def.strokeWidth;
+  const border = sw > 0 ? `<path d="${d}" fill="none" stroke="${def.stroke}" stroke-width="${sw}" stroke-linejoin="round"${def.dashed ? ` stroke-dasharray="${sw * 4} ${sw * 2.5}"` : ''}/>` : '';
+  return svgDoc(w, h, `<defs><clipPath id="outline"><path d="${d}"/></clipPath></defs><g clip-path="url(#outline)">${inner}</g>${border}`);
+}
+
 /** Library tile preview at the asset's default size and paint. */
 const previewCache = new Map<string, string>();
 export function assetPreviewUrl(def: AssetDef): string | undefined {
   if (!def.draw) return undefined;
   let url = previewCache.get(def.key);
   if (!url) {
-    url = svgDataUrl(renderAssetSvg(def, { width: def.width, height: def.height }));
+    url = svgDataUrl(def.outline && def.outline !== 'rect' ? shapedPreview(def) : renderAssetSvg(def, { width: def.width, height: def.height }));
     previewCache.set(def.key, url);
   }
   return url;
