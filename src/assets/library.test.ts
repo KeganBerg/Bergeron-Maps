@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fitLabel, splitLabel } from '../render/fitLabel';
-import { ASSET_BY_KEY, ASSET_CATEGORIES, ASSETS, assetsIn, renderAssetSvg, searchAssets } from './library';
+import { ASSET_BY_KEY, ASSET_CATEGORIES, ASSETS, assetPreviewUrl, assetsIn, isShapeable, mergeKey, renderAssetSvg, searchAssets } from './library';
 import { icon } from './style';
 
 /** Every key an earlier version of the app could have saved in a map. */
@@ -113,5 +113,37 @@ describe('garage openings', () => {
     expect(renderAssetSvg(def, { width: 120, height: 44 })).not.toContain('rotate(180');
     expect(renderAssetSvg(def, { width: 120, height: 44, rotation: 180 })).toContain('rotate(180 76 26)');
     expect(renderAssetSvg(def, { width: 120, height: 44, rotation: -90 })).not.toContain('rotate(180');
+  });
+});
+
+describe('parking lot surfaces and paint', () => {
+  it('keeps one crosswalk: old maps with a Pedestrian crossing open it as the Crosswalk', () => {
+    expect(ASSETS.some((a) => a.key === 'pedestrian-crossing')).toBe(false);
+    expect(ASSET_BY_KEY['pedestrian-crossing']).toBe(ASSET_BY_KEY.crosswalk);
+  });
+
+  it('has striped no-parking paint in square, triangle and half-circle shapes that take cuts and curvature', () => {
+    for (const k of ['striped-square', 'striped-triangle', 'striped-half']) {
+      const def = ASSET_BY_KEY[k];
+      expect(def, k).toBeTruthy();
+      expect(isShapeable(def)).toBe(true);
+      expect(searchAssets('hatched').map((a) => a.key)).toContain(k);
+    }
+    expect(ASSET_BY_KEY['striped-triangle'].outline).toBe('triangle');
+    expect(ASSET_BY_KEY['striped-half'].outline).toBe('half');
+  });
+
+  it('adds plain concrete and asphalt areas that flow together like grass', () => {
+    expect(mergeKey(ASSET_BY_KEY['concrete-area'])).toBe('concrete');
+    expect(mergeKey(ASSET_BY_KEY['asphalt-area'])).toBe('asphalt');
+    expect(searchAssets('concrete').map((a) => a.key)).toContain('concrete-area');
+    expect(searchAssets('asphalt').map((a) => a.key)).toContain('asphalt-area');
+  });
+
+  it('draws grass as lawn, and shows shaped pieces in their real shape in the library', () => {
+    expect(renderAssetSvg(ASSET_BY_KEY['grass-area'], { width: 200, height: 120 })).toContain('url(#lawn)');
+    const tile = decodeURIComponent(assetPreviewUrl(ASSET_BY_KEY['grass-island-round'])!);
+    expect(tile).toContain('clip-path="url(#outline)"');
+    expect(decodeURIComponent(assetPreviewUrl(ASSET_BY_KEY['grass-area'])!)).not.toContain('url(#outline)');
   });
 });
