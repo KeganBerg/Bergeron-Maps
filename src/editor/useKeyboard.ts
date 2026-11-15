@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { useEditor } from './store';
+import { fitFloor, zoomBy, zoomTo100, zoomToSelection } from './view';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 /**
  * Standard shortcuts only: Ctrl/⌘ + C, V, X, D, Z, Y / Shift+Z, A, S;
- * Delete/Backspace; Escape; arrow keys nudge (Shift = 10).
+ * Delete/Backspace; Escape; arrow keys nudge (Shift = 10); zoom with Ctrl/⌘ +
+ * plus, minus and 0, Shift+1 to fit and Shift+2 for the selection; ? lists them all.
  */
 export function useKeyboard(onSave: () => void) {
   useEffect(() => {
@@ -17,6 +19,13 @@ export function useKeyboard(onSave: () => void) {
       const mod = isMac ? e.metaKey : e.ctrlKey;
       const key = e.key.toLowerCase();
 
+      // Zoom the map, not the page (the browser's own page zoom is on the same keys).
+      if (mod && (key === '=' || key === '+' || e.code === 'NumpadAdd')) { zoomBy(1.25); e.preventDefault(); return; }
+      if (mod && (key === '-' || key === '_' || e.code === 'NumpadSubtract')) { zoomBy(1 / 1.25); e.preventDefault(); return; }
+      if (mod && (key === '0' || e.code === 'Numpad0')) { zoomTo100(); e.preventDefault(); return; }
+      if (e.shiftKey && !mod && !e.altKey && e.code === 'Digit1') { fitFloor(); e.preventDefault(); return; }
+      if (e.shiftKey && !mod && !e.altKey && e.code === 'Digit2') { zoomToSelection(); e.preventDefault(); return; }
+      if (key === '?' && !mod) { window.dispatchEvent(new CustomEvent('bm:shortcuts')); e.preventDefault(); return; }
       if (mod && key === 'c') { s.copy(); e.preventDefault(); return; }
       if (mod && key === 'x') { s.cut(); e.preventDefault(); return; }
       if (mod && key === 'v') { s.paste(); e.preventDefault(); return; }

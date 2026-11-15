@@ -13,10 +13,10 @@ export function floorBounds(floor: Floor, includeBackground = true): Box | null 
 }
 
 /** Viewport that fits `box` into a screen of the given size with padding. */
-export function fitViewport(box: Box | null, size: { width: number; height: number }, padding = 40) {
+export function fitViewport(box: Box | null, size: { width: number; height: number }, padding = 40, maxScale = 2) {
   if (!box || box.width === 0 || box.height === 0) return { x: size.width / 2 - 300, y: size.height / 2 - 200, scale: 1 };
   const scale = clampScale(
-    Math.min((size.width - padding * 2) / box.width, (size.height - padding * 2) / box.height, 2),
+    Math.min((size.width - padding * 2) / box.width, (size.height - padding * 2) / box.height, maxScale),
   );
   return {
     scale,

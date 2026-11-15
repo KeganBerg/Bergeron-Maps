@@ -1,11 +1,12 @@
 import { BrandMark } from '../ui/Brand';
-import { floorBounds, fitViewport, zoomAt } from '../render/viewport';
+import { useEffect, useState } from 'react';
 import type { SnapMode } from '../model/snapping';
 import { CommitInput, toNumber } from '../ui/fields';
 import { Icon, type IconName } from '../ui/icons';
 import { modLabel } from './useKeyboard';
 import { mapFileName, serializeMapFile } from '../storage/mapFile';
-import { currentFloor, useEditor, type SaveStatus } from './store';
+import { useEditor, type SaveStatus } from './store';
+import { downloadFloorImage, fitFloor, printFloor, zoomBy } from './view';
 
 const STATUS: Record<SaveStatus, { text: string; tone: string }> = {
   saved: { text: 'Saved', tone: 'ok' },
@@ -50,15 +51,19 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
   const scale = useEditor((s) => s.viewport.scale);
   const st = useEditor.getState;
 
-  const zoomBy = (f: number) => {
-    const s = st();
-    s.setViewport(zoomAt(s.viewport, { x: s.viewSize.width / 2, y: s.viewSize.height / 2 }, s.viewport.scale * f));
-  };
-  const fit = () => {
-    const s = st();
-    const floor = currentFloor(s);
-    if (floor) s.setViewport(fitViewport(floorBounds(floor), s.viewSize));
-  };
+  const fit = fitFloor;
+  const [downloadMenu, setDownloadMenu] = useState<{ left: number; top: number } | null>(null);
+  useEffect(() => {
+    if (!downloadMenu) return;
+    const close = (e: Event) => !(e.target as HTMLElement).closest?.('.download-menu, [data-testid="download-map"]') && setDownloadMenu(null);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setDownloadMenu(null);
+    window.addEventListener('pointerdown', close, true);
+    window.addEventListener('keydown', esc);
+    return () => {
+      window.removeEventListener('pointerdown', close, true);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [downloadMenu]);
   const info = STATUS[status];
   const download = () => {
     const url = URL.createObjectURL(new Blob([serializeMapFile(st().doc!)], { type: 'application/json' }));
@@ -114,17 +119,35 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
           </label>
         )}
         <span className="sep" />
-        <ToolButton icon="zoomOut" label="Zoom out (scroll wheel or pinch)" onClick={() => zoomBy(1 / 1.25)} />
-        <button className="zoom-pct" onClick={() => zoomBy(1 / scale)} title="Reset to 100%">{Math.round(scale * 100)}%</button>
-        <ToolButton icon="zoomIn" label="Zoom in (scroll wheel or pinch)" onClick={() => zoomBy(1.25)} />
-        <ToolButton icon="fit" label="Fit floor to screen" onClick={fit} testId="fit" />
+        <ToolButton icon="zoomOut" label={`Zoom out (${modLabel}minus, scroll wheel or pinch)`} onClick={() => zoomBy(1 / 1.25)} />
+        <button className="zoom-pct" onClick={() => zoomBy(1 / scale)} title={`Reset to 100% (${modLabel}0)`}>{Math.round(scale * 100)}%</button>
+        <ToolButton icon="zoomIn" label={`Zoom in (${modLabel}plus, scroll wheel or pinch)`} onClick={() => zoomBy(1.25)} />
+        <ToolButton icon="fit" label="Fit floor to screen (Shift+1)" onClick={fit} testId="fit" />
       </div>
 
       <div className="group">
         <ToolButton icon="history" label="Version history" onClick={onHistory} testId="history" />
-        <button className="btn small" onClick={download} title="Download this map as a file you can keep as a backup or import in another browser" data-testid="download-map">
+        <button className="btn small" aria-haspopup="menu" aria-expanded={!!downloadMenu} data-testid="download-map"
+          title="Download a backup file of the map, save the floor as a picture, or print it"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setDownloadMenu(downloadMenu ? null : { left: Math.min(r.left, window.innerWidth - 240), top: r.bottom + 4 });
+          }}>
           Download
         </button>
+        {downloadMenu && (
+          <div className="menu download-menu" role="menu" style={downloadMenu}>
+            <button role="menuitem" data-testid="download-file" onClick={() => { setDownloadMenu(null); download(); }}>
+              <span>Map file (backup)</span>
+            </button>
+            <button role="menuitem" data-testid="download-image" onClick={() => { setDownloadMenu(null); void downloadFloorImage(); }}>
+              <span>This floor as an image (PNG)</span>
+            </button>
+            <button role="menuitem" data-testid="download-print" onClick={() => { setDownloadMenu(null); void printFloor(); }}>
+              <span>Print or save as PDF</span>
+            </button>
+          </div>
+        )}
         <button className="btn" onClick={onPreview} data-testid="preview"><Icon name="play" size={14} /> Preview</button>
         <button className={`btn ${publishState === 'current' ? 'published' : 'primary'}`} onClick={onPublish} disabled={publishing}
           title={`${PUBLISH_TEXT[publishState]}${publishedAt ? ` (last published ${new Date(publishedAt).toLocaleString()})` : ''}`}

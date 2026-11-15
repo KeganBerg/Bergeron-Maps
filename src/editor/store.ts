@@ -10,6 +10,7 @@ import { fitViewport, floorBounds } from '../render/viewport';
 import { boxesIntersect, objectBox, unionBoxes } from '../model/geometry';
 import { reorderObjects, type OrderOp } from '../model/order';
 import { cutForObject } from '../model/shape';
+import { typeKey } from '../model/objectTypes';
 import { newId } from '../model/ids';
 import { deleteLayer, placeObjects as placeObjectsOn, resolveTargetLayer, roleForObject, shiftLayer } from '../model/layers';
 import { highestNumber } from '../model/numbering';
@@ -77,7 +78,8 @@ interface EditorActions {
   commit(recipe: (doc: Draft<MapDocument>, floor: Draft<Floor>) => void): void;
   beginGesture(): void;
   previewGesture(recipe: (doc: Draft<MapDocument>, floor: Draft<Floor>) => void): void;
-  endGesture(): void;
+  /** Saves the gesture as one undo step; `mergeWithPrevious` folds it into the step before (Alt-drag: the copy and its move). */
+  endGesture(opts?: { mergeWithPrevious?: boolean }): void;
   /** Drops a gesture's preview and puts the map back as it was (e.g. a drag turned into a pinch). */
   cancelGesture(): void;
   undo(): void;
@@ -96,6 +98,8 @@ interface EditorActions {
   clickObject(id: string, opts: { additive: boolean }): void;
   enterRow(rowId: string | null): void;
   selectAll(): void;
+  /** Selects every editable object on the floor of the same type as `id` (every EV space, every column). */
+  selectSameType(id: string): void;
   clearSelection(): void;
   selectInBox(box: Box, additive: boolean): void;
 
@@ -103,6 +107,8 @@ interface EditorActions {
   cut(): void;
   paste(): void;
   duplicate(): void;
+  /** Copies the selection in place (no offset) and selects the copies; returns their ids. */
+  duplicateInPlace(): string[];
   deleteSelection(): void;
   nudge(dx: number, dy: number): void;
   moveSelection(moves: Moves): void;
@@ -410,12 +416,12 @@ export const useEditor = create<EditorStore>()((set, get) => {
       const { gestureBase } = get();
       set(gestureBase ? { gestureBase: null, doc: gestureBase } : { gestureBase: null });
     },
-    endGesture() {
+    endGesture(opts) {
       const { gestureBase, doc } = get();
       set({ gestureBase: null });
       if (!gestureBase || !doc || gestureBase === doc) return;
       set((s) => ({
-        past: [...s.past.slice(-HISTORY_LIMIT + 1), gestureBase],
+        past: opts?.mergeWithPrevious && s.past.length ? s.past : [...s.past.slice(-HISTORY_LIMIT + 1), gestureBase],
         future: [],
         editSeq: s.editSeq + 1,
         saveStatus: s.saveStatus === 'conflict' ? 'conflict' : 'unsaved',
@@ -487,6 +493,13 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (!floor) return;
       set({ selection: editableIds(floor, floor.objects.map((o) => o.id)), enteredRowId: null });
     },
+    selectSameType(id) {
+      const floor = currentFloor(get());
+      const o = floor?.objects.find((x) => x.id === id);
+      if (!floor || !o) return;
+      const key = typeKey(o);
+      set({ selection: editableIds(floor, floor.objects.filter((x) => typeKey(x) === key).map((x) => x.id)), enteredRowId: null });
+    },
     clearSelection() {
       set({ selection: [], enteredRowId: null });
     },
@@ -525,6 +538,15 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (!floor || !selection.length) return;
       const clip = copySelection(floor, selection);
       if (clip) pasteClip(clip, 1);
+    },
+    duplicateInPlace() {
+      const floor = currentFloor(get());
+      const { selection } = get();
+      if (!floor || !selection.length) return [];
+      const clip = copySelection(floor, selection);
+      if (!clip) return [];
+      pasteClip(clip, 0);
+      return get().selection;
     },
     deleteSelection() {
       get().deleteObjects(get().selection);

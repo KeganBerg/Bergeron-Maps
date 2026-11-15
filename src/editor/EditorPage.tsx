@@ -9,6 +9,7 @@ import { RowDialog } from './RowDialog';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { VersionsDialog } from './VersionsDialog';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import { useEditor } from './store';
 import { readBackup, useAutosave } from './useAutosave';
 import { useKeyboard } from './useKeyboard';
@@ -16,6 +17,12 @@ import { useKeyboard } from './useKeyboard';
 export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository }) {
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  useEffect(() => {
+    const open = () => setShowShortcuts(true);
+    window.addEventListener('bm:shortcuts', open);
+    return () => window.removeEventListener('bm:shortcuts', open);
+  }, []);
   const [backup, setBackup] = useState<ReturnType<typeof readBackup>>(null);
   const doc = useEditor((s) => s.doc);
   const rowDialog = useEditor((s) => s.rowDialog);
@@ -115,6 +122,7 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
       <FloorTabs />
       <Notices />
       {rowDialog && <RowDialog />}
+      {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
       {showHistory && (
         <VersionsDialog
           repo={repo}

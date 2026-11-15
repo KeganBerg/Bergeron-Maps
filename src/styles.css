@@ -745,3 +745,20 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .label-handle.symbol { border-radius: 50%; }
 .label-handle.text { font-weight: 700; color: #1f2933; white-space: nowrap; line-height: 1.1; padding: 1px 3px; border-radius: 3px; }
 .fields .name-toggle { grid-column: 1 / -1; display: flex; font-size: 12px; margin: 2px 0; }
+
+/* Right-click menu on the map and the Download menu */
+.canvas-menu, .download-menu { min-width: 230px; max-height: calc(100vh - 16px); overflow-y: auto; }
+.canvas-menu button, .download-menu button { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--text); font: inherit; font-size: 13px; padding: 6px 10px; }
+.canvas-menu button.focused:not(:disabled) { background: var(--hover); }
+.canvas-menu kbd, .shortcuts kbd { font: inherit; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.download-menu { position: fixed; }
+
+/* Keyboard shortcut list */
+.shortcuts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 24px; }
+.shortcuts h3 { font-size: 13px; margin: 8px 0 4px; color: var(--muted); font-weight: 600; }
+.shortcuts dl { margin: 0; }
+.shortcuts dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.shortcuts dt { color: var(--text); }
+.shortcuts dd { margin: 0; text-align: right; max-width: 60%; }
+.shortcuts dd kbd { white-space: normal; }
+.shortcuts kbd { color: var(--text-soft); }
