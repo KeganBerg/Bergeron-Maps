@@ -18,55 +18,73 @@ export const INDUSTRIES = [
     slug: 'schools', name: 'School & Education', short: 'Schools', scene: 'school',
     pitch: 'Campus safety, parking organization and facility visibility.',
     title: 'A campus everyone can find their way around.',
-    intro: 'Give staff and visitors one clear, current map of every building, office and parking area, so the right people get to the right place.',
+    intro: 'New students, substitute teachers and parents at pickup all need to find something on campus. Give them one clear map of every building, office and lot, kept current by your own staff.',
     sample: { project: 'Sample High School', sheet: 'Campus', count: 'Visitor, faculty and student parking', find: 'F10' },
-    why: 'Why schools use Bergeron Maps',
-    whySub: 'Standard visual maps make a campus easier to organize, easier to explain and easier to keep current.',
+    why: 'What it changes on campus',
+    whySub: 'Fewer lost visitors at the front office, fewer cars in the wrong lot, and a map you can actually keep up to date.',
     points: [
-      ['Organized parking', 'Separate student, faculty, employee and visitor parking, with every space numbered and searchable.'],
-      ['Every building identified', 'Label buildings, classrooms, offices and designated areas so nobody has to guess which door is which.'],
-      ['Find any location', 'Authorized staff and visitors type a room, building or space and the map opens on it, from any phone browser.'],
-      ['One standard for everyone', 'Everyone works from the same visual map, which makes campus-wide communication clearer.'],
-      ['Many buildings, many campuses', 'Keep each building and each campus organized in one account, with interiors that open from the site map.'],
-      ['Always up to date', 'When parking or a layout changes, update the map and publish. Everyone sees the new version.'],
+      ['Parking that sorts itself out', 'Student, faculty, staff and visitor lots each get their own section and numbered spaces. Assigned spots are easy to hand out and easy to check.'],
+      ['Every door has a name', "Building A, the nurse's office, room 214, the gym lobby. Label them once and nobody has to guess which entrance is which."],
+      ['Directions for visitors', 'A parent or a sub can search for a room and see where it is on their phone. There is no app to download.'],
+      ['One map for the whole school', 'When the front office, custodians and coaches point at the same drawing, announcements and work orders get a lot less confusing.'],
+      ['Room for more campuses', 'Running a district? Each campus is its own site, and buildings open up to show their floor plans.'],
+      ['Changes take minutes', 'Moved the bus line or closed a lot for construction? Edit the map, publish it, and the old version is gone.'],
     ],
     note: 'Bergeron Maps is a facility map. It shows where things are; it is not an emergency notification or security system.',
+    incTitle: 'What your campus gets.',
+    included: [
+      ['Search by room or building', 'Type "library" or "room 214" and the map jumps there.'],
+      ['Numbered parking', 'Draw a row of spaces and the numbers fill in.'],
+      ['Floor plans inside buildings', 'Tap a building to open its classrooms and offices.'],
+      ['Always the current map', 'Students, staff and administrators always see the latest published map.'],
+      ['Access by role', 'Administrators make changes. Everyone else can look but not edit.'],
+    ],
+    cta: "Send us your campus layout, even a rough sketch, and we'll build the first map with you.",
   },
   {
     slug: 'dealerships', name: 'Dealerships', short: 'Dealerships', scene: 'dealership',
     pitch: 'Faster customer-to-key times, less training and more profit.',
     title: 'Get the customer to the keys faster.',
-    intro: 'Every minute spent hunting for a vehicle is a minute a customer waits and a minute of paid labor. A clear, searchable lot map gives that time back.',
+    intro: "Every minute a porter spends walking rows is a minute your customer waits in the showroom, and you're paying for both. A searchable lot map gives that time back.",
     sample: { project: 'Sample Dealership', sheet: 'Main lot', count: 'New, used, service, customer, overflow', find: 'U19' },
-    why: 'Why dealerships use Bergeron Maps',
-    whySub: 'Staff find vehicles faster, new hires learn the lot sooner, and managers keep the map in step with inventory.',
+    why: 'Where the time comes back',
+    whySub: "Most dealerships don't have a lot problem. They have a \"where did that car go\" problem.",
     points: [
-      ['Faster customer-to-key times', 'Employees type a space and see exactly where the vehicle is, instead of walking rows looking for it.'],
-      ['Less training time', 'A standard visual map of the lot replaces weeks of learning it by memory.'],
-      ['Zones that follow your inventory', 'Managers move vehicle zones and parking layouts as inventory changes, then publish the update.'],
-      ['Every area in its place', 'Organize new inventory, used inventory, customer parking, service and overflow parking on one map.'],
-      ['Fewer "where is it?" questions', 'Less time searching for vehicles or asking coworkers where something was parked.'],
-      ['Better productivity and service', 'Staff spend their time on customers, not on the lot, and customers spend less time waiting.'],
+      ['Faster customer-to-key', 'A salesperson types the spot, say U19, and walks straight to it instead of circling the used lot.'],
+      ['New hires get up to speed', 'Porters and lot attendants learn the layout from the map on day one, not from three weeks of following someone around.'],
+      ['Zones that move with inventory', 'A truckload arrives, overflow fills up, a sale takes over the front row. Your lot manager redraws the zones and publishes.'],
+      ['A place for everything', "New, used, service, customer and overflow parking each get their own section, so a trade-in doesn't end up in a customer space."],
+      ['Fewer radio calls', 'Less "anyone seen the white Tahoe?" on the radio, and fewer trips back to the key box to ask around.'],
+      ['Better days for sales and service', 'Advisors and salespeople spend their time with customers, and customers spend less of theirs waiting at the desk.'],
     ],
-    calc: { title: 'A few minutes per vehicle adds up.', unit: 'vehicle lookups', perDay: 60, minutes: 3, wage: 18 },
+    calc: { title: 'A few minutes per vehicle adds up.', lead: 'Shave a few minutes off every vehicle pull and it turns into real labor hours by the end of the month. Try it with your own numbers.', unit: 'vehicle lookups', perDay: 60, minutes: 3, wage: 18 },
+    incTitle: 'What your lot gets.',
+    included: [
+      ['Search by spot', 'Type a space like U19 and the map highlights it.'],
+      ['Automatic numbering', 'Lay out a row and every space is numbered for you.'],
+      ['Lot and showroom together', 'The service drive and the inside of the showroom live on the same map.'],
+      ['One version for everyone', 'Sales, service and lot staff always see the latest published map.'],
+      ['Managers edit, staff look up', 'Only the people you choose can move zones around.'],
+    ],
+    cta: "Tell us about your lot and we'll map it with you, row by row.",
   },
   {
     slug: 'valet', name: 'Valet', short: 'Valet', scene: 'valet',
     pitch: 'Fewer labor hours, faster training and live site management.',
     title: 'Every valet knows the site from the first shift.',
-    intro: 'New valets get a clear visual reference instead of learning by shadowing. Managers keep the map current themselves, and every change reaches the whole crew when they publish.',
+    intro: 'New attendants usually learn a garage by shadowing someone for a few shifts. With a clear map on their phone they can start parking cars sooner, and your site manager can change it whenever the layout does.',
     sample: { project: 'Sample Garage', sheet: 'Floor 1 to Floor 3', count: '216 spaces on 3 floors', find: '3C9' },
-    why: 'Why valet operations use Bergeron Maps',
-    whySub: 'Less time explaining the layout and correcting parking mistakes, and more time moving cars.',
+    why: 'Why valet teams use it',
+    whySub: 'Less time explaining the garage, fewer cars in the wrong spot, and more time running keys.',
     points: [
-      ['Faster training', 'New valets learn the site from an easy-to-read map instead of shift after shift of shadowing.'],
-      ['Find any space fast', 'Type the space number and the map opens on the right floor, with walking directions from the entrance, stairs or elevator.'],
-      ['No more mix-ups', 'Clear rows, sections and color-coded levels reduce confusion about where a car is or where it goes.'],
-      ['Managers update their own maps', 'When operations change, the site manager edits the map in minutes instead of recreating it from scratch.'],
-      ['Publish to the whole crew', 'Edits stay in draft until you publish, then every authorized employee sees the latest version.'],
-      ['Ready for events', 'Reorganize zones for events and changing demand, and switch back when the event is over.'],
-      ['One standard at every location', 'The same symbols, numbering and layout at every site you operate.'],
-      ['Fewer wasted labor hours', 'Less time spent explaining layouts, hunting for cars and fixing parking mistakes.'],
+      ['Shorter training', 'A new attendant can study the map before their first shift and pull it up on their phone during it.'],
+      ['Find any space fast', 'Type 3C9 and the map opens on Floor 3, with walking directions from the entrance, the stairs or the elevator.'],
+      ['Fewer wrong-level parks', 'Each level has its own color and every row is labeled, so 2B and 3B stop getting mixed up.'],
+      ['Your manager edits it', "A layout change doesn't mean starting over. The site manager moves a row or renames a section in a few minutes."],
+      ['The whole crew sees it', 'Changes stay in draft until they hit publish. After that, every attendant on the site has the new map.'],
+      ['Event nights', 'Block off a section for a concert or a wedding, then put it back the next morning.'],
+      ['Same standard at every site', 'Ten locations can share the same symbols and numbering, so people can cover a shift somewhere else.'],
+      ['Less wasted labor', 'Less time explaining the layout, less time looking for cars, and fewer moves to fix a bad park.'],
     ],
     roles: [
       ['Regional managers', 'See and edit every site in their region.'],
@@ -74,46 +92,73 @@ export const INDUSTRIES = [
       ['Valets and attendants', 'View the published map for the site they work at. They join with a six-character site code.'],
       ['Done for you', 'Send us a walkthrough or a sketch and we will build the map.'],
     ],
-    calc: { title: 'Minutes per retrieval become hours every month.', unit: 'retrievals', perDay: 150, minutes: 2, wage: 16 },
+    calc: { title: 'Minutes per retrieval become hours every month.', lead: "Retrievals are where the minutes pile up. Plug in your site's numbers to see what a couple of minutes each is worth.", unit: 'retrievals', perDay: 150, minutes: 2, wage: 16 },
+    incTitle: 'What your sites get.',
+    included: [
+      ['Search by space', 'Attendants type a space number and go.'],
+      ['Walking directions', 'Step by step from the entrance, stairs or elevator.'],
+      ['Color-coded levels', 'Every floor of the garage gets its own color.'],
+      ['Current for the crew', 'Attendants and site managers always see the latest published map.'],
+      ['Site codes', 'Attendants join with a six-character code and only see their site.'],
+    ],
+    cta: "Tell us about your site and we'll build the first map with you.",
   },
   {
     slug: 'warehouses', name: 'Warehouses', short: 'Warehouses', scene: 'warehouse',
     pitch: 'Faster location identification, less training and smoother operations.',
     title: 'Every rack, aisle and dock, on one map.',
-    intro: 'Give every employee the same clear map of storage areas, racks, aisles and docks, so less time goes to searching and more to moving product.',
+    intro: "Pickers shouldn't have to memorize the building. Put every rack, aisle, dock and staging lane on one map they can search, and keep it current as the layout shifts.",
     sample: { project: 'Sample Distribution Center', sheet: 'Main floor', count: '6 racks, 96 locations, 8 docks', find: 'C-07' },
-    why: 'Why warehouses use Bergeron Maps',
-    whySub: 'Clear location identification means less searching, faster onboarding and fewer mistakes.',
+    why: 'What changes on the floor',
+    whySub: 'Less walking around looking, quicker onboarding, and fewer picks pulled from the wrong bay.',
     points: [
-      ['Find any location', 'Employees search a rack, aisle or bay location and the map shows exactly where it is.'],
-      ['Less time searching', 'Cut the time lost looking for inventory and equipment locations.'],
-      ['Faster onboarding', 'New employees learn the building from a visual map instead of a long walkthrough.'],
-      ['Organized work areas', 'Lay out receiving, shipping, staging and storage areas clearly.'],
-      ['Layouts that keep up', 'Managers update the map as operations change and publish it to the team.'],
-      ['One standard across buildings', 'Use the same location naming and symbols in every warehouse you run.'],
-      ['Clearer communication', 'Employees and management point to the same map when they talk about a location.'],
+      ['Locations you can search', 'A picker types C-07 and sees which rack, which aisle and which side.'],
+      ['Less hunting', "Inventory, pallet jacks, the returns cage. If it has a place, it's on the map."],
+      ['Faster onboarding', "Temps and new hires get a map instead of a half-hour walkthrough they'll forget by lunch."],
+      ['Clear work areas', 'Receiving, staging, shipping and storage are drawn out, so pallets land where they belong.'],
+      ['Re-slotting without the confusion', 'When racks move or a zone changes, a lead updates the map and publishes it the same day.'],
+      ['Same naming in every building', 'Use one location format across all your warehouses so people can cover another site.'],
+      ['Leads and the floor in sync', 'When a lead says "aisle 2, rack D", everyone is looking at the same drawing.'],
     ],
+    incTitle: 'What your warehouse gets.',
+    included: [
+      ['Search by location', 'Type a bay like C-07 and it lights up.'],
+      ['Automatic bay numbering', 'Draw a rack row and every bay is numbered: A-01, A-02 and on.'],
+      ['Docks and zones', 'Receiving, shipping and staging, drawn as clear zones.'],
+      ['One current map', 'Pickers, receiving and leads always see the latest published map.'],
+      ['Leads edit, the floor views', 'Only leads and managers can change the layout.'],
+    ],
+    cta: "Send us a floor plan or a sketch of your building and we'll map it with you.",
   },
   {
     slug: 'other', name: 'Other Industries', short: 'Other industries', scene: 'office',
     pitch: 'If you manage a physical facility, Bergeron Maps can help.',
     title: 'If you manage a physical facility, we can map it.',
-    intro: 'Bergeron Maps works for practically any business with a physical space to organize. The same platform maps parking, buildings, floors, rooms and work areas.',
+    intro: 'We started with parking, but the same tools map buildings, floors, rooms and work areas. If your team ever has to ask "where is that?", it can probably help.',
     sample: { project: 'Sample Office Building', sheet: 'Floor 2', count: 'Offices, meeting rooms, shared spaces', find: 'Conference room' },
-    why: 'Built for any physical operation',
-    whySub: 'A few of the places teams use the same platform to visualize and organize their space.',
+    why: 'Places it already fits',
+    whySub: "A few examples. If yours isn't on the list, ask us.",
     points: [
-      ['Hospitals', 'Department identification, parking organization and facility navigation.'],
-      ['Hotels', 'Building layouts, parking areas and operational locations.'],
-      ['Office buildings', 'Offices, departments, floors and shared spaces.'],
-      ['Event venues', 'Parking zones, entrances, staging areas and facility organization.'],
-      ['Manufacturing', 'Workstations, equipment locations and production areas.'],
-      ['Shopping centers', 'Store locations, parking areas and facility organization.'],
-      ['Airports', 'Parking sections, terminal facilities and designated areas.'],
-      ['Government facilities', 'Buildings, parking and department identification.'],
-      ['Sports facilities', 'Facility layouts, parking and operational areas.'],
+      ['Hospitals', 'Departments, patient and visitor parking, and the way from the garage to the right wing.'],
+      ['Hotels', 'Guest and valet parking, back-of-house areas, ballrooms and service entrances.'],
+      ['Office buildings', 'Which department is on which floor, who sits where, and where the meeting rooms are.'],
+      ['Event venues', 'Parking zones, gates, vendor load-in and staging, set up fresh for each event.'],
+      ['Manufacturing', 'Workstations, production lines and where each piece of equipment lives.'],
+      ['Shopping centers', 'Store locations, parking fields and the doors between them.'],
+      ['Airports', 'Parking sections, shuttle stops and terminal facilities.'],
+      ['Government facilities', 'Buildings, public and staff parking, and which office is in which building.'],
+      ['Sports facilities', 'Fields, courts, locker rooms, gates and game-day parking.'],
     ],
     unique: true,
+    incTitle: 'The same platform, for your space.',
+    included: [
+      ['Search anything', 'Rooms, spaces, desks, doors, equipment.'],
+      ['Floors and interiors', 'Buildings open up to their own floor plans.'],
+      ['Hundreds of symbols', 'Use the ready-made ones or pick your own icon.'],
+      ['Publish when ready', 'Your team always sees the latest published map.'],
+      ['You choose who edits', 'Everyone else just looks things up.'],
+    ],
+    cta: "Tell us what you need mapped, even if it's unusual, and we'll build the first map with you.",
   },
 ];
 
@@ -181,14 +226,6 @@ const HEAD_ICONS = (p) => `<link rel="icon" href="${p}favicon.ico" sizes="48x48"
   <link rel="apple-touch-icon" href="${p}apple-touch-icon.png" />
   <link rel="preload" href="${p}fonts/archivo.woff2" as="font" type="font/woff2" crossorigin />`;
 
-// What every industry page lists from the platform (all shipped features).
-const INCLUDED = [
-  ['Searchable maps', 'Find any space, room or landmark by typing it.'],
-  ['Automatic numbering', 'Drag a row and every location is numbered.'],
-  ['Floors and buildings', 'Color-coded floors and interiors that open from the site map.'],
-  ['Publish to your team', 'Employees always see the latest published map.'],
-  ['Controlled access', 'Managers and employees see only their own sites.'],
-];
 
 function calcBlock(c) {
   return `
@@ -196,7 +233,7 @@ function calcBlock(c) {
       <div class="wrap grid gap-12 py-20 lg:grid-cols-12 lg:py-28">
         <div class="lg:col-span-5">
           <h2 class="h2">${esc(c.title)}</h2>
-          <p class="mt-6 text-lg text-ink/70">Saving even a few minutes on each one creates real labor savings over a month. Put in your own numbers.</p>
+          <p class="mt-6 text-lg text-ink/70">${esc(c.lead)}</p>
         </div>
         <form class="calc lg:col-span-6 lg:col-start-7" data-calc>
           <div class="grid gap-6 sm:grid-cols-3">
@@ -300,7 +337,7 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
     <section class="border-t border-ink/15 bg-paper text-ink">
       <div class="wrap grid gap-12 py-20 lg:grid-cols-12 lg:py-28">
         <div class="lg:col-span-5">
-          <h2 class="h2">Your managers keep the map current.</h2>
+          <h2 class="h2">Your site managers keep the map current.</h2>
           <p class="mt-6 text-lg text-ink/70">No more redrawing the site every time operations change. Access is set by role, and maps stay with the site, not the person who made them.</p>
         </div>
         <dl class="divide-y divide-ink/15 border-y border-ink/15 lg:col-span-6 lg:col-start-7">
@@ -312,11 +349,11 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
     <section class="bg-ink text-white">
       <div class="wrap py-20 lg:py-24">
         <div class="grid gap-6 lg:grid-cols-12">
-          <h2 class="h2 lg:col-span-6">${ind.unique ? 'The same platform, for your space.' : 'Included with every map.'}</h2>
-          <p class="text-lg text-white/70 lg:col-span-5 lg:col-start-8 lg:self-end">The same platform for every industry. <a class="underline decoration-sign decoration-2 underline-offset-4 hover:text-white" href="${p}#platform">See all features</a>.</p>
+          <h2 class="h2 lg:col-span-6">${esc(ind.incTitle)}</h2>
+          <p class="text-lg text-white/70 lg:col-span-5 lg:col-start-8 lg:self-end"><a class="underline decoration-sign decoration-2 underline-offset-4 hover:text-white" href="${p}#platform">See the full feature list</a></p>
         </div>
         <ul class="inc mt-12 grid border-t border-white/25 sm:grid-cols-2 lg:grid-cols-5">
-          ${INCLUDED.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('\n          ')}
+          ${ind.included.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('\n          ')}
         </ul>
       </div>
     </section>
@@ -325,7 +362,7 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
       <div class="wrap grid gap-10 py-20 lg:grid-cols-12 lg:py-24">
         <div class="lg:col-span-7">
           <h2 class="h2">Get your map now.</h2>
-          <p class="mt-6 max-w-xl text-lg">${ind.unique ? 'Tell us what you need mapped, even if it is unusual. We will build the first map with you.' : `Tell us about your ${ind.slug === 'schools' ? 'campus' : ind.slug === 'valet' ? 'site' : ind.slug === 'warehouses' ? 'warehouse' : 'lot'} and we will build the first map with you.`}</p>
+          <p class="mt-6 max-w-xl text-lg">${esc(ind.cta)}</p>
         </div>
         <div class="flex flex-col justify-end gap-4 lg:col-span-4 lg:col-start-9">
           <div class="flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:bergeronmaps@gmail.com" class="btn border border-ink/50 hover:border-ink">Contact us</a></div>
