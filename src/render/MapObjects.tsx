@@ -3,8 +3,7 @@ import type Konva from 'konva';
 import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
-import { badgeLayout } from '../assets/draw';
-import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, symbolSupport, type AssetDef } from '../assets/library';
+import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
 import { bandWidth, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
 import { roadExtensions, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
 import { P, svgDoc, withAlpha } from '../assets/style';
@@ -13,6 +12,7 @@ import { useImage } from './useImage';
 import { fitLabel, LABEL_LINE_HEIGHT } from './fitLabel';
 import { MAP_PALETTE } from '../theme';
 import { SPACE_FILL } from '../model/rows';
+import { labelSpot } from './labelSpot';
 
 export const LABEL_FONT = MAP_PALETTE.font;
 
@@ -167,19 +167,11 @@ function insideRoom(obj: AssetObject, y: number, underBadge: boolean): { fitW: n
   return { fitW: across, fitH: Math.max(tall, 8), growDown: underBadge };
 }
 
-/** Where an asset's name label goes, in the object's own coordinates. */
-function labelSpot(def: AssetDef | undefined, obj: AssetObject): { y: number; size: number; badge: boolean } | null {
-  const { width: w, height: h } = obj;
-  let pos = def?.labelPos ?? 'below';
-  // The name sits under the badge only while there is a badge.
-  if (def && (pos === 'badge' || pos === 'center') && symbolSupport(def).custom) {
-    const shows = !obj.symbolHidden && (!!obj.symbol || (pos === 'badge' && symbolSupport(def).builtIn));
-    pos = shows ? 'badge' : 'center';
-  }
-  if (pos === 'inside') return null;
-  if (pos === 'below') return { y: h + 10, size: Math.max(10, Math.min(14, Math.max(w, h) * 0.22)), badge: false };
-  const size = Math.max(10, Math.min(20, Math.min(w, h) * 0.16, (w / 8) * 1.6));
-  return { y: pos === 'badge' ? badgeLayout(w, h).labelY : h / 2, size, badge: pos === 'badge' };
+/** Room for a name the user moved or resized: anywhere inside the object, as seen upright. */
+function movedRoom(obj: AssetObject): { fitW: number; fitH: number } {
+  const rot = ((obj.rotation % 180) + 180) % 180;
+  const sideways = rot > 45 && rot < 135;
+  return { fitW: (sideways ? obj.height : obj.width) * 0.95, fitH: (sideways ? obj.width : obj.height) * 0.95 };
 }
 
 /**
@@ -206,11 +198,11 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
     // Shaped pieces draw their own border along the outline, so the box border is left off.
     () => (def && !obj.imageSrc && !merged ? renderAssetSvg(def, shaped || mode ? { ...obj, strokeWidth: 0, marksOnly: mode === 'marks' } : obj) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [def, merged, shaped, mode, obj.band, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden, upsideDown],
+    [def, merged, shaped, mode, obj.band, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden, obj.labelHidden, obj.labelLayout, upsideDown],
   );
   const drawn = useSvgImage(markup);
   const photo = useImage(obj.imageSrc);
-  const label = obj.label?.trim();
+  const label = obj.labelHidden ? undefined : obj.label?.trim();
   const spot = label ? labelSpot(def, obj) : null;
   const clipRings = mode === 'marks' && markClip ? markClip : rings;
   const clip = clipRings ? (ctx: Konva.Context) => traceRings(ctx, clipRings) : undefined;
@@ -252,14 +244,14 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
       {label && spot && (
         <UprightLabel
           text={label}
-          x={obj.width / 2}
+          x={spot.x}
           y={spot.y}
           rotation={obj.rotation}
           size={spot.size}
           maxWidth={obj.width}
           // A name drawn inside the object shrinks or wraps to stay inside it
           // ("Customer waiting room" used to spill past the walls of its room).
-          {...(spot.y < obj.height ? insideRoom(obj, spot.y, spot.badge) : {})}
+          {...(spot.moved ? movedRoom(obj) : spot.y < obj.height ? insideRoom(obj, spot.y, spot.badge) : {})}
           color={spot.y < obj.height && def?.labelColor ? def.labelColor : MAP_PALETTE.label}
         />
       )}

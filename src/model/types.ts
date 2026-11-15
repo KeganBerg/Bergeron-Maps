@@ -107,12 +107,28 @@ export interface AssetObject extends BaseObject {
   symbol?: { name: string; path: string };
   /** true = show no symbol at all (the label then centers). */
   symbolHidden?: boolean;
+  /** true = don't draw the name on the map (it still shows in search and the side panel). */
+  labelHidden?: boolean;
+  /** Where the name and symbol sit inside a zone, room or building, and how big. Missing = the default. */
+  labelLayout?: LabelLayout;
   /** Thickness of curved bands and L-shaped corner pieces. */
   band?: number;
   /** Landscape pieces merge with neighbours automatically; false keeps this one separate. */
   merge?: boolean;
   /** How close (map px) neighbours must be to flow together into one shape. */
   blend?: number;
+}
+
+/**
+ * A moved or resized name and symbol. Positions are the middle of each, as
+ * fractions (0..1) of the object's width and height, so they stay put when the
+ * object is resized. Scales multiply the default size (1 = default).
+ */
+export interface LabelLayout {
+  text?: { x: number; y: number };
+  textScale?: number;
+  symbol?: { x: number; y: number };
+  symbolScale?: number;
 }
 
 export interface TextObject extends BaseObject {
