@@ -4,6 +4,7 @@ import { navigate } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { friendly, supabase } from './client';
 import type { Role } from './session';
+import { withCounts } from './supabaseRepository';
 
 interface Location {
   company_id: string; company_name: string; site_id: string; site_name: string; slug: string; address: string | null;
@@ -38,7 +39,9 @@ export function MyLocationsPage({ email, account, onChanged }: { email: string; 
     const db = supabase!;
     const [l, p] = await Promise.all([
       db.rpc('my_locations'),
-      db.from('published_maps').select('map_id, name, facility_id, published_at, doc->floors').order('name'),
+      // The database counts the levels (level_count), so the maps themselves aren't downloaded.
+      withCounts((light) => db.from('published_maps').select(`map_id, name, facility_id, published_at, ${light ? 'level_count' : 'doc->floors'}`).order('name'))
+        .then((data) => ({ data }), () => ({ data: null })),
     ]);
     if (l.error) {
       setError(friendly(l.error));
@@ -46,8 +49,8 @@ export function MyLocationsPage({ email, account, onChanged }: { email: string; 
       return;
     }
     setLocations(l.data as Location[]);
-    const rows = (p.data ?? []) as { map_id: string; name: string; facility_id: string; published_at: string; floors: unknown[] | null }[];
-    setMaps(rows.map((r) => ({ ...r, floors: Array.isArray(r.floors) ? r.floors.length : 1 })));
+    const rows = (p.data ?? []) as unknown as { map_id: string; name: string; facility_id: string; published_at: string; level_count?: number; floors?: unknown[] | null }[];
+    setMaps(rows.map(({ level_count, ...r }) => ({ ...r, floors: level_count ?? (Array.isArray(r.floors) ? r.floors.length : 1) })));
   };
   useEffect(() => { void load(); }, []);
 
