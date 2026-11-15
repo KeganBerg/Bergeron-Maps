@@ -773,3 +773,22 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .shortcuts dd { margin: 0; text-align: right; max-width: 60%; }
 .shortcuts dd kbd { white-space: normal; }
 .shortcuts kbd { color: var(--text-soft); }
+
+/* Typing a number, label or name straight onto the map */
+.inline-label { position: absolute; z-index: 5; box-sizing: border-box; margin: 0; padding: 2px 6px; text-align: center; color: #0f172a; background: #fff;
+  border: 2px solid var(--primary); border-radius: 4px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18); font-weight: 600; line-height: 1.2; resize: none; outline: none; }
+textarea.inline-label { text-align: left; font-weight: 400; }
+
+/* Find on map (editor) */
+.find-bar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6; width: min(420px, calc(100% - 24px)); background: var(--panel);
+  border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16); }
+.find-input { display: flex; align-items: center; gap: 8px; padding: 0 4px 0 12px; color: var(--muted); }
+.find-input input { flex: 1; min-width: 0; border: 0 !important; background: transparent !important; padding: 10px 0 !important; font-size: 14px; color: var(--text); outline: none; }
+.find-results { list-style: none; margin: 0; padding: 4px; border-top: 1px solid var(--border); max-height: 320px; overflow-y: auto; }
+.find-results button { width: 100%; display: flex; justify-content: space-between; gap: 12px; border: 0; background: none; padding: 7px 10px; border-radius: 4px; cursor: pointer; text-align: left; color: var(--text); font: inherit; font-size: 13px; }
+.find-results button.active { background: var(--hover); }
+.find-results .none { padding: 8px 10px; color: var(--muted); font-size: 13px; }
+
+/* Share a link to one space (viewer info card) */
+.info-card .share-btn.done { color: var(--ok); }
+.share-toast { position: absolute; right: 8px; bottom: calc(100% + 8px); background: #111827; color: #fff; font-size: 13px; padding: 6px 10px; border-radius: 6px; }

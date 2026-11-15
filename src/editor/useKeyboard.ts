@@ -25,6 +25,7 @@ export function useKeyboard(onSave: () => void) {
       if (mod && (key === '0' || e.code === 'Numpad0')) { zoomTo100(); e.preventDefault(); return; }
       if (e.shiftKey && !mod && !e.altKey && e.code === 'Digit1') { fitFloor(); e.preventDefault(); return; }
       if (e.shiftKey && !mod && !e.altKey && e.code === 'Digit2') { zoomToSelection(); e.preventDefault(); return; }
+      if (mod && key === 'f') { window.dispatchEvent(new CustomEvent('bm:find')); e.preventDefault(); return; }
       if (key === '?' && !mod) { window.dispatchEvent(new CustomEvent('bm:shortcuts')); e.preventDefault(); return; }
       if (mod && key === 'c') { s.copy(); e.preventDefault(); return; }
       if (mod && key === 'x') { s.cut(); e.preventDefault(); return; }
