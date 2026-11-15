@@ -6,7 +6,7 @@ import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
 import { bandWidth, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
 import { roadExtensions, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
-import { P, svgDoc, withAlpha } from '../assets/style';
+import { GRASS_TEXTURE, P, svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
 import { fitLabel, LABEL_LINE_HEIGHT } from './fitLabel';
@@ -261,7 +261,29 @@ const dots = (color: string, r: number): Painter => (c, n) => {
  * repeat size in map pixels; painters draw in map pixels.
  */
 const MERGE_TEXTURE: Record<string, { tile: number; paint: Painter }> = {
-  grass: { tile: 28, paint: dots(P.grassEdge, 1) },
+  grass: {
+    tile: GRASS_TEXTURE.tile,
+    paint: (c) => {
+      for (const [x, y, r, color, a] of GRASS_TEXTURE.patches) {
+        c.globalAlpha = a;
+        dot(c, x, y, r, color);
+      }
+      c.globalAlpha = 1;
+      c.strokeStyle = GRASS_TEXTURE.blade;
+      c.lineWidth = 0.9;
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      c.beginPath();
+      for (const [x, y] of GRASS_TEXTURE.tufts) {
+        c.moveTo(x - 1.6, y - 3.4);
+        c.lineTo(x, y);
+        c.lineTo(x + 1.6, y - 3.4);
+        c.moveTo(x, y);
+        c.lineTo(x, y - 4.4);
+      }
+      c.stroke();
+    },
+  },
   gravel: { tile: 14, paint: dots('#a39a88', 1.1) },
   dirt: { tile: 26, paint: dots('#8c6b4a', 1.2) },
   'rock-bed': { tile: 18, paint: dots('#8f897d', 2.4) },

@@ -16,7 +16,7 @@ import type { MapObject } from './types';
 // outline, so log it instead.
 (ClipperLib as unknown as { Error: (m: string) => void }).Error = (message: string) => console.warn(`Shape engine: ${message}`);
 
-export type OutlineKind = 'rect' | 'ellipse' | 'half' | 'quarter' | 'arc' | 'L';
+export type OutlineKind = 'rect' | 'ellipse' | 'half' | 'quarter' | 'arc' | 'L' | 'triangle';
 
 /** A ring as flat x,y pairs. */
 export type Ring = number[];
@@ -65,6 +65,9 @@ export function basePolygon(kind: OutlineKind, w: number, h: number, band = Math
       const inner = ellipsePoints(0, h, w - t, h - t, 0, -H, ARC_STEPS);
       return [...outer, ...inner];
     }
+    case 'triangle':
+      // Flat base along the bottom, point at the top middle.
+      return [0, h, w / 2, 0, w, h];
     case 'L': {
       const t = Math.min(band, w - 1, h - 1);
       return [0, 0, t, 0, t, h - t, w, h - t, w, h, 0, h];

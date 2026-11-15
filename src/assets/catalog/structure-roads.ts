@@ -1,6 +1,6 @@
 import { category } from '../defs';
 import { along, hatched, hLine, lane, laneArrow, pavementArrow, raisedShadow, room } from '../draw';
-import { boxRect, F, FS, icon, P, r2, shade, text, type DrawCtx } from '../style';
+import { boxRect, F, FS, icon, P, r2, shade, text, type DrawCtx, type DrawFn } from '../style';
 
 const s = category('Structural objects');
 
@@ -131,7 +131,30 @@ const ramp = (dir: 'up' | 'down' | 'none') => (c: DrawCtx) => {
   return `${boxRect(c)}${walls}${chev}${label}`;
 };
 
+/**
+ * Striped no-parking paint (the hatched islands at the ends of parking rows):
+ * white stripes on asphalt inside a white painted border. Shaped pieces are
+ * clipped to their outline and the outline is painted as the border, so cuts,
+ * curvature and bevels keep a clean painted edge.
+ */
+const STRIPE = { gap: 14, width: 2.5 };
+const stripedPaint = (dir: 'diagonal' | 'across'): DrawFn => (c) => {
+  const lines: string[] = [];
+  if (dir === 'across') {
+    for (let x = STRIPE.gap / 2; x < c.w; x += STRIPE.gap) lines.push(`M${r2(x)} 0V${r2(c.h)}`);
+  } else {
+    for (let x = -c.h + STRIPE.gap / 2; x < c.w; x += STRIPE.gap) lines.push(`M${r2(x)} ${r2(c.h)}L${r2(x + c.h)} 0`);
+  }
+  const border = c.sw > 0 ? `<rect x="${r2(c.sw / 2)}" y="${r2(c.sw / 2)}" width="${r2(Math.max(0, c.w - c.sw))}" height="${r2(Math.max(0, c.h - c.sw))}" fill="none" stroke="${c.stroke}" stroke-width="${c.sw}"/>` : '';
+  const id = `hc${Math.round(c.w)}_${Math.round(c.h)}`;
+  return `<rect width="${c.w}" height="${c.h}" ${F(c)}/><defs><clipPath id="${id}"><rect x="${r2(c.sw)}" y="${r2(c.sw)}" width="${r2(Math.max(0, c.w - c.sw * 2))}" height="${r2(Math.max(0, c.h - c.sw * 2))}"/></clipPath></defs><path clip-path="url(#${id})" d="${lines.join('')}" stroke="${c.stroke}" stroke-width="${STRIPE.width}" fill="none"/>${border}`;
+};
+const STRIPED = { layer: 'structure' as const, fill: P.asphalt, stroke: P.paint, strokeWidth: 3, keywords: ['striped', 'hatched', 'hatch', 'gore', 'no parking', 'painted island', 'row end', 'end cap', 'white lines', 'divider', 'chevron', 'keep clear'] };
+
 export const ROADS = [
+  rd('striped-square', 'Striped no-parking area', { ...STRIPED, width: 90, height: 90, draw: stripedPaint('diagonal'), keywords: [...STRIPED.keywords, 'square', 'rectangle', 'box'] }),
+  rd('striped-triangle', 'Striped no-parking triangle', { ...STRIPED, outline: 'triangle', width: 180, height: 60, draw: stripedPaint('across'), keywords: [...STRIPED.keywords, 'triangle', 'wedge', 'point'] }),
+  rd('striped-half', 'Striped no-parking half-circle', { ...STRIPED, outline: 'half', width: 180, height: 90, draw: stripedPaint('across'), keywords: [...STRIPED.keywords, 'half circle', 'semicircle', 'round', 'curved'] }),
   rd('straight-road', 'Straight road', { ...DRIVE, width: 300, height: 120, keywords: ['street', 'two lane'], draw: lane((c) => doubleYellow(c)) }),
   rd('curved-road', 'Curved road', { ...DRIVE, width: 240, height: 240, keywords: ['bend', 'turn', 'corner', 'street'], outline: 'arc', band: 120, draw: curve('road') }),
   rd('road', 'Straight driving lane', { ...DRIVE, width: 300, height: 60, keywords: ['drive', 'aisle', 'lane'], draw: lane(() => '') }),

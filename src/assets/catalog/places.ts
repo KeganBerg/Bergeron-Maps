@@ -30,10 +30,6 @@ export const PEDESTRIAN = [
     width: 120, height: 60, layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 0, keywords: ['zebra', 'crossing', 'continental'],
     draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${along(c, 14, (x) => `<rect x="${r2(x - 4)}" y="3" width="8" height="${c.h - 6}" fill="${P.paint}"/>`, 7)}`,
   }),
-  pd('pedestrian-crossing', 'Pedestrian crossing', {
-    width: 120, height: 60, layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 3, keywords: ['ladder', 'crossing', 'school'],
-    draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.sw / 2 + 2, 0, c.w, c.stroke, c.sw)}${hLine(c.h - c.sw / 2 - 2, 0, c.w, c.stroke, c.sw)}${along(c, 20, (x) => `<rect x="${r2(x - 4)}" y="${r2(c.sw + 6)}" width="8" height="${r2(c.h - c.sw * 2 - 12)}" fill="${P.paint}" fill-opacity="0.85"/>`, 10)}`,
-  }),
   pd('ped-entrance', 'Pedestrian entrance', { draw: doorIcon(P.go, false), width: 80, height: 44, layer: 'landmarks', fill: '#cfe3f0', stroke: P.ink, strokeWidth: 1, keywords: ['entry', 'walk in', 'door'], labelPos: 'below' }),
   pd('ped-exit', 'Pedestrian exit', { draw: doorIcon(P.danger, true), width: 80, height: 44, layer: 'landmarks', fill: '#cfe3f0', stroke: P.ink, strokeWidth: 1, keywords: ['exit', 'walk out', 'door'], labelPos: 'below' }),
   pd('safety-island', 'Safety island', {
