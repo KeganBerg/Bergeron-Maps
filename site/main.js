@@ -1,10 +1,12 @@
-/* bergeronmaps.com: a few purposeful animations (GSAP), nothing else. */
+/* bergeronmaps.com home page: a few purposeful animations (GSAP), nothing else. The header menus are in nav.js. */
 (function () {
-  document.getElementById('year').textContent = new Date().getFullYear();
-
   // Contact form → a prefilled email in the visitor's own mail app. Nothing is sent to a server.
   var form = document.getElementById('contact-form');
   var err = document.getElementById('form-error');
+  // Industry pages link here with ?industry=<slug>, so the form starts on the right industry.
+  var pick = new URLSearchParams(location.search).get('industry');
+  var sel = document.getElementById('f-industry');
+  if (pick && sel && sel.querySelector('option[value="' + pick.replace(/[^a-z]/g, '') + '"]')) sel.value = pick;
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var f = new FormData(form);
@@ -15,8 +17,8 @@
       return;
     }
     err.classList.add('hidden');
-    var body = ['Name: ' + name, 'Company: ' + (f.get('company') || ''), 'Email: ' + email, 'Sites: ' + f.get('sites'), '', f.get('message') || ''].join('\n');
-    location.href = 'mailto:bergeronmaps@gmail.com?subject=' + encodeURIComponent('Demo request: ' + (f.get('company') || name)) + '&body=' + encodeURIComponent(body);
+    var body = ['Name: ' + name, 'Company: ' + (f.get('company') || ''), 'Email: ' + email, 'Industry: ' + (sel && sel.value ? sel.options[sel.selectedIndex].text : ''), 'Sites: ' + f.get('sites'), '', f.get('message') || ''].join('\n');
+    location.href = 'mailto:bergeronmaps@gmail.com?subject=' + encodeURIComponent('Map request: ' + (f.get('company') || name)) + '&body=' + encodeURIComponent(body);
   });
 
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
