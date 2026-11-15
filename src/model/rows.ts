@@ -18,6 +18,43 @@ export const DEFAULT_ROW: Omit<RowSpec, 'id'> = {
 
 export const SPACE_FILL = '#ffffff';
 
+/** Straight rows have square stalls; anything under this many degrees is drawn angled. */
+const STRAIGHT = 89.5;
+
+/** The row's stall angle in degrees, kept to a sensible range (90 = straight). */
+export const rowAngle = (spec: Pick<RowSpec, 'angle'>) => {
+  const a = Number(spec.angle);
+  return Number.isFinite(a) && a > 0 && a < STRAIGHT ? Math.max(20, a) : 90;
+};
+
+/**
+ * Shape of each space in a row. `spaceWidth` is the stall width measured
+ * square to the painted lines, so angled stalls take more room along the row
+ * (`along`), and lean sideways by `skew` over their depth.
+ */
+export function rowGeometry(spec: Pick<RowSpec, 'spaceWidth' | 'spaceDepth' | 'gap' | 'angle' | 'lean'>) {
+  const a = rowAngle(spec);
+  if (a === 90) return { angled: false, along: spec.spaceWidth, skew: 0, width: spec.spaceWidth, pitch: spec.spaceWidth + spec.gap };
+  const r = (a * Math.PI) / 180;
+  const along = spec.spaceWidth / Math.sin(r);
+  const k = spec.spaceDepth / Math.tan(r);
+  const skew = spec.lean === 'left' ? -k : k;
+  const round = (n: number) => Math.round(n * 100) / 100;
+  return { angled: true, along: round(along), skew: round(skew), width: round(along + k), pitch: round(along) + spec.gap };
+}
+
+/**
+ * Reads a row's settings back from a drawn angled space (after it was resized):
+ * stall width, depth and angle.
+ */
+export function angledSpecFrom(width: number, height: number, skew: number) {
+  const k = Math.abs(skew);
+  const along = Math.max(1, width - k);
+  const angle = k < 0.01 ? 90 : (Math.atan2(height, k) * 180) / Math.PI;
+  const r = (angle * Math.PI) / 180;
+  return { spaceWidth: Math.round(along * Math.sin(r) * 10) / 10, spaceDepth: Math.round(height * 10) / 10, angle: Math.round(angle * 10) / 10, along };
+}
+
 /** Anchor of a row = center of its first space + the row's rotation. */
 export interface RowAnchor {
   x: number;
@@ -31,16 +68,16 @@ export interface RowAnchor {
  */
 export function buildRowSpaces(spec: RowSpec, anchor: RowAnchor, layerId: string, fill = SPACE_FILL): SpaceObject[] {
   const labels = rowLabels(spec);
-  const pitch = spec.spaceWidth + spec.gap;
+  const g = rowGeometry(spec);
   return labels.map((label, i) => {
-    const off = rotatePoint(i * pitch, 0, anchor.rotation);
-    return {
+    const off = rotatePoint(i * g.pitch, 0, anchor.rotation);
+    const s: SpaceObject = {
       id: newId('sp'),
       kind: 'space',
       layerId,
       x: anchor.x + off.x,
       y: anchor.y + off.y,
-      width: spec.spaceWidth,
+      width: g.width,
       height: spec.spaceDepth,
       rotation: anchor.rotation,
       label,
@@ -49,6 +86,11 @@ export function buildRowSpaces(spec: RowSpec, anchor: RowAnchor, layerId: string
       labelPlacement: spec.labelPlacement,
       fill,
     };
+    if (g.angled) {
+      s.variant = 'angled';
+      s.skew = g.skew;
+    }
+    return s;
   });
 }
 
@@ -75,14 +117,20 @@ export function regenerateRow(floor: Floor, rowId: string, patch: Partial<Omit<R
   if (!first) return [];
   const anchor = { x: first.x, y: first.y, rotation: first.rotation };
   const built = buildRowSpaces(next, anchor, first.layerId, first.fill);
+  // Settings people make on spaces (type, look, number size) carry over,
+  // including to spaces added at the end of the row.
   built.forEach((s, i) => {
     const prev = existing[i];
+    const like = prev ?? existing[existing.length - 1];
     if (prev) {
       s.id = prev.id;
       s.fill = prev.fill;
       s.accessible = prev.accessible;
       s.layerId = prev.layerId;
+      if (!s.skew && prev.variant && prev.variant !== 'angled') s.variant = prev.variant;
+      for (const k of ['hidden', 'locked', 'name'] as const) if (prev[k] !== undefined) (s as unknown as Record<string, unknown>)[k] = prev[k];
     }
+    for (const k of ['stroke', 'strokeWidth', 'fillOpacity', 'labelScale'] as const) if (like[k] !== undefined) (s as unknown as Record<string, unknown>)[k] = like[k];
   });
   // Replace the old spaces at the position of the first one in z-order.
   const firstIdx = floor.objects.findIndex((o) => o.id === first.id);

@@ -85,6 +85,14 @@ export interface SpaceObject extends BaseObject {
   labelPlacement: LabelPlacement;
   fill: string;
   accessible?: boolean;
+  /**
+   * Angled spaces only: how far the top edge is shifted sideways from the
+   * bottom edge, in map px (negative leans the other way). Missing = the
+   * library default for a single angled space (see angledSkew).
+   */
+  skew?: number;
+  /** Size of the number as a multiple of the automatic size (1 = automatic). */
+  labelScale?: number;
 }
 
 export interface AssetObject extends BaseObject {
@@ -147,6 +155,13 @@ export interface RowSpec {
   /** Number from the far end of the row instead of the near end. */
   reverse: boolean;
   labelPlacement: LabelPlacement;
+  /**
+   * Angle of the stall lines to the row, in degrees. Missing or 90 = straight
+   * (square) spaces; less than 90 = angled spaces, drawn as parallelograms.
+   */
+  angle?: number;
+  /** Which way angled spaces lean. Missing = 'right'. */
+  lean?: 'left' | 'right';
 }
 
 export interface BackgroundImage {

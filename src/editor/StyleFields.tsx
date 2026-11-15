@@ -1,6 +1,6 @@
 import { ASSET_BY_KEY, resolvePaint } from '../assets/library';
-import type { MapObject, ObjectStyle } from '../model/types';
-import { spacePaint } from '../render/MapObjects';
+import type { MapObject, ObjectStyle, SpaceObject } from '../model/types';
+import { LABEL_SCALE_MAX, LABEL_SCALE_MIN, labelScaleOf, spacePaint } from '../render/MapObjects';
 import { CommitInput, toNumber } from '../ui/fields';
 import { useEditor } from './store';
 
@@ -22,11 +22,11 @@ const hex = (c: string) => (/^#[0-9a-f]{6}$/i.test(c) ? c : '#ffffff');
  * closes on release, on blur, or after a short pause, whichever comes first.
  */
 let idle: ReturnType<typeof setTimeout> | undefined;
-const done = () => {
+export const done = () => {
   clearTimeout(idle);
   useEditor.getState().endGesture();
 };
-function live(ids: string[], patch: (o: MapObject) => Partial<ObjectStyle>) {
+export function live(ids: string[], patch: (o: MapObject) => Partial<ObjectStyle> | { labelScale?: number }) {
   const st = useEditor.getState();
   if (!st.gestureBase) st.beginGesture();
   const set = new Set(ids);
@@ -88,6 +88,46 @@ export function StyleFields({ objs }: { objs: MapObject[] }) {
           onClick={() => setAll({ fill: objs[0].kind === 'space' ? '#ffffff' : undefined, fillOpacity: undefined, stroke: undefined, strokeWidth: undefined })}>
           Reset
         </button>
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * Size of the numbers in the selected spaces, as a percentage of the automatic
+ * size (100% = how a space sizes its own number). Reset goes back to 100%.
+ */
+export function NumberSizeField({ spaces }: { spaces: SpaceObject[] }) {
+  const ids = spaces.map((o) => o.id);
+  const st = useEditor.getState;
+  const scales = spaces.map(labelScaleOf);
+  const pct = Math.round(scales[0] * 100);
+  const mixed = scales.some((v) => Math.abs(v - scales[0]) > 0.001);
+  const isDefault = scales.every((v) => v === 1);
+  const min = Math.round(LABEL_SCALE_MIN * 100);
+  const max = Math.round(LABEL_SCALE_MAX * 100);
+  const toScale = (v: number) => (Math.abs(v - 100) < 0.5 ? undefined : Math.max(min, Math.min(max, v)) / 100);
+  return (
+    <fieldset className="style-fields" data-testid="number-size">
+      <legend>Number size</legend>
+      <div className="style-row">
+        <input type="range" min={min} max={max} step={5} value={pct} aria-label="Number size" data-testid="number-size-range"
+          onChange={(e) => live(ids, () => ({ labelScale: toScale(Number(e.target.value)) }))}
+          onPointerUp={done} onKeyUp={done} onBlur={done} />
+        <label className="style-px">
+          <CommitInput type="number" min={min} max={max} step={5} value={pct} aria-label="Number size in percent" data-testid="number-size-input"
+            onCommit={(v) => st().updateObjects(ids, { labelScale: toScale(toNumber(v, pct, min, max)) })} />
+          %
+        </label>
+      </div>
+      <div className="style-presets">
+        <button className="btn small" onClick={() => st().updateObjects(ids, { labelScale: toScale(pct - 10) })} data-testid="number-smaller" aria-label="Smaller numbers">A−</button>
+        <button className="btn small" onClick={() => st().updateObjects(ids, { labelScale: toScale(pct + 10) })} data-testid="number-bigger" aria-label="Bigger numbers">A+</button>
+        <button className="btn small link" disabled={isDefault} title="Back to the normal size" data-testid="number-size-reset"
+          onClick={() => st().updateObjects(ids, { labelScale: undefined })}>
+          Reset
+        </button>
+        {mixed && <span className="hint">Sizes differ, changing sets them all.</span>}
       </div>
     </fieldset>
   );
