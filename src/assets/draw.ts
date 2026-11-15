@@ -37,6 +37,15 @@ export const hasSymbol = (c: DrawCtx, g?: string) => c.symbol !== null && (!!c.s
 /** `badge`, honoring the object's symbol choice. */
 export function badgeFor(c: DrawCtx, g: string | undefined, cx: number, cy: number, r: number, color: string): string {
   if (!hasSymbol(c, g)) return '';
+  // The user's own placement and size (Adjust label), or centred when the name is hidden.
+  if (c.badgeScale) r *= c.badgeScale;
+  if (c.badgeAt) {
+    cx = c.badgeAt.x * c.w;
+    cy = c.badgeAt.y * c.h;
+  } else if (c.nameHidden) {
+    cx = c.w / 2;
+    cy = c.h / 2;
+  }
   return `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r)}" fill="#ffffff" stroke="${color}" stroke-width="${r2(Math.max(1, r * 0.14))}"/>${symbolMark(c, g, cx, cy, r * (c.symbol ? 1.3 : 1.25), color)}`;
 }
 

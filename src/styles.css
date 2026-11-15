@@ -732,3 +732,16 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .share-link input { flex: 1; min-width: 0; }
 .btn.is-public { border-color: var(--primary); }
 .people li > span.site-actions { flex-direction: row; }
+
+/* Adjust label: drag the name and symbol around inside a zone */
+.label-adjust { grid-column: 1 / -1; margin: 4px 0; }
+.label-adjust summary { cursor: pointer; font-size: 12px; color: var(--muted); margin: 6px 0; }
+.label-pad-wrap { display: flex; justify-content: center; padding: 6px 0; }
+.label-pad { position: relative; touch-action: none; user-select: none; outline: 1px solid var(--border-strong); background: #f4f5f7; }
+.label-pad img { display: block; pointer-events: none; }
+.label-handle { position: absolute; transform: translate(-50%, -50%); padding: 0; margin: 0; border: 1.5px dashed transparent; background: transparent; cursor: grab; touch-action: none; }
+.label-handle:hover, .label-handle:focus-visible, .label-handle.on { border-color: var(--text); }
+.label-handle.on { cursor: grabbing; }
+.label-handle.symbol { border-radius: 50%; }
+.label-handle.text { font-weight: 700; color: #1f2933; white-space: nowrap; line-height: 1.1; padding: 1px 3px; border-radius: 3px; }
+.fields .name-toggle { grid-column: 1 / -1; display: flex; font-size: 12px; margin: 2px 0; }
