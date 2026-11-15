@@ -15,7 +15,8 @@ import { OFFICE, OFFICE_SHARED, OFFICES } from './catalog/office';
 import { SPACES } from './catalog/spaces';
 import { isSafePath, type MapSymbol } from './symbols';
 import { bandWidth, DEFAULT_BLEND, localOutline, type ShapeSource } from '../model/shape';
-import type { AssetObject } from '../model/types';
+import type { AssetObject, LabelLayout } from '../model/types';
+import { cleanLabelLayout } from '../model/labelLayout';
 import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
 import { VALET, VEHICLES } from './catalog/valet-vehicles';
 import { ASSET_CATEGORIES, type AssetCategory, type AssetDef } from './defs';
@@ -99,6 +100,8 @@ export interface PaintSource {
   label?: string;
   symbol?: MapSymbol;
   symbolHidden?: boolean;
+  labelHidden?: boolean;
+  labelLayout?: LabelLayout;
   band?: number;
   marksOnly?: boolean;
   rotation?: number;
@@ -126,7 +129,11 @@ export function renderAssetSvg(def: AssetDef, o: PaintSource): string {
   const p = resolvePaint(def, o);
   const symbol = o.symbolHidden ? null : o.symbol && isSafePath(o.symbol.path) ? o.symbol : undefined;
   const band = def.outline === 'arc' || def.outline === 'L' ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band }) : undefined;
-  const ctx: DrawCtx = { w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly, upsideDown: isUpsideDown(o.rotation) };
+  const lay = cleanLabelLayout(o.labelLayout);
+  const ctx: DrawCtx = {
+    w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly, upsideDown: isUpsideDown(o.rotation),
+    badgeAt: lay?.symbol, badgeScale: lay?.symbolScale, nameHidden: !!o.labelHidden,
+  };
   return svgDoc(o.width, o.height, def.draw(ctx));
 }
 

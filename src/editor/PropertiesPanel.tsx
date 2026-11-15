@@ -9,6 +9,7 @@ import { CommitInput, CommitTextarea, toNumber } from '../ui/fields';
 import { SPACES } from '../assets/catalog/spaces';
 import { spaceVariant } from '../render/MapObjects';
 import { StyleFields } from './StyleFields';
+import { hasInsideLabel, LabelAdjust } from './LabelAdjust';
 import { Icon, type IconName } from '../ui/icons';
 import { objectDisplayName } from './CanvasStage';
 import { currentFloor, useEditor } from './store';
@@ -224,7 +225,15 @@ function AssetFields({ a }: { a: AssetObject }) {
         <CommitInput value={a.label ?? ''} maxLength={40} placeholder={def?.labelPos === 'inside' ? def.label : '(none)'} data-testid="asset-label"
           onCommit={(v) => st().updateObjects([a.id], { label: v.trim() || undefined })} />
       </label>
+      {def && hasInsideLabel(def) && !a.imageSrc && (
+        <label className="check name-toggle">
+          <input type="checkbox" checked={!a.labelHidden} data-testid="label-toggle"
+            onChange={(e) => st().updateObjects([a.id], { labelHidden: e.target.checked ? undefined : true } as Partial<MapObject>)} />
+          Show the name on the map
+        </label>
+      )}
       {def && symbolSupport(def).custom && !a.imageSrc && <SymbolField a={a} builtIn={symbolSupport(def).builtIn} />}
+      {def && hasInsideLabel(def) && !a.imageSrc && <LabelAdjust a={a} def={def} />}
       {def?.note && def.creates !== 'image' && <p className="hint">{def.note}</p>}
       {def && canHaveInterior(def) && !here.interiorOf && (
         <div className="interior-field" data-testid="interior-field">

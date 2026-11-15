@@ -82,6 +82,12 @@ export interface DrawCtx {
   band?: number;
   /** The object is turned so far that text drawn on it would read upside down. */
   upsideDown?: boolean;
+  /** The badge moved by the user: its middle as fractions of w and h. */
+  badgeAt?: { x: number; y: number };
+  /** Badge size multiplier (1 = default). */
+  badgeScale?: number;
+  /** The name is hidden, so a badge that isn't moved sits in the middle. */
+  nameHidden?: boolean;
 }
 
 export type DrawFn = (c: DrawCtx) => string;
