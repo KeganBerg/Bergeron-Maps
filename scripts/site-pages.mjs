@@ -5,6 +5,7 @@
 //  - site/sitemap.xml
 // Runs in `npm run build:site`. Screenshots come from the real app (scripts/industry-shots/).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const SITE = 'https://bergeronmaps.com/';
 const home = readFileSync('site/index.html', 'utf8');
@@ -17,6 +18,7 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, 
 export const INDUSTRIES = [
   {
     slug: 'schools', name: 'School & Education', short: 'Schools', scene: 'school',
+    seo: { title: 'School Campus Map Software · Bergeron Maps', description: 'Interactive campus maps for schools. Every building, room and parking lot, searchable from any phone with nothing to install and kept current by your staff.' },
     pitch: 'Campus safety, parking organization and facility visibility.',
     title: 'A campus everyone can find their way around.',
     intro: 'New students, substitute teachers and parents at pickup all need to find something on campus. Give them one clear map of every building, office and lot, kept current by your own staff.',
@@ -44,6 +46,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'dealerships', name: 'Dealerships', short: 'Dealerships', scene: 'dealership',
+    seo: { title: 'Dealership Lot Map Software · Bergeron Maps', description: 'A searchable dealership lot map. Find any spot like U19 from a phone, train porters faster and get customers to their keys sooner.' },
     pitch: 'Faster customer-to-key times, less training and more profit.',
     title: 'Get the customer to the keys faster.',
     intro: "Every minute a porter spends walking rows is a minute your customer waits in the showroom, and you're paying for both. A searchable lot map gives that time back.",
@@ -71,6 +74,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'valet', name: 'Valet', short: 'Valet', scene: 'valet',
+    seo: { title: 'Valet Parking Map Software · Bergeron Maps', description: 'Garage and lot maps valet attendants search from their phone. Find any space, get walking directions, and let site managers update the map in minutes.' },
     pitch: 'Fewer labor hours, faster training and live site management.',
     title: 'Every valet knows the site from the first shift.',
     intro: 'New attendants usually learn a garage by shadowing someone for a few shifts. With a clear map on their phone they can start parking cars sooner, and your site manager can change it whenever the layout does.',
@@ -106,6 +110,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'warehouses', name: 'Warehouses', short: 'Warehouses', scene: 'warehouse',
+    seo: { title: 'Warehouse Location Map Software · Bergeron Maps', description: 'Searchable warehouse maps for every rack, aisle, bay and dock. Pickers find a location like C-07 from a phone, and leads update the layout the same day.' },
     pitch: 'Faster location identification, less training and smoother operations.',
     title: 'Every rack, aisle and dock, on one map.',
     intro: "Pickers shouldn't have to memorize the building. Put every rack, aisle, dock and staging lane on one map they can search, and keep it current as the layout shifts.",
@@ -133,6 +138,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'other', name: 'Other Industries', short: 'Other industries', scene: 'office',
+    seo: { title: 'Facility Maps for Hospitals, Hotels and More · Bergeron Maps', description: 'Searchable 2D facility maps for hospitals, hotels, offices, event venues, manufacturing and more. Buildings, floors, rooms and parking on one map.' },
     pitch: 'If you manage a physical facility, Bergeron Maps can help.',
     title: 'If you manage a physical facility, we can map it.',
     intro: 'We started with parking, but the same tools map buildings, floors, rooms and work areas. If your team ever has to ask "where is that?", it can probably help.',
@@ -252,6 +258,19 @@ function calcBlock(c) {
     </section>`;
 }
 
+// Breadcrumb trail for search results (Home > this page). The "Industries" step on the page is a
+// section of the home page, not a page of its own, so it is left out here.
+function breadcrumbs(ind, url) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Bergeron Maps', item: SITE },
+      { '@type': 'ListItem', position: 2, name: ind.name, item: url },
+    ],
+  };
+}
+
 function industryPage(ind) {
   const p = '../../';
   const url = `${SITE}industries/${ind.slug}/`;
@@ -264,17 +283,21 @@ function industryPage(ind) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${esc(ind.name)} · Bergeron Maps</title>
-  <meta name="description" content="${esc(ind.pitch + ' ' + ind.intro)}" />
-  <meta property="og:title" content="${esc(ind.name)} · Bergeron Maps" />
-  <meta property="og:description" content="${esc(ind.pitch)}" />
+  <title>${esc(ind.seo.title)}</title>
+  <meta name="description" content="${esc(ind.seo.description)}" />
+  <meta property="og:title" content="${esc(ind.seo.title)}" />
+  <meta property="og:description" content="${esc(ind.seo.description)}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Bergeron Maps" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:url" content="${url}" />
-  <meta property="og:image" content="${SITE}img/industries/${ind.scene}-editor.webp" />
+  <meta property="og:image" content="${SITE}img/og/${ind.slug}.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Bergeron Maps showing ${esc(s.project.toLowerCase().replace('sample ', 'a sample '))} in the editor and on a phone" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
+  <script type="application/ld+json">${JSON.stringify(breadcrumbs(ind, url)).replace(/</g, '\\u003c')}</script>
   <meta name="theme-color" content="#0b0b0b" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' mailto:; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -307,7 +330,7 @@ function industryPage(ind) {
       <div class="wrap pb-20">
         <figure class="relative border border-white/25">
           <div class="grid items-center gap-6 p-3 sm:p-6 lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8 lg:p-8">
-            <img class="shot" src="${p}img/industries/${ind.scene}-editor.webp" width="2000" height="1222" alt="The Bergeron Maps editor showing ${esc(s.project.toLowerCase().replace('sample ', 'a sample '))}" />
+            <img class="shot" src="${p}img/industries/${ind.scene}-editor.webp" width="2000" height="1222" fetchpriority="high" alt="The Bergeron Maps editor showing ${esc(s.project.toLowerCase().replace('sample ', 'a sample '))}" />
             <img class="shot shot-phone mx-auto w-full max-w-[250px]" src="${p}img/industries/${ind.scene}-phone.webp" width="780" height="1560" loading="lazy" alt="The same map on a phone, with ${esc(s.find)} found by search" />
           </div>
           <figcaption class="titleblock grid grid-cols-2 border-t border-white/25 text-white/70 sm:grid-cols-4">
@@ -386,29 +409,36 @@ const cards = INDUSTRIES.map((i, n) => `<li><a class="ind-card" href="industries
             <span class="label">0${n + 1}</span><b>${esc(i.name)}</b><span class="ind-pitch">${esc(i.pitch)}</span><span class="ind-more">Learn more <i aria-hidden="true">&rarr;</i></span>
           </a></li>`).join('\n          ');
 
-// Home page: shared header and footer, and the industry cards.
-let out = home
-  .replace(/<!--IND-CARDS-->[\s\S]*?(<!--\/IND-CARDS-->|(?=\n\s*<\/ul>))/, `<!--IND-CARDS-->\n          ${cards}\n          <!--/IND-CARDS-->`)
-  .replace(/<!--NAV-->[\s\S]*?<!--\/NAV-->/, `<!--NAV-->\n  ${header('', '')}\n  <!--/NAV-->`)
-  .replace(/<!--FOOT-->[\s\S]*?<!--\/FOOT-->/, `<!--FOOT-->\n  ${footer('')}\n  <!--/FOOT-->`);
-if (!out.includes('<!--NAV-->') || !out.includes('<!--FOOT-->')) throw new Error('site/index.html needs <!--NAV--> and <!--FOOT--> markers');
-writeFileSync('site/index.html', out);
+// Only write files when run directly (scripts/og-shots.mjs imports INDUSTRIES from here).
+if (import.meta.url === pathToFileURL(process.argv[1]).href) build();
 
-// 404 page: same header as every other page, with root-relative links (it is served at any path).
-const notFound = readFileSync('site/404.html', 'utf8');
-const nf = notFound.replace(/<!--NAV-->[\s\S]*?<!--\/NAV-->/, `<!--NAV-->\n  ${header('/', '')}\n  <!--/NAV-->`);
-if (!nf.includes('<!--NAV-->')) throw new Error('site/404.html needs <!--NAV--> markers');
-writeFileSync('site/404.html', nf);
+function build() {
+  // Home page: shared header and footer, and the industry cards.
+  let out = home
+    .replace(/<!--IND-CARDS-->[\s\S]*?(<!--\/IND-CARDS-->|(?=\n\s*<\/ul>))/, `<!--IND-CARDS-->\n          ${cards}\n          <!--/IND-CARDS-->`)
+    .replace(/<!--NAV-->[\s\S]*?<!--\/NAV-->/, `<!--NAV-->\n  ${header('', '')}\n  <!--/NAV-->`)
+    .replace(/<!--FOOT-->[\s\S]*?<!--\/FOOT-->/, `<!--FOOT-->\n  ${footer('')}\n  <!--/FOOT-->`);
+  if (!out.includes('<!--NAV-->') || !out.includes('<!--FOOT-->')) throw new Error('site/index.html needs <!--NAV--> and <!--FOOT--> markers');
+  writeFileSync('site/index.html', out);
 
-for (const ind of INDUSTRIES) {
-  mkdirSync(`site/industries/${ind.slug}`, { recursive: true });
-  writeFileSync(`site/industries/${ind.slug}/index.html`, industryPage(ind));
+  // 404 page: same header as every other page, with root-relative links (it is served at any path).
+  const notFound = readFileSync('site/404.html', 'utf8');
+  const nf = notFound.replace(/<!--NAV-->[\s\S]*?<!--\/NAV-->/, `<!--NAV-->\n  ${header('/', '')}\n  <!--/NAV-->`);
+  if (!nf.includes('<!--NAV-->')) throw new Error('site/404.html needs <!--NAV--> markers');
+  writeFileSync('site/404.html', nf);
+
+  for (const ind of INDUSTRIES) {
+    mkdirSync(`site/industries/${ind.slug}`, { recursive: true });
+    writeFileSync(`site/industries/${ind.slug}/index.html`, industryPage(ind));
+  }
+
+  const urls = [SITE, ...INDUSTRIES.map((i) => `${SITE}industries/${i.slug}/`)];
+  writeFileSync('site/sitemap.xml', [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...urls.map((u) => `  <url><loc>${u}</loc></url>`),
+    '</urlset>',
+    '',
+  ].join('\n'));
+  console.log('site pages:', INDUSTRIES.map((i) => i.slug).join(', '));
 }
-
-writeFileSync('site/sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>${SITE}</loc></url>
-${INDUSTRIES.map((i) => `  <url><loc>${SITE}industries/${i.slug}/</loc></url>`).join('\n')}
-</urlset>
-`);
-console.log('site pages:', INDUSTRIES.map((i) => i.slug).join(', '));
