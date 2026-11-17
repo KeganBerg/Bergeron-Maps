@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { addFromLibrary, newMap } from './helpers';
+import { spaceBox } from './pointer-helpers';
 import { editorState, realClick, realDrag, toScreen, type ObjInfo } from './real-input';
 
 /** Bugs found in the real-user audit (2026-11-12), each driven with real input. */
@@ -137,4 +138,58 @@ test('inside a building, the resize handles resize instead of picking the outer 
   }
   const t1 = (await editorState(page)).objects.find((o) => o.name === 'Conference table 1')!;
   expect(t1.width).toBeGreaterThan(t0.width + 20);
+});
+
+/** Bugs found in the second real-user audit (2026-11-17). */
+
+async function seedGarage(page: import('@playwright/test').Page, theme = 'signage', floors = 1) {
+  await page.goto(`/?theme=${theme}`);
+  return page.evaluate(async (floors) => {
+    const { createQuickLot, QUICK_LOT_DEFAULTS } = await import('/src/model/quickLot.ts');
+    const { repository } = await import('/src/storage/indexedDbRepository.ts');
+    const doc = createQuickLot('Harbor Garage', { ...QUICK_LOT_DEFAULTS, floors });
+    await repository.createMap(doc);
+    await repository.publishMap(doc.id);
+    return doc.id;
+  }, floors);
+}
+
+const contrast = (fg: string, bg: string) => {
+  const L = (s: string) => {
+    const [r, g, b] = (s.match(/[\d.]+/g) ?? []).map(Number).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [a, b] = [L(fg), L(bg)].sort((x, y) => y - x);
+  return (a + 0.05) / (b + 0.05);
+};
+
+for (const theme of ['signage', 'classic', 'night']) {
+  test(`typing a space number on the map is readable in the ${theme} theme`, async ({ page }) => {
+    const id = await seedGarage(page, theme);
+    await page.goto(`/?theme=${theme}#/edit/${id}`);
+    await page.getByTestId('find').click();
+    await page.getByTestId('find-input').fill('B1');
+    await page.keyboard.press('Enter');
+    const c = (await page.getByTestId('canvas').boundingBox())!;
+    // Find centres the space; a real double-click on it opens the box.
+    await page.mouse.dblclick(c.x + c.width / 2, c.y + c.height / 2);
+    const box = page.getByTestId('inline-label');
+    await expect(box).toBeVisible();
+    const css = await box.evaluate((el) => { const s = getComputedStyle(el); return { fg: s.color, bg: s.backgroundColor, border: s.borderTopWidth }; });
+    expect(contrast(css.fg, css.bg), JSON.stringify(css)).toBeGreaterThan(4.5);
+    expect(css.border).toBe('2px');
+  });
+}
+
+test('asking where you start from keeps the destination in view beside the panel', async ({ page }) => {
+  // A multi-floor garage, where the spaces are numbered by floor (1B1 is floor 1, row B).
+  const id = await seedGarage(page, 'signage', 3);
+  await page.goto(`/#/view/${id}`);
+  await page.getByTestId('viewer-search').fill('B1');
+  await page.getByTestId('viewer-search').press('Enter');
+  await page.getByTestId('directions').click();
+  const sheet = (await page.locator('.dir-sheet').first().boundingBox())!;
+  const at = (await spaceBox(page, '1B1'))!;
+  const clear = at.x > sheet.x + sheet.width || at.x < sheet.x || at.y < sheet.y || at.y > sheet.y + sheet.height;
+  expect(clear, JSON.stringify({ sheet, at })).toBe(true);
 });

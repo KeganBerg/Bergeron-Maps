@@ -246,6 +246,30 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     }
   }, [doc, measured, size]);
 
+  // Asking "where are you starting from?" opens a panel over the map: keep the place being
+  // asked about in view, above the panel on a phone, or beside it on a wide screen.
+  useLayoutEffect(() => {
+    if (dir?.stage !== 'pick' || !doc) return;
+    const box = boxRef.current;
+    const sheet = box?.querySelector('.dir-sheet');
+    const o = doc.floors.find((f) => f.id === dir.goal.floorId && f.id === floorId)?.objects.find((x) => x.id === dir.goal.objectId);
+    if (!box || !sheet || !o) return;
+    const b = box.getBoundingClientRect();
+    const sh = sheet.getBoundingClientRect();
+    const v = viewRef.current;
+    const r = (Math.max(o.width, o.height) / 2) * v.scale + 16;
+    const sx = v.x + o.x * v.scale;
+    const sy = v.y + o.y * v.scale;
+    const top = sh.top - b.top;
+    const left = sh.left - b.left;
+    const right = sh.right - b.left;
+    if (!(sx + r > left && sx - r < right && sy + r > top)) return;
+    const beside = sh.width < b.width * 0.6;
+    const next = beside ? { ...v, x: v.x + (right + (b.width - right) / 2 - sx) } : { ...v, y: v.y + (top / 2 - sy) };
+    viewRef.current = next;
+    setView(next);
+  }, [dir?.stage, floorId]);
+
   const share = async (o: MapObject) => {
     const url = linkTo(o.id);
     const title = describe(o, doc!).title;
