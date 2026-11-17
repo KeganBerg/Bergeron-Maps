@@ -92,6 +92,37 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const viewRef = useRef(view);
   viewRef.current = view;
 
+  // While a finger or mouse drags or pinches the map, only the picture is
+  // redrawn each frame. Konva also redraws its hidden hit map (what a tap
+  // lands on) on every frame, about a third of the drawing time on a big
+  // floor; nothing can be tapped mid-gesture, so that waits until the gesture
+  // ends, and is brought up to date before the next touch is looked at.
+  const hit = useRef<{ layer: Konva.Layer | null; paused: boolean; stale: boolean; timer: number }>({ layer: null, paused: false, stale: false, timer: 0 });
+  const mapLayer = useCallback((layer: Konva.Layer | null) => {
+    const h = hit.current;
+    if (h.layer && h.layer !== layer) delete (h.layer as Partial<Konva.Layer>).drawHit;
+    h.layer = layer;
+    if (!layer) return;
+    const drawHit = Konva.Layer.prototype.drawHit;
+    layer.drawHit = function (this: Konva.Layer, ...args: Parameters<Konva.Layer['drawHit']>) {
+      if (h.paused) {
+        h.stale = true;
+        return this;
+      }
+      return drawHit.apply(this, args);
+    };
+  }, []);
+  const pauseHits = () => { hit.current.paused = true; };
+  const resumeHits = () => {
+    const h = hit.current;
+    window.clearTimeout(h.timer);
+    h.paused = false;
+    if (h.stale && h.layer) {
+      h.stale = false;
+      h.layer.drawHit();
+    }
+  };
+
   // Drag to pan, pinch to zoom, wheel/trackpad. Native listeners on the canvas box
   // so every finger is seen (Konva only reports one pointer at a time).
   useEffect(() => {
@@ -115,13 +146,23 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     };
     const onMove = (e: PointerEvent) => {
       const v = t.move(e.pointerId, at(e));
+      if (v && t.moved) pauseHits();
       if (v) set(v);
     };
-    const onUp = (e: PointerEvent) => t.up(e.pointerId, viewRef.current);
+    const onUp = (e: PointerEvent) => {
+      t.up(e.pointerId, viewRef.current);
+      if (t.count === 0) resumeHits();
+    };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      pauseHits();
+      window.clearTimeout(hit.current.timer);
+      hit.current.timer = window.setTimeout(resumeHits, 150);
       set(wheelView(viewRef.current, e, at(e), el.clientHeight));
     };
+    // Capture phase: runs before Konva looks up what the pointer is on.
+    const onDownFirst = () => resumeHits();
+    el.addEventListener('pointerdown', onDownFirst, true);
     el.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -129,6 +170,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => {
       t.reset();
+      resumeHits();
+      el.removeEventListener('pointerdown', onDownFirst, true);
       el.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
@@ -441,7 +484,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           // space clear of the card), that second click landed on the neighbor.
           onPointerClick={onTap}
         >
-          <Layer>
+          <Layer ref={mapLayer}>
             <ViewerFloor floor={floor} focusedId={focused?.id} />
             {matches.map((m) => (
               <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation} listening={false}>

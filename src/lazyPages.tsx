@@ -18,3 +18,21 @@ export function EditorPage(props: ComponentProps<typeof Editor>) {
 
 /** Starts downloading the editor ahead of time (when someone is likely to open it next). */
 export const preloadEditor = () => void import('./editor/EditorPage');
+
+/*
+ * Pages only Bergeron Maps admins (All accounts) and company managers (Sites &
+ * people) open. Employees opening a map on a phone never download them.
+ */
+const Admin = lazy(() => import('./cloud/AdminPage').then((m) => ({ default: m.AdminPage })));
+const Team = lazy(() => import('./cloud/TeamPage').then((m) => ({ default: m.TeamPage })));
+const loadingPage = <div className="page-message"><p>Loading…</p></div>;
+
+export function AdminPage(props: ComponentProps<typeof Admin>) {
+  return <Suspense fallback={loadingPage}><Admin {...props} /></Suspense>;
+}
+export function TeamPage(props: ComponentProps<typeof Team>) {
+  return <Suspense fallback={loadingPage}><Team {...props} /></Suspense>;
+}
+/** Starts downloading the admin and manager pages once someone who can open them is signed in. */
+export const preloadAdmin = () => void import('./cloud/AdminPage');
+export const preloadTeam = () => void import('./cloud/TeamPage');
