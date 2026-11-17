@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Floor } from '../model/types';
 import { ConfirmDialog } from '../ui/Dialog';
 import { CommitInput } from '../ui/fields';
 import { Icon } from '../ui/icons';
 import { buildingName, buildingOf, floorGroup } from '../model/interiors';
 import { currentFloor, useEditor } from './store';
-import { floorColor } from '../theme';
+import { floorVars } from '../theme';
 
 export function FloorTabs() {
   const doc = useEditor((s) => s.doc)!;
@@ -15,11 +15,31 @@ export function FloorTabs() {
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [deleting, setDeleting] = useState<Floor | null>(null);
 
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menu) return;
+    const opener = document.activeElement as HTMLElement | null;
     const close = () => setMenu(null);
+    // Keyboard: the menu takes focus, arrows move through it, Escape closes it and returns focus.
+    const onKey = (e: KeyboardEvent) => {
+      const items = [...(menuRef.current?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [])];
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close();
+        opener?.focus();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[(at + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+      } else if (e.key === 'Tab') close();
+    };
+    menuRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
     window.addEventListener('pointerdown', close);
-    return () => window.removeEventListener('pointerdown', close);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', onKey, true);
+    };
   }, [menu]);
 
   const openMenu = (id: string, el: HTMLElement) => {
@@ -42,16 +62,14 @@ export function FloorTabs() {
           <span className="crumb-name" data-testid="building-crumb">{buildingName(inside.building)}</span>
         </div>
       )}
-      <div className="tabs-scroll" role="tablist">
+      <div className="tabs-scroll">
         {group.map((f, i) => {
           const active = f.id === floorId;
           return (
             <div
               key={f.id}
-              role="tab"
-              aria-selected={active}
               className={`floor-tab${active ? ' active' : ''}`}
-              style={{ ['--floor-color' as string]: floorColor(i) }}
+              style={floorVars(i)}
               onClick={() => st().setFloor(f.id)}
               onDoubleClick={() => setRenaming(f.id)}
               onContextMenu={(e) => {
@@ -65,13 +83,14 @@ export function FloorTabs() {
                 <CommitInput value={f.name} autoFocus maxLength={40} className="tab-input"
                   onCommit={(v) => st().renameFloor(f.id, v)} onBlur={() => setRenaming(null)} data-testid="floor-rename" />
               ) : (
-                <>
+                // A real button, so the floor can be reached with Tab and opened with Enter or Space.
+                <button type="button" className="floor-tab-name" aria-pressed={active}>
                   <span className="floor-dot" aria-hidden="true" />
                   <span>{f.name}</span>
-                </>
+                </button>
               )}
               {active && renaming !== f.id && (
-                <button className="icon-btn tiny" title="Floor options" aria-label="Floor options"
+                <button className="icon-btn tiny" title="Floor options" aria-label={`Options for ${f.name}`} aria-haspopup="menu" aria-expanded={menu?.id === f.id}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); openMenu(f.id, e.currentTarget.parentElement!); }}
                   data-testid="floor-menu">
@@ -87,7 +106,7 @@ export function FloorTabs() {
       </button>
 
       {menu && (
-        <div className="menu" style={{ left: menu.x, bottom: window.innerHeight - menu.y + 4 }} onPointerDown={(e) => e.stopPropagation()} role="menu">
+        <div className="menu" style={{ left: menu.x, bottom: window.innerHeight - menu.y + 4 }} onPointerDown={(e) => e.stopPropagation()} role="menu" aria-label="Floor options" ref={menuRef}>
           <button role="menuitem" onClick={() => { setRenaming(menu.id); setMenu(null); }}>Rename</button>
           <button role="menuitem" onClick={() => { st().duplicateFloor(menu.id); setMenu(null); }} data-testid="floor-duplicate">Duplicate floor</button>
           <button role="menuitem" disabled={idx(menu.id) === 0} onClick={() => { st().moveFloor(menu.id, -1); setMenu(null); }}>Move left</button>

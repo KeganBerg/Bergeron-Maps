@@ -25,6 +25,9 @@
   --chrome-border: var(--border);
   --on-primary: #fff;
   --floor-color: var(--primary);
+  --on-floor: #fff;
+  /* Keyboard focus ring: at least 3:1 against every panel and page background in the theme. */
+  --focus: #2563eb;
   color-scheme: light;
 }
 
@@ -55,6 +58,7 @@
   --chrome: #141517;
   --chrome-text: #f2f0ea;
   --chrome-border: #000;
+  --focus: #ffc629;
   color-scheme: dark;
 }
 
@@ -81,6 +85,7 @@
   --chrome: #0b2545;
   --chrome-text: #ffffff;
   --chrome-border: #0b2545;
+  --focus: #1d6fd8;
 }
 
 * { box-sizing: border-box; }
@@ -132,7 +137,13 @@ h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), select, textarea {
   border: 1px solid var(--border-strong); border-radius: 6px; padding: 6px 8px; background: var(--panel); min-width: 0;
 }
-input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible,
+[role='tab']:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* On dark bars (the signage theme's navy header, notices) the ring is white so it still stands out. */
+:root[data-theme='signage'] :is(.topbar, .home-header, .viewer-header) :focus-visible, .notice :focus-visible { outline-color: #fff; }
+:root[data-theme='signage'] :is(.topbar, .home-header, .viewer-header) :is(.account-menu, .menu) :focus-visible { outline-color: var(--focus); }
+/* Search boxes hide their own outline; the rounded box around them shows focus instead. */
+.viewer-search:focus-within, .search:focus-within, .find-input:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
 input[type='color'] { width: 44px; height: 30px; padding: 2px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--panel); }
 
 /* Middle dot (·) separators come from a system font; Overpass draws it with no space after. */
@@ -243,8 +254,8 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .sidebar { width: 280px; flex: none; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .sidebar.collapsed { width: 44px; align-items: center; padding-top: 8px; }
 .sidebar-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); padding: 0 4px; }
-.sidebar-tabs > button[role='tab'] { flex: 1; display: inline-flex; gap: 6px; align-items: center; justify-content: center; padding: 10px 6px; border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); font-weight: 600; }
-.sidebar-tabs > button.active { color: var(--primary); border-bottom-color: var(--primary); }
+.sidebar-tabs button[role='tab'] { flex: 1; display: inline-flex; gap: 6px; align-items: center; justify-content: center; padding: 10px 6px; border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); font-weight: 600; }
+.sidebar-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
 .sidebar-body { flex: 1; overflow: auto; padding: 4px 12px 12px; min-height: 120px; }
 .spaces-tools h4 { margin-top: 10px; }
 
@@ -333,6 +344,8 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .tabs-scroll { display: flex; gap: 2px; overflow-x: auto; flex: 1; min-width: 0; }
 .floor-tab { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 6px 6px 0 0; border: 1px solid transparent; cursor: pointer; white-space: nowrap; color: var(--muted); user-select: none; }
 .floor-tab:hover { background: var(--hover); }
+.sidebar-tablist { display: contents; }
+.floor-tab-name { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .floor-tab.active { background: var(--primary-soft); color: var(--primary); font-weight: 700; border-color: #bfdbfe; border-bottom: 3px solid var(--primary); }
 .tab-input { width: 120px; }
 .add-floor { flex: none; }
@@ -361,7 +374,7 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .preview-banner { background: #fef3c7; color: #78350f; padding: 6px 12px; font-size: 13px; text-align: center; }
 .viewer-header { display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px; }
 .viewer-header .titles { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.viewer-header .titles strong { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-header .titles h1 { font-size: 17px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viewer-search { position: relative; margin: 4px 12px 8px; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--border-strong); border-radius: 999px; padding: 0 14px; color: var(--muted); }
 .viewer-search input { flex: 1; border: 0 !important; padding: 11px 0 !important; font-size: 16px; outline: none; background: transparent !important; color: var(--text); }
 .results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; list-style: none; margin: 0; padding: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.15); z-index: 20; max-height: 50vh; overflow: auto; }
@@ -421,11 +434,11 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .topbar .icon-btn, .viewer-header .icon-btn { color: inherit; }
 .topbar .map-name { color: inherit; background: transparent; }
 .topbar .muted, .viewer-header .muted, .home-header .muted { color: inherit; opacity: 0.75; }
-h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .titles strong, .info-card strong, .viewer-floors button, .dialog h2, .map-open strong {
+h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .titles h1, .info-card strong, .viewer-floors button, .dialog h2, .map-open strong {
   font-family: var(--font-display);
 }
-.floor-tab { --floor-color: var(--primary); }
-.viewer-floors button.active { background: var(--floor-color, var(--primary)); border-color: var(--floor-color, var(--primary)); color: var(--on-primary); }
+.floor-tab { --floor-color: var(--primary); --on-floor: var(--on-primary); }
+.viewer-floors button.active { background: var(--floor-color, var(--primary)); border-color: var(--floor-color, var(--primary)); color: var(--on-floor, var(--on-primary)); }
 .floor-dot { width: 10px; height: 10px; border-radius: 2px; background: var(--floor-color); flex: none; display: none; }
 
 /* Night shift */
@@ -435,7 +448,7 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 :root[data-theme='night'] .floor-tabs { background: var(--chrome); border-top-color: #000; }
 :root[data-theme='night'] .floor-tab { color: #b9bbc1; font-size: 17px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
 :root[data-theme='night'] .floor-tab.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); border-radius: 3px; border-bottom: 3px solid var(--primary); }
-:root[data-theme='night'] .sidebar-tabs > button.active { color: var(--primary); border-bottom-color: var(--primary); }
+:root[data-theme='night'] .sidebar-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
 :root[data-theme='night'] .tile { background: #2a2c31; border-color: #34363c; color: #d9d7d0; }
 :root[data-theme='night'] .tile:hover { border-color: var(--primary); background: #302f2a; }
 :root[data-theme='night'] .tile img { filter: drop-shadow(0 1px 0 rgba(0,0,0,0.4)); }
@@ -446,7 +459,7 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 :root[data-theme='night'] .results, :root[data-theme='night'] .info-card, :root[data-theme='night'] .fab, :root[data-theme='night'] .menu { background: #232428; color: var(--text); border-color: #34363c; }
 :root[data-theme='night'] .info-card { border-left: 6px solid var(--primary); }
 :root[data-theme='night'] .info-card strong { font-size: 26px; letter-spacing: 0.02em; }
-:root[data-theme='night'] .viewer-header .titles strong { font-size: 22px; text-transform: uppercase; letter-spacing: 0.03em; }
+:root[data-theme='night'] .viewer-header .titles h1 { font-size: 22px; text-transform: uppercase; letter-spacing: 0.03em; }
 :root[data-theme='night'] .viewer-floors { background: var(--chrome); border-top-color: #000; }
 :root[data-theme='night'] .viewer-floors button { background: transparent; color: #d9d7d0; border-color: #3a3c42; border-radius: 3px; font-size: 18px; text-transform: uppercase; letter-spacing: 0.03em; }
 :root[data-theme='night'] .viewer-floors button.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
@@ -460,22 +473,22 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 :root[data-theme='signage'] .floor-dot { display: inline-block; }
 :root[data-theme='signage'] .floor-tabs { background: var(--panel); border-top: 1px solid var(--border); padding: 6px 8px; }
 :root[data-theme='signage'] .floor-tab { font-weight: 800; font-size: 15px; color: var(--text); border-radius: 3px; border: 2px solid transparent; }
-:root[data-theme='signage'] .floor-tab.active { background: var(--floor-color); color: #fff; border-color: var(--floor-color); }
-:root[data-theme='signage'] .floor-tab.active .floor-dot { background: #fff; }
+:root[data-theme='signage'] .floor-tab.active { background: var(--floor-color); color: var(--on-floor); border-color: var(--floor-color); }
+:root[data-theme='signage'] .floor-tab.active .floor-dot { background: var(--on-floor); }
 :root[data-theme='signage'] .topbar .btn:not(.primary), :root[data-theme='signage'] .home-header .btn:not(.primary) { background: transparent; border-color: rgba(255,255,255,0.3); color: #fff; }
 :root[data-theme='signage'] .topbar .btn.primary, :root[data-theme='signage'] .home-header .btn.primary { background: #f2b705; border-color: #f2b705; color: #0b2545; font-weight: 800; }
 :root[data-theme='signage'] .save-status.ok { background: rgba(255,255,255,0.12); color: #c8f2d2; }
 :root[data-theme='signage'] .save-status.pending { background: rgba(255,255,255,0.12); color: #fff; }
-:root[data-theme='signage'] .sidebar-tabs > button { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 800; }
+:root[data-theme='signage'] .sidebar-tabs button { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 800; }
 :root[data-theme='signage'] h4 { color: var(--text); font-weight: 800; }
 :root[data-theme='signage'] .tile { border-width: 2px; }
 :root[data-theme='signage'] .tile:hover { border-color: var(--text); background: #fff; }
 :root[data-theme='signage'] .logo { background: #f2b705; color: #0b2545; border-radius: 3px; font-weight: 900; }
-:root[data-theme='signage'] .viewer-header .titles strong { font-size: 19px; font-weight: 800; }
+:root[data-theme='signage'] .viewer-header .titles h1 { font-size: 19px; font-weight: 800; }
 :root[data-theme='signage'] .viewer-search { border: 2px solid var(--text); border-radius: 4px; }
 :root[data-theme='signage'] .viewer-floors { background: var(--panel); }
 :root[data-theme='signage'] .viewer-floors button { border-radius: 4px; border: 2px solid var(--floor-color); color: var(--text); font-weight: 800; font-size: 16px; }
-:root[data-theme='signage'] .viewer-floors button.active { background: var(--floor-color); color: #fff; }
+:root[data-theme='signage'] .viewer-floors button.active { background: var(--floor-color); color: var(--on-floor); }
 :root[data-theme='signage'] .info-card { border-radius: 4px; border-top: 6px solid var(--floor-color, var(--text)); }
 :root[data-theme='signage'] .info-card strong { font-size: 24px; font-weight: 900; }
 :root[data-theme='signage'] .map-card { border-radius: 4px; border-width: 2px; }
@@ -508,7 +521,7 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 .lot-sketch { width: 100%; height: 240px; background: var(--canvas); border: 1px solid var(--border); border-radius: var(--radius, 8px); overflow: hidden; }
 .lot-floors { display: flex; flex-wrap: wrap; gap: 6px; }
 .lot-floors button { --floor-color: var(--primary); flex: none; padding: 5px 10px; border: 2px solid var(--floor-color); border-radius: var(--radius, 4px); background: var(--panel); color: var(--text); font-family: var(--font-display); font-size: 13px; font-weight: 700; cursor: pointer; }
-.lot-floors button.active { background: var(--floor-color); color: #fff; }
+.lot-floors button.active { background: var(--floor-color); color: var(--on-floor); }
 @media (max-width: 600px) {
   .quick-lot { grid-template-columns: 1fr; }
   .quick-preview { order: -1; }
@@ -794,3 +807,11 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 /* Share a link to one space (viewer info card) */
 .info-card .share-btn.done { color: var(--ok); }
 .share-toast { position: absolute; right: 8px; bottom: calc(100% + 8px); background: #111827; color: #fff; font-size: 13px; padding: 6px 10px; border-radius: 6px; }
+
+/* Phones: buttons in the viewer are at least 44px tall and wide, so a thumb hits the right one. */
+@media (pointer: coarse) {
+  .viewer .icon-btn { width: 44px; height: 44px; }
+  .viewer-floors button { min-height: 44px; }
+  .viewer .info-card .btn, .viewer .dir-actions .btn, .viewer .dir-banner .btn { min-height: 44px; }
+}
+.info-card:focus-visible, .dir-sheet:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

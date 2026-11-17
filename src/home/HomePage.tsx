@@ -246,14 +246,14 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                     {slots.map((m, i) =>
                       m ? card(m, `Slot ${i + 1}`) : (
                         <li key={`empty-${i}`} className="map-card map-card-empty" data-testid={`slot-${site}-${i + 1}`}>
-                          <button className="map-add" onClick={() => setCreating({ site, slot: i + 1 })} disabled={full}
-                            aria-label={`Add a map in slot ${i + 1} of ${site}`}>
+                          <button className="map-add" onClick={() => setCreating({ site, slot: i + 1 })} disabled={full}>
                             <span className="slot-num">Slot {i + 1}</span>
                             {list.length === 0 && i === 0 ? (
                               <><Icon name="plus" size={18} /><strong>Add the first map</strong><span>Build one from a few numbers in about a minute.</span></>
                             ) : (
                               <><strong>Empty</strong><span>Add a map here</span></>
                             )}
+                            <span className="sr-only"> ({site})</span>
                           </button>
                         </li>
                       ),

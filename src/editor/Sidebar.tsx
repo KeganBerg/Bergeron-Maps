@@ -28,13 +28,15 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-tabs" role="tablist">
+      <div className="sidebar-tabs">
+        <div className="sidebar-tablist" role="tablist" aria-label="Sidebar">
         <button role="tab" aria-selected={tab === 'add'} className={tab === 'add' ? 'active' : ''} onClick={() => setTab('add')}>
           <Icon name="shapes" size={16} /> Add
         </button>
         <button role="tab" aria-selected={tab === 'layers'} className={tab === 'layers' ? 'active' : ''} onClick={() => setTab('layers')} data-testid="tab-layers">
           <Icon name="layers" size={16} /> Layers
         </button>
+        </div>
         <button className="icon-btn collapse" title="Hide sidebar" aria-label="Hide sidebar" onClick={() => setCollapsed(true)}>
           <Icon name="chevronLeft" />
         </button>

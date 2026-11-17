@@ -115,10 +115,10 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
         publishState={publishState}
         publishedAt={published?.publishedAt}
       />
-      <div className="editor-main">
+      <main className="editor-main">
         <Sidebar />
         <CanvasStage />
-      </div>
+      </main>
       <FloorTabs />
       <Notices />
       {rowDialog && <RowDialog />}

@@ -5,7 +5,7 @@ import { clampQuickLot, createQuickLot, QUICK_LOT_DEFAULTS, QUICK_LOT_LIMITS, qu
 import type { MapDocument } from '../model/types';
 import { LayerObjects } from '../render/MapObjects';
 import { fitViewport, floorBounds } from '../render/viewport';
-import { floorColor } from '../theme';
+import { floorVars } from '../theme';
 import { Dialog } from '../ui/Dialog';
 
 /**
@@ -48,7 +48,7 @@ function LotPreview({ doc }: { doc: MapDocument }) {
         <div className="lot-floors" role="group" aria-label="Preview a floor">
           {doc.floors.map((f, i) => (
             <button key={f.id} type="button" className={f.id === floor.id ? 'active' : ''} aria-pressed={f.id === floor.id}
-              style={{ ['--floor-color' as string]: floorColor(i) }} onClick={() => setIndex(i)}>
+              style={floorVars(i)} onClick={() => setIndex(i)}>
               {f.name}
             </button>
           ))}
