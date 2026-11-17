@@ -49,7 +49,7 @@ test('floors: add, rename, duplicate and switch', async ({ page }) => {
   await page.getByTestId('add-row').click();
   await page.getByTestId('create-row').click();
   await page.getByTestId('add-floor').click();
-  await expect(page.getByTestId('floor-tab-Floor 2')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('floor-tab-Floor 2').getByRole('button', { pressed: true })).toBeVisible();
   await page.getByTestId('floor-tab-Floor 2').dblclick();
   await page.getByTestId('floor-rename').fill('Rooftop');
   await page.getByTestId('floor-rename').press('Enter');
@@ -58,7 +58,7 @@ test('floors: add, rename, duplicate and switch', async ({ page }) => {
   await page.getByTestId('floor-tab-Floor 1').click();
   await page.getByTestId('floor-menu').click();
   await page.getByTestId('floor-duplicate').click();
-  await expect(page.getByTestId('floor-tab-Floor 1 (copy)')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('floor-tab-Floor 1 (copy)').getByRole('button', { pressed: true })).toBeVisible();
   await page.keyboard.press('Control+a');
   await expect(page.getByTestId('selected-name')).toHaveText('Row 1–10');
 

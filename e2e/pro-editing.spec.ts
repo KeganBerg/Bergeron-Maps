@@ -252,7 +252,7 @@ test.describe('pro editing', () => {
     await expect(page.getByTestId('find-results')).toContainText('Column 1');
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('find-bar')).toHaveCount(0);
-    await expect(page.getByTestId('floor-tab-Floor 1')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('floor-tab-Floor 1').getByRole('button', { pressed: true })).toBeVisible();
     expect(await names(page)).toEqual(['Column 1']);
     // It is on screen, near the middle, ready to drag.
     const col = await obj(page, 'Column 1');

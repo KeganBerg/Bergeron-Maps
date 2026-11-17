@@ -36,6 +36,18 @@ const PALETTES: Record<ThemeName, MapPalette> = {
 export const FLOOR_COLORS = ['#c8102e', '#d4650f', '#007a33', '#0057b8', '#6a1b9a', '#00838f', '#8d6e63', '#455a64'];
 export const floorColor = (index: number) => FLOOR_COLORS[index % FLOOR_COLORS.length];
 
+const luminance = (hex: string) => {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+};
+/** White or near-black, whichever reads better on the floor's color (at least 4.5:1 for every floor color). */
+export const floorTextColor = (index: number) => {
+  const l = luminance(floorColor(index));
+  return (1.05 / (l + 0.05)) >= ((l + 0.05) / (luminance('#17181a') + 0.05)) ? '#ffffff' : '#17181a';
+};
+/** The CSS variables a floor button or tab needs: its color and readable text on it. */
+export const floorVars = (index: number) => ({ ['--floor-color' as string]: floorColor(index), ['--on-floor' as string]: floorTextColor(index) });
+
 function readTheme(): ThemeName {
   try {
     const fromUrl = new URLSearchParams(window.location.search).get('theme') as ThemeName | null;

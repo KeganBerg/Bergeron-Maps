@@ -691,6 +691,8 @@ export function CanvasStage() {
     <div
       ref={containerRef}
       className="canvas"
+      role="region"
+      aria-label="Map canvas"
       style={{ cursor }}
       onDragOver={onDragOver}
       onDrop={onDrop}

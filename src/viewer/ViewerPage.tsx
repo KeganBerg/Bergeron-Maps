@@ -15,7 +15,7 @@ import '../render/konvaSetup';
 import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
-import { floorColor, MAP_PALETTE } from '../theme';
+import { floorVars, MAP_PALETTE } from '../theme';
 import { feet, findRoute, isBig, minutes, placeLabel, startPlaces, type Place, type Route } from '../model/route';
 import { RouteOverlay } from './RouteOverlay';
 
@@ -86,6 +86,20 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [dir, setDir] = useState<Directions | null>(null);
   const [avoidStairs, setAvoidStairs] = useState(false);
   const [shared, setShared] = useState(false);
+  // Where keyboard focus goes after the next render: the panel that just replaced the
+  // button that was pressed (a result, a start place), so focus never drops to the page.
+  const moveFocus = useRef<'card' | 'sheet' | 'directions' | null>(null);
+  useLayoutEffect(() => {
+    const want = moveFocus.current;
+    if (!want) return;
+    const box = boxRef.current;
+    const el = want === 'card' ? box?.querySelector<HTMLElement>('.info-card')
+      : want === 'sheet' ? box?.querySelector<HTMLElement>('.dir-banner button, .dir-sheet')
+      : box?.querySelector<HTMLElement>('[data-testid="directions"]');
+    if (!el) return;
+    moveFocus.current = null;
+    el.focus({ preventScroll: true });
+  });
   const boxRef = useRef<HTMLDivElement>(null);
   const tracker = useRef(new PanZoomTracker());
   /** Where the site map was when someone went inside a building, to come back to. */
@@ -224,6 +238,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
   const goTo = (h: SearchHit) => {
     setShowResults(false);
+    moveFocus.current = 'card';
     setFocus({ id: h.object.id, floorId: h.floorId });
     setTapped(h.object);
     setFloorId(h.floorId);
@@ -340,6 +355,17 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const route = dir?.stage === 'route' ? dir.route : null;
   const routeFloors = new Set(route ? [...route.legs.map((l) => l.floorId), ...route.steps.map((s) => s.floorId)] : []);
 
+  // Read out by screen readers when it changes: what search found, what's selected, the route.
+  const announcement = dir
+    ? dir.stage === 'pick' ? `Directions to ${dir.goal.name}. Where are you starting from?`
+      : dir.stage === 'tap' ? 'Tap where you are on the map, or choose Cancel to pick from a list.'
+      : dir.stage === 'busy' ? 'Finding the way…'
+      : dir.stage === 'none' ? (dir.reason === 'same' ? 'You’re already there.' : `No way found to ${dir.goal.name} from ${dir.start.name}.`)
+      : `Directions to ${dir.goal.name}: ${feet(dir.route.length)} feet, about ${minutes(dir.route)} minutes, ${dir.route.steps.length} steps.`
+    : info ? [info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(', ')
+    : showResults && query.trim() ? (hits.length ? `${hits.length} ${hits.length === 1 ? 'result' : 'results'}` : 'No matches')
+    : '';
+
   const goInside = (buildingId: string) => {
     const first = interiorFloors(doc, buildingId)[0];
     if (!first) return;
@@ -384,11 +410,14 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   };
 
   const runRoute = (goal: Goal, start: Start, avoid = avoidStairs) => {
+    // The Avoid stairs box stays in place (and keeps focus) while the route is redrawn.
+    if (!(document.activeElement instanceof HTMLInputElement)) moveFocus.current = 'sheet';
     setDir({ stage: 'busy', goal, start });
     setFocus({ id: goal.objectId, floorId: goal.floorId });
     // Let the "Finding the way" panel paint before the search runs.
     setTimeout(() => {
       const r = findRoute(doc, start, goal, { avoidStairs: avoid });
+      if (moveFocus.current === null && !(document.activeElement instanceof HTMLInputElement)) moveFocus.current = 'sheet';
       if (!r.ok) return setDir({ stage: 'none', goal, start, reason: r.reason });
       setDir({ stage: 'route', goal, start, route: r.route });
       showFloorOfRoute(r.route, r.route.legs[0]?.floorId ?? r.route.steps[0]?.floorId ?? start.floorId);
@@ -403,11 +432,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     const hf = hint ? doc.floors.find((x) => x.objects.some((y) => y.id === hint)) : undefined;
     const ho = hf?.objects.find((y) => y.id === hint);
     if (hf && ho && ho.id !== o.id) return runRoute(goal, { floorId: hf.id, objectId: ho.id, x: ho.x, y: ho.y, name: placeLabel(ho) });
+    moveFocus.current = 'sheet';
     setDir({ stage: 'pick', goal });
   };
 
   const endDirections = () => {
     const goal = dir?.goal;
+    moveFocus.current = 'directions';
     setDir(null);
     if (goal) {
       const f = doc.floors.find((x) => x.id === goal.floorId);
@@ -443,7 +474,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   };
 
   return (
-    <div className="viewer" style={{ ['--floor-color' as string]: floorColor(group.indexOf(floor)) }}>
+    <main className="viewer" style={floorVars(group.indexOf(floor))}>
       {preview && (
         <div className="preview-banner">
           Preview — this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
@@ -456,7 +487,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           </button>
         )}
         <div className="titles">
-          <strong data-testid="viewer-facility">{doc.name}</strong>
+          <h1 data-testid="viewer-facility">{doc.name}</h1>
           <span className="muted small">
             {floorTitle(doc, floor)} · {preview ? 'Draft' : 'Updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
           </span>
@@ -464,7 +495,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         <button className="icon-btn" aria-label="Refresh map" title="Get the latest version" onClick={load}><Icon name="restore" /></button>
       </header>
 
-      <form className="viewer-search" onSubmit={(e) => { e.preventDefault(); submitSearch(); }}>
+      <form className="viewer-search" role="search" onSubmit={(e) => { e.preventDefault(); submitSearch(); }}>
         <Icon name="search" size={18} />
         <input
           type="search"
@@ -474,10 +505,27 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           onChange={(e) => { setQuery(e.target.value); setShowResults(true); }}
           onFocus={() => setShowResults(true)}
           aria-label="Find a parking space"
+          aria-controls={showResults && query.trim() ? "viewer-results" : undefined}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowResults(false);
+            else if (e.key === 'ArrowDown' && showResults) {
+              e.preventDefault();
+              e.currentTarget.form?.querySelector<HTMLElement>('.results button')?.focus();
+            }
+          }}
           data-testid="viewer-search"
         />
         {showResults && query.trim() && (
-          <ul className="results" data-testid="search-results">
+          <ul className="results" id="viewer-results" aria-label="Search results" data-testid="search-results"
+            onKeyDown={(e) => {
+              // Up and down move through the results; Escape goes back to the search box.
+              const items = [...e.currentTarget.querySelectorAll<HTMLElement>('button')];
+              const at = items.indexOf(document.activeElement as HTMLElement);
+              const input = e.currentTarget.parentElement?.querySelector('input');
+              if (e.key === 'ArrowDown') { e.preventDefault(); items[Math.min(at + 1, items.length - 1)]?.focus(); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); (at <= 0 ? input : items[at - 1])?.focus(); }
+              else if (e.key === 'Escape') { input?.focus(); setShowResults(false); }
+            }}>
             {hits.length === 0 ? (
               <li className="none">No space or landmark called “{query.trim()}” on this map. Check the number and try again.</li>
             ) : (
@@ -495,6 +543,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       </form>
 
       <div className="viewer-canvas" ref={boxRef} onClick={() => setShowResults(false)}>
+        {/* The drawing itself can't be read aloud; search and the panels below say what's selected. */}
+        <div role="img" aria-label={`Map of ${floorTitle(doc, floor)}. Use the search box to find a space or place.`}>
         <Stage
           visible={measured}
           width={size.width}
@@ -542,11 +592,12 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             {route && <RouteOverlay route={route} floorId={floor.id} scale={view.scale} />}
           </Layer>
         </Stage>
+        </div>
         <button className="fab" onClick={resetView} aria-label="Show whole floor" title="Show whole floor" data-testid="reset-view">
           <Icon name="fit" />
         </button>
         {info && !dir && (
-          <div className="info-card" data-testid="info-card">
+          <section className="info-card" aria-label={info.title} tabIndex={-1} data-testid="info-card">
             <div>
               <strong>{info.title}</strong>
               <span className="muted">{[tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(' · ')}</span>
@@ -565,12 +616,12 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             </button>
             <button className="icon-btn" aria-label="Close" onClick={() => { setTapped(null); setFocus(null); }}><Icon name="close" /></button>
             {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
-          </div>
+          </section>
         )}
         {dir?.stage === 'tap' && (
           <div className="dir-banner dir-sheet" data-testid="dir-tap-banner">
             <span>Tap where you are now</span>
-            <button className="btn" onClick={() => setDir({ stage: 'pick', goal: dir.goal })}>Cancel</button>
+            <button className="btn" onClick={() => { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); }}>Cancel</button>
           </div>
         )}
         {dir && dir.stage !== 'tap' && (
@@ -580,8 +631,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             floorId={floor.id}
             avoidStairs={avoidStairs}
             onPick={(start) => runRoute(dir.goal, start)}
-            onTapMode={() => setDir({ stage: 'tap', goal: dir.goal })}
-            onChangeStart={() => setDir({ stage: 'pick', goal: dir.goal })}
+            onTapMode={() => { moveFocus.current = 'sheet'; setDir({ stage: 'tap', goal: dir.goal }); }}
+            onChangeStart={() => { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); }}
             onStep={(fid) => route && showFloorOfRoute(route, fid)}
             onAvoidStairs={(v) => {
               setAvoidStairs(v);
@@ -601,7 +652,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         {inside && <span className="viewer-building" data-testid="viewer-building">{buildingName(inside.building)}</span>}
         {(inside && group.length < 2 ? [] : group).map((f, i) => (
           <button key={f.id} className={[f.id === floor.id ? 'active' : '', routeFloors.has(f.id) ? 'on-route' : ''].join(' ').trim() || undefined} aria-pressed={f.id === floor.id}
-            style={{ ['--floor-color' as string]: floorColor(i) }}
+            style={floorVars(i)}
             onClick={() => {
               if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
               setFloorId(f.id);
@@ -611,7 +662,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           </button>
         ))}
       </nav>
-    </div>
+      <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-announce">{announcement}</p>
+    </main>
   );
 }
 
@@ -683,7 +735,7 @@ function DirectionsSheet(p: {
 
   if (dir.stage === 'pick') {
     return (
-      <div className="dir-sheet" data-testid="directions-sheet">
+      <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
         <div className="dir-head">
           <div>
             <strong>Directions to {dir.goal.name}</strong>
@@ -708,14 +760,14 @@ function DirectionsSheet(p: {
   }
   if (dir.stage === 'busy') {
     return (
-      <div className="dir-sheet" data-testid="directions-sheet">
+      <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
         <div className="dir-head"><div><strong>To {dir.goal.name}</strong><span className="muted">Finding the way…</span></div>{close}</div>
       </div>
     );
   }
   if (dir.stage === 'none') {
     return (
-      <div className="dir-sheet" data-testid="directions-sheet">
+      <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
         <div className="dir-head"><div><strong>To {dir.goal.name}</strong></div>{close}</div>
         <p className="dir-note" data-testid="dir-none">
           {dir.reason === 'same'
@@ -732,7 +784,7 @@ function DirectionsSheet(p: {
   const { route } = dir;
   const mins = minutes(route);
   return (
-    <div className="dir-sheet" data-testid="directions-sheet">
+    <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
       <div className="dir-head">
         <div>
           <strong>To {dir.goal.name}</strong>
