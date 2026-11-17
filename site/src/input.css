@@ -106,7 +106,7 @@
 .am-stabs svg { width: 15px; height: 15px; }
 .am-collapse { width: 16px; height: 16px; margin: 0 14px; color: #5d6b7e; }
 .am-sbody { padding: 6px 12px; }
-.am h4 { margin: 14px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #0b2545; }
+.am h4, .am .am-h { margin: 14px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #0b2545; }
 .am-row, .am-addrow { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; border-radius: 3px; font-size: 14px; }
 .am-row { background: #e6ecf5; border: 1px solid #bfdbfe; font-weight: 600; transition: background .15s, color .15s; }
 .am-row.on { background: #0b2545; color: #fff; border-color: #0b2545; }

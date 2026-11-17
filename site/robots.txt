@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
-# The app is a private sign-in area.
-Disallow: /app/
+# The app (/app/) is a private sign-in area. It is not blocked here on purpose: every app page
+# carries <meta name="robots" content="noindex">, and search engines can only see that tag if
+# they are allowed to fetch the page. Blocking it would let a bare /app/ link show up in results.
 
 Sitemap: https://bergeronmaps.com/sitemap.xml
