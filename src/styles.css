@@ -775,9 +775,11 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .shortcuts kbd { color: var(--text-soft); }
 
 /* Typing a number, label or name straight onto the map */
-.inline-label { position: absolute; z-index: 5; box-sizing: border-box; margin: 0; padding: 2px 6px; text-align: center; color: #0f172a; background: #fff;
+/* Spelled out to outrank the app's general input rule, which would give it the panel field's border and padding. */
+.canvas input.inline-label:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), .canvas textarea.inline-label {
+  position: absolute; z-index: 5; box-sizing: border-box; margin: 0; padding: 2px 6px; text-align: center; color: var(--text); background: var(--panel);
   border: 2px solid var(--primary); border-radius: 4px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18); font-weight: 600; line-height: 1.2; resize: none; outline: none; }
-textarea.inline-label { text-align: left; font-weight: 400; }
+.canvas textarea.inline-label { text-align: left; font-weight: 400; }
 
 /* Find on map (editor) */
 .find-bar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6; width: min(420px, calc(100% - 24px)); background: var(--panel);
