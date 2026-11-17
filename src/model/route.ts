@@ -205,7 +205,7 @@ function eachCell(g: Grid, o: MapObject, def: AssetDef | undefined, grow: number
   const r1 = Math.min(g.rows - 1, Math.floor((b.y + b.height + grow - g.y0) / g.cell));
   const outline = def?.outline && def.outline !== 'rect' ? def.outline : undefined;
   const rings = outline || (o.cuts?.length ?? 0) > 0
-    ? localOutline({ width: o.width, height: o.height, outline, band: (o as AssetObject).band ?? def?.band, cuts: o.cuts })
+    ? localOutline({ width: o.width, height: o.height, outline, band: (o as AssetObject).band ?? def?.band, cuts: o.cuts, curve: outline === 'arc' ? (o as AssetObject).curve : undefined })
     : null;
   let any = false;
   for (let r = r0; r <= r1; r++) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { roadExtensions, roadJunctions, type RoadPiece } from './roads';
+import { jointEnds, jointShapes, roadCenterLines, roadExtensions, roadJoints, roadJunctions, type RoadPiece } from './roads';
 import { mergeOutlines, unionRings } from './shape';
 
 /** An axis-aligned straight road from (x1, y1) to (x2, y2), with its ends on the short sides of travel. */
@@ -62,5 +62,79 @@ describe('road junctions', () => {
   it('a road far from any other is left alone', () => {
     const ps = [road(0, 0, 600, 120, 'h'), road(240, 300, 360, 500, 'v')];
     expect(roadExtensions(ps)[1]).toEqual([]);
+  });
+});
+
+/** A straight two-lane road from (x, y) heading `deg` degrees for `len` px, with its centre line. */
+function seg(x: number, y: number, deg: number, len: number, w = 120): RoadPiece {
+  const a = (deg * Math.PI) / 180, d: [number, number] = [Math.cos(a), Math.sin(a)], n = [-d[1], d[0]];
+  const p = (s: number, t: number) => [x + d[0] * s + n[0] * t, y + d[1] * s + n[1] * t];
+  return {
+    body: [[...p(0, -w / 2), ...p(len, -w / 2), ...p(len, w / 2), ...p(0, w / 2)]],
+    width: w,
+    axis: d,
+    center: [...p(0, 0), ...p(len, 0)],
+    ends: [{ seg: [...p(0, -w / 2), ...p(0, w / 2)], out: [-d[0], -d[1]] }, { seg: [...p(len, -w / 2), ...p(len, w / 2)], out: d }],
+  };
+}
+
+/** Everything the merged road needs, the way the map draws it. */
+function build(ps: RoadPiece[]) {
+  const joints = roadJoints(ps);
+  const bends = jointShapes(ps, joints);
+  const ext = roadExtensions(ps, jointEnds(joints));
+  const road = merged(ps.map((p, i) => ({ ...p, body: [...p.body, ...ext[i], ...bends.fill[i]] })));
+  const junctions = roadJunctions(ps, road, jointEnds(joints));
+  return { joints, junctions, centers: roadCenterLines(ps, joints, junctions) };
+}
+const lengthOf = (l: number[]) => {
+  let s = 0;
+  for (let i = 2; i < l.length; i += 2) s += Math.hypot(l[i] - l[i - 2], l[i + 1] - l[i - 1]);
+  return s;
+};
+
+describe('road bends and joins', () => {
+  it('two pieces meeting at an angle make one smooth bend, not a junction, and the yellow line runs round it', () => {
+    const { joints, junctions, centers } = build([seg(150, 900, -90, 500), seg(150, 400, -70, 400)]);
+    expect(joints.length).toBe(1);
+    expect(junctions.stops).toEqual([]);
+    // One double line (two polylines) running the whole way.
+    expect(centers.length).toBe(2);
+    for (const l of centers) expect(lengthOf(l)).toBeGreaterThan(880);
+  });
+
+  it('pieces overlapping by eye at a bend still join', () => {
+    const { joints, centers } = build([seg(1900, 300, 90, 400), seg(1900, 680, 65, 300)]);
+    expect(joints.length).toBe(1);
+    expect(centers.length).toBe(2);
+  });
+
+  it('at a T the through road keeps its yellow line across; only the joining road stops', () => {
+    const { junctions, centers } = build([seg(0, 200, 0, 800), seg(400, 700, -90, 440)]);
+    expect(junctions.stops.length).toBe(1);
+    // A line of the through road crosses the junction (x = 340..460) unbroken.
+    expect(centers.some((l) => l[0] < 300 && l[l.length - 2] > 500)).toBe(true);
+  });
+
+  it('a road joining at a slant gets one stop bar, square across it, and the through road carries on', () => {
+    const { junctions, centers } = build([seg(1100, 1200, 0, 700), seg(1080, 1650, -45, 530)]);
+    expect(junctions.stops.length).toBe(1);
+    const [x1, y1, x2, y2] = junctions.stops[0];
+    // Square to the joining road (heading up-right at 45 degrees): the bar runs down-right.
+    expect(Math.abs((x2 - x1) - (y2 - y1))).toBeLessThan(2);
+    expect(centers.some((l) => l[0] < 1200 && l[l.length - 2] > 1700)).toBe(true);
+  });
+
+  it('a side road joining a bend is a T, not a four-way stop', () => {
+    const { junctions, centers } = build([seg(150, 900, -90, 500), seg(150, 400, -70, 400), seg(820, 330, 182, 610)]);
+    expect(junctions.stops.length).toBe(1);
+    // The bent road's yellow line still runs unbroken round the bend.
+    expect(centers.some((l) => lengthOf(l) > 880)).toBe(true);
+  });
+
+  it('a real crossroads still stops every way', () => {
+    const { junctions, centers } = build([seg(100, 1300, 0, 800), seg(500, 950, 90, 700)]);
+    expect(junctions.stops.length).toBe(4);
+    for (const l of centers) expect(lengthOf(l)).toBeLessThan(400);
   });
 });

@@ -80,6 +80,8 @@ export interface DrawCtx {
   marksOnly?: boolean;
   /** Band thickness of curved ('arc') and L pieces, in map pixels. */
   band?: number;
+  /** A reshaped curved piece: its centre line in px (see model/curve.ts). */
+  curve?: number[];
   /** The object is turned so far that text drawn on it would read upside down. */
   upsideDown?: boolean;
   /** The badge moved by the user: its middle as fractions of w and h. */

@@ -10,6 +10,7 @@
  */
 import ClipperLib from 'clipper-lib';
 import type { MapObject } from './types';
+import { curveLine, curvePx, type CurvePoints } from './curve';
 
 // Clipper reports internal problems with a blocking browser alert() and then
 // carries on. A pop-up the person can't act on is worse than a slightly off
@@ -43,8 +44,9 @@ function ellipsePoints(cx: number, cy: number, rx: number, ry: number, a0: numbe
 }
 
 /** Thickness of curved bands and L corners, in map pixels. */
-export const bandWidth = (o: { width: number; height: number; band?: number }) =>
-  Math.max(4, Math.min(o.band ?? Math.min(o.width, o.height) * 0.3, Math.min(o.width, o.height) - 2));
+export const bandWidth = (o: { width: number; height: number; band?: number; curve?: number[] }) =>
+  // A reshaped curve's box is fitted around its band, so the box doesn't limit it.
+  o.curve ? Math.max(4, o.band ?? 30) : Math.max(4, Math.min(o.band ?? Math.min(o.width, o.height) * 0.3, Math.min(o.width, o.height) - 2));
 
 /** The basic outline of a w × h piece, in the object's own coordinates (0,0 top-left). */
 export function basePolygon(kind: OutlineKind, w: number, h: number, band = Math.min(w, h) * 0.3): Ring {
@@ -122,6 +124,8 @@ export interface ShapeSource {
   band?: number;
   /** Cut-outs as flat rings in fractions of width/height (0..1), so they stretch with the object. */
   cuts?: number[][];
+  /** Curved bands only: a reshaped centre line (see curve.ts). */
+  curve?: number[];
 }
 
 /** Does this object need a custom outline, or is it a plain box? */
@@ -132,10 +136,12 @@ const cache = new Map<string, Ring[]>();
 
 /** The object's final outline in its own coordinates: base shape, rounded, minus cuts. */
 export function localOutline(o: ShapeSource, withCuts = true): Ring[] {
-  const key = JSON.stringify([o.width, o.height, o.outline, o.corner, o.bevel, o.band, withCuts ? o.cuts : null]);
+  const key = JSON.stringify([o.width, o.height, o.outline, o.corner, o.bevel, o.band, withCuts ? o.cuts : null, o.outline === 'arc' ? o.curve : null]);
   const hit = cache.get(key);
   if (hit) return hit;
-  let paths = [toInt(basePolygon(o.outline ?? 'rect', o.width, o.height, bandWidth(o)))];
+  let paths = o.outline === 'arc' && o.curve
+    ? curveOutline(curvePx(o, bandWidth(o)), bandWidth(o)).map(toInt)
+    : [toInt(basePolygon(o.outline ?? 'rect', o.width, o.height, bandWidth(o)))];
   paths = boolean(paths, [], ClipperLib.ClipType.ctUnion);
   paths = roundCorners(paths, Math.min(o.corner ?? 0, maxCorner(o)), !!o.bevel);
   if (withCuts && o.cuts?.length) paths = boolean(paths, cutRings(o).map(toInt), ClipperLib.ClipType.ctDifference);
@@ -143,6 +149,19 @@ export function localOutline(o: ShapeSource, withCuts = true): Ring[] {
   if (cache.size > 500) cache.clear();
   cache.set(key, rings);
   return rings;
+}
+
+/**
+ * A band t px wide around a bent centre line, with square ends. Grown from the
+ * line itself, so a bend tighter than half the band stays one clean shape
+ * instead of folding over on its inside.
+ */
+export function curveOutline(p: CurvePoints, t: number): Ring[] {
+  const co = new ClipperLib.ClipperOffset(2, 0.25 * SCALE);
+  co.AddPath(toInt(curveLine(p)), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etOpenButt);
+  const out: IntPath[] = [];
+  co.Execute(out, (t / 2) * SCALE);
+  return out.map(fromInt);
 }
 
 /** Cut rings in the object's own coordinates (pixels). */
@@ -383,6 +402,19 @@ export function intersectRings(a: Ring[], b: Ring[]): Ring[] {
 /** Rings grown (or shrunk, for negative d) by d map px, with square corners. */
 export function growRings(a: Ring[], d: number): Ring[] {
   return offset(a.map(toInt), d, ClipperLib.JoinType.jtMiter).map(fromInt);
+}
+
+/**
+ * Inside corners of `a` rounded with radius r, but only within `near` (a
+ * closing: grow, then shrink back, with round joins). Outside corners and
+ * everything away from `near` are left as they were.
+ */
+export function filletInside(a: Ring[], r: number, near: Ring[]): Ring[] {
+  if (r <= 0 || !near.length) return a;
+  const join = ClipperLib.JoinType.jtRound;
+  const closed = offset(offset(a.map(toInt), r, join), -r, join);
+  const add = boolean(closed, near.map(toInt), ClipperLib.ClipType.ctIntersection);
+  return boolean(a.map(toInt), add, ClipperLib.ClipType.ctUnion).map(fromInt);
 }
 
 /** World rings `a` minus world rings `b`. */

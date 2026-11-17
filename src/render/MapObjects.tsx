@@ -4,8 +4,9 @@ import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
-import { bandWidth, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
-import { roadExtensions, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
+import { bandWidth, filletInside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
+import { jointEnds, jointShapes, roadCenterLines, roadExtensions, roadJoints, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
+import { curveEnds, curveLine, curvePx } from '../model/curve';
 import { GRASS_TEXTURE, P, svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
@@ -191,14 +192,14 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
   const rings = useMemo(
     () => (shaped || merged ? localOutline(src) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shaped, merged, obj.width, obj.height, src.outline, obj.corner, obj.bevel, src.band, obj.cuts],
+    [shaped, merged, obj.width, obj.height, src.outline, obj.corner, obj.bevel, src.band, obj.cuts, obj.curve],
   );
   const upsideDown = isUpsideDown(obj.rotation);
   const markup = useMemo(
     // Shaped pieces draw their own border along the outline, so the box border is left off.
     () => (def && !obj.imageSrc && !merged ? renderAssetSvg(def, shaped || mode ? { ...obj, strokeWidth: 0, marksOnly: mode === 'marks' } : obj) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [def, merged, shaped, mode, obj.band, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden, obj.labelHidden, obj.labelLayout, upsideDown],
+    [def, merged, shaped, mode, obj.band, obj.curve, obj.imageSrc, obj.width, obj.height, obj.fill, obj.fillOpacity, obj.stroke, obj.strokeWidth, obj.label, obj.symbol, obj.symbolHidden, obj.labelHidden, obj.labelLayout, upsideDown],
   );
   const drawn = useSvgImage(markup);
   const photo = useImage(obj.imageSrc);
@@ -365,7 +366,12 @@ interface MergeCluster {
   lines?: Ring[];
   /** Merged roads: stop bars at intersections. */
   stops?: Ring[];
+  /** Merged roads: the double yellow centre lines, each line as an open polyline. */
+  centers?: Ring[];
 }
+
+/** Road pieces painted with a double yellow centre line: the merged road paints it, so it can run on round bends and through junctions. */
+const CENTER_LINE = new Set(['straight-road', 'curved-road']);
 
 /** Paint line along a road's edge: inset from the edge, and its width (as drawn by each road piece). */
 const ROAD_EDGE = { inset: 3.5, width: 2 };
@@ -391,8 +397,9 @@ function roadPiece(o: AssetObject): RoadPiece {
   const def = ASSET_BY_KEY[o.assetKey];
   const w = o.width, h = o.height;
   const arc = def?.outline === 'arc';
-  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band }) : h;
-  const local = arc ? [[0, 0, 0, t], [w - t, h, w, h]] : [[0, 0, 0, h], [w, 0, w, h]];
+  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band, curve: o.curve }) : h;
+  const bent = arc ? curvePx(o, t) : null;
+  const local = bent ? curveEnds(bent, t) : [[0, 0, 0, h], [w, 0, w, h]];
   const body = worldOutline(o);
   const ends = local.map(([x1, y1, x2, y2]): RoadEnd => {
     const seg = [...toWorld(o, x1, y1), ...toWorld(o, x2, y2)];
@@ -403,7 +410,13 @@ function roadPiece(o: AssetObject): RoadPiece {
     return { seg, out };
   });
   const r = (o.rotation * Math.PI) / 180;
-  return { body, ends, width: t, axis: arc ? undefined : [Math.cos(r), Math.sin(r)] };
+  let center: number[] | undefined;
+  if (CENTER_LINE.has(o.assetKey)) {
+    const line = bent ? curveLine(bent) : [0, h / 2, w, h / 2];
+    center = [];
+    for (let i = 0; i < line.length; i += 2) center.push(...toWorld(o, line[i], line[i + 1]));
+  }
+  return { body, ends, width: t, axis: arc ? undefined : [Math.cos(r), Math.sin(r)], center };
 }
 
 /** In-line pieces whose centre lines are this close (map px) are lined up with each other. */
@@ -503,7 +516,10 @@ export function mergePlan(objects: MapObject[], curbs: MapObject[] = []): {
     if (objs.length < 2) continue;
     const road = key === 'road';
     const pieces = road ? objs.map(roadPiece) : [];
-    const extra = road ? roadExtensions(pieces) : [];
+    const joints = road ? roadJoints(pieces) : [];
+    const joined = jointEnds(joints);
+    const bends = road ? jointShapes(pieces, joints) : null;
+    const extra = road ? roadExtensions(pieces, joined).map((e, i) => [...e, ...bends!.fill[i]]) : [];
     const clusters = mergeClusters(objs.map((m, i) => {
       const def = ASSET_BY_KEY[m.assetKey];
       return { x: m.x, y: m.y, rotation: m.rotation, blend: m.blend ?? defaultBlend(def), extra: extra[i], ...mergeSourceFor(def, m) };
@@ -515,16 +531,29 @@ export function mergePlan(objects: MapObject[], curbs: MapObject[] = []): {
       const cluster: MergeCluster = { key, members, rings: c.rings };
       if (road) {
         const ps = c.members.map((i) => pieces[i]);
+        // Joints and joined ends, numbered within this cluster.
+        const at = new Map(c.members.map((m, k) => [m, k]));
+        const js = joints.filter((j) => at.has(j.a) && at.has(j.b)).map((j) => ({ ...j, a: at.get(j.a)!, b: at.get(j.b)! }));
+        const raw = bends!.trim.length ? subtractRings(c.rings, bends!.trim) : c.rings;
         curb ??= curbRings(curbs);
-        cluster.lines = linesOutside(insetLines(c.rings, ps.flatMap((p) => p.ends.map((e) => e.seg)), ROAD_EDGE.inset), curb);
-        const junctions = roadJunctions(ps, c.rings);
+        const junctions = roadJunctions(ps, raw, jointEnds(js));
+        
+        // Inside corners of junctions and bends are rounded, like a kerb.
+        const minW = Math.min(...ps.map((p) => p.width));
+        const near = growRings([...junctions.areas, ...js.map((j) => [j.c[0] - minW, j.c[1] - minW, j.c[0] + minW, j.c[1] - minW, j.c[0] + minW, j.c[1] + minW, j.c[0] - minW, j.c[1] + minW])], minW);
+        cluster.rings = filletInside(raw, minW * 0.25, near);
+        const inBend = jointEnds(js);
+        const open = ps.flatMap((p, k) => p.ends.filter((_, e) => !inBend.has(`${k}:${e}`)).map((e) => e.seg));
+        cluster.lines = linesOutside(insetLines(cluster.rings, open, ROAD_EDGE.inset), curb);
         cluster.stops = stopsToCurb(junctions.stops, curb);
+        cluster.centers = roadCenterLines(ps, js, junctions);
+        for (const m of members) if (CENTER_LINE.has(m.assetKey)) modes.set(m.id, 'ghost');
         const marks = roadMarks(members, ps, junctions.areas);
         for (const [id, r] of marks.clips) clips.set(id, r);
         for (const [id, d] of marks.shifts) shifts.set(id, d);
       }
       leads.set(members[0].id, cluster);
-      for (const m of members) modes.set(m.id, mode);
+      for (const m of members) if (!modes.has(m.id)) modes.set(m.id, mode);
     }
   }
   return { leads, modes, clips, shifts };
@@ -567,6 +596,17 @@ const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster })
               ctx.lineTo(l[2], l[3]);
             }
             ctx.lineWidth = STOP_LINE.width;
+            ctx.stroke();
+          }
+          if (cluster.centers?.length) {
+            ctx.beginPath();
+            for (const l of cluster.centers) {
+              ctx.moveTo(l[0], l[1]);
+              for (let i = 2; i < l.length; i += 2) ctx.lineTo(l[i], l[i + 1]);
+            }
+            ctx.lineWidth = 1.6;
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = P.paintYellow;
             ctx.stroke();
           }
           return;
