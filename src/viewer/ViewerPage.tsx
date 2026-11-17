@@ -8,6 +8,7 @@ import { InteriorMarkers } from '../render/InteriorMarkers';
 import type { Floor, MapDocument, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
+import { useCulledGroup } from '../render/cull';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
 import type { Box } from '../model/types';
 import '../render/konvaSetup';
@@ -596,11 +597,12 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
  */
 const ViewerFloor = memo(function ViewerFloor({ floor, focusedId }: { floor: Floor; focusedId?: string }) {
   const objProps = useCallback((o: MapObject) => ({ highlighted: o.id === focusedId }), [focusedId]);
+  const culled = useCulledGroup(floor.objects);
   return (
     <>
       {floor.layers.map((l) =>
         !l.visible ? null : (
-          <Group key={l.id}>
+          <Group key={l.id} ref={culled}>
             {floor.background?.layerId === l.id && <BackgroundShape bg={floor.background} listening={false} />}
             <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} curbs={floor.objects} objProps={objProps} />
           </Group>

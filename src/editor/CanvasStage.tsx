@@ -11,6 +11,7 @@ import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import '../render/konvaSetup';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
+import { useCulledGroup } from '../render/cull';
 import { fitViewport, floorBounds } from '../render/viewport';
 import { hasInterior } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
@@ -809,13 +810,14 @@ const FloorObjects = memo(function FloorObjects({ floor, duplicates, bgEditable,
     }
     return m;
   }, [floor.objects]);
+  const culled = useCulledGroup(floor.objects);
   return (
     <>
       {floor.layers.map((layer) => {
         if (!layer.visible) return null;
         const listening = !layer.locked;
         return (
-          <Group key={layer.id} listening={listening}>
+          <Group key={layer.id} listening={listening} ref={culled}>
             {floor.background?.layerId === layer.id && (
               <BackgroundShape
                 bg={floor.background}
