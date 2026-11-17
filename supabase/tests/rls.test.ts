@@ -621,3 +621,25 @@ describe('map list counts', () => {
     await expect(as(null, 'select p.level_count from published_maps p')).rejects.toThrow(/permission denied/);
   });
 });
+
+describe('version history size', () => {
+  it('keeps each map’s newest 50 automatic versions and every other kind', async () => {
+    await as(w.manager, `insert into map_versions (map_id, reason, label, revision, doc) values ($1, 'manual', 'Mine', 1, $2)`, [w.map, doc('manual')]);
+    for (let i = 0; i < 55; i++) {
+      // Spread the times out so "newest" is well defined.
+      await as(w.manager, `insert into map_versions (map_id, reason, label, revision, doc, created_at) values ($1, 'auto', $2, 1, $3, now() + make_interval(secs => $4))`, [w.map, `Auto ${i}`, doc(`auto ${i}`), i]);
+    }
+    const autos = await as<{ label: string }>(w.manager, `select label from map_versions where map_id = $1 and reason = 'auto' order by created_at desc`, [w.map]);
+    expect(autos).toHaveLength(50);
+    expect(autos[0].label).toBe('Auto 54');
+    expect(autos.at(-1)!.label).toBe('Auto 5');
+    expect(await as(w.manager, `select 1 from map_versions where map_id = $1 and reason = 'manual'`, [w.map])).toHaveLength(1);
+    // Members still can't delete versions themselves.
+    await expect(as(w.manager, 'delete from map_versions where map_id = $1', [w.map])).rejects.toThrow(/permission denied/);
+    expect(await as(w.manager, 'select 1 from map_versions where map_id = $1', [w.map])).toHaveLength(51);
+  });
+
+  it('the trigger function cannot be called directly', async () => {
+    await expect(as(w.manager, 'select public.prune_auto_versions()')).rejects.toThrow();
+  });
+});
