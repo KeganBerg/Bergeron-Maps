@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createDb, type Db } from './db';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
@@ -49,9 +49,9 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
  * The anon key is safe in the browser: row-level security decides what each
  * signed-in person can read or change. Without them the app runs in browser-only mode.
  */
-export const supabase: SupabaseClient | null =
+export const supabase: Db | null =
   url && key
-    ? createClient(url, key, { auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } })
+    ? createDb(url, key, { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true })
     : null;
 
 /** Lets someone try the editor without an account; maps then stay in this browser. */

@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/auth-js';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './client';
 
@@ -84,8 +84,11 @@ export function useSession(): SessionState {
   useEffect(() => {
     if (!supabase || !userId) return;
     let alive = true;
+    // Coming back to the tab fires both focus and visibilitychange: one check covers both.
+    let last = 0;
     const check = () => {
-      if (document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden' || Date.now() - last < 5000) return;
+      last = Date.now();
       void loadAccess(userId).then((r) => {
         if (!alive || r.error) return;
         setMemberships((cur) => (accessKey(cur) === accessKey(r.list) ? cur : r.list));

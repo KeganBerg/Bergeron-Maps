@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Db } from './db';
 import { migrateDocument } from '../model/migrate';
 import type { MapDocument } from '../model/types';
 import {
@@ -114,7 +114,7 @@ export const resetCountsCheck = () => {
  * row-level security, so a person only ever reaches the sites they were given.
  */
 export class SupabaseRepository implements MapRepository {
-  constructor(private readonly db: SupabaseClient, readonly companyId: string, private readonly onlySite?: string) {}
+  constructor(private readonly db: Db, readonly companyId: string, private readonly onlySite?: string) {}
 
   private async rows(deleted: boolean): Promise<MapRow[]> {
     return (await withCounts((light) => {

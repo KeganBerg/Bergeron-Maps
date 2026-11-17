@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EditorPage } from '../lazyPages';
+import { AdminPage, EditorPage, preloadAdmin, preloadTeam, TeamPage } from '../lazyPages';
 import { AppHeader, HomePage } from '../home/HomePage';
 import { navigate, useRoute } from '../router';
 import { ViewerPage } from '../viewer/ViewerPage';
 import { AccountMenu } from './AccountMenu';
-import { AdminPage } from './AdminPage';
 import { supabase } from './client';
 import { MyLocationsPage } from './MyLocationsPage';
 import { canEdit, canManageCompany, useSession } from './session';
 import { SignInPage, takeReturnRoute } from './SignInPage';
 import { SupabaseRepository } from './supabaseRepository';
-import { TeamPage } from './TeamPage';
 
 const COMPANY_KEY = 'bm.company';
 const RESERVED = new Set(['edit', 'view', 'team', 'site', 'admin', 'locations']);
@@ -77,6 +75,16 @@ export function OnlineApp() {
       .then(({ count }) => { if (alive) setRequests(count ?? 0); });
     return () => { alive = false; };
   }, [answersRequests, membership?.companyId, parts[0], requestsTick]);
+
+  // Fetch the code for the tabs this person can open while they look at the current one.
+  const mayEdit = !!membership && canEdit(membership);
+  useEffect(() => {
+    if (!mayEdit && !s.isAdmin) return;
+    const go = () => { if (mayEdit) preloadTeam(); if (s.isAdmin) preloadAdmin(); };
+    if ('requestIdleCallback' in window) { const h = window.requestIdleCallback(go); return () => window.cancelIdleCallback(h); }
+    const t = setTimeout(go, 1500);
+    return () => clearTimeout(t);
+  }, [mayEdit, s.isAdmin]);
 
   if (!s.loading && !s.session) return <SignInPage siteLink={!!linkKey} />;
   if (s.loading || (resolving && s.memberships.length)) return <div className="page-message"><p>Loading…</p></div>;

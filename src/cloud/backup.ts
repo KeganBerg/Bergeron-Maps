@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Db } from './db';
 
 /**
  * Account backups (All accounts → Download backup / Restore from backup).
@@ -53,7 +53,7 @@ function check<T>(r: { data: T; error: { message: string } | null }): T {
 }
 
 /** Reads one company in full. `onStep` reports progress as plain text. */
-export async function backupCompany(db: SupabaseClient, c: OverviewCompany, onStep?: (text: string) => void): Promise<BackupCompany> {
+export async function backupCompany(db: Db, c: OverviewCompany, onStep?: (text: string) => void): Promise<BackupCompany> {
   const exportedAt = new Date().toISOString();
   onStep?.(`Reading ${c.name}’s sites`);
   const sites = check(await db.from('facilities').select('id, name, slug, address, created_at').eq('company_id', c.id).order('created_at')) as
@@ -180,7 +180,7 @@ export function versionBatches(versions: BackupVersion[], maxBytes = VERSION_BAT
  * then the versions map by map. A version batch that fails is counted, not
  * fatal: the company, its people and its maps are already back.
  */
-export async function restoreCompany(db: SupabaseClient, c: BackupCompany, onStep?: (text: string) => void): Promise<RestoreResult> {
+export async function restoreCompany(db: Db, c: BackupCompany, onStep?: (text: string) => void): Promise<RestoreResult> {
   onStep?.(`Restoring ${c.name}`);
   const core = { ...c, maps: c.maps.map(({ versions: _v, ...m }) => m) };
   const r = await db.rpc('admin_restore_company', { p_backup: core });
