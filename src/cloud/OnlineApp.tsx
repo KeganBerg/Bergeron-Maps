@@ -68,6 +68,7 @@ export function OnlineApp() {
 
   // Open manager requests, shown on the Sites & people tab for the people who can answer them.
   const [requests, setRequests] = useState(0);
+  const [requestsTick, setRequestsTick] = useState(0);
   const answersRequests = !!membership && canManageCompany(membership);
   useEffect(() => {
     if (!answersRequests || !membership) return setRequests(0);
@@ -75,7 +76,7 @@ export function OnlineApp() {
     supabase!.from('manager_requests').select('id', { count: 'exact', head: true }).eq('company_id', membership.companyId).eq('status', 'pending')
       .then(({ count }) => { if (alive) setRequests(count ?? 0); });
     return () => { alive = false; };
-  }, [answersRequests, membership?.companyId, parts[0]]);
+  }, [answersRequests, membership?.companyId, parts[0], requestsTick]);
 
   if (!s.loading && !s.session) return <SignInPage siteLink={!!linkKey} />;
   if (s.loading || (resolving && s.memberships.length)) return <div className="page-message"><p>Loading…</p></div>;
@@ -110,14 +111,17 @@ export function OnlineApp() {
     </>
   ) : undefined;
 
+  // Every site this person joined, in any company, and the place to join another with a code.
+  const accessKey = s.memberships.map((m) => `${m.companyId}:${m.role}:${m.siteIds?.join(',') ?? '*'}`).join('|');
+  const locations = <MyLocationsPage email={s.email ?? ''} account={accountMenu} nav={nav} accessKey={accessKey} onChanged={s.refresh} />;
+  if (parts[0] === 'locations') return locations;
   if (s.isAdmin && (parts[0] === 'admin' || !membership)) return <AdminPage nav={nav} account={accountMenu} email={s.email ?? ''} onOpen={switchCompany} onCreated={s.refresh} />;
-  const locations = <MyLocationsPage email={s.email ?? ''} account={accountMenu} onChanged={s.refresh} />;
   if (!membership || !repo) return locations;
 
   if (parts[0] === 'view' && parts[1])
     return <ViewerPage key={parts[1]} mapId={parts[1]} repo={repo} preview={editor && query.get('preview') === '1'} />;
   if (parts[0] === 'edit' && parts[1] && editor) return <EditorPage key={parts[1]} mapId={parts[1]} repo={repo} />;
-  if (parts[0] === 'team' && editor) return <TeamPage membership={membership} nav={nav} account={accountMenu} />;
+  if (parts[0] === 'team' && editor) return <TeamPage membership={membership} nav={nav} account={accountMenu} onRequestsChanged={() => setRequestsTick((t) => t + 1)} />;
 
   if (linkKey && !siteParam)
     return (
