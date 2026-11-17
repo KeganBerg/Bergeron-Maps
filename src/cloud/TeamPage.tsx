@@ -34,7 +34,9 @@ function describe(m: Member, sites: Site[]): string {
  * Sites and people for one company. Access is given by email to specific
  * sites; each site has a link for its managers and a code for employees.
  */
-export function TeamPage({ membership, nav, account }: { membership: Membership; nav: React.ReactNode; account: React.ReactNode }) {
+export function TeamPage({ membership, nav, account, onRequestsChanged }: {
+  membership: Membership; nav: React.ReactNode; account: React.ReactNode; onRequestsChanged?: () => void;
+}) {
   const company = membership.companyId;
   const full = canManageCompany(membership);
   const [sites, setSites] = useState<Site[]>([]);
@@ -132,6 +134,7 @@ export function TeamPage({ membership, nav, account }: { membership: Membership;
     if (r.error) return setError(friendly(r.error));
     const where = sites.find((x) => x.id === q.facility_id)?.name ?? 'the site';
     setNote(approve ? `${q.email} is now the site manager of ${where}.` : `Request from ${q.email} denied. Their access didn’t change.`);
+    onRequestsChanged?.();
     await load();
   };
 

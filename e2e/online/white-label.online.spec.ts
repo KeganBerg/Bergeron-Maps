@@ -128,3 +128,14 @@ test('an admin removes a person; they are signed out', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText(`${USERS.employee.email} removed`);
   expect(sb.signedOut).toEqual([USERS.employee.id]);
 });
+
+test('a site manager reaches My Locations from the account menu and joins another site with a code', async ({ page }) => {
+  const sb = new MockSupabase(page);
+  await sb.install(USERS.siteManager);
+  await page.goto('/');
+  await page.getByTestId('account-menu').click();
+  await page.getByTestId('menu-locations').click();
+  await expect(page.getByRole('heading', { name: 'My Locations' })).toBeVisible();
+  await expect(page.getByTestId(`location-${SITE_A.name}`)).toBeVisible();
+  await expect(page.getByTestId('join-code')).toBeVisible();
+});

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { navigate } from '../router';
 import { supabase } from './client';
 import type { Membership } from './session';
 
@@ -26,6 +27,9 @@ export function AccountMenu({ email, memberships = [], current, onSwitch }: {
               ))}
             </>
           )}
+          <button role="menuitem" onClick={() => { setOpen(false); navigate('/locations'); }} data-testid="menu-locations">
+            My Locations (join a site with a code)
+          </button>
           <button role="menuitem" onClick={() => void supabase?.auth.signOut().then(() => window.location.replace(window.location.pathname))} data-testid="sign-out">
             Sign out
           </button>

@@ -23,7 +23,12 @@ const NO_MATCH = 'That code didn’t match a site. Check it with your manager an
  * way to pick a role here: someone who should be a manager asks for it, and an
  * owner or regional manager approves it.
  */
-export function MyLocationsPage({ email, account, onChanged }: { email: string; account: ReactNode; onChanged: () => void }) {
+export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged }: {
+  email: string; account: ReactNode; nav?: ReactNode;
+  /** Changes when this person's access changes (joined, removed, moved), so the list reloads. */
+  accessKey?: string;
+  onChanged: () => void;
+}) {
   const [locations, setLocations] = useState<Location[] | null>(null);
   const [maps, setMaps] = useState<LiveMap[]>([]);
   const [code, setCode] = useState('');
@@ -52,7 +57,7 @@ export function MyLocationsPage({ email, account, onChanged }: { email: string; 
     const rows = (p.data ?? []) as unknown as { map_id: string; name: string; facility_id: string; published_at: string; level_count?: number; floors?: unknown[] | null }[];
     setMaps(rows.map(({ level_count, ...r }) => ({ ...r, floors: level_count ?? (Array.isArray(r.floors) ? r.floors.length : 1) })));
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [accessKey]);
 
   const run = async (fn: () => Promise<string | null>) => {
     setBusy(true);
@@ -104,7 +109,7 @@ export function MyLocationsPage({ email, account, onChanged }: { email: string; 
 
   return (
     <div className="home">
-      <AppHeader>{account}</AppHeader>
+      <AppHeader nav={nav}>{account}</AppHeader>
       <main className="home-main locations">
         <div className="page-head"><h2>My Locations</h2></div>
         {error && <p className="error-text" role="alert">{error}</p>}
