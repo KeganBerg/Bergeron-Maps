@@ -1,6 +1,7 @@
 // Builds the shared header and footer of bergeronmaps.com and the industry pages.
 //  - site/index.html: the header and footer between <!--NAV-->…<!--/NAV--> and <!--FOOT-->…<!--/FOOT--> are rewritten.
 //  - site/industries/<slug>/index.html: one page per industry, written from INDUSTRIES below.
+//  - site/404.html: the shared header between <!--NAV-->…<!--/NAV-->.
 //  - site/sitemap.xml
 // Runs in `npm run build:site`. Screenshots come from the real app (scripts/industry-shots/).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -392,6 +393,12 @@ let out = home
   .replace(/<!--FOOT-->[\s\S]*?<!--\/FOOT-->/, `<!--FOOT-->\n  ${footer('')}\n  <!--/FOOT-->`);
 if (!out.includes('<!--NAV-->') || !out.includes('<!--FOOT-->')) throw new Error('site/index.html needs <!--NAV--> and <!--FOOT--> markers');
 writeFileSync('site/index.html', out);
+
+// 404 page: same header as every other page, with root-relative links (it is served at any path).
+const notFound = readFileSync('site/404.html', 'utf8');
+const nf = notFound.replace(/<!--NAV-->[\s\S]*?<!--\/NAV-->/, `<!--NAV-->\n  ${header('/', '')}\n  <!--/NAV-->`);
+if (!nf.includes('<!--NAV-->')) throw new Error('site/404.html needs <!--NAV--> markers');
+writeFileSync('site/404.html', nf);
 
 for (const ind of INDUSTRIES) {
   mkdirSync(`site/industries/${ind.slug}`, { recursive: true });
