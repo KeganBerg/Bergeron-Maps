@@ -17,7 +17,41 @@ import { curveLine, curvePx, type CurvePoints } from './curve';
 // outline, so log it instead.
 (ClipperLib as unknown as { Error: (m: string) => void }).Error = (message: string) => console.warn(`Shape engine: ${message}`);
 
-export type OutlineKind = 'rect' | 'ellipse' | 'half' | 'quarter' | 'arc' | 'L' | 'triangle';
+export type OutlineKind = 'rect' | 'ellipse' | 'half' | 'quarter' | 'arc' | 'L' | 'triangle' | 'cross' | 'roundabout' | 'bulb';
+
+/**
+ * Outlines whose thickness is set by `band`: curved bands and L corners, and
+ * the road pieces made of arms (the arm width of an intersection or a
+ * roundabout, the stub of a turnaround), so they line up with the roads they join.
+ */
+export const BANDED_OUTLINES = new Set<OutlineKind>(['arc', 'L', 'cross', 'roundabout', 'bulb']);
+export const isBanded = (k?: OutlineKind) => !!k && BANDED_OUTLINES.has(k);
+
+/**
+ * Road pieces built from several parts, in the piece's own coordinates:
+ * 'cross' = two arms crossing in the middle (an intersection), 'roundabout' =
+ * a circle with four arms, 'bulb' = a circle with a stub reaching the left
+ * edge (a turnaround at the end of a lane). `b` is the arm width.
+ */
+function partRings(kind: OutlineKind, w: number, h: number, b: number): Ring[] | null {
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2;
+  const rect = (x: number, y: number, rw: number, rh: number): Ring => [x, y, x + rw, y, x + rw, y + rh, x, y + rh];
+  const circle = (r: number) => ellipsePoints(cx, cy, r, r, 0, Math.PI * 2, ARC_STEPS * 2).slice(0, -2);
+  const arms = [rect(cx - b / 2, 0, b, h), rect(0, cy - b / 2, w, b)];
+  if (kind === 'cross') return arms;
+  if (kind === 'roundabout') return [circle(R * 0.8), ...arms];
+  if (kind === 'bulb') return [circle(R), rect(0, cy - b / 2, cx, b)];
+  return null;
+}
+
+/** Open ends of the road pieces above (where a road joins), as local segments [x1, y1, x2, y2]. */
+export function partEnds(kind: OutlineKind | undefined, w: number, h: number, b: number): number[][] | null {
+  const cx = w / 2, cy = h / 2;
+  const left = [0, cy - b / 2, 0, cy + b / 2];
+  if (kind === 'bulb') return [left];
+  if (kind === 'cross' || kind === 'roundabout') return [left, [w, cy - b / 2, w, cy + b / 2], [cx - b / 2, 0, cx + b / 2, 0], [cx - b / 2, h, cx + b / 2, h]];
+  return null;
+}
 
 /** A ring as flat x,y pairs. */
 export type Ring = number[];
@@ -74,6 +108,10 @@ export function basePolygon(kind: OutlineKind, w: number, h: number, band = Math
       const t = Math.min(band, w - 1, h - 1);
       return [0, 0, t, 0, t, h - t, w, h - t, w, h, 0, h];
     }
+    case 'cross':
+    case 'roundabout':
+    case 'bulb':
+      // Several parts: localOutline joins them (partRings); this is their bounding box.
     default:
       return [0, 0, w, 0, w, h, 0, h];
   }
@@ -111,7 +149,7 @@ function roundCorners(paths: IntPath[], r: number, bevel: boolean): IntPath[] {
 
 /** Largest corner radius that keeps the piece in one piece. */
 export function maxCorner(o: ShapeSource): number {
-  const thin = o.outline === 'arc' || o.outline === 'L' ? bandWidth(o) : Math.min(o.width, o.height);
+  const thin = isBanded(o.outline) ? bandWidth(o) : Math.min(o.width, o.height);
   return Math.max(0, Math.floor(thin / 2 - 1));
 }
 
@@ -141,7 +179,7 @@ export function localOutline(o: ShapeSource, withCuts = true): Ring[] {
   if (hit) return hit;
   let paths = o.outline === 'arc' && o.curve
     ? curveOutline(curvePx(o, bandWidth(o)), bandWidth(o)).map(toInt)
-    : [toInt(basePolygon(o.outline ?? 'rect', o.width, o.height, bandWidth(o)))];
+    : (partRings(o.outline ?? 'rect', o.width, o.height, bandWidth(o)) ?? [basePolygon(o.outline ?? 'rect', o.width, o.height, bandWidth(o))]).map(toInt);
   paths = boolean(paths, [], ClipperLib.ClipType.ctUnion);
   paths = roundCorners(paths, Math.min(o.corner ?? 0, maxCorner(o)), !!o.bevel);
   if (withCuts && o.cuts?.length) paths = boolean(paths, cutRings(o).map(toInt), ClipperLib.ClipType.ctDifference);
@@ -415,6 +453,30 @@ export function filletInside(a: Ring[], r: number, near: Ring[]): Ring[] {
   const closed = offset(offset(a.map(toInt), r, join), -r, join);
   const add = boolean(closed, near.map(toInt), ClipperLib.ClipType.ctIntersection);
   return boolean(a.map(toInt), add, ClipperLib.ClipType.ctUnion).map(fromInt);
+}
+
+/**
+ * Small outside corners of `a` rounded off with radius r, only within `near`
+ * (an opening: shrink, then grow back). Used where two road pieces placed by
+ * eye meet a few pixels apart, so the step at the seam is smoothed away.
+ */
+export function roundOutside(a: Ring[], r: number, near: Ring[]): Ring[] {
+  if (r <= 0 || !near.length) return a;
+  const join = ClipperLib.JoinType.jtRound;
+  const opened = offset(offset(a.map(toInt), -r, join), r, join);
+  const extra = boolean(a.map(toInt), opened, ClipperLib.ClipType.ctDifference);
+  const cut = boolean(extra, near.map(toInt), ClipperLib.ClipType.ctIntersection);
+  return boolean(a.map(toInt), cut, ClipperLib.ClipType.ctDifference).map(fromInt);
+}
+
+/**
+ * Removes slivers and spikes left by boolean operations (points doubling back
+ * on themselves, or within `d` px of the line through their neighbours), so lines painted along the outline
+ * don't get little hooks at seams.
+ */
+export function cleanRings(a: Ring[], d = 0.08): Ring[] {
+  const paths = ClipperLib.Clipper.CleanPolygons(a.map(toInt), d * SCALE) as IntPath[];
+  return boolean(paths.filter((p) => p.length >= 3), [], ClipperLib.ClipType.ctUnion).map(fromInt);
 }
 
 /** World rings `a` minus world rings `b`. */

@@ -4,7 +4,7 @@ import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
-import { bandWidth, filletInside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
+import { bandWidth, cleanRings, filletInside, roundOutside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, partEnds, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
 import { jointEnds, jointShapes, roadCenterLines, roadExtensions, roadJoints, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
 import { curveEnds, curveLine, curvePx } from '../model/curve';
 import { GRASS_TEXTURE, P, svgDoc, withAlpha } from '../assets/style';
@@ -397,9 +397,11 @@ function roadPiece(o: AssetObject): RoadPiece {
   const def = ASSET_BY_KEY[o.assetKey];
   const w = o.width, h = o.height;
   const arc = def?.outline === 'arc';
-  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band, curve: o.curve }) : h;
+  // Intersections, roundabouts and turnarounds: roads join at the ends of their arms, which are `band` wide.
+  const parts = def?.outline && !arc ? partEnds(def.outline, w, h, bandWidth({ width: w, height: h, band: o.band ?? def.band })) : null;
+  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band, curve: o.curve }) : parts ? bandWidth({ width: w, height: h, band: o.band ?? def!.band }) : h;
   const bent = arc ? curvePx(o, t) : null;
-  const local = bent ? curveEnds(bent, t) : [[0, 0, 0, h], [w, 0, w, h]];
+  const local = bent ? curveEnds(bent, t) : parts ?? [[0, 0, 0, h], [w, 0, w, h]];
   const body = worldOutline(o);
   const ends = local.map(([x1, y1, x2, y2]): RoadEnd => {
     const seg = [...toWorld(o, x1, y1), ...toWorld(o, x2, y2)];
@@ -416,7 +418,17 @@ function roadPiece(o: AssetObject): RoadPiece {
     center = [];
     for (let i = 0; i < line.length; i += 2) center.push(...toWorld(o, line[i], line[i + 1]));
   }
-  return { body, ends, width: t, axis: arc ? undefined : [Math.cos(r), Math.sin(r)], center };
+  return { body, ends, width: t, axis: arc || parts ? undefined : [Math.cos(r), Math.sin(r)], center };
+}
+
+/** Radius (map px) that rounds off the small step where two road pieces meet a few px apart. */
+const SEAM_ROUND = 8;
+
+/** A circle as a ring. */
+function disk(c: [number, number] | number[], r: number, steps = 32): Ring {
+  const out: Ring = [];
+  for (let i = 0; i < steps; i++) out.push(c[0] + Math.cos((i / steps) * Math.PI * 2) * r, c[1] + Math.sin((i / steps) * Math.PI * 2) * r);
+  return out;
 }
 
 /** In-line pieces whose centre lines are this close (map px) are lined up with each other. */
@@ -542,6 +554,9 @@ export function mergePlan(objects: MapObject[], curbs: MapObject[] = []): {
         const minW = Math.min(...ps.map((p) => p.width));
         const near = growRings([...junctions.areas, ...js.map((j) => [j.c[0] - minW, j.c[1] - minW, j.c[0] + minW, j.c[1] - minW, j.c[0] + minW, j.c[1] + minW, j.c[0] - minW, j.c[1] + minW])], minW);
         cluster.rings = filletInside(raw, minW * 0.25, near);
+        // Where pieces placed by eye meet a few px apart, round off the little step at the seam.
+        const seams = js.map((j) => disk(j.c, minW * 0.75));
+        cluster.rings = cleanRings(roundOutside(cluster.rings, SEAM_ROUND, seams));
         const inBend = jointEnds(js);
         const open = ps.flatMap((p, k) => p.ends.filter((_, e) => !inBend.has(`${k}:${e}`)).map((e) => e.seg));
         cluster.lines = linesOutside(insetLines(cluster.rings, open, ROAD_EDGE.inset), curb);

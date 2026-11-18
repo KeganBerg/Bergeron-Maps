@@ -70,8 +70,9 @@ test('floors: add, rename, duplicate and switch', async ({ page }) => {
 
 test('locked layers cannot be selected; layers can be added and objects moved between them', async ({ page }) => {
   await newMap(page, 'Layers');
-  await addFromLibrary(page, 'column');
-  await expect(page.getByTestId('selected-name')).toHaveText('Column 1');
+  // A wall lives on the Structure layer (columns sit above the parking spaces, on Landmarks).
+  await addFromLibrary(page, 'wall');
+  await expect(page.getByTestId('selected-name')).toHaveText('Wall 1');
   await page.getByTestId('tab-layers').click();
   await page.getByTestId('lock-Structure').click();
   await expect(page.getByTestId('selected-name')).toHaveCount(0);

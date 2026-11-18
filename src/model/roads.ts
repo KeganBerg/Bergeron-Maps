@@ -63,9 +63,23 @@ export function roadJoints(pieces: RoadPiece[]): RoadJoint[] {
       const w = Math.min(p.width, q.width);
       p.ends.forEach((e, ea) => q.ends.forEach((f, eb) => {
         const cross = e.out[0] * f.out[1] - e.out[1] * f.out[0];
-        // Lined up (one road carrying straight on) is handled elsewhere; side by side or a T is not a bend.
-        if (Math.abs(cross) < 0.05 || e.out[0] * f.out[0] + e.out[1] * f.out[1] > -0.17) return;
+        const dot = e.out[0] * f.out[0] + e.out[1] * f.out[1];
         const [ax, ay] = midOf(e), [bx, by] = midOf(f);
+        // Nearly lined up, placed by eye: a road running on into the next piece a few
+        // degrees or pixels off (a tilted road into a curve, say). Joined as one
+        // road whose centre line eases across, instead of a junction with a stop bar.
+        // Straight pieces exactly in line are handled elsewhere (their lines are lined up).
+        if (dot < -NEAR_LINED_UP && !(Math.abs(cross) < 0.05 && p.axis && q.axis)) {
+          const gap = Math.hypot(bx - ax, by - ay);
+          if (gap > w * 0.4) return;
+          const c: [number, number] = [(ax + bx) / 2, (ay + by) / 2];
+          const sa = (c[0] - ax) * e.out[0] + (c[1] - ay) * e.out[1];
+          const sb = (c[0] - bx) * f.out[0] + (c[1] - by) * f.out[1];
+          found.push({ a: i, ea, b: j, eb, c, sa, sb, d: gap });
+          return;
+        }
+        // Lined up (one road carrying straight on) is handled elsewhere; side by side or a T is not a bend.
+        if (Math.abs(cross) < 0.05 || dot > -0.17) return;
         if (Math.hypot(bx - ax, by - ay) > w) return;
         // a + sa·outA = b + sb·outB
         const sa = ((bx - ax) * f.out[1] - (by - ay) * f.out[0]) / cross;
@@ -87,6 +101,9 @@ export function roadJoints(pieces: RoadPiece[]): RoadJoint[] {
   }
   return out;
 }
+
+/** Cosine of the largest angle (about 12 degrees) between two road ends that still count as one road running on. */
+const NEAR_LINED_UP = 0.978;
 
 /** The ends taking part in a bend, as "piece:end" keys. */
 export const jointEnds = (joints: RoadJoint[]) => new Set(joints.flatMap((j) => [endKey(j.a, j.ea), endKey(j.b, j.eb)]));
@@ -456,17 +473,36 @@ export const CENTER_ALIGN = 6;
 /** Distance from (x, y) to a polyline's first / last point. */
 const nearStart = (l: number[], x: number, y: number) => Math.hypot(l[0] - x, l[1] - y) <= Math.hypot(l[l.length - 2] - x, l[l.length - 1] - y);
 
-/** Ends polyline `l`, at its end nearest end `e`, at point `c` (trimming what runs past it), then on along `more`. */
-function toBend(l: number[], e: RoadEnd, c: [number, number], more: [number, number][]): number[] {
+/**
+ * Polyline `l` cut `back` px (along the line) before its end nearest end `e`.
+ * Returns the points running towards that end, finishing at the cut point `p`,
+ * and whether that end is the line's start.
+ */
+function cutLine(l: number[], e: RoadEnd, back: number): { pts: [number, number][]; p: [number, number]; atStart: boolean } {
   const [mx, my] = midOf(e);
+  const atStart = nearStart(l, mx, my);
   const pts: [number, number][] = [];
   for (let i = 0; i < l.length; i += 2) pts.push([l[i], l[i + 1]]);
-  const start = nearStart(l, mx, my);
-  if (start) pts.reverse();
-  // Drop points beyond the bend's centre, then finish at it.
-  while (pts.length > 1 && (pts[pts.length - 1][0] - c[0]) * e.out[0] + (pts[pts.length - 1][1] - c[1]) * e.out[1] > -0.01) pts.pop();
-  pts.push(c, ...more);
-  if (start) pts.reverse();
+  if (atStart) pts.reverse();
+  let left = Math.max(0, back);
+  while (pts.length > 1) {
+    const a = pts[pts.length - 1], b = pts[pts.length - 2];
+    const seg = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (seg >= left) {
+      const t = seg > 1e-9 ? left / seg : 0;
+      pts[pts.length - 1] = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      break;
+    }
+    left -= seg;
+    pts.pop();
+  }
+  return { pts, p: pts[pts.length - 1], atStart };
+}
+
+/** A line cut by cutLine, carried on along `more`, back in its original direction. */
+function withEnd(c: { pts: [number, number][]; atStart: boolean }, more: [number, number][]): number[] {
+  const pts = [...c.pts, ...more];
+  if (c.atStart) pts.reverse();
   return pts.flat();
 }
 
@@ -546,15 +582,18 @@ export function roadCenterLines(pieces: RoadPiece[], joints: RoadJoint[], juncti
     // Round the turn: each line stops short of the bend's centre and a curve joins them.
     const ea = pieces[j.a].ends[j.ea], eb = pieces[j.b].ends[j.eb];
     const r = Math.min(pieces[j.a].width, pieces[j.b].width) / 2;
-    const q0: [number, number] = [j.c[0] - ea.out[0] * r, j.c[1] - ea.out[1] * r];
-    const q2: [number, number] = [j.c[0] - eb.out[0] * r, j.c[1] - eb.out[1] * r];
+    // Each line stops r short of the bend's centre, measured along the line
+    // itself, so on a curved piece the turn starts on its line instead of on
+    // the straight tangent beside it (which left a step in the yellow).
+    const A = cutLine(la, ea, r - j.sa), B = cutLine(lb, eb, r - j.sb);
+    const q0 = A.p, q2 = B.p;
     const turn: [number, number][] = [];
     for (let k = 1; k <= 12; k++) {
       const t = k / 12, u = 1 - t;
       turn.push(k === 12 ? q2 : [u * u * q0[0] + 2 * u * t * j.c[0] + t * t * q2[0], u * u * q0[1] + 2 * u * t * j.c[1] + t * t * q2[1]]);
     }
-    lines[j.a] = toBend(la, ea, q0, turn);
-    lines[j.b] = toBend(lb, eb, q2, []);
+    lines[j.a] = withEnd(A, turn);
+    lines[j.b] = withEnd(B, []);
   }
   // Straight pieces laid end to end along one road: a piece a few px off has its line moved onto the first one's.
   pieces.forEach((p, i) => {

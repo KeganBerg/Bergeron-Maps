@@ -122,7 +122,7 @@ describe('editor operations', () => {
     s().addAsset('tree', { x: 0, y: 0 });
     expect(floor().objects[0].layerId).toBe(custom);
     s().setActiveLayer('auto');
-    s().addAsset('column', { x: 0, y: 0 });
+    s().addAsset('wall', { x: 0, y: 0 });
     expect(floor().layers.find((l) => l.id === floor().objects[1].layerId)!.name).toBe('Structure');
   });
 
