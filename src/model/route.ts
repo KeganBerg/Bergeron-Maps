@@ -38,7 +38,7 @@ const COST = {
 /** Extra cost at the very edge of a drive lane (none on its center line), so routes run down the middle like a car would. */
 const LANE_EDGE = 14;
 /** Extra cost right next to a wall or a parked car, fading out over CLEAR_REACH px. */
-const CLEAR_COST = 12;
+const CLEAR_COST = 30;
 const CLEAR_REACH = 45;
 
 type Role = 'ignore' | 'walk' | 'road' | 'area' | 'land' | 'thing' | 'block' | 'space' | 'opener' | 'room' | 'shell';
@@ -192,7 +192,16 @@ function buildGrid(floor: Floor): Grid {
     }
   }
   // Doors, entrances, gates and floor connections open up whatever they sit on.
-  for (const p of items) if (p.role === 'opener') paint(g, p.o, p.def, g.cell, set(COST.walk), undefined, true);
+  // On a drive lane or walkway they change nothing (a cheap patch there would pull every
+  // route across the marker); in a wall, on grass or on bare ground they are the way through.
+  const opened = (c: number) => (c === 0 || c >= COST.bare ? COST.walk : c);
+  // They open a little past their own thickness (to get through the wall they sit in),
+  // but not past their ends: the wall beside a door stays a wall.
+  const openerGrow = (o: MapObject): [number, number] => {
+    const tiny = (v: number) => (v < 3 * g.cell ? g.cell : 0);
+    return o.width <= o.height ? [g.cell, tiny(o.height)] : [tiny(o.width), g.cell];
+  };
+  for (const p of items) if (p.role === 'opener') paint(g, p.o, p.def, openerGrow(p.o), opened, undefined, true);
   // Keep off walls and parked cars, most of all right next to them, so routes run down the middle of an aisle.
   distanceToBlocked(g);
   for (let i = 0; i < g.cost.length; i++) {
@@ -259,7 +268,9 @@ function paintRoad(g: Grid, o: MapObject, def: AssetDef | undefined, mask: Uint8
 }
 
 /** Calls `f` with each cell whose center is inside the object (grown by `grow` px). */
-function eachCell(g: Grid, o: MapObject, def: AssetDef | undefined, grow: number, f: (i: number, lx: number, ly: number) => void) {
+function eachCell(g: Grid, o: MapObject, def: AssetDef | undefined, growBy: number | [number, number], f: (i: number, lx: number, ly: number) => void) {
+  const [gx, gy] = typeof growBy === 'number' ? [growBy, growBy] : growBy;
+  const grow = Math.max(gx, gy);
   const b = objectBox(o);
   const c0 = Math.max(0, Math.floor((b.x - grow - g.x0) / g.cell));
   const c1 = Math.min(g.cols - 1, Math.floor((b.x + b.width + grow - g.x0) / g.cell));
@@ -275,7 +286,7 @@ function eachCell(g: Grid, o: MapObject, def: AssetDef | undefined, grow: number
     for (let c = c0; c <= c1; c++) {
       const wx = g.x0 + (c + 0.5) * g.cell;
       const [lx, ly] = toLocal(o, wx, wy);
-      if (lx < -grow || ly < -grow || lx > o.width + grow || ly > o.height + grow) continue;
+      if (lx < -gx || ly < -gy || lx > o.width + gx || ly > o.height + gy) continue;
       if (rings && !insideRings(rings, lx, ly)) continue;
       any = true;
       f(r * g.cols + c, lx, ly);
@@ -289,7 +300,7 @@ function eachCell(g: Grid, o: MapObject, def: AssetDef | undefined, grow: number
 }
 
 /** `clearMark`: whatever was under it is gone (a wall over a space can't be squeezed past). */
-function paint(g: Grid, o: MapObject, def: AssetDef | undefined, grow: number, value: (cur: number) => number, mark?: Uint8Array, clearMark = false) {
+function paint(g: Grid, o: MapObject, def: AssetDef | undefined, grow: number | [number, number], value: (cur: number) => number, mark?: Uint8Array, clearMark = false) {
   eachCell(g, o, def, grow, (i) => {
     if (mark) {
       // A parking space can be squeezed past; a wall under it can't.
@@ -444,8 +455,20 @@ function trace(prev: Int32Array, end: number): number[] {
   return out.reverse();
 }
 
-/** Can a straight line from cell a to cell b be walked without anything more costly than `max`? */
-function clear(g: Grid, cost: Uint8Array, ax: number, ay: number, bx: number, by: number, max: number): boolean {
+/** Map px from a point to the nearest wall, parked car or other blocked square. */
+export function roomAt(g: Grid, x: number, y: number): number {
+  const i = cellAt(g, x, y);
+  return i < 0 ? 0 : g.room[i];
+}
+
+/** The clearance the drawn line keeps from what's around it: the search's own, up to this much (map px). */
+const KEEP_CLEAR = 30;
+
+/**
+ * Can a straight line from cell a to cell b be walked without anything more
+ * costly than `max`, while staying at least `need` px from anything solid?
+ */
+function clear(g: Grid, cost: Uint8Array, ax: number, ay: number, bx: number, by: number, max: number, need = 0): boolean {
   const d = Math.hypot(bx - ax, by - ay);
   const steps = Math.ceil(d / (g.cell * 0.35));
   const r = g.cell * 0.3;
@@ -456,6 +479,7 @@ function clear(g: Grid, cost: Uint8Array, ax: number, ay: number, bx: number, by
       const i = cellAt(g, x + ox, y + oy);
       if (i < 0 || cost[i] === 0 || cost[i] > max) return false;
     }
+    if (need > 0 && roomAt(g, x, y) < need) return false;
   }
   return true;
 }
@@ -484,7 +508,10 @@ function simplify(g: Grid, cost: Uint8Array, cells: number[]): number[] {
       const d = Math.abs((xs[k] - ax) * dy - (ys[k] - ay) * dx) / L;
       if (d > fd) { fd = d; far = k; }
     }
-    if (fd > tol || !clear(g, cost, ax, ay, xs[j], ys[j], 249)) {
+    // The straight line may not come any closer to a row, wall or island than the squares it replaces.
+    let need = KEEP_CLEAR;
+    for (let k = i; k <= j; k++) need = Math.min(need, g.room[cells[k]]);
+    if (fd > tol || !clear(g, cost, ax, ay, xs[j], ys[j], 249, need - g.cell * 0.5)) {
       keep[far] = 1;
       stack.push([i, far], [far, j]);
     }
@@ -500,8 +527,11 @@ const BEND = 30;
 /**
  * Rounds every corner of a line with a curve of up to `radius` px (never more
  * than half of either side, so two curves never overlap). The ends stay put.
+ * `fits` can turn a curve down (it then tries a tighter one, and at last
+ * keeps the sharp corner): a curve cuts the inside of the bend, which is
+ * where a row's corner or a wall end usually is.
  */
-export function roundCorners(p: number[], radius = BEND): number[] {
+export function roundCorners(p: number[], radius = BEND, fits?: (curve: number[], corner: [number, number]) => boolean): number[] {
   const n = p.length / 2;
   if (n < 3) return p.slice();
   const out = [p[0], p[1]];
@@ -512,13 +542,20 @@ export function roundCorners(p: number[], radius = BEND): number[] {
     const u1x = (ax - bx) / l1, u1y = (ay - by) / l1, u2x = (cx - bx) / l2, u2y = (cy - by) / l2;
     // Nearly straight on: nothing to round.
     if (u1x * u2x + u1y * u2y < -0.998) { out.push(bx, by); continue; }
-    const r = Math.min(radius, l1 / 2, l2 / 2);
-    const sx = bx + u1x * r, sy = by + u1y * r, ex = bx + u2x * r, ey = by + u2y * r;
-    const N = 8;
-    for (let s = 0; s <= N; s++) {
-      const t = s / N, m = 1 - t;
-      out.push(m * m * sx + 2 * m * t * bx + t * t * ex, m * m * sy + 2 * m * t * by + t * t * ey);
+    let curve: number[] | null = null;
+    for (const f of [1, 0.6, 0.35, 0.18]) {
+      const r = Math.min(radius * f, l1 / 2, l2 / 2);
+      const sx = bx + u1x * r, sy = by + u1y * r, ex = bx + u2x * r, ey = by + u2y * r;
+      const N = 8;
+      const c: number[] = [];
+      for (let s = 0; s <= N; s++) {
+        const t = s / N, m = 1 - t;
+        c.push(m * m * sx + 2 * m * t * bx + t * t * ex, m * m * sy + 2 * m * t * by + t * t * ey);
+      }
+      if (!fits || fits(c, [bx, by])) { curve = c; break; }
     }
+    if (curve) out.push(...curve);
+    else out.push(bx, by);
   }
   out.push(p[2 * n - 2], p[2 * n - 1]);
   return dedupe(out);
@@ -545,6 +582,12 @@ interface End {
   obj?: MapObject;
   x: number;
   y: number;
+  /**
+   * Where a stair, elevator or ramp comes out on a floor that has none drawn
+   * (a floor not mapped yet, say): its kind and name. Landings of the same
+   * kind at the same spot are one shaft, ridden straight past.
+   */
+  landing?: { kind: PortalKind; name: string };
 }
 
 /** The cells of a place, opened up so a route can reach it even inside a row of spaces. */
@@ -597,26 +640,50 @@ function approachOf(g: Grid, o: MapObject): Approach | null {
     return lx > -0.5 && ly > -0.5 && lx < o.width + 0.5 && ly < o.height + 0.5;
   };
   const out: Approach = new Map();
+  const found: { i: number; at: number[]; c: number }[] = [];
   for (const [e, opp] of pairs) {
     const [mx, my] = mid(e);
     const [ox, oy] = mid(opp);
     const L = Math.hypot(mx - ox, my - oy) || 1;
     const ux = (mx - ox) / L, uy = (my - oy) / L;
     const step = g.cell / 2;
+    const across = variant === 'parallel' ? o.height : o.width;
+    const reach = across * 0.6, narrow = across * 0.3;
     // The cheapest point out in front: the lane's center line, or the middle of the open space.
-    let best = -1, bestScore = Infinity, bx = 0, by = 0, started = false;
+    const probe: { d: number; i: number; score: number }[] = [];
+    let started = false;
     for (let d = step; d < 170; d += step) {
       const x = mx + ux * d, y = my + uy * d;
       const i = cellAt(g, x, y);
       if (i < 0) break;
       if (!started && inside(x, y)) continue;
       if (g.cost[i] === 0) break;
+      // Out past the stall's own edge it has to open up: a slot between two rows isn't a lane.
+      if (d > reach && g.room[i] < narrow) break;
       started = true;
-      const score = g.cost[i] + d * 0.02 - Math.min(g.room[i], 60) * 0.01;
-      if (score < bestScore - 1e-6) { bestScore = score; best = i; bx = x; by = y; }
+      // Cheapest first; then the most room (the middle between the rows on either side).
+      probe.push({ d, i, score: g.cost[i] - Math.min(g.room[i], across * 1.5) * 0.06 });
     }
-    if (best >= 0 && !out.has(best)) out.set(best, [bx, by, mx, my, o.x, o.y]);
+    let k = -1;
+    for (let j = 0; j < probe.length; j++) if (k < 0 || probe[j].score < probe[k].score - 1e-6) k = j;
+    let best = -1, bx = 0, by = 0;
+    if (k >= 0) {
+      // The middle of the run of equally good points, so the stalls on both sides of an
+      // aisle share one line down its middle instead of two side by side.
+      let a0 = k, a1 = k;
+      while (a0 > 0 && probe[a0 - 1].score <= probe[k].score + 0.05) a0--;
+      while (a1 < probe.length - 1 && probe[a1 + 1].score <= probe[k].score + 0.05) a1++;
+      const d = (probe[a0].d + probe[a1].d) / 2;
+      bx = mx + ux * d; by = my + uy * d;
+      best = cellAt(g, bx, by);
+      if (best < 0 || g.cost[best] === 0) best = probe[k].i;
+    }
+    if (best >= 0) found.push({ i: best, at: [bx, by, mx, my, o.x, o.y], c: g.cost[best] });
   }
+  // A stall is driven into from its lane: when one end opens onto a lane or walkway,
+  // the other (a strip of bare ground behind the row, say) isn't a way in.
+  const onWay = found.some((f) => f.c < COST.bare);
+  for (const f of found) if ((!onWay || f.c < COST.bare) && !out.has(f.i)) out.set(f.i, f.at);
   const res = out.size ? out : null;
   byObj.set(o, res);
   return res;
@@ -702,7 +769,8 @@ function portals(doc: MapDocument): Portal[] {
         const penalty =
           kind === 'elevator' ? 150 + 30 * steps
           : kind === 'escalator' ? 150 * steps
-          : kind === 'ramp' ? Math.max(o.width, o.height) * 1.5 + 200
+          // A garage ramp is a long walk on a car's way: stairs and elevators first.
+          : kind === 'ramp' ? Math.max(o.width, o.height) * 1.5 + 400 * steps
           : kind === 'walkway' ? 50
           : 250 * steps;
         out.push({
@@ -710,7 +778,7 @@ function portals(doc: MapDocument): Portal[] {
           name: nameOf(o, ASSET_BY_KEY[o.assetKey]?.name ?? 'Stairs'),
           penalty,
           a: { floor: f, obj: o, x: o.x, y: o.y },
-          b: best ? { floor: to, obj: best, x: best.x, y: best.y } : { floor: to, x: o.x, y: o.y },
+          b: best ? { floor: to, obj: best, x: best.x, y: best.y } : { floor: to, x: o.x, y: o.y, landing: { kind, name: nameOf(o, ASSET_BY_KEY[o.assetKey]?.name ?? 'Stairs') } },
         });
       }
     }
@@ -809,6 +877,11 @@ function endOf(doc: MapDocument, p: Place): End | null {
   return obj ? { floor, obj, x: obj.x, y: obj.y } : { floor, x: p.x, y: p.y };
 }
 
+/** Two ends that are one spot: the same object, or landings of one shaft on a floor with none drawn. */
+const oneSpot = (a: End, b: End) =>
+  a.floor === b.floor && ((!!a.obj && a.obj === b.obj) ||
+    (!!a.landing && !!b.landing && a.landing.kind === b.landing.kind && Math.hypot(a.x - b.x, a.y - b.y) < 40));
+
 const sameEnd = (a: End, b: End) => a.floor === b.floor && (a.obj && b.obj ? a.obj === b.obj : Math.hypot(a.x - b.x, a.y - b.y) < 1);
 
 /** Floor cost grid for one search: a copy, so opening up the start and end doesn't leak into the next search. */
@@ -859,7 +932,21 @@ function finish(g: Grid, cost: Uint8Array, r: SearchResult, end: number, from: E
   const near = (x: number, y: number, i: number) => Math.hypot(pts[i] - x, pts[i + 1] - y) < g.cell * 1.5;
   if (!inA && head.length && pts.length > 2 && near(head[head.length - 2], head[head.length - 1], 0)) pts.splice(0, 2);
   if (!inB && tail.length && pts.length > 2 && near(tail[0], tail[1], pts.length - 2)) pts.splice(pts.length - 2, 2);
-  return { points: roundCorners(dedupe([...head, ...pts, ...tail])), cost: r.dist[end] };
+  return { points: roundCorners(dedupe([...head, ...pts, ...tail]), BEND, curveFits(g)), cost: r.dist[end] };
+}
+
+/**
+ * A rounded corner is fine when it comes no closer to anything solid than the
+ * two straight lines it joins (checked where they start and at the corner).
+ */
+function curveFits(g: Grid) {
+  return (c: number[], [bx, by]: [number, number]) => {
+    const n = c.length;
+    const need = Math.min(KEEP_CLEAR, roomAt(g, c[0], c[1]), roomAt(g, c[n - 2], c[n - 1]), roomAt(g, bx, by)) - g.cell * 0.5;
+    if (need <= 0) return true;
+    for (let i = 2; i < n - 2; i += 2) if (roomAt(g, c[i], c[i + 1]) < need) return false;
+    return true;
+  };
 }
 
 /** The box around the lane points a space is reached from (for A*'s estimate). */
@@ -898,11 +985,64 @@ export function findRoute(doc: MapDocument, fromPlace: Place, toPlace: Place, op
   const to = endOf(doc, toPlace);
   if (!from || !to) return { ok: false, reason: 'none' };
   if (sameEnd(from, to)) return { ok: false, reason: 'same' };
+  // A spot tapped outside the building's walls (or in a closed-off corner, behind a row):
+  // if there's no way from there, start from the nearest place joined to the rest of the floor.
+  const a = from.obj ? from : snapToMain(from), b = to.obj ? to : snapToMain(to);
+  const tries: [End, End][] = a !== from || b !== to ? [[from, to], [a, b]] : [[from, to]];
   for (const squeeze of [false, true]) {
-    const r = routeOnce(doc, from, to, squeeze, opts);
-    if (r) return { ok: true, route: { ...r, squeezed: squeeze } };
+    for (const [x, y] of tries) {
+      const r = routeOnce(doc, x, y, squeeze, opts);
+      if (r) return { ok: true, route: { ...r, squeezed: squeeze } };
+    }
   }
   return { ok: false, reason: 'none' };
+}
+
+/** Per floor: the part of the floor (squares joined to each other) with the most drawn lanes and walkways. */
+const mains = new WeakMap<Grid, Uint8Array>();
+function mainPart(g: Grid): Uint8Array {
+  const hit = mains.get(g);
+  if (hit) return hit;
+  const n = g.cols * g.rows;
+  const part = new Int32Array(n).fill(-1);
+  let bestPart = -1, bestScore = -1;
+  const q = new Int32Array(n);
+  for (let s = 0, id = 0; s < n; s++) {
+    if (g.cost[s] === 0 || part[s] >= 0) continue;
+    let h = 0, t = 0, score = 0;
+    q[t++] = s; part[s] = id;
+    while (h < t) {
+      const i = q[h++];
+      score += g.cost[i] < COST.bare ? 1000 : 1;
+      const c = i % g.cols, r = (i - c) / g.cols;
+      for (const [dx, dy] of DIRS) {
+        const nc = c + dx, nr = r + dy;
+        if (nc < 0 || nr < 0 || nc >= g.cols || nr >= g.rows) continue;
+        const j = nr * g.cols + nc;
+        if (g.cost[j] !== 0 && part[j] < 0) { part[j] = id; q[t++] = j; }
+      }
+    }
+    if (score > bestScore) { bestScore = score; bestPart = id; }
+    id++;
+  }
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) out[i] = part[i] === bestPart ? 1 : 0;
+  mains.set(g, out);
+  return out;
+}
+
+function snapToMain(e: End): End {
+  const g = floorGrid(e.floor);
+  const main = mainPart(g);
+  const at = clampedCell(g, e.x, e.y);
+  if (main[at]) return e;
+  let best = -1, bd = Infinity;
+  for (let i = 0; i < main.length; i++) {
+    if (!main[i]) continue;
+    const d = Math.hypot(cellX(g, i) - e.x, cellY(g, i) - e.y);
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best < 0 ? e : { floor: e.floor, x: cellX(g, best), y: cellY(g, best) };
 }
 
 interface Hop { portal: Portal; forward: boolean }
@@ -980,7 +1120,7 @@ function routeOnce(doc: MapDocument, from: End, to: End, squeeze: boolean, opts:
       // Across a floor in between: a straight-line estimate, walked for real once a route is picked.
       for (const v of floorEnds.get(fl) ?? []) {
         if (v === u) continue;
-        const same = !!ends[u].obj && ends[u].obj === ends[v].obj;
+        const same = oneSpot(ends[u], ends[v]);
         relax(v, same ? 0 : Math.hypot(ends[u].x - ends[v].x, ends[u].y - ends[v].y) * 1.3 * (COST.road / 10), null);
       }
     }
@@ -996,14 +1136,32 @@ function routeOnce(doc: MapDocument, from: End, to: End, squeeze: boolean, opts:
       let leg: LegResult | null;
       if (u === 0) leg = exact.get(`0>${v}`)!.leg();
       else if (v === 1) leg = exact.get(`${u}>1`)!.leg();
-      else if (ends[u].obj && ends[u].obj === ends[v].obj) leg = { points: [ends[u].x, ends[u].y], cost: 0 };
+      else if (oneSpot(ends[u], ends[v])) leg = { points: [ends[u].x, ends[u].y], cost: 0 };
       else leg = walk(ends[u], ends[v], squeeze);
       if (!leg) { blocked.add(`${u}>${v}`); failed = true; break; }
       segs.push({ kind: 'leg', a: ends[u], b: ends[v], res: leg });
     }
-    if (!failed) return build(doc, segs);
+    if (!failed) return build(doc, joinWalks(segs, squeeze));
   }
   return null;
+}
+
+/**
+ * Two walks in a row on one floor (to a stair that isn't taken, then on) are
+ * one walk: the floor-to-floor search only estimates walks between floor
+ * connections, so it can pass by one on the way.
+ */
+function joinWalks(segs: Seg[], squeeze: boolean): Seg[] {
+  const out: Seg[] = [];
+  for (const s of segs) {
+    const last = out[out.length - 1];
+    if (s.kind === 'leg' && last?.kind === 'leg' && last.a.floor === s.a.floor) {
+      const res = walk(last.a, s.b, squeeze);
+      if (res) { out[out.length - 1] = { kind: 'leg', a: last.a, b: s.b, res }; continue; }
+    }
+    out.push(s);
+  }
+  return out;
 }
 
 const FT = 5;
@@ -1023,12 +1181,13 @@ function build(doc: MapDocument, segs: Seg[]): Omit<Route, 'squeezed'> {
   const steps: RouteStep[] = [];
   let changes = 0;
   let lastHop = -1; // index of the last floor-change step, while nothing has been walked since
+  let lastName = '';
   for (const s of segs) {
     if (s.kind === 'leg') {
       const length = polyLength(s.res.points);
       if (length < 1) continue;
       legs.push({ floorId: s.a.floor.id, points: s.res.points, length });
-      steps.push({ floorId: s.a.floor.id, kind: 'walk', text: `Walk to ${placeLabel(s.b.obj)}`, leg: legs.length - 1, x: s.b.x, y: s.b.y });
+      steps.push({ floorId: s.a.floor.id, kind: 'walk', text: `Walk to ${s.b.landing && !s.b.obj ? s.b.landing.name : placeLabel(s.b.obj)}`, leg: legs.length - 1, x: s.b.x, y: s.b.y });
       lastHop = -1;
       continue;
     }
@@ -1037,9 +1196,12 @@ function build(doc: MapDocument, segs: Seg[]): Omit<Route, 'squeezed'> {
     const prev = lastHop >= 0 ? steps[lastHop] : null;
     // Riding the same elevator past a floor is one step, not two.
     if (prev && prev.kind === s.hop.portal.kind && prev.kind !== 'inside' && prev.kind !== 'outside') {
-      steps[lastHop] = changeStep(doc, s.hop, prev.floorId, out, prev.x, prev.y);
+      // Named for the one you got on.
+      steps[lastHop] = changeStep(doc, s.hop, prev.floorId, out, prev.x, prev.y, lastName);
     } else {
-      steps.push(changeStep(doc, s.hop, inn.floor.id, out, inn.x, inn.y));
+      // Named for the one you walked to (each floor's stair or ramp can have its own name).
+      lastName = inn.obj ? nameOf(inn.obj, s.hop.portal.name) : s.hop.portal.name;
+      steps.push(changeStep(doc, s.hop, inn.floor.id, out, inn.x, inn.y, lastName));
       lastHop = steps.length - 1;
     }
   }
@@ -1051,7 +1213,7 @@ function hopEnds(h: Hop): [End, End] {
   return h.forward ? [h.portal.a, h.portal.b] : [h.portal.b, h.portal.a];
 }
 
-function changeStep(doc: MapDocument, hop: Hop, floorId: string, out: End, x: number, y: number): RouteStep {
+function changeStep(doc: MapDocument, hop: Hop, floorId: string, out: End, x: number, y: number, name = hop.portal.name): RouteStep {
   const p = hop.portal;
   if (p.kind === 'inside') {
     return hop.forward
@@ -1062,7 +1224,9 @@ function changeStep(doc: MapDocument, hop: Hop, floorId: string, out: End, x: nu
   const group = floorGroup(doc, fromFloor);
   const up = group.indexOf(out.floor) > group.indexOf(fromFloor);
   const dir = p.kind === 'walkway' ? 'across' : up ? 'up' : 'down';
-  return { floorId, kind: p.kind, text: `Take ${p.name} ${dir} to ${out.floor.name}`, toFloorId: out.floor.id, x, y };
+  // "Up ramp to F3" already says where it goes.
+  const says = new RegExp(`(^|\\s)${out.floor.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(name);
+  return { floorId, kind: p.kind, text: says ? `Take ${name}` : `Take ${name} ${dir} to ${out.floor.name}`, toFloorId: out.floor.id, x, y };
 }
 /** Rough walking time: about 250 ft a minute, plus time for each floor change. */
 export function minutes(route: Route): number {

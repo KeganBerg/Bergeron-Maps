@@ -245,3 +245,120 @@ describe('clean, smooth routes', () => {
     for (let i = 0; i < p.length; i += 2) expect(Math.hypot(p[i] - 100, p[i + 1])).toBeGreaterThan(5);
   });
 });
+
+/** Signed px from (x, y) to a space's box (negative inside). Unrotated and 90-degree spaces only. */
+function toSpace(o: MapObject, x: number, y: number) {
+  const r = Math.abs(o.rotation % 180) === 90;
+  const hw = (r ? o.height : o.width) / 2, hh = (r ? o.width : o.height) / 2;
+  const dx = Math.abs(x - o.x) - hw, dy = Math.abs(y - o.y) - hh;
+  return dx > 0 || dy > 0 ? Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) : Math.max(dx, dy);
+}
+
+describe('directions audit fixes', () => {
+  it('keeps clear of every other parked car on the way, on every floor of a garage', () => {
+    const doc = createQuickLot('Garage', { floors: 3, rows: 4, spacesPerRow: 10, accessible: 2 });
+    const from = named(doc, 0, 'Entrance');
+    for (const f of doc.floors) {
+      for (const o of f.objects.filter((x) => x.kind === 'space').filter((_, i) => i % 3 === 0)) {
+        const r = findRoute(doc, from, { floorId: f.id, objectId: o.id, x: o.x, y: o.y });
+        if (!r.ok) throw new Error(`no route to ${o.label}`);
+        for (const leg of r.route.legs) {
+          const others = doc.floors.find((x) => x.id === leg.floorId)!.objects.filter((x) => x.kind === 'space' && x.id !== o.id);
+          const p = sampled(leg.points);
+          for (let i = 0; i < p.length; i += 2)
+            for (const s of others) {
+              const d = toSpace(s, p[i], p[i + 1]);
+              if (d < 8) throw new Error(`route to ${o.id} passes ${d.toFixed(1)} px from ${s.id} at ${Math.round(p[i])},${Math.round(p[i + 1])}`);
+            }
+        }
+      }
+    }
+  });
+
+  it('keeps clear of the parked cars it passes between any two spaces, round every corner', () => {
+    for (const opts of [{ floors: 1, rows: 4, spacesPerRow: 12, accessible: 2 }, { floors: 2, rows: 3, spacesPerRow: 9, accessible: 1 }]) {
+      const doc = createQuickLot('Lot', opts);
+      const f = doc.floors[0];
+      const sp = f.objects.filter((o) => o.kind === 'space');
+      for (const a of sp.filter((_, i) => i % 5 === 0))
+        for (const b of sp.filter((_, i) => i % 7 === 3)) {
+          const r = findRoute(doc, { floorId: f.id, objectId: a.id, x: a.x, y: a.y }, { floorId: f.id, objectId: b.id, x: b.x, y: b.y });
+          if (!r.ok) continue;
+          const p = sampled(r.route.legs[0].points);
+          for (let i = 0; i < p.length; i += 2)
+            for (const o of sp) {
+              if (o === a || o === b) continue;
+              const d = toSpace(o, p[i], p[i + 1]);
+              if (d < 10) throw new Error(`${a.id} to ${b.id} passes ${d.toFixed(1)} px from ${o.id}`);
+            }
+        }
+    }
+  });
+
+  it('draws one line down the middle of an aisle for the stalls on both sides of it', () => {
+    const doc = createQuickLot('Lot', { floors: 1, rows: 2, spacesPerRow: 10, accessible: 0 });
+    const f = doc.floors[0];
+    const from = named(doc, 0, 'Entrance');
+    const sp = f.objects.filter((o) => o.kind === 'space');
+    // The two rows face each other: take a stall on each side, the same distance along.
+    const xs = [...new Set(sp.map((o) => o.x))].sort((a, b) => a - b);
+    const ys = [...new Set(sp.map((o) => o.y))].sort((a, b) => a - b);
+    const top = sp.find((o) => o.x === xs[6] && o.y === ys[0])!, bottom = sp.find((o) => o.x === xs[6] && o.y === ys[ys.length - 1])!;
+    const yAt = (o: MapObject) => {
+      const r = findRoute(doc, from, { floorId: f.id, objectId: o.id, x: o.x, y: o.y });
+      if (!r.ok) throw new Error('no route');
+      const p = sampled(r.route.legs[0].points);
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < p.length; i += 2) if (Math.abs(p[i] - xs[3]) < bd) { bd = Math.abs(p[i] - xs[3]); best = p[i + 1]; }
+      return best;
+    };
+    expect(Math.abs(yAt(top) - yAt(bottom))).toBeLessThan(1.5);
+  });
+
+  it('rides past a floor that has no stairs or elevator drawn, without walking on it', () => {
+    const doc = createQuickLot('Garage', { floors: 3, rows: 2, spacesPerRow: 6, accessible: 0 });
+    const [f1, f2, f3] = doc.floors;
+    // Floor 2 isn't mapped yet; the elevators say they stop there.
+    f2.objects = f2.objects.filter((o) => !(o.kind === 'asset' && /elevator|stair|ramp/.test(o.assetKey)));
+    for (const f of [f1, f3]) for (const o of f.objects) if (o.kind === 'asset' && /elevator|stair|ramp/.test(o.assetKey)) o.connectsTo = [f2.id];
+    const r = findRoute(doc, named(doc, 0, 'Entrance'), space(doc, 2, '3B3'));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.route.legs.map((l) => l.floorId)).toEqual([f1.id, f3.id]);
+    expect(r.route.steps.map((s) => s.text)).toEqual(['Walk to Elevator 1', 'Take Elevator 1 up to Floor 3', 'Walk to Space 3B3']);
+    expect(r.route.steps.some((s) => /spot you picked/.test(s.text))).toBe(false);
+  });
+
+  it('does not repeat the floor when the stair or ramp name already says it', () => {
+    const doc = createQuickLot('Garage', { floors: 2, rows: 2, spacesPerRow: 6, accessible: 0 });
+    for (const o of doc.floors[0].objects) if (o.kind === 'asset' && o.assetKey.startsWith('elevator')) o.name = 'Lift to Floor 2';
+    const r = findRoute(doc, named(doc, 0, 'Entrance'), space(doc, 1, '2B3'));
+    expect(r.ok && r.route.steps.map((s) => s.text)).toContain('Take Lift to Floor 2');
+  });
+
+  it('starts from the nearest way out when the spot tapped is shut in', () => {
+    const doc = createQuickLot('Lot', { floors: 1, rows: 2, spacesPerRow: 6, accessible: 0 });
+    const f = doc.floors[0];
+    const layerId = f.layers.find((l) => l.role === 'structure')!.id;
+    // A room with no door, out beside the lot.
+    const cx = -400, cy = 0;
+    const wall = (x: number, y: number, w: number, h: number) =>
+      f.objects.push({ id: `w${x}_${y}`, kind: 'asset', assetKey: 'wall', layerId, x, y, width: w, height: h, rotation: 0 });
+    wall(cx, cy - 60, 130, 10); wall(cx, cy + 60, 130, 10); wall(cx - 60, cy, 10, 130); wall(cx + 60, cy, 10, 130);
+    const r = findRoute(doc, { floorId: f.id, x: cx, y: cy }, space(doc, 0, 'A3'));
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.route.squeezed).toBe(false);
+  });
+
+  it('does not pull routes across an entrance marker painted on a lane', () => {
+    const doc = createQuickLot('Lot', { floors: 1, rows: 2, spacesPerRow: 6, accessible: 0 });
+    const f = doc.floors[0];
+    const road = f.objects.find((o) => o.kind === 'asset' && o.assetKey === 'road')!;
+    const g0 = floorGrid(f);
+    const before = g0.cost[cellAt(g0, road.x, road.y)];
+    const layerId = f.layers.find((l) => l.role === 'landmarks')!.id;
+    const withSign = { ...doc, floors: [{ ...f, objects: [...f.objects, { id: 'ent2', kind: 'asset', assetKey: 'entrance', layerId, x: road.x, y: road.y, width: 60, height: 30, rotation: 0 } as MapObject] }] };
+    const g1 = floorGrid(withSign.floors[0]);
+    expect(g1.cost[cellAt(g1, road.x, road.y)]).toBe(before);
+  });
+});
