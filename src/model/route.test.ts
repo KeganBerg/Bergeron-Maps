@@ -157,3 +157,91 @@ describe('directions into a building', () => {
     expect(back.ok && back.route.steps.map((s) => s.text)).toEqual(['Walk to Lobby doors', 'Leave Main office', 'Walk to Space A1']);
   });
 });
+
+/** Points every few px along a line. */
+function sampled(p: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 2; i < p.length; i += 2) {
+    const n = Math.max(1, Math.ceil(Math.hypot(p[i] - p[i - 2], p[i + 1] - p[i - 1]) / 4));
+    for (let s = 0; s < n; s++) out.push(p[i - 2] + ((p[i] - p[i - 2]) * s) / n, p[i - 1] + ((p[i + 1] - p[i - 1]) * s) / n);
+  }
+  return out;
+}
+
+describe('clean, smooth routes', () => {
+  /** A lot like a real school lot: a lane on the left, angled rows back to back, a drive aisle, bare ground around. */
+  async function schoolLot() {
+    const { createMap } = await import('./factory');
+    const { buildRowSpaces, DEFAULT_ROW } = await import('./rows');
+    const { ASSET_BY_KEY } = await import('../assets/library');
+    const doc = createMap('School');
+    const f = doc.floors[0];
+    const L = (role: string) => f.layers.find((l) => l.role === role)!.id;
+    let n = 0;
+    const A = (key: string, x: number, y: number, width: number, height: number, rotation = 0, name?: string) =>
+      f.objects.push({ id: `a${n++}`, kind: 'asset', assetKey: key, layerId: L(ASSET_BY_KEY[key].layer), x, y, width, height, rotation, name });
+    A('straight-road', 60, 300, 1300, 110, 90); // left lane, center x = 60
+    A('straight-road', 800, 280, 1500, 110); // drive aisle, center y = 280
+    A('pin-general', -500, -400, 40, 40, 0, 'Gate');
+    for (const [prefix, y, start, reverse] of [['B', 50, 1, false], ['B', 140, 31, true]] as const) {
+      const row = { ...DEFAULT_ROW, id: `r${y}`, count: 30, start, prefix, angle: 60, reverse };
+      f.rows[row.id] = row;
+      f.objects.push(...buildRowSpaces(row, { x: 180, y, rotation: 0 }, L('spaces')));
+    }
+    return { doc, f };
+  }
+
+  it('runs down the middle of the drive aisle and goes into the stall along it, ending on the space', async () => {
+    const { doc, f } = await schoolLot();
+    const gate = f.objects.find((o) => o.name === 'Gate')!;
+    const b45 = f.objects.find((o) => o.kind === 'space' && o.label === 'B45')!;
+    const r = findRoute(doc, { floorId: f.id, objectId: gate.id, x: gate.x, y: gate.y }, { floorId: f.id, objectId: b45.id, x: b45.x, y: b45.y });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const p = r.route.legs[0].points;
+    expect(p.slice(-2)).toEqual([b45.x, b45.y]);
+    const at = sampled(p);
+    // Along the aisle (until the bend into the stall), the line keeps to the center line.
+    const along: number[] = [];
+    for (let i = 0; i < at.length; i += 2) if (at[i] > 200 && at[i] < b45.x - 120) along.push(at[i + 1]);
+    expect(along.length).toBeGreaterThan(0);
+    for (const y of along) expect(Math.abs(y - 280)).toBeLessThan(6);
+    // Down the left lane, it keeps to its center line too.
+    const down: number[] = [];
+    for (let i = 0; i < at.length; i += 2) if (at[i + 1] > -150 && at[i + 1] < 200 && at[i] < 400) down.push(at[i]);
+    for (const x of down) expect(Math.abs(x - 60)).toBeLessThan(6);
+    // The last stretch runs along the stall (60 degrees), not along the row's edge.
+    const n = p.length;
+    const ang = (Math.atan2(Math.abs(p[n - 1] - p[n - 5]), Math.abs(p[n - 2] - p[n - 6])) * 180) / Math.PI;
+    expect(ang).toBeGreaterThan(50);
+    expect(ang).toBeLessThan(70);
+    // No sharp corners: every turn is rounded.
+    for (let i = 2; i < n - 2; i += 2) {
+      const a = Math.atan2(p[i + 1] - p[i - 1], p[i] - p[i - 2]), b = Math.atan2(p[i + 3] - p[i + 1], p[i + 2] - p[i]);
+      let d = Math.abs(a - b);
+      if (d > Math.PI) d = 2 * Math.PI - d;
+      expect(d).toBeLessThan(0.6);
+    }
+  });
+
+  it('heads for the lanes instead of cutting across bare ground', async () => {
+    const { doc, f } = await schoolLot();
+    const gate = f.objects.find((o) => o.name === 'Gate')!;
+    const b45 = f.objects.find((o) => o.kind === 'space' && o.label === 'B45')!;
+    const r = findRoute(doc, { floorId: f.id, objectId: gate.id, x: gate.x, y: gate.y }, { floorId: f.id, objectId: b45.id, x: b45.x, y: b45.y });
+    if (!r.ok) throw new Error('no route');
+    const p = sampled(r.route.legs[0].points);
+    // Once it reaches the left lane it never leaves it until the aisle: nothing between x 120 and the rows above the aisle.
+    for (let i = 0; i < p.length; i += 2) if (p[i] > 130 && p[i] < b45.x - 120 && p[i + 1] < 200) throw new Error(`cut across at ${p[i]},${p[i + 1]}`);
+  });
+
+  it('rounds corners without moving the ends', async () => {
+    const { roundCorners } = await import('./route');
+    const p = roundCorners([0, 0, 100, 0, 100, 100]);
+    expect(p.slice(0, 2)).toEqual([0, 0]);
+    expect(p.slice(-2)).toEqual([100, 100]);
+    expect(p.length).toBeGreaterThan(6);
+    // The corner itself is cut.
+    for (let i = 0; i < p.length; i += 2) expect(Math.hypot(p[i] - 100, p[i + 1])).toBeGreaterThan(5);
+  });
+});

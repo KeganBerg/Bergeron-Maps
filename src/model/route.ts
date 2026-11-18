@@ -1,4 +1,5 @@
 import { ASSET_BY_KEY } from '../assets/library';
+import { spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import type { AssetDef } from '../assets/defs';
 import { objectBox } from './geometry';
 import { buildingName, floorGroup, interiorFloors } from './interiors';
@@ -25,13 +26,20 @@ import type { AssetObject, Box, Floor, MapDocument, MapObject } from './types';
 const COST = {
   walk: 10, // walkways, sidewalks, crosswalks, doors, entrances, stairs, elevators
   road: 12, // drive aisles and roads
-  open: 14, // open ground with nothing drawn on it
+  open: 14, // open ground with nothing drawn on it (inside a building: the floor of a room)
+  bare: 40, // open ground on a site with roads or walkways drawn: keep to what's drawn
   area: 16, // service bays, loading areas, sports fields
   edge: 45, // the walls of a room drawn without a door: crossable, but a door wins
   land: 50, // grass, flower beds, trees
   thing: 80, // furniture, vehicles, kiosks: squeeze past only if there's no other way
   squeeze: 120, // between parked cars, used only when there is no other way at all
 } as const;
+
+/** Extra cost at the very edge of a drive lane (none on its center line), so routes run down the middle like a car would. */
+const LANE_EDGE = 14;
+/** Extra cost right next to a wall or a parked car, fading out over CLEAR_REACH px. */
+const CLEAR_COST = 12;
+const CLEAR_REACH = 45;
 
 type Role = 'ignore' | 'walk' | 'road' | 'area' | 'land' | 'thing' | 'block' | 'space' | 'opener' | 'room' | 'shell';
 
@@ -99,6 +107,8 @@ export interface Grid {
   cost: Uint8Array;
   /** 1 where only a parking space blocks the way (opened up when nothing else works). */
   spaceOnly: Uint8Array;
+  /** Map px from each square to the nearest wall, parked car or other blocked square. */
+  room: Float32Array;
 }
 
 /** Biggest grid per floor. ~160k squares keeps a 2,000-space level under a tenth of a second. */
@@ -146,11 +156,13 @@ function buildGrid(floor: Floor): Grid {
   const cell = Math.max(MIN_CELL, Math.ceil(Math.sqrt(((x2 - x1) * (y2 - y1)) / MAX_CELLS)));
   const cols = Math.ceil((x2 - x1) / cell);
   const rows = Math.ceil((y2 - y1) / cell);
-  const g: Grid = { x0: x1, y0: y1, cell, cols, rows, cost: new Uint8Array(cols * rows), spaceOnly: new Uint8Array(cols * rows) };
+  const g: Grid = { x0: x1, y0: y1, cell, cols, rows, cost: new Uint8Array(cols * rows), spaceOnly: new Uint8Array(cols * rows), room: new Float32Array(cols * rows) };
 
   const shells = items.filter((p) => p.role === 'shell');
   // Inside a building's floor plan, the space outside its outer walls isn't walkable.
-  g.cost.fill(shells.length ? 0 : COST.open);
+  // Where roads or walkways are drawn, bare ground (and any picture under it) is only a last resort.
+  const drawnWays = items.some((p) => p.role === 'road' || p.role === 'walk');
+  g.cost.fill(shells.length ? 0 : drawnWays ? COST.bare : COST.open);
   for (const { o } of shells) paint(g, o, undefined, 0, () => COST.open);
   for (const { o } of shells) {
     const t = Math.max(6, (o.strokeWidth ?? 6) + 2);
@@ -158,11 +170,12 @@ function buildGrid(floor: Floor): Grid {
   }
 
   const set = (v: number) => () => v;
+  const roadMask = new Uint8Array(cols * rows);
   for (const p of items) {
     const { o, def, role } = p;
     switch (role) {
       case 'walk': paint(g, o, def, 0, set(COST.walk)); break;
-      case 'road': paint(g, o, def, 0, set(COST.road)); break;
+      case 'road': paintRoad(g, o, def, roadMask); break;
       case 'area': paint(g, o, def, 0, set(COST.area)); break;
       case 'land': paint(g, o, def, 0, (c) => (c === 0 ? 0 : COST.land)); break;
       case 'thing': paint(g, o, def, 0, (c) => (c === 0 ? 0 : Math.max(c, COST.thing))); break;
@@ -180,20 +193,69 @@ function buildGrid(floor: Floor): Grid {
   }
   // Doors, entrances, gates and floor connections open up whatever they sit on.
   for (const p of items) if (p.role === 'opener') paint(g, p.o, p.def, g.cell, set(COST.walk), undefined, true);
-  // Keep a little off walls and parked cars, so routes run down the middle of an aisle, not along its edge.
-  const near = new Uint8Array(cols * rows);
-  const reach = Math.max(1, Math.round(25 / cell));
+  // Keep off walls and parked cars, most of all right next to them, so routes run down the middle of an aisle.
+  distanceToBlocked(g);
+  for (let i = 0; i < g.cost.length; i++) {
+    if (g.cost[i] === 0) continue;
+    const near = Math.max(0, 1 - g.room[i] / CLEAR_REACH);
+    if (near > 0) g.cost[i] = Math.min(250, g.cost[i] + Math.round(CLEAR_COST * near * near));
+  }
+  return g;
+}
+
+/** Map px from every square to the nearest blocked one (a two-pass chamfer distance). */
+function distanceToBlocked(g: Grid) {
+  const { cols, rows, cell, cost, room } = g;
+  const BIG = 1e6, D1 = cell, D2 = cell * Math.SQRT2;
+  for (let i = 0; i < room.length; i++) room[i] = cost[i] === 0 ? 0 : BIG;
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
-      if (g.cost[r * cols + c] !== 0) continue;
-      for (let dr = -reach; dr <= reach; dr++)
-        for (let dc = -reach; dc <= reach; dc++) {
-          const rr = r + dr, cc = c + dc;
-          if (rr >= 0 && cc >= 0 && rr < rows && cc < cols) near[rr * cols + cc] = 1;
-        }
+      const i = r * cols + c;
+      let d = room[i];
+      if (!d) continue;
+      if (c > 0) d = Math.min(d, room[i - 1] + D1);
+      if (r > 0) {
+        d = Math.min(d, room[i - cols] + D1);
+        if (c > 0) d = Math.min(d, room[i - cols - 1] + D2);
+        if (c < cols - 1) d = Math.min(d, room[i - cols + 1] + D2);
+      }
+      room[i] = d;
     }
-  for (let i = 0; i < near.length; i++) if (near[i] && g.cost[i] !== 0) g.cost[i] = Math.min(250, g.cost[i] + 4);
-  return g;
+  for (let r = rows - 1; r >= 0; r--)
+    for (let c = cols - 1; c >= 0; c--) {
+      const i = r * cols + c;
+      let d = room[i];
+      if (!d) continue;
+      if (c < cols - 1) d = Math.min(d, room[i + 1] + D1);
+      if (r < rows - 1) {
+        d = Math.min(d, room[i + cols] + D1);
+        if (c < cols - 1) d = Math.min(d, room[i + cols + 1] + D2);
+        if (c > 0) d = Math.min(d, room[i + cols - 1] + D2);
+      }
+      room[i] = d;
+    }
+}
+
+/**
+ * A drive lane: cheapest down its center line, a little dearer toward its
+ * edges. Straight lanes (and square junctions, both ways) have a center line;
+ * curved ones are painted flat. Where lanes overlap, the cheaper square wins.
+ */
+function paintRoad(g: Grid, o: MapObject, def: AssetDef | undefined, mask: Uint8Array) {
+  const straight = !!def && def.merge === 'road' && (!def.outline || def.outline === 'rect') && !(o.cuts?.length);
+  const sq = Math.abs(o.width - o.height) < 0.2 * Math.max(o.width, o.height);
+  eachCell(g, o, def, 0, (i, lx, ly) => {
+    let v: number = COST.road;
+    if (straight) {
+      const across = Math.abs(ly - o.height / 2) / (o.height / 2);
+      const along = Math.abs(lx - o.width / 2) / (o.width / 2);
+      const t = sq ? Math.min(across, along) : o.width >= o.height ? across : along;
+      v = COST.road + Math.round(LANE_EDGE * Math.min(1, t));
+    }
+    g.cost[i] = mask[i] && g.cost[i] !== 0 ? Math.min(g.cost[i], v) : v;
+    mask[i] = 1;
+    g.spaceOnly[i] = 0;
+  });
 }
 
 /** Calls `f` with each cell whose center is inside the object (grown by `grow` px). */
@@ -398,23 +460,68 @@ function clear(g: Grid, cost: Uint8Array, ax: number, ay: number, bx: number, by
   return true;
 }
 
-/** Turns a staircase of cells into a few straight lines. */
-function smooth(g: Grid, cost: Uint8Array, cells: number[]): number[] {
-  if (cells.length <= 2) return cells.flatMap((i) => [cellX(g, i), cellY(g, i)]);
-  const out = [cellX(g, cells[0]), cellY(g, cells[0])];
-  let i = 0;
-  while (i < cells.length - 1) {
-    let max = cost[cells[i]];
-    let best = i + 1;
-    for (let j = i + 1; j < cells.length; j++) {
-      max = Math.max(max, cost[cells[j]]);
-      if (clear(g, cost, cellX(g, cells[i]), cellY(g, cells[i]), cellX(g, cells[j]), cellY(g, cells[j]), max)) best = j;
-      else if (j - best > 6) break;
+/**
+ * Turns the staircase of squares into a few straight lines that stay where the
+ * search put them (down the middle of the lane): points closer than `tol` to
+ * a straight line are dropped (Douglas-Peucker), and a line is kept apart
+ * wherever the straight version would clip something solid.
+ */
+function simplify(g: Grid, cost: Uint8Array, cells: number[]): number[] {
+  const xs = cells.map((i) => cellX(g, i)), ys = cells.map((i) => cellY(g, i));
+  const n = cells.length;
+  if (n <= 2) return cells.flatMap((_, k) => [xs[k], ys[k]]);
+  const tol = Math.max(5, g.cell * 1.3);
+  const keep = new Uint8Array(n);
+  keep[0] = keep[n - 1] = 1;
+  const stack: [number, number][] = [[0, n - 1]];
+  while (stack.length) {
+    const [i, j] = stack.pop()!;
+    if (j - i < 2) continue;
+    const ax = xs[i], ay = ys[i], dx = xs[j] - ax, dy = ys[j] - ay;
+    const L = Math.hypot(dx, dy) || 1;
+    let far = -1, fd = -1;
+    for (let k = i + 1; k < j; k++) {
+      const d = Math.abs((xs[k] - ax) * dy - (ys[k] - ay) * dx) / L;
+      if (d > fd) { fd = d; far = k; }
     }
-    out.push(cellX(g, cells[best]), cellY(g, cells[best]));
-    i = best;
+    if (fd > tol || !clear(g, cost, ax, ay, xs[j], ys[j], 249)) {
+      keep[far] = 1;
+      stack.push([i, far], [far, j]);
+    }
   }
+  const out: number[] = [];
+  for (let k = 0; k < n; k++) if (keep[k]) out.push(xs[k], ys[k]);
   return out;
+}
+
+/** Corner radius of the drawn route, in map px. */
+const BEND = 30;
+
+/**
+ * Rounds every corner of a line with a curve of up to `radius` px (never more
+ * than half of either side, so two curves never overlap). The ends stay put.
+ */
+export function roundCorners(p: number[], radius = BEND): number[] {
+  const n = p.length / 2;
+  if (n < 3) return p.slice();
+  const out = [p[0], p[1]];
+  for (let k = 1; k < n - 1; k++) {
+    const ax = p[2 * k - 2], ay = p[2 * k - 1], bx = p[2 * k], by = p[2 * k + 1], cx = p[2 * k + 2], cy = p[2 * k + 3];
+    const l1 = Math.hypot(ax - bx, ay - by), l2 = Math.hypot(cx - bx, cy - by);
+    if (l1 < 0.5 || l2 < 0.5) { out.push(bx, by); continue; }
+    const u1x = (ax - bx) / l1, u1y = (ay - by) / l1, u2x = (cx - bx) / l2, u2y = (cy - by) / l2;
+    // Nearly straight on: nothing to round.
+    if (u1x * u2x + u1y * u2y < -0.998) { out.push(bx, by); continue; }
+    const r = Math.min(radius, l1 / 2, l2 / 2);
+    const sx = bx + u1x * r, sy = by + u1y * r, ex = bx + u2x * r, ey = by + u2y * r;
+    const N = 8;
+    for (let s = 0; s <= N; s++) {
+      const t = s / N, m = 1 - t;
+      out.push(m * m * sx + 2 * m * t * bx + t * t * ex, m * m * sy + 2 * m * t * by + t * t * ey);
+    }
+  }
+  out.push(p[2 * n - 2], p[2 * n - 1]);
+  return dedupe(out);
 }
 
 function polyLength(p: number[]): number {
@@ -442,6 +549,9 @@ interface End {
 
 /** The cells of a place, opened up so a route can reach it even inside a row of spaces. */
 function placeCells(g: Grid, e: End, cost: Uint8Array): number[] {
+  // A parking space is walked into from the lane it opens onto.
+  const ap = e.obj ? approachOf(g, e.obj) : null;
+  if (ap) return [...ap.keys()];
   const cells: number[] = [];
   if (e.obj) {
     const def = e.obj.kind === 'asset' ? ASSET_BY_KEY[e.obj.assetKey] : undefined;
@@ -460,6 +570,56 @@ function placeCells(g: Grid, e: End, cost: Uint8Array): number[] {
   }
   for (const i of cells) if (cost[i] === 0 || cost[i] > COST.walk) cost[i] = COST.walk;
   return cells;
+}
+
+/**
+ * How a parking space is reached: from a point in the middle of the lane in
+ * front of it, straight along the stall into it, like the car would. Keyed by
+ * the square of that lane point; the value is the rest of the way in
+ * ([edge x, edge y, center x, center y]). Null when nothing open is in front
+ * of either end (then the space is reached any way that works).
+ */
+type Approach = Map<number, number[]>;
+const approaches = new WeakMap<Grid, WeakMap<MapObject, Approach | null>>();
+
+function approachOf(g: Grid, o: MapObject): Approach | null {
+  if (o.kind !== 'space') return null;
+  let byObj = approaches.get(g);
+  if (!byObj) approaches.set(g, (byObj = new WeakMap()));
+  if (byObj.has(o)) return byObj.get(o)!;
+  const variant = o.variant ?? (o.accessible ? 'accessible' : 'standard');
+  const ring = spaceOutline(variant, o.width, o.height, variant === 'angled' ? spaceSkew(o) : 0);
+  const mid = (e: number) => toWorld(o, (ring[2 * e] + ring[(2 * e + 2) % 8]) / 2, (ring[2 * e + 1] + ring[(2 * e + 3) % 8]) / 2);
+  // Edges 0..3: top, right, bottom, left. Cars come in at the ends of a stall, or the long side of a parallel one.
+  const pairs: [number, number][] = variant === 'parallel' ? [[1, 3], [3, 1]] : [[0, 2], [2, 0]];
+  const inside = (x: number, y: number) => {
+    const [lx, ly] = toLocal(o, x, y);
+    return lx > -0.5 && ly > -0.5 && lx < o.width + 0.5 && ly < o.height + 0.5;
+  };
+  const out: Approach = new Map();
+  for (const [e, opp] of pairs) {
+    const [mx, my] = mid(e);
+    const [ox, oy] = mid(opp);
+    const L = Math.hypot(mx - ox, my - oy) || 1;
+    const ux = (mx - ox) / L, uy = (my - oy) / L;
+    const step = g.cell / 2;
+    // The cheapest point out in front: the lane's center line, or the middle of the open space.
+    let best = -1, bestScore = Infinity, bx = 0, by = 0, started = false;
+    for (let d = step; d < 170; d += step) {
+      const x = mx + ux * d, y = my + uy * d;
+      const i = cellAt(g, x, y);
+      if (i < 0) break;
+      if (!started && inside(x, y)) continue;
+      if (g.cost[i] === 0) break;
+      started = true;
+      const score = g.cost[i] + d * 0.02 - Math.min(g.room[i], 60) * 0.01;
+      if (score < bestScore - 1e-6) { bestScore = score; best = i; bx = x; by = y; }
+    }
+    if (best >= 0 && !out.has(best)) out.set(best, [bx, by, mx, my, o.x, o.y]);
+  }
+  const res = out.size ? out : null;
+  byObj.set(o, res);
+  return res;
 }
 
 function nearestOpen(g: Grid, cost: Uint8Array, from: number): number {
@@ -670,7 +830,7 @@ function walk(from: End, to: End, squeeze: boolean): LegResult | null {
   // Small places start from their middle, so the line starts on them.
   const mid = cellAt(g, from.x, from.y);
   const start = from.obj && !isBig(from.obj) && src.includes(mid) ? [mid] : src;
-  const box = to.obj ? objectBox(to.obj) : { x: to.x, y: to.y, width: 0, height: 0 };
+  const box = to.obj ? (approachBox(g, to.obj) ?? objectBox(to.obj)) : { x: to.x, y: to.y, width: 0, height: 0 };
   const r = search(g, cost, start, [dst], box);
   if (r.reached[0] < 0) return null;
   return finish(g, cost, r, r.reached[0], from, to, false);
@@ -680,11 +840,38 @@ function walk(from: End, to: End, squeeze: boolean): LegResult | null {
 function finish(g: Grid, cost: Uint8Array, r: SearchResult, end: number, from: End, to: End, reversed: boolean): LegResult {
   let cells = trace(r.prev, end);
   if (reversed) cells = cells.reverse();
-  const pts = smooth(g, cost, cells);
+  const pts = simplify(g, cost, cells);
   // Start and finish on the places themselves; buildings and big areas at their edge.
-  const head = from.obj && isBig(from.obj) ? [] : [from.x, from.y];
-  const tail = to.obj && isBig(to.obj) ? [] : [to.x, to.y];
-  return { points: dedupe([...head, ...pts, ...tail]), cost: r.dist[end] };
+  let head = from.obj && isBig(from.obj) ? [] : [from.x, from.y];
+  let tail = to.obj && isBig(to.obj) ? [] : [to.x, to.y];
+  // Parking spaces: from the middle of the lane, straight along the stall.
+  const inA = from.obj ? approachOf(g, from.obj)?.get(cells[0]) : undefined;
+  if (inA) {
+    pts.splice(0, 2, inA[0], inA[1]);
+    head = [inA[4], inA[5], inA[2], inA[3]];
+  }
+  const inB = to.obj ? approachOf(g, to.obj)?.get(cells[cells.length - 1]) : undefined;
+  if (inB) {
+    pts.splice(pts.length - 2, 2, inB[0], inB[1]);
+    tail = inB.slice(2);
+  }
+  // The squares at either end are only roughly where the places are: no tiny hook to the exact spot.
+  const near = (x: number, y: number, i: number) => Math.hypot(pts[i] - x, pts[i + 1] - y) < g.cell * 1.5;
+  if (!inA && head.length && pts.length > 2 && near(head[head.length - 2], head[head.length - 1], 0)) pts.splice(0, 2);
+  if (!inB && tail.length && pts.length > 2 && near(tail[0], tail[1], pts.length - 2)) pts.splice(pts.length - 2, 2);
+  return { points: roundCorners(dedupe([...head, ...pts, ...tail])), cost: r.dist[end] };
+}
+
+/** The box around the lane points a space is reached from (for A*'s estimate). */
+function approachBox(g: Grid, o: MapObject): Box | null {
+  const ap = approachOf(g, o);
+  if (!ap) return null;
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  for (const [i] of ap) {
+    x1 = Math.min(x1, cellX(g, i)); y1 = Math.min(y1, cellY(g, i));
+    x2 = Math.max(x2, cellX(g, i)); y2 = Math.max(y2, cellY(g, i));
+  }
+  return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
 }
 
 /** Buildings and big areas are reached at their edge, not walked into. */
