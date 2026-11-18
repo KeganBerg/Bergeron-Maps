@@ -47,11 +47,11 @@ export function RouteOverlay({ route, floorId, scale }: { route: Route; floorId:
   );
 }
 
-/** "Take Elevator 1 up to Floor 3" -> "Up to Floor 3"; "Go inside Main building" stays. */
-function tagText(t: string): string {
+/** "Take Elevator 1 up to Floor 3" -> "Up to Floor 3"; "Take Up ramp to F3" -> "Up ramp to F3"; "Go inside Main building" stays. */
+export function tagText(t: string): string {
   const m = /\b(up|down|across) to (.+)$/.exec(t);
   if (m) return `${m[1][0].toUpperCase()}${m[1].slice(1)} to ${m[2]}`;
-  return t;
+  return t.replace(/^Take /, '');
 }
 
 const DRAW_MS = 900;
