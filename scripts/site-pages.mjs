@@ -174,7 +174,7 @@ const caret = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" strok
 function header(p, current) {
   const ind = INDUSTRIES.map((i) => `<a href="${p}industries/${i.slug}/"${current === i.slug ? ' aria-current="page"' : ''}>${esc(i.name)}</a>`).join('');
   const homeLink = p ? `${p}` : '#top';
-  return `<header class="site-head relative z-30 border-b border-white/15 bg-ink text-white">
+  return `<header class="site-head sticky top-0 z-30 border-b border-white/15 bg-ink text-white">
     <div class="wrap flex h-16 items-center gap-4 sm:gap-8">
       <a href="${homeLink}" class="flex items-center gap-3" aria-label="Bergeron Maps home">
         ${MARK}
@@ -300,7 +300,7 @@ function industryPage(ind) {
   <link rel="canonical" href="${url}" />
   <script type="application/ld+json">${JSON.stringify(breadcrumbs(ind, url)).replace(/</g, '\\u003c')}</script>
   <meta name="theme-color" content="#0b0b0b" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' mailto:; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   ${HEAD_ICONS(p)}
   <link rel="stylesheet" href="${p}styles.css" />
@@ -431,7 +431,7 @@ function accessibilityPage() {
   <meta property="og:url" content="${url}" />
   <link rel="canonical" href="${url}" />
   <meta name="theme-color" content="#0b0b0b" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' mailto:; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   ${HEAD_ICONS(p)}
   <link rel="stylesheet" href="${p}styles.css" />
