@@ -1,4 +1,6 @@
 import { category } from '../defs';
+import { curveEnds, offsetLine } from '../../model/curve';
+import { curveOutline, insetLines } from '../../model/shape';
 import { along, hatched, hLine, lane, laneArrow, pavementArrow, raisedShadow, room } from '../draw';
 import { boxRect, F, FS, icon, P, r2, shade, text, type DrawCtx, type DrawFn } from '../style';
 
@@ -111,6 +113,7 @@ const word = (c: DrawCtx, t: string, size = Math.min(c.h * 0.35, 16)) => text(c.
  */
 const curve = (marks: 'road' | 'lane') => (c: DrawCtx) => {
   const t = c.band ?? Math.min(c.w, c.h) * 0.5;
+  if (c.curve) return reshapedCurve(c, c.curve, t, marks);
   const ox = 0, oy = c.h;
   const arc = (rx: number, ry: number) => `M${ox} ${r2(oy - ry)} A${r2(rx)} ${r2(ry)} 0 0 1 ${r2(ox + rx)} ${oy}`;
   const shape = `M${ox} 0 A${c.w} ${c.h} 0 0 1 ${c.w} ${oy} L${r2(c.w - t)} ${oy} A${r2(c.w - t)} ${r2(c.h - t)} 0 0 0 ${ox} ${r2(t)} Z`;
@@ -121,6 +124,19 @@ const curve = (marks: 'road' | 'lane') => (c: DrawCtx) => {
   if (c.marksOnly) return lines;
   return `<path d="${shape}" ${FS(c)}/><path d="${arc(c.w - 3.5, c.h - 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/><path d="${arc(c.w - t + 3.5, c.h - t + 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/>${lines}`;
 };
+
+const poly = (r: number[]) => `M${r.map((v, i) => r2(v) + (i % 2 ? ' ' : ',')).join('').replace(/ (?=\S)/g, ' L')}`;
+
+/** A curved road or lane reshaped with its handles: a band around its centre line, edge lines just inside it. */
+function reshapedCurve(c: DrawCtx, p: number[], t: number, marks: 'road' | 'lane'): string {
+  const lines = marks === 'road'
+    ? `<path d="${poly(offsetLine(p, 2))}" fill="none" stroke="${P.paintYellow}" stroke-width="1.6"/><path d="${poly(offsetLine(p, -2))}" fill="none" stroke="${P.paintYellow}" stroke-width="1.6"/>`
+    : '';
+  if (c.marksOnly) return lines;
+  const band = curveOutline(p, t);
+  const edges = insetLines(band, curveEnds(p, t), 3.5).map((l) => `<path d="${poly(l)}" fill="none" stroke="${P.paint}" stroke-width="2" stroke-linejoin="round"/>`).join('');
+  return `<path d="${band.map((r) => `${poly(r)} Z`).join(' ')}" ${FS(c)}/>${edges}${lines}`;
+}
 
 const ramp = (dir: 'up' | 'down' | 'none') => (c: DrawCtx) => {
   // Chevrons leave room around the UP / DOWN tag instead of running under it.

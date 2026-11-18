@@ -113,6 +113,12 @@ export interface AssetObject extends BaseObject {
   labelLayout?: LabelLayout;
   /** Thickness of curved bands and L-shaped corner pieces. */
   band?: number;
+  /**
+   * Curved roads and lanes reshaped with their handles: the centre line as a
+   * cubic Bézier [x0, y0, c1x, c1y, c2x, c2y, x3, y3] (start, two bend
+   * handles, end) in fractions of width and height. Missing = a quarter ring.
+   */
+  curve?: number[];
   /** Landscape pieces merge with neighbours automatically; false keeps this one separate. */
   merge?: boolean;
   /** How close (map px) neighbours must be to flow together into one shape. */

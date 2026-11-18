@@ -21,6 +21,7 @@ import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
 import { VALET, VEHICLES } from './catalog/valet-vehicles';
 import { ASSET_CATEGORIES, type AssetCategory, type AssetDef } from './defs';
 import { svgDataUrl, svgDoc, type DrawCtx } from './style';
+import { curvePx } from '../model/curve';
 
 export { ASSET_CATEGORIES, svgDataUrl };
 export type { AssetCategory, AssetDef };
@@ -103,6 +104,7 @@ export interface PaintSource {
   labelHidden?: boolean;
   labelLayout?: LabelLayout;
   band?: number;
+  curve?: number[];
   marksOnly?: boolean;
   rotation?: number;
 }
@@ -128,10 +130,11 @@ export function renderAssetSvg(def: AssetDef, o: PaintSource): string {
   if (!def.draw) return svgDoc(o.width, o.height, '');
   const p = resolvePaint(def, o);
   const symbol = o.symbolHidden ? null : o.symbol && isSafePath(o.symbol.path) ? o.symbol : undefined;
-  const band = def.outline === 'arc' || def.outline === 'L' ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band }) : undefined;
+  const band = def.outline === 'arc' || def.outline === 'L' ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band, curve: def.outline === 'arc' ? o.curve : undefined }) : undefined;
   const lay = cleanLabelLayout(o.labelLayout);
   const ctx: DrawCtx = {
-    w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band, marksOnly: o.marksOnly, upsideDown: isUpsideDown(o.rotation),
+    w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band,
+    curve: def.outline === 'arc' && band !== undefined && o.curve ? curvePx(o, band) : undefined, marksOnly: o.marksOnly, upsideDown: isUpsideDown(o.rotation),
     badgeAt: lay?.symbol, badgeScale: lay?.symbolScale, nameHidden: !!o.labelHidden,
   };
   return svgDoc(o.width, o.height, def.draw(ctx));
@@ -193,7 +196,7 @@ export function isShapeable(def: AssetDef): boolean {
 
 /** The outline settings for an object: the asset's piece shape plus the object's own curvature and cuts. */
 export function shapeSourceFor(def: AssetDef | undefined, o: AssetObject): ShapeSource {
-  return { width: o.width, height: o.height, outline: def?.outline, corner: o.corner, bevel: o.bevel, band: o.band ?? def?.band, cuts: o.cuts };
+  return { width: o.width, height: o.height, outline: def?.outline, corner: o.corner, bevel: o.bevel, band: o.band ?? def?.band, cuts: o.cuts, curve: def?.outline === 'arc' ? o.curve : undefined };
 }
 
 /** How close (map px) pieces of this asset must be to flow together, unless the object sets its own. */

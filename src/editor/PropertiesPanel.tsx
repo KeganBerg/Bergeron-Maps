@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, shapeSourceFor, symbolSupport } from '../assets/library';
 import { bandWidth, maxCorner } from '../model/shape';
+import { bandOf, canBend } from './CurveHandles';
+import { curvePx, reshapedFields } from '../model/curve';
 import { SymbolIcon, SymbolPicker } from './SymbolPicker';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { rowSpaces } from '../model/rows';
@@ -386,14 +388,32 @@ function ShapeFields({ objs }: { objs: MapObject[] }) {
         <button className={`btn small${!first.bevel ? ' on' : ''}`} aria-pressed={!first.bevel} onClick={() => st().updateObjects(ids, { bevel: undefined })}>Rounded</button>
         <button className={`btn small${first.bevel ? ' on' : ''}`} aria-pressed={!!first.bevel} onClick={() => st().updateObjects(ids, { bevel: true })} data-testid="shape-bevel">Beveled</button>
       </div>
-      {asset && banded && targets.length === 1 && (
-        <div className="slider-field">
-          <span>Width</span>
-          <input type="range" min={4} max={Math.floor(Math.min(asset.width, asset.height) - 2)} value={Math.round(bandWidth(src(asset)))} aria-label="Band width"
-            onChange={(e) => st().updateObjects(ids, { band: Number(e.target.value) } as Partial<MapObject>)} />
-          <CommitInput type="number" className="num" value={Math.round(bandWidth(src(asset)))} aria-label="Band width in pixels"
-            onCommit={(v) => st().updateObjects(ids, { band: toNumber(v, bandWidth(src(asset)), 4, Math.min(asset.width, asset.height) - 2) } as Partial<MapObject>)} />
-        </div>
+      {asset && banded && targets.length === 1 && (() => {
+        const band = Math.round(bandWidth(src(asset)));
+        const maxBand = asset.curve ? 400 : Math.floor(Math.min(asset.width, asset.height) - 2);
+        // A bent curve keeps its centre line and its box grows or shrinks round the new width.
+        const setBand = (v: number) => st().updateObjects(ids, (asset.curve
+          ? { band: v, ...reshapedFields(asset, curvePx(asset, bandOf(asset)), v) }
+          : { band: v }) as Partial<MapObject>);
+        return (
+          <div className="slider-field">
+            <span>Width</span>
+            <input type="range" min={4} max={maxBand} value={band} aria-label="Band width"
+              onChange={(e) => setBand(Number(e.target.value))} />
+            <CommitInput type="number" className="num" value={band} aria-label="Band width in pixels"
+              onCommit={(v) => setBand(toNumber(v, band, 4, maxBand))} />
+          </div>
+        );
+      })()}
+      {asset && targets.length === 1 && canBend(asset) && (
+        <p className="hint" data-testid="curve-hint">
+          Drag the square handles on the map to move the ends of the curve, and the round handles to bend it to match the photo underneath.{' '}
+          {asset.curve && (
+            <button className="link" onClick={() => st().updateObjects(ids, { curve: undefined } as Partial<MapObject>)} data-testid="curve-reset">
+              Reset to a quarter circle
+            </button>
+          )}
+        </p>
       )}
       {mergeable && asset && (
         <>

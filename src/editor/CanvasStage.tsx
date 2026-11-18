@@ -16,6 +16,8 @@ import { fitViewport, floorBounds } from '../render/viewport';
 import { hasInterior } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
 import { MAP_PALETTE } from '../theme';
+import { bandOf, canBend, CurveHandles } from './CurveHandles';
+import { curvePx, reshapedFields } from '../model/curve';
 import { currentFloor, selectionBox, useEditor } from './store';
 import { CanvasMenu } from './CanvasMenu';
 import { InlineLabelEditor } from './InlineLabelEditor';
@@ -317,6 +319,8 @@ export function CanvasStage() {
     // arrow keys went to it (Space even opened the menu) instead of the map.
     const focused = document.activeElement as HTMLElement | null;
     if (focused && focused !== document.body && focused.closest('input, select, textarea, button')) focused.blur();
+    // The handles that bend a curved road do their own dragging.
+    if (e.target.hasName('curve-handle')) return;
     let target: Konva.Node = e.target;
     presses.current = [...presses.current.slice(-1), { id: objFromTarget(e.target), moved: false }];
     const tr = e.target.findAncestor('Transformer') as Konva.Transformer | null;
@@ -651,6 +655,12 @@ export function CanvasStage() {
         ...(o.kind === 'space' && o.skew !== undefined ? { skew: Math.round(o.skew * sx * 100) / 100 } : {}),
       });
       n.scale({ x: 1, y: 1 });
+      // A bent curve stretches with its box, then the box is fitted round its band again.
+      const u = updates.get(o.id)!;
+      if (o.kind === 'asset' && o.curve && canBend(o)) {
+        const next = { ...o, ...u };
+        updates.set(o.id, { ...u, ...reshapedFields(next, curvePx(next, bandOf(next)), bandOf(next)) });
+      }
     }
     st.commit((_d, f) => {
       for (const o of f.objects) {
@@ -753,6 +763,9 @@ export function CanvasStage() {
             }
             onTransformEnd={onTransformEnd}
           />
+          {selected.length === 1 && canBend(selected[0]) && (
+            <CurveHandles o={selected[0]} scale={viewport.scale} coarse={!!COARSE} />
+          )}
           {guides.map((g, i) => (
             <Line
               key={i}
