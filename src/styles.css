@@ -28,6 +28,8 @@
   --on-floor: #fff;
   /* Keyboard focus ring: at least 3:1 against every panel and page background in the theme. */
   --focus: #2563eb;
+  /* Edges of fields people type in: at least 3:1 against the panel (WCAG 1.4.11). */
+  --field-border: #7d8a9c;
   color-scheme: light;
 }
 
@@ -59,6 +61,7 @@
   --chrome-text: #f2f0ea;
   --chrome-border: #000;
   --focus: #ffc629;
+  --field-border: #7a7d86;
   color-scheme: dark;
 }
 
@@ -86,6 +89,7 @@
   --chrome-text: #ffffff;
   --chrome-border: #0b2545;
   --focus: #1d6fd8;
+  --field-border: #8c8577;
 }
 
 * { box-sizing: border-box; }
@@ -135,7 +139,7 @@ h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 .link { background: none; border: 0; padding: 0; color: var(--primary); cursor: pointer; text-decoration: underline; }
 
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), select, textarea {
-  border: 1px solid var(--border-strong); border-radius: 6px; padding: 6px 8px; background: var(--panel); min-width: 0;
+  border: 1px solid var(--field-border); border-radius: 6px; padding: 6px 8px; background: var(--panel); min-width: 0;
 }
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible,
 [role='tab']:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
@@ -144,7 +148,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 :root[data-theme='signage'] :is(.topbar, .home-header, .viewer-header) :is(.account-menu, .menu) :focus-visible { outline-color: var(--focus); }
 /* Search boxes hide their own outline; the rounded box around them shows focus instead. */
 .viewer-search:focus-within, .search:focus-within, .find-input:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
-input[type='color'] { width: 44px; height: 30px; padding: 2px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--panel); }
+input[type='color'] { width: 44px; height: 30px; padding: 2px; border: 1px solid var(--field-border); border-radius: 6px; background: var(--panel); }
 
 /* Middle dot (·) separators come from a system font; Overpass draws it with no space after. */
 @font-face { font-family: 'BM Dot'; src: local('Segoe UI'), local('Helvetica Neue'), local('Helvetica'), local('Arial'), local('Roboto'), local('DejaVu Sans'); unicode-range: U+00B7; }
@@ -259,7 +263,7 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .sidebar-body { flex: 1; overflow: auto; padding: 4px 12px 12px; min-height: 120px; }
 .spaces-tools h4 { margin-top: 10px; }
 
-.search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-strong); border-radius: 8px; padding: 0 8px; margin: 12px 0 4px; color: var(--muted); }
+.search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--field-border); border-radius: 8px; padding: 0 8px; margin: 12px 0 4px; color: var(--muted); }
 .search input { border: 0 !important; flex: 1; padding: 7px 0 !important; outline: none; }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .tile-wrap { position: relative; }
@@ -375,7 +379,7 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .viewer-header { display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px; }
 .viewer-header .titles { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .viewer-header .titles h1 { font-size: 17px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.viewer-search { position: relative; margin: 4px 12px 8px; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--border-strong); border-radius: 999px; padding: 0 14px; color: var(--muted); }
+.viewer-search { position: relative; margin: 4px 12px 8px; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--field-border); border-radius: 999px; padding: 0 14px; color: var(--muted); }
 .viewer-search input { flex: 1; border: 0 !important; padding: 11px 0 !important; font-size: 16px; outline: none; background: transparent !important; color: var(--text); }
 .results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; list-style: none; margin: 0; padding: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.15); z-index: 20; max-height: 50vh; overflow: auto; }
 .results button { width: 100%; display: flex; justify-content: space-between; gap: 12px; padding: 12px; border: 0; background: none; border-radius: 8px; cursor: pointer; font-size: 15px; color: var(--text); }
@@ -455,7 +459,7 @@ h1, h2, .brand h1, .map-name, .props-header strong, .floor-tab, .viewer-header .
 :root[data-theme='night'] h4 { color: #8d8f96; font-family: var(--font-display); font-size: 14px; letter-spacing: 0.06em; }
 :root[data-theme='night'] .notice { background: #0d0d0e; border: 1px solid #333; }
 :root[data-theme='night'] .viewer, :root[data-theme='night'] .home { background: var(--bg); }
-:root[data-theme='night'] .viewer-search { border-color: #3a3c42; background: #232428; }
+:root[data-theme='night'] .viewer-search { border-color: var(--field-border); background: #232428; }
 :root[data-theme='night'] .results, :root[data-theme='night'] .info-card, :root[data-theme='night'] .fab, :root[data-theme='night'] .menu { background: #232428; color: var(--text); border-color: #34363c; }
 :root[data-theme='night'] .info-card { border-left: 6px solid var(--primary); }
 :root[data-theme='night'] .info-card strong { font-size: 26px; letter-spacing: 0.02em; }
@@ -815,3 +819,9 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
   .viewer .info-card .btn, .viewer .dir-actions .btn, .viewer .dir-banner .btn { min-height: 44px; }
 }
 .info-card:focus-visible, .dir-sheet:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* The floor as a list (viewer) */
+.floor-list .list-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.floor-list .list-group-title { font-family: var(--font); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 10px 4px 6px; }
+.floor-list .list-group:first-child .list-group-title { margin-top: 2px; }
+.viewer-header .icon-btn.on { background: rgba(127, 127, 127, 0.25); color: inherit; }

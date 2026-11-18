@@ -109,3 +109,47 @@ test('editor: floors switch from the keyboard, and dialogs keep focus inside and
   await expect(dialog).toHaveCount(0);
   await expect(addRow).toBeFocused();
 });
+
+test('viewer: the floor list shows every row and place as text, and picking one shows it on the map', async ({ page }) => {
+  const { id } = await seedGarage(page, 'List Garage');
+  await page.goto(`/#/view/${id}`);
+  const toggle = page.getByTestId('list-toggle');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  const list = page.getByTestId('floor-list');
+  await expect(list).toBeFocused();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(list.getByRole('heading', { name: 'Places' })).toBeVisible();
+  await expect(list.getByRole('heading', { name: /^Row: spaces / })).toHaveCount(4);
+  const first = list.getByRole('heading', { name: /^Row: spaces / }).first();
+  await expect(first).toBeVisible();
+  const item = list.getByTestId('list-item').filter({ hasText: /^Space / }).first();
+  const name = (await item.locator('span').first().innerText()).trim();
+  await item.focus();
+  await page.keyboard.press('Enter');
+  await expect(list).toHaveCount(0);
+  await expect(page.getByTestId('info-card')).toContainText(name);
+  await expect(page.getByTestId('info-card')).toBeFocused();
+  // Escape closes the list and puts focus back on its button.
+  await toggle.click();
+  await expect(page.getByTestId('floor-list')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('floor-list')).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+});
+
+test('editor: the Layers list can be walked and used to select from the keyboard', async ({ page }) => {
+  const { id } = await seedGarage(page, 'Layers Garage');
+  await page.goto(`/#/edit/${id}`);
+  await page.getByTestId('tab-layers').click();
+  const expand = page.getByRole('button', { name: 'Expand layer' }).last();
+  await expand.focus();
+  await page.keyboard.press('Enter');
+  const rows = page.locator('.obj-row');
+  await expect(rows.first()).toBeVisible();
+  await rows.first().focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(rows.nth(1)).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(rows.nth(1)).toHaveAttribute('aria-selected', 'true');
+});
