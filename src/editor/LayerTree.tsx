@@ -124,7 +124,8 @@ export function ObjectList(props: ListProps) {
     <div
       className="obj-list"
       ref={ref}
-      role="group"
+      role="tree"
+      aria-label="Objects on this layer"
       style={{ height }}
       onScroll={(e) => setTop(e.currentTarget.scrollTop)}
       data-testid={testId}
@@ -251,6 +252,22 @@ function ObjectRow(props: ListProps & { item: TreeItem; index: number; style: CS
       aria-selected={isSel}
       aria-expanded={it.kind === 'row' ? props.openRows.has(it.rowId) : undefined}
       draggable={!renaming}
+      // Keyboard: Tab reaches the list, up and down arrows move through it, Enter or Space selects.
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || renaming) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick(e as unknown as MouseEvent);
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          e.stopPropagation();
+          const next = (e.key === 'ArrowDown' ? e.currentTarget.nextElementSibling : e.currentTarget.previousElementSibling) as HTMLElement | null;
+          next?.focus();
+          next?.scrollIntoView({ block: 'nearest' });
+        }
+      }}
       onClick={onClick}
       onDragStart={onDragStart}
       onDragOver={onDragOver}

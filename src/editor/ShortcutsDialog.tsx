@@ -30,6 +30,17 @@ const SECTIONS: { title: string; rows: [string, string][] }[] = [
     ],
   },
   {
+    title: 'Without a mouse',
+    rows: [
+      ['Add an object at the middle of the screen', 'Tab to it in the Add list, then Enter'],
+      ['Add a row of spaces', 'Add row by number, then type the count and size'],
+      ['Pick an object', `${modLabel}F and type its number or name, or use the Layers list`],
+      ['Move through the Layers list', 'Tab into it, then up and down arrows, Enter to select'],
+      ['Size, turn and rename', 'The fields on the right, once something is selected'],
+      ['Switch floors', 'Tab to the floor tabs at the bottom, then Enter'],
+    ],
+  },
+  {
     title: 'View',
     rows: [
       ['Zoom in, zoom out', `${modLabel}plus, ${modLabel}minus, or scroll / pinch`],

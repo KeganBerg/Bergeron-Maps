@@ -3,6 +3,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { Group, Layer, Rect, Stage } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
 import { searchMap, type SearchHit } from '../model/search';
+import { floorListing } from '../model/listing';
 import { buildingName, buildingOf, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
 import type { Floor, MapDocument, MapObject } from '../model/types';
@@ -88,13 +89,17 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [shared, setShared] = useState(false);
   // Where keyboard focus goes after the next render: the panel that just replaced the
   // button that was pressed (a result, a start place), so focus never drops to the page.
-  const moveFocus = useRef<'card' | 'sheet' | 'directions' | null>(null);
+  const moveFocus = useRef<'card' | 'sheet' | 'directions' | 'list' | 'list-button' | null>(null);
+  /** The floor as a text list (for screen readers, or anyone who'd rather read than look). */
+  const [listOpen, setListOpen] = useState(false);
   useLayoutEffect(() => {
     const want = moveFocus.current;
     if (!want) return;
     const box = boxRef.current;
     const el = want === 'card' ? box?.querySelector<HTMLElement>('.info-card')
       : want === 'sheet' ? box?.querySelector<HTMLElement>('.dir-banner button, .dir-sheet')
+      : want === 'list' ? box?.querySelector<HTMLElement>('.floor-list')
+      : want === 'list-button' ? document.querySelector<HTMLElement>('[data-testid="list-toggle"]')
       : box?.querySelector<HTMLElement>('[data-testid="directions"]');
     if (!el) return;
     moveFocus.current = null;
@@ -238,6 +243,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
   const goTo = (h: SearchHit) => {
     setShowResults(false);
+    setListOpen(false);
     moveFocus.current = 'card';
     setFocus({ id: h.object.id, floorId: h.floorId });
     setTapped(h.object);
@@ -362,6 +368,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       : dir.stage === 'busy' ? 'Finding the way…'
       : dir.stage === 'none' ? (dir.reason === 'same' ? 'You’re already there.' : `No way found to ${dir.goal.name} from ${dir.start.name}.`)
       : `Directions to ${dir.goal.name}: ${feet(dir.route.length)} feet, about ${minutes(dir.route)} minutes, ${dir.route.steps.length} steps.`
+    : listOpen ? `List of spaces and places on ${floorTitle(doc, floor)}.`
     : info ? [info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(', ')
     : showResults && query.trim() ? (hits.length ? `${hits.length} ${hits.length === 1 ? 'result' : 'results'}` : 'No matches')
     : '';
@@ -492,6 +499,11 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             {floorTitle(doc, floor)} · {preview ? 'Draft' : 'Updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
           </span>
         </div>
+        <button className={`icon-btn${listOpen ? ' on' : ''}`} aria-label="List of spaces and places" title="List of spaces and places on this floor"
+          aria-expanded={listOpen} data-testid="list-toggle"
+          onClick={() => { moveFocus.current = listOpen ? null : 'list'; setListOpen(!listOpen); if (!listOpen) { setDir(null); setTapped(null); setFocus(null); } }}>
+          <Icon name="rows" />
+        </button>
         <button className="icon-btn" aria-label="Refresh map" title="Get the latest version" onClick={load}><Icon name="restore" /></button>
       </header>
 
@@ -572,6 +584,14 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
                   strokeWidth={3 / view.scale}
                   name="search-match"
                 />
+                <Rect
+                  x={-m.width / 2 - 4 / view.scale}
+                  y={-m.height / 2 - 4 / view.scale}
+                  width={m.width + 8 / view.scale}
+                  height={m.height + 8 / view.scale}
+                  stroke={MAP_PALETTE.ringEdge}
+                  strokeWidth={1.5 / view.scale}
+                />
               </Group>
             ))}
             {focused && (
@@ -586,6 +606,15 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
                   cornerRadius={4 / view.scale}
                   name="focus-ring"
                 />
+                <Rect
+                  x={-focused.width / 2 - 8.5 / view.scale}
+                  y={-focused.height / 2 - 8.5 / view.scale}
+                  width={focused.width + 17 / view.scale}
+                  height={focused.height + 17 / view.scale}
+                  stroke={MAP_PALETTE.ringEdge}
+                  strokeWidth={1.5 / view.scale}
+                  cornerRadius={6 / view.scale}
+                />
               </Group>
             )}
             {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
@@ -596,7 +625,12 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         <button className="fab" onClick={resetView} aria-label="Show whole floor" title="Show whole floor" data-testid="reset-view">
           <Icon name="fit" />
         </button>
-        {info && !dir && (
+        {listOpen && !dir && (
+          <FloorList doc={doc} floor={floor}
+            onPick={(o, title) => goTo({ floorId: floor.id, floorName: floorTitle(doc, floor), object: o, title, exact: true })}
+            onClose={() => { moveFocus.current = 'list-button'; setListOpen(false); }} />
+        )}
+        {info && !dir && !listOpen && (
           <section className="info-card" aria-label={info.title} tabIndex={-1} data-testid="info-card">
             <div>
               <strong>{info.title}</strong>
@@ -695,6 +729,41 @@ function boxOf(p: number[]): Box {
     y1 = Math.min(y1, p[i + 1]); y2 = Math.max(y2, p[i + 1]);
   }
   return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
+}
+
+/** The floor on screen as a list: places first, then every row of spaces. Picking one shows it on the map. */
+function FloorList({ doc, floor, onPick, onClose }: { doc: MapDocument; floor: Floor; onPick: (o: MapObject, title: string) => void; onClose: () => void }) {
+  const groups = useMemo(() => floorListing(doc, floor), [doc, floor]);
+  const count = groups.reduce((n, g) => n + g.items.length, 0);
+  return (
+    <div className="dir-sheet floor-list" role="region" aria-label={`Spaces and places on ${floorTitle(doc, floor)}`} tabIndex={-1} data-testid="floor-list"
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="dir-head">
+        <div>
+          <strong>{floorTitle(doc, floor)}</strong>
+          <span className="muted">{count ? `${count} ${count === 1 ? 'item' : 'items'}. Pick one to see it on the map.` : 'Nothing on this floor is named yet.'}</span>
+        </div>
+        <button className="icon-btn" aria-label="Close list" onClick={onClose} data-testid="list-close"><Icon name="close" /></button>
+      </div>
+      <div className="dir-list">
+        {groups.map((g) => (
+          <section key={g.title} className="list-group">
+            <h2 className="list-group-title">{g.title}</h2>
+            <ul>
+              {g.items.map((i) => (
+                <li key={i.object.id}>
+                  <button className="dir-option" onClick={() => onPick(i.object, i.title)} data-testid="list-item">
+                    <span>{i.title}</span>
+                    {i.detail && <span className="muted">{i.detail}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const STEP_ICON: Record<string, string> = { walk: 'directions', elevator: 'up', stairs: 'up', escalator: 'up', ramp: 'up', walkway: 'forward', inside: 'enter', outside: 'back' };

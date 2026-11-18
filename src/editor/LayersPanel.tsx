@@ -85,6 +85,7 @@ export function LayersPanel() {
         <select
           value={active}
           onChange={(e) => st().setActiveLayer(e.target.value)}
+          aria-label="New objects go to"
           data-testid="active-layer"
           title="Automatic puts spaces, landmarks and labels on their matching layers"
         >
