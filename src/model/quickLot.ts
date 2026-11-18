@@ -98,9 +98,12 @@ function buildLevel(floor: Floor, index: number, spec: QuickLotSpec): void {
   }
   if (spec.floors > 1) {
     const ramp = ASSET_BY_KEY.ramp;
-    floor.objects.push(asset(floor, 'ramp', rowLength + ramp.width / 2 + 20, firstLaneY, `Ramp ${index + 1}`));
-    floor.objects.push(asset(floor, 'stairs', left - LANE / 2 - 40, firstLaneY - 30, 'Stairway 1'));
-    floor.objects.push(asset(floor, 'elevator', left - LANE / 2 - 40, firstLaneY + 30, 'Elevator 1'));
+    // The ramp carries on from the end of the first drive lane at the lane's full width, with no gap.
+    floor.objects.push(asset(floor, 'ramp', rowLength + ramp.width / 2, firstLaneY, `Ramp ${index + 1}`, { height: LANE }));
+    // Stairs above the lane's centre and the elevator below it, side by side with a small gap (they used to overlap).
+    const stairs = ASSET_BY_KEY.stairs, lift = ASSET_BY_KEY.elevator;
+    floor.objects.push(asset(floor, 'stairs', left - LANE / 2 - 40, firstLaneY - stairs.height / 2 - 5, 'Stairway 1'));
+    floor.objects.push(asset(floor, 'elevator', left - LANE / 2 - 40, firstLaneY + lift.height / 2 + 5, 'Elevator 1'));
   }
 }
 

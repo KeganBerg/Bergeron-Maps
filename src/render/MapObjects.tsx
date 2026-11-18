@@ -4,7 +4,7 @@ import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
-import { bandWidth, filletInside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
+import { bandWidth, filletInside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, partEnds, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
 import { jointEnds, jointShapes, roadCenterLines, roadExtensions, roadJoints, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
 import { curveEnds, curveLine, curvePx } from '../model/curve';
 import { GRASS_TEXTURE, P, svgDoc, withAlpha } from '../assets/style';
@@ -397,9 +397,11 @@ function roadPiece(o: AssetObject): RoadPiece {
   const def = ASSET_BY_KEY[o.assetKey];
   const w = o.width, h = o.height;
   const arc = def?.outline === 'arc';
-  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band, curve: o.curve }) : h;
+  // Intersections, roundabouts and turnarounds: roads join at the ends of their arms, which are `band` wide.
+  const parts = def?.outline && !arc ? partEnds(def.outline, w, h, bandWidth({ width: w, height: h, band: o.band ?? def.band })) : null;
+  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band, curve: o.curve }) : parts ? bandWidth({ width: w, height: h, band: o.band ?? def!.band }) : h;
   const bent = arc ? curvePx(o, t) : null;
-  const local = bent ? curveEnds(bent, t) : [[0, 0, 0, h], [w, 0, w, h]];
+  const local = bent ? curveEnds(bent, t) : parts ?? [[0, 0, 0, h], [w, 0, w, h]];
   const body = worldOutline(o);
   const ends = local.map(([x1, y1, x2, y2]): RoadEnd => {
     const seg = [...toWorld(o, x1, y1), ...toWorld(o, x2, y2)];
@@ -416,7 +418,7 @@ function roadPiece(o: AssetObject): RoadPiece {
     center = [];
     for (let i = 0; i < line.length; i += 2) center.push(...toWorld(o, line[i], line[i + 1]));
   }
-  return { body, ends, width: t, axis: arc ? undefined : [Math.cos(r), Math.sin(r)], center };
+  return { body, ends, width: t, axis: arc || parts ? undefined : [Math.cos(r), Math.sin(r)], center };
 }
 
 /** In-line pieces whose centre lines are this close (map px) are lined up with each other. */

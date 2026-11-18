@@ -14,7 +14,7 @@ import { SCHOOL, SCHOOL_SHARED, SCHOOLS } from './catalog/school';
 import { OFFICE, OFFICE_SHARED, OFFICES } from './catalog/office';
 import { SPACES } from './catalog/spaces';
 import { isSafePath, type MapSymbol } from './symbols';
-import { bandWidth, DEFAULT_BLEND, localOutline, type ShapeSource } from '../model/shape';
+import { bandWidth, DEFAULT_BLEND, isBanded, localOutline, type ShapeSource } from '../model/shape';
 import type { AssetObject, LabelLayout } from '../model/types';
 import { cleanLabelLayout } from '../model/labelLayout';
 import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
@@ -130,7 +130,7 @@ export function renderAssetSvg(def: AssetDef, o: PaintSource): string {
   if (!def.draw) return svgDoc(o.width, o.height, '');
   const p = resolvePaint(def, o);
   const symbol = o.symbolHidden ? null : o.symbol && isSafePath(o.symbol.path) ? o.symbol : undefined;
-  const band = def.outline === 'arc' || def.outline === 'L' ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band, curve: def.outline === 'arc' ? o.curve : undefined }) : undefined;
+  const band = isBanded(def.outline) ? bandWidth({ width: o.width, height: o.height, band: o.band ?? def.band, curve: def.outline === 'arc' ? o.curve : undefined }) : undefined;
   const lay = cleanLabelLayout(o.labelLayout);
   const ctx: DrawCtx = {
     w: o.width, h: o.height, ...p, label: o.label ?? def.label ?? '', symbol, band,

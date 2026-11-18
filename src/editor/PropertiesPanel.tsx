@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, shapeSourceFor, symbolSupport } from '../assets/library';
-import { bandWidth, maxCorner } from '../model/shape';
+import { bandWidth, isBanded, maxCorner } from '../model/shape';
 import { bandOf, canBend } from './CurveHandles';
 import { curvePx, reshapedFields } from '../model/curve';
 import { SymbolIcon, SymbolPicker } from './SymbolPicker';
@@ -371,7 +371,7 @@ function ShapeFields({ objs }: { objs: MapObject[] }) {
   const setCorner = (v: number) => st().updateObjects(ids, { corner: v > 0 ? Math.round(Math.min(max, Math.max(0, v))) : undefined });
   const asset = first.kind === 'asset' ? first : null;
   const def = asset ? ASSET_BY_KEY[asset.assetKey] : undefined;
-  const banded = def?.outline === 'arc' || def?.outline === 'L';
+  const banded = isBanded(def?.outline);
   const mergeable = targets.every((o) => o.kind === 'asset' && !!ASSET_BY_KEY[o.assetKey] && !!mergeKey(ASSET_BY_KEY[o.assetKey]));
   const cutCount = targets.reduce((n, o) => n + (o.cuts?.length ?? 0), 0);
   return (

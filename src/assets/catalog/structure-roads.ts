@@ -1,6 +1,7 @@
 import { category } from '../defs';
 import { curveEnds, offsetLine } from '../../model/curve';
-import { curveOutline, insetLines } from '../../model/shape';
+import { curveOutline, insetLines, localOutline, partEnds, type OutlineKind, type Ring } from '../../model/shape';
+import { STOP_TRIM } from '../../model/roads';
 import { along, hatched, hLine, lane, laneArrow, pavementArrow, raisedShadow, room } from '../draw';
 import { boxRect, F, FS, icon, P, r2, shade, text, type DrawCtx, type DrawFn } from '../style';
 
@@ -15,11 +16,11 @@ export const STRUCTURE = [
     draw: (c) => `${boxRect(c)}<path d="${Array.from({ length: Math.ceil(c.w / 8) }, (_, i) => `M${i * 8} ${c.h}l${c.h} ${-c.h}`).join('')}" stroke="${P.wall}" stroke-width="1" clip-path="inset(0)"/>`,
   }),
   s('column', 'Support column', {
-    width: 24, height: 24, layer: 'structure', namePrefix: 'Column', fill: '#9a9fa6', stroke: P.ink, strokeWidth: 1.5, keywords: ['column', 'post', 'pier', 'structural'],
+    width: 24, height: 24, layer: 'landmarks', namePrefix: 'Column', fill: '#9a9fa6', stroke: P.ink, strokeWidth: 1.5, keywords: ['column', 'post', 'pier', 'structural'],
     draw: icon(24, 24, (c) => `${raisedShadow(2, 2, 20, 20, 1, 1.2)}<rect x="2" y="2" width="20" height="20" rx="1" ${FS(c)}/><path d="M2 2 22 22M22 2 2 22" stroke="${P.ink}" stroke-opacity="0.35" stroke-width="1"/>`),
   }),
   s('pillar', 'Pillar', {
-    width: 24, height: 24, layer: 'structure', fill: '#b9b4aa', stroke: P.ink, strokeWidth: 1.5, keywords: ['round column', 'post'],
+    width: 24, height: 24, layer: 'landmarks', fill: '#b9b4aa', stroke: P.ink, strokeWidth: 1.5, keywords: ['round column', 'post'],
     draw: icon(24, 24, (c) => `<circle cx="13" cy="13.5" r="10" fill="${P.shadow}"/><circle cx="12" cy="12" r="10" ${FS(c)}/><circle cx="12" cy="12" r="6" fill="none" stroke="${P.ink}" stroke-opacity="0.25"/>`),
   }),
   s('support-beam', 'Support beam', {
@@ -39,7 +40,7 @@ export const STRUCTURE = [
     draw: icon(110, 20, (c) => `${raisedShadow(1, 2, 18, 16, 2)}<rect x="1" y="2" width="18" height="16" rx="2" fill="#f2b705" stroke="${P.ink}" stroke-width="1"/><circle cx="10" cy="10" r="3" fill="${P.ink}"/><rect x="19" y="7" width="89" height="6" rx="3" ${FS(c)}/>${[0, 1, 2, 3, 4].map((i) => `<rect x="${27 + i * 17}" y="7" width="8" height="6" fill="${P.danger}"/>`).join('')}`),
   }),
   s('bollard', 'Bollard', {
-    width: 12, height: 12, layer: 'structure', fill: P.safety, stroke: P.ink, strokeWidth: 1.2, keywords: ['post', 'protection', 'pole'],
+    width: 12, height: 12, layer: 'landmarks', fill: P.safety, stroke: P.ink, strokeWidth: 1.2, keywords: ['post', 'protection', 'pole'],
     draw: icon(12, 12, (c) => `<circle cx="6.8" cy="7" r="5" fill="${P.shadow}"/><circle cx="6" cy="6" r="5" ${FS(c)}/><circle cx="6" cy="6" r="2" fill="#fff" fill-opacity="0.6"/>`),
   }),
   s('guardrail', 'Guardrail', {
@@ -51,7 +52,7 @@ export const STRUCTURE = [
     draw: (c) => `${boxRect(c, 3)}${hLine(c.h / 2, 3, c.w - 3, P.concreteEdge, 1)}${along(c, 50, (x) => `<path d="M${r2(x)} 0 V${c.h}" stroke="${P.concreteEdge}" stroke-width="1"/>`, 25)}`,
   }),
   s('parking-stop', 'Parking stop', {
-    width: 30, height: 7, layer: 'structure', fill: '#e8e3d8', stroke: P.concreteEdge, strokeWidth: 1, keywords: ['wheel stop', 'curb stop', 'parking block', 'car stop'],
+    width: 30, height: 7, layer: 'landmarks', fill: '#e8e3d8', stroke: P.concreteEdge, strokeWidth: 1, keywords: ['wheel stop', 'curb stop', 'parking block', 'car stop'],
     draw: (c) => `${boxRect(c, 2)}<rect x="${r2(c.w * 0.18)}" y="${r2(c.h * 0.25)}" width="${r2(c.w * 0.14)}" height="${r2(c.h * 0.5)}" fill="${P.safety}"/><rect x="${r2(c.w * 0.68)}" y="${r2(c.h * 0.25)}" width="${r2(c.w * 0.14)}" height="${r2(c.h * 0.5)}" fill="${P.safety}"/>`,
   }),
   s('protective-barrier', 'Protective barrier', {
@@ -125,6 +126,12 @@ const curve = (marks: 'road' | 'lane') => (c: DrawCtx) => {
   return `<path d="${shape}" ${FS(c)}/><path d="${arc(c.w - 3.5, c.h - 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/><path d="${arc(c.w - t + 3.5, c.h - t + 3.5)}" fill="none" stroke="${P.paint}" stroke-width="2"/>${lines}`;
 };
 
+/** Outline of a road piece made of parts (intersection, roundabout, turnaround) at the object's size. */
+const partOutline = (c: DrawCtx, kind: OutlineKind, band: number) => localOutline({ width: c.w, height: c.h, outline: kind, band });
+const crossEnds = (c: DrawCtx, band: number) => partEnds('cross', c.w, c.h, band)!;
+/** The white edge line every road has, 3.5 px inside its outline, left open where roads join. */
+const roadEdge = (rings: Ring[], open: number[][]) => insetLines(rings, open, 3.5).map((l) => `<path d="${poly(l)}" fill="none" stroke="${P.paint}" stroke-width="2" stroke-linejoin="round"/>`).join('');
+
 const poly = (r: number[]) => `M${r.map((v, i) => r2(v) + (i % 2 ? ' ' : ',')).join('').replace(/ (?=\S)/g, ' L')}`;
 
 /** A curved road or lane reshaped with its handles: a band around its centre line, edge lines just inside it. */
@@ -178,7 +185,7 @@ export const ROADS = [
   rd('one-way-lane', 'One-way lane', { ...DRIVE, width: 300, height: 60, keywords: ['one way', 'aisle'], draw: lane((c) => along(c, 110, (x) => laneArrow(x, c.h / 2, 34))) }),
   rd('two-way-lane', 'Two-way lane', {
     ...DRIVE, width: 300, height: 120, keywords: ['two way', 'aisle', 'street'],
-    draw: lane((c) => hLine(c.h / 2, 0, c.w, P.paint, 2, '14 10') + along(c, 140, (x) => laneArrow(x, c.h * 0.27, 34) + laneArrow(x + 40, c.h * 0.73, 34, P.paint, true))),
+    draw: lane((c) => hLine(c.h / 2, 0, c.w, P.paintYellow, 2, '14 10') + along(c, 140, (x) => laneArrow(x, c.h * 0.27, 34) + laneArrow(x + 40, c.h * 0.73, 34, P.paint, true))),
   }),
   rd('entrance-lane', 'Entrance lane', { ...DRIVE, width: 240, height: 60, keywords: ['entry', 'in', 'inbound'], draw: lane((c) => laneArrow(c.w * 0.72, c.h / 2, 40) + word(c, 'IN')) }),
   rd('exit-lane', 'Exit lane', { ...DRIVE, width: 240, height: 60, keywords: ['out', 'outbound', 'egress'], draw: lane((c) => laneArrow(c.w * 0.72, c.h / 2, 40) + word(c, 'OUT')) }),
@@ -194,32 +201,44 @@ export const ROADS = [
     draw: lane((c) => `<g transform="translate(${r2(c.w * 0.6)} ${r2(c.h / 2)}) rotate(90) scale(${r2(c.h / 52)}) translate(-12 -30)"><path d="M15.5 58V24C15.5 19 13 17 9 17H8V23L0 13 8 3V9H10C18 9 22.5 14 22.5 23V58Z" fill="${P.paint}"/></g>`),
   }),
   rd('turnaround', 'Vehicle turnaround', {
-    ...ROAD, width: 240, height: 240, keywords: ['cul de sac', 'turn around', 'bulb'], strokeWidth: 0,
+    ...DRIVE, width: 240, height: 240, keywords: ['cul de sac', 'turn around', 'bulb'], strokeWidth: 0, outline: 'bulb', band: 60,
     draw: (c) => {
       const r = Math.min(c.w, c.h) / 2;
+      const b = c.band ?? 60;
       const cx = c.w / 2, cy = c.h / 2, island = r * 0.32;
       // The lane line is a full circle on the same centre as the ring, halfway
       // between the island's edge and the inside of the outer border, so it
       // stays centred between the two lanes at any size, border or rotation.
       const lane = (island + 1 + (r - c.sw)) / 2;
-      return `<rect x="0" y="${r2(cy - 30)}" width="${r2(cx)}" height="60" ${F(c)}/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r - c.sw / 2)}" ${FS(c)}/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(island)}" fill="${P.grass}" stroke="${P.concreteEdge}" stroke-width="2"/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(lane)}" fill="none" stroke="${P.paint}" stroke-width="2" stroke-dasharray="8 6"/>`;
+      const marks = `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(island)}" fill="${P.grass}" stroke="${P.concreteEdge}" stroke-width="2"/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(lane)}" fill="none" stroke="${P.paint}" stroke-width="2" stroke-dasharray="8 6"/>`;
+      if (c.marksOnly) return marks;
+      // On its own it has the same white edge line as every road; joined to a road, the merged road paints it.
+      return `<rect x="0" y="${r2(cy - b / 2)}" width="${r2(cx)}" height="${r2(b)}" ${F(c)}/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r - c.sw / 2)}" ${FS(c)}/>${roadEdge(partOutline(c, 'bulb', b), [[0, cy - b / 2, 0, cy + b / 2]])}${marks}`;
     },
   }),
   rd('roundabout', 'Roundabout', {
-    ...ROAD, width: 260, height: 260, keywords: ['traffic circle', 'rotary', 'circle'],
+    ...DRIVE, width: 260, height: 260, keywords: ['traffic circle', 'rotary', 'circle'], outline: 'roundabout', band: 60,
     draw: (c) => {
-      const cx = c.w / 2, cy = c.h / 2, R = Math.min(c.w, c.h) / 2;
-      const arms = [0, 90, 180, 270].map((a) => `<rect x="${r2(cx - 30)}" y="0" width="60" height="${r2(cy)}" ${F(c)} transform="rotate(${a} ${r2(cx)} ${r2(cy)})"/>`).join('');
+      const cx = c.w / 2, cy = c.h / 2, R = Math.min(c.w, c.h) / 2, b = c.band ?? 60;
+      const arms = `<rect x="${r2(cx - b / 2)}" y="0" width="${r2(b)}" height="${r2(c.h)}" ${F(c)}/><rect x="0" y="${r2(cy - b / 2)}" width="${r2(c.w)}" height="${r2(b)}" ${F(c)}/>`;
       const arrows = [45, 135, 225, 315].map((a) => `<g transform="rotate(${a} ${r2(cx)} ${r2(cy)}) translate(${r2(cx)} ${r2(cy - R * 0.62)}) scale(-0.6 0.6)"><path d="M-20 -3H8V-9L20 0 8 9V3H-20Z" fill="${P.paint}"/></g>`).join('');
-      return `${arms}<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(R * 0.8)}" ${FS(c)}/><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(R * 0.36)}" fill="${P.grass}" stroke="${P.concreteEdge}" stroke-width="3"/>${arrows}`;
+      const marks = `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(R * 0.36)}" fill="${P.grass}" stroke="${P.concreteEdge}" stroke-width="3"/>${arrows}`;
+      if (c.marksOnly) return marks;
+      return `${arms}<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(R * 0.8)}" ${FS(c)}/>${roadEdge(partOutline(c, 'roundabout', b), crossEnds(c, b))}${marks}`;
     },
   }),
   rd('intersection', 'Intersection', {
-    ...ROAD, width: 300, height: 300, keywords: ['crossroads', 'junction', 'cross'],
+    ...DRIVE, width: 300, height: 300, keywords: ['crossroads', 'junction', 'cross'], outline: 'cross', band: 120,
     draw: (c) => {
-      const cx = c.w / 2, cy = c.h / 2, half = 60;
-      const arm = (a: number) => `<g transform="rotate(${a} ${r2(cx)} ${r2(cy)})"><rect x="${r2(cx - half)}" y="0" width="${half * 2}" height="${r2(cy)}" ${F(c)}/><path d="M${r2(cx - 2)} 0 V${r2(cy - half - 8)} M${r2(cx + 2)} 0 V${r2(cy - half - 8)}" stroke="${P.paintYellow}" stroke-width="1.6"/><path d="M${r2(cx - half + 2)} ${r2(cy - half - 6)} H${r2(cx)}" stroke="${P.paint}" stroke-width="4"/><path d="M${r2(cx - half + 3.5)} 0 V${r2(cy - half)} M${r2(cx + half - 3.5)} 0 V${r2(cy - half)}" stroke="${P.paint}" stroke-width="2"/></g>`;
-      return [0, 90, 180, 270].map(arm).join('') + `<rect x="${r2(cx - half)}" y="${r2(cy - half)}" width="${half * 2}" height="${half * 2}" ${F(c)}/>`;
+      const cx = c.w / 2, cy = c.h / 2, half = (c.band ?? 120) / 2;
+      // Double yellow and a stop bar on each arm (on the side traffic drives in on), stopping short of the edge lines.
+      const arms: [number, number, number, number, number][] = [[0, -1, -1, 0, cy], [1, 0, 0, -1, cx], [0, 1, 1, 0, cy], [-1, 0, 0, 1, cx]];
+      const at = (d: number[], t: number, o: number) => `${r2(cx + d[0] * t + d[2] * o)} ${r2(cy + d[1] * t + d[3] * o)}`;
+      const arm = (d: number[]) => `<path d="M${at(d, half + 8, 2)} L${at(d, d[4], 2)} M${at(d, half + 8, -2)} L${at(d, d[4], -2)}" stroke="${P.paintYellow}" stroke-width="1.6"/><path d="M${at(d, half + 6, 0)} L${at(d, half + 6, half - STOP_TRIM)}" stroke="${P.paint}" stroke-width="4"/>`;
+      const marks = arms.map(arm).join('');
+      if (c.marksOnly) return marks;
+      const body = partOutline(c, 'cross', half * 2);
+      return `<path d="${body.map((r) => `${poly(r)} Z`).join(' ')}" ${F(c)}/>${roadEdge(body, crossEnds(c, half * 2))}${marks}`;
     },
   }),
   rd('lane-divider', 'Lane divider', { layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 2, width: 240, height: 12, keywords: ['dashed line', 'lane line', 'skip line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 0, c.w, c.stroke, c.sw, '14 10')}` }),
@@ -227,7 +246,7 @@ export const ROADS = [
   rd('road-boundary', 'Road boundary', { layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 2.5, width: 240, height: 12, keywords: ['edge line', 'fog line', 'solid line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 0, c.w, c.stroke, c.sw)}` }),
   rd('speed-bump', 'Speed bump', {
     layer: 'structure', fill: P.safety, stroke: P.ink, strokeWidth: 1, width: 120, height: 16, keywords: ['speed hump', 'traffic calming'],
-    draw: (c) => `${boxRect(c, c.h / 2)}${along(c, 16, (x) => `<path d="M${r2(x - 3)} ${r2(c.h * 0.2)} L${r2(x + 3)} ${r2(c.h / 2)} L${r2(x - 3)} ${r2(c.h * 0.8)}" fill="none" stroke="${P.ink}" stroke-width="2.4"/>`, 10)}`,
+    draw: (c) => `${boxRect(c, Math.min(c.w, c.h) / 2)}${along(c, 16, (x) => `<path d="M${r2(x - 3)} ${r2(c.h * 0.2)} L${r2(x + 3)} ${r2(c.h / 2)} L${r2(x - 3)} ${r2(c.h * 0.8)}" fill="none" stroke="${P.ink}" stroke-width="2.4"/>`, 10)}`,
   }),
   rd('stop-line', 'Stop line', { layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 6, width: 60, height: 14, keywords: ['stop bar', 'limit line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 2, c.w - 2, c.stroke, Math.min(c.sw, c.h))}` }),
   rd('yield-line', 'Yield line', {
@@ -250,7 +269,7 @@ export const ROADS = [
   }),
   rd('service-drive', 'Service drive', { ...DRIVE, width: 300, height: 60, keywords: ['service lane', 'dealership'], draw: lane((c) => word(c, 'SERVICE') + laneArrow(c.w * 0.85, c.h / 2, 30)) }),
   rd('service-reception-lane', 'Service reception lane', {
-    ...ROAD, fill: '#5f6f82', width: 300, height: 70, keywords: ['service write up', 'service drive', 'reception', 'dealership'],
+    ...DRIVE, width: 300, height: 70, keywords: ['service write up', 'service drive', 'reception', 'dealership'],
     draw: lane((c) => {
       // The dashed line breaks for the words and stops before the arrow, so neither is drawn over it.
       const size = Math.min(c.h * 0.24, 12);
@@ -261,8 +280,9 @@ export const ROADS = [
   }),
   rd('drive-through-lane', 'Drive-through lane', { ...DRIVE, width: 300, height: 60, keywords: ['drive thru', 'pickup window'], draw: lane((c) => word(c, 'DRIVE THRU', Math.min(c.h * 0.3, 14)) + laneArrow(c.w * 0.12, c.h / 2, 26) + laneArrow(c.w * 0.88, c.h / 2, 26)) }),
   rd('loading-lane', 'Loading lane', {
-    ...ROAD, width: 300, height: 60, keywords: ['loading', 'delivery', 'freight'],
-    draw: (c) => hatched(P.paintYellow, 'LOADING', P.ink)(c),
+    ...DRIVE, width: 300, height: 60, keywords: ['loading', 'delivery', 'freight'],
+    // Joined to a road, the merged road paints the asphalt and the hatching is drawn on top.
+    draw: (c) => (c.marksOnly ? hatched(P.paintYellow, 'LOADING', P.ink)({ ...c, sw: 0 }).replace(/^<rect[^>]*\/>/, '') : hatched(P.paintYellow, 'LOADING', P.ink)(c)),
   }),
 ];
 
