@@ -5,7 +5,7 @@ import { ASSET_BY_KEY } from '../assets/library';
 import { duplicateSpaceIds } from '../model/duplicates';
 import { boxContains, objectBox, normalizeRotation, unionBoxes } from '../model/geometry';
 import { snapMove, snapToGrid, type Guide } from '../model/snapping';
-import { simplifyStroke } from '../model/shape';
+import { simplifyStroke, toLocal } from '../model/shape';
 import { angledSpecFrom, DEFAULT_ROW } from '../model/rows';
 import type { Box, Floor, MapObject } from '../model/types';
 import { BackgroundShape, LayerObjects } from '../render/MapObjects';
@@ -48,6 +48,8 @@ type Gesture =
       others: Box[];
       started: boolean;
       additiveClickId?: string;
+      /** Pressed on top of a selected object: a click (no drag) picks this object instead. */
+      clickId?: string;
       /** Alt/Option held: the drag moves a copy and leaves the originals where they were. */
       altCopy?: boolean;
       copied?: boolean;
@@ -386,6 +388,30 @@ export function CanvasStage() {
       else gesture.current = { type: 'touch-tap', id: '', additive };
       return;
     }
+    // Pressing inside an object that is already selected drags it, even where
+    // something else is drawn over it (a sidewalk, a zone, a road's paint, the
+    // map photo) or where its own hit area is covered. A click without a drag
+    // still picks whatever is on top.
+    if (!additive && st.selection.length && !(id && st.selection.includes(id))) {
+      const f = currentFloor(st)!;
+      const usable = new Set(f.layers.filter((l) => l.visible && !l.locked).map((l) => l.id));
+      const selSet = new Set(st.selection);
+      const under = f.objects.some((o) => selSet.has(o.id) && !o.locked && !o.hidden && usable.has(o.layerId) && insideBox(o, w));
+      if (under) {
+        const moving = f.objects.filter((o) => selSet.has(o.id) && !o.locked);
+        gesture.current = {
+          type: 'move',
+          startWorld: w,
+          startPos: new Map(moving.map((o) => [o.id, { x: o.x, y: o.y }])),
+          box: unionBoxes(moving.map(objectBox))!,
+          others: f.objects.filter((o) => !selSet.has(o.id) && !o.hidden && usable.has(o.layerId)).map(objectBox),
+          started: false,
+          clickId: id ?? undefined,
+          altCopy: evt.altKey,
+        };
+        return;
+      }
+    }
     if (id) {
       const wasSelected = st.selection.includes(id);
       if (!(additive && wasSelected)) st.clickObject(id, { additive });
@@ -450,6 +476,7 @@ export function CanvasStage() {
         if (Math.hypot(rawDx, rawDy) * viewport.scale < DRAG_THRESHOLD) return;
         g.started = true;
         g.additiveClickId = undefined;
+        g.clickId = undefined;
         if (g.altCopy) {
           // Copy in place first, then drag the copies (one undo step for both, as in Figma).
           const originals = [...g.startPos.keys()];
@@ -544,6 +571,7 @@ export function CanvasStage() {
         st.endGesture({ mergeWithPrevious: g.copied });
       } else if (g.started) st.endGesture({ mergeWithPrevious: g.copied });
       else if (g.additiveClickId) st.clickObject(g.additiveClickId, { additive: true });
+      else if (g.clickId) st.clickObject(g.clickId, { additive: false });
       setGuides([]);
     } else if (g.type === 'row') {
       const draft = rowDraft;
@@ -849,6 +877,12 @@ const FloorObjects = memo(function FloorObjects({ floor, duplicates, bgEditable,
   );
 });
 const NO_OBJECTS: MapObject[] = [];
+
+/** Is the world point inside the object's (rotated) box? */
+function insideBox(o: MapObject, w: { x: number; y: number }): boolean {
+  const [lx, ly] = toLocal(o, w.x, w.y);
+  return lx >= 0 && ly >= 0 && lx <= o.width && ly <= o.height;
+}
 
 function rowPreview(d: { a: { x: number; y: number }; b: { x: number; y: number } }) {
   const len = Math.hypot(d.b.x - d.a.x, d.b.y - d.a.y);

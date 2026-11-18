@@ -133,4 +133,31 @@ export function roads(): MapDocument {
 /** The quick lot builder's two-level garage (ramp meeting the first drive lane). */
 export const quick = () => createQuickLot('Join test: quick lot', { floors: 2, rows: 4, spacesPerRow: 10, accessible: 2 });
 
-export const SCENES: Record<string, () => MapDocument> = { lot, garage, roads, quick };
+/**
+ * Pieces placed by eye over a photo: a slightly tilted road running into a
+ * curved road a few degrees and pixels off, a second road ending against the
+ * side of the curve, a road joining from below at a T, and a crosswalk.
+ */
+export function bend(): MapDocument {
+  const d = doc('Join test: hand-placed bend');
+  const f = d.floors[0];
+  const L = 120;
+  const tilt = 5;
+  const a = (tilt * Math.PI) / 180;
+  // Tilted road; its right end's top corner.
+  const cx = 300, cy = 100;
+  put(f, 'straight-road', cx, cy, { width: 600, height: L, rotation: tilt });
+  const tx = cx + 300 * Math.cos(a) + 60 * Math.sin(a), ty = cy + 300 * Math.sin(a) - 60 * Math.cos(a);
+  // Curved road placed level (not turned with the road) and 3 px off.
+  put(f, 'curved-road', tx + 200 + 3, ty + 200 + 4, { width: 400, height: 400, band: L });
+  // A level road below ending against the curve's side.
+  box(f, 'straight-road', -100, 230, 1000, L);
+  // A road joining from below, and a crosswalk across the join.
+  put(f, 'straight-road', 300, 470, { width: 250, height: L, rotation: 90 });
+  put(f, 'crosswalk', 560, 140, { width: L, height: 40, rotation: 70 });
+  box(f, 'grass-area', 100, 350, 140, 300);
+  box(f, 'grass-area', 360, 350, 140, 300);
+  return d;
+}
+
+export const SCENES: Record<string, () => MapDocument> = { lot, garage, roads, quick, bend };

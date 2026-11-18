@@ -10,6 +10,7 @@ import { createQuickLot } from './quickLot';
 import { createFloor, createMap } from './factory';
 import { mergePlan } from '../render/MapObjects';
 import type { AssetObject, Floor } from './types';
+import { bend } from '../../scripts/asset-audit/scenes';
 
 const put = (f: Floor, key: string, x: number, y: number, o: Partial<AssetObject> = {}): AssetObject => {
   const d = ASSET_BY_KEY[key];
@@ -72,5 +73,32 @@ describe('asset joins', () => {
     expect(ramp.height).toBe(lane.height);
     const stairs = get('stairs'), lift = get('elevator');
     expect(stairs.y + stairs.height / 2).toBeLessThan(lift.y - lift.height / 2);
+  });
+
+  it('joins a road placed a few degrees and pixels off a curve as one road, with a smooth yellow line and no stop bar', () => {
+    const f = bend().floors[0];
+    const tilted = f.objects[0], curve = f.objects[1];
+    const plan = mergePlan([tilted, curve]);
+    const cluster = [...plan.leads.values()][0];
+    expect(cluster.members).toHaveLength(2);
+    expect(cluster.stops ?? []).toHaveLength(0);
+    // Each yellow line turns gently everywhere: no step where the pieces meet.
+    for (const l of cluster.centers ?? []) {
+      for (let i = 2; i + 3 < l.length; i += 2) {
+        const a = Math.atan2(l[i + 1] - l[i - 1], l[i] - l[i - 2]), b = Math.atan2(l[i + 3] - l[i + 1], l[i + 2] - l[i]);
+        const d = Math.abs(((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+        if (Math.hypot(l[i + 2] - l[i], l[i + 3] - l[i + 1]) > 0.5) expect(d).toBeLessThan(0.5);
+      }
+    }
+    // The outline has no spikes doubling back on themselves.
+    for (const r of cluster.rings) {
+      const n = r.length / 2;
+      for (let i = 0; i < n; i++) {
+        const p0 = [r[((i + n - 1) % n) * 2], r[((i + n - 1) % n) * 2 + 1]], p1 = [r[i * 2], r[i * 2 + 1]], p2 = [r[((i + 1) % n) * 2], r[((i + 1) % n) * 2 + 1]];
+        const u = [p1[0] - p0[0], p1[1] - p0[1]], v = [p2[0] - p1[0], p2[1] - p1[1]];
+        const cos = (u[0] * v[0] + u[1] * v[1]) / ((Math.hypot(...u) * Math.hypot(...v)) || 1);
+        expect(cos).toBeGreaterThan(-0.95);
+      }
+    }
   });
 });

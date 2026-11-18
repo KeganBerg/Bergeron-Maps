@@ -455,6 +455,30 @@ export function filletInside(a: Ring[], r: number, near: Ring[]): Ring[] {
   return boolean(a.map(toInt), add, ClipperLib.ClipType.ctUnion).map(fromInt);
 }
 
+/**
+ * Small outside corners of `a` rounded off with radius r, only within `near`
+ * (an opening: shrink, then grow back). Used where two road pieces placed by
+ * eye meet a few pixels apart, so the step at the seam is smoothed away.
+ */
+export function roundOutside(a: Ring[], r: number, near: Ring[]): Ring[] {
+  if (r <= 0 || !near.length) return a;
+  const join = ClipperLib.JoinType.jtRound;
+  const opened = offset(offset(a.map(toInt), -r, join), r, join);
+  const extra = boolean(a.map(toInt), opened, ClipperLib.ClipType.ctDifference);
+  const cut = boolean(extra, near.map(toInt), ClipperLib.ClipType.ctIntersection);
+  return boolean(a.map(toInt), cut, ClipperLib.ClipType.ctDifference).map(fromInt);
+}
+
+/**
+ * Removes slivers and spikes left by boolean operations (points doubling back
+ * on themselves, or within `d` px of the line through their neighbours), so lines painted along the outline
+ * don't get little hooks at seams.
+ */
+export function cleanRings(a: Ring[], d = 0.08): Ring[] {
+  const paths = ClipperLib.Clipper.CleanPolygons(a.map(toInt), d * SCALE) as IntPath[];
+  return boolean(paths.filter((p) => p.length >= 3), [], ClipperLib.ClipType.ctUnion).map(fromInt);
+}
+
 /** World rings `a` minus world rings `b`. */
 export function subtractRings(a: Ring[], b: Ring[]): Ring[] {
   if (!b.length) return a;

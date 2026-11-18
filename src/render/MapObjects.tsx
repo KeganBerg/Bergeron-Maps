@@ -4,7 +4,7 @@ import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
 import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
-import { bandWidth, filletInside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, partEnds, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
+import { bandWidth, cleanRings, filletInside, roundOutside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, partEnds, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
 import { jointEnds, jointShapes, roadCenterLines, roadExtensions, roadJoints, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
 import { curveEnds, curveLine, curvePx } from '../model/curve';
 import { GRASS_TEXTURE, P, svgDoc, withAlpha } from '../assets/style';
@@ -421,6 +421,16 @@ function roadPiece(o: AssetObject): RoadPiece {
   return { body, ends, width: t, axis: arc || parts ? undefined : [Math.cos(r), Math.sin(r)], center };
 }
 
+/** Radius (map px) that rounds off the small step where two road pieces meet a few px apart. */
+const SEAM_ROUND = 8;
+
+/** A circle as a ring. */
+function disk(c: [number, number] | number[], r: number, steps = 32): Ring {
+  const out: Ring = [];
+  for (let i = 0; i < steps; i++) out.push(c[0] + Math.cos((i / steps) * Math.PI * 2) * r, c[1] + Math.sin((i / steps) * Math.PI * 2) * r);
+  return out;
+}
+
 /** In-line pieces whose centre lines are this close (map px) are lined up with each other. */
 const MARK_ALIGN = 6;
 
@@ -544,6 +554,9 @@ export function mergePlan(objects: MapObject[], curbs: MapObject[] = []): {
         const minW = Math.min(...ps.map((p) => p.width));
         const near = growRings([...junctions.areas, ...js.map((j) => [j.c[0] - minW, j.c[1] - minW, j.c[0] + minW, j.c[1] - minW, j.c[0] + minW, j.c[1] + minW, j.c[0] - minW, j.c[1] + minW])], minW);
         cluster.rings = filletInside(raw, minW * 0.25, near);
+        // Where pieces placed by eye meet a few px apart, round off the little step at the seam.
+        const seams = js.map((j) => disk(j.c, minW * 0.75));
+        cluster.rings = cleanRings(roundOutside(cluster.rings, SEAM_ROUND, seams));
         const inBend = jointEnds(js);
         const open = ps.flatMap((p, k) => p.ends.filter((_, e) => !inBend.has(`${k}:${e}`)).map((e) => e.seg));
         cluster.lines = linesOutside(insetLines(cluster.rings, open, ROAD_EDGE.inset), curb);
