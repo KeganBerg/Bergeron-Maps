@@ -1,24 +1,80 @@
 /* bergeronmaps.com home page: a few purposeful animations (GSAP), nothing else. The header menus are in nav.js. */
 (function () {
-  // Contact form → a prefilled email in the visitor's own mail app. Nothing is sent to a server.
+  // Contact form → emailed to bergeronmaps@gmail.com through FormSubmit (formsubmit.co), no mail app needed.
+  // FormSubmit sends nothing until the inbox owner clicks the one-time activation link it emails on the first request.
+  var LEADS = 'https://formsubmit.co/ajax/bergeronmaps@gmail.com';
   var form = document.getElementById('contact-form');
   var err = document.getElementById('form-error');
+  var send = document.getElementById('form-send');
+  var done = document.getElementById('form-done');
+  var openedAt = Date.now();
   // Industry pages link here with ?industry=<slug>, so the form starts on the right industry.
   var pick = new URLSearchParams(location.search).get('industry');
   var sel = document.getElementById('f-industry');
   if (pick && sel && sel.querySelector('option[value="' + pick.replace(/[^a-z]/g, '') + '"]')) sel.value = pick;
+  function fail(msg, field) {
+    err.innerHTML = '';
+    err.append(msg);
+    err.classList.remove('hidden');
+    if (field) { field.setAttribute('aria-invalid', 'true'); field.focus(); }
+  }
+  function failSend() {
+    err.innerHTML = '';
+    var a = document.createElement('a');
+    a.href = 'mailto:bergeronmaps@gmail.com';
+    a.className = 'underline underline-offset-4';
+    a.textContent = 'bergeronmaps@gmail.com';
+    err.append("Your request didn't go through. Please try again in a minute, or email us at ", a, '.');
+    err.classList.remove('hidden');
+  }
+  form.addEventListener('input', function (e) { e.target.removeAttribute('aria-invalid'); });
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    if (send.disabled) return;
     var f = new FormData(form);
-    var name = String(f.get('name') || '').trim(), email = String(f.get('email') || '').trim();
-    if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      err.textContent = 'Please add your name and a valid email address.';
-      err.classList.remove('hidden');
-      return;
-    }
+    var val = function (k) { return String(f.get(k) || '').trim(); };
+    var name = val('name'), email = val('email');
+    if (!name) return fail('Please add your name.', form.elements.name);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return fail('Please add a valid email address, like you@company.com.', form.elements.email);
     err.classList.add('hidden');
-    var body = ['Name: ' + name, 'Company: ' + (f.get('company') || ''), 'Email: ' + email, 'Industry: ' + (sel && sel.value ? sel.options[sel.selectedIndex].text : ''), 'Sites: ' + f.get('sites'), '', f.get('message') || ''].join('\n');
-    location.href = 'mailto:bergeronmaps@gmail.com?subject=' + encodeURIComponent('Map request: ' + (f.get('company') || name)) + '&body=' + encodeURIComponent(body);
+    // Spam: bots fill the hidden field or submit within a moment of the page loading. Pretend it worked.
+    if (val('_honey') || Date.now() - openedAt < 3000) return finish();
+    send.disabled = true;
+    send.textContent = 'Sending…';
+    var industry = sel && sel.value ? sel.options[sel.selectedIndex].text : 'Not given';
+    var company = val('company');
+    fetch(LEADS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        _subject: 'New map request: ' + (company || name),
+        _template: 'table',
+        _captcha: 'false',
+        _replyto: email,
+        Name: name,
+        Company: company || 'Not given',
+        'Work email': email,
+        Industry: industry,
+        'Number of sites': val('sites'),
+        'Anything else': val('message') || '(nothing)',
+        Page: location.href
+      })
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return r.ok && String(j.success) === 'true'; }); })
+      .then(function (ok) { if (ok) finish(); else failSend(); }, failSend)
+      .then(function () { send.disabled = false; send.textContent = 'Send request'; });
+  });
+  function finish() {
+    form.reset();
+    if (pick && sel && sel.querySelector('option[value="' + pick.replace(/[^a-z]/g, '') + '"]')) sel.value = pick;
+    form.classList.add('hidden');
+    done.classList.remove('hidden');
+    done.focus();
+  }
+  document.getElementById('form-again').addEventListener('click', function () {
+    done.classList.add('hidden');
+    form.classList.remove('hidden');
+    openedAt = Date.now();
+    form.elements.name.focus();
   });
 
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
