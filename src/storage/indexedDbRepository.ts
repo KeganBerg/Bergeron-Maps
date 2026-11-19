@@ -174,7 +174,8 @@ export class IndexedDbRepository implements MapRepository {
       tx.abort();
       throw new ConflictError(migrateDocument(current.doc));
     }
-    const stored: MapDocument = { ...clone(doc), revision: baseRevision + 1, updatedAt: new Date().toISOString() };
+    // No copy first: the database copies what it stores, and the editor never changes a map in place.
+    const stored: MapDocument = { ...doc, revision: baseRevision + 1, updatedAt: new Date().toISOString() };
     store.put({ ...current, doc: stored } satisfies MapRecord);
     await done(tx);
     return stored;
@@ -278,33 +279,63 @@ export class IndexedDbRepository implements MapRepository {
     return expired.length;
   }
 
+  /**
+   * What is known about each saved version without loading its drawing. Reading a
+   * version record means reading its whole map, and a big garage's map is several
+   * MB, so loading every version (to list them, or to find old automatic ones to
+   * remove) once meant loading hundreds of MB at once. Version ids made here carry
+   * their time and reason, and anything else is learned once per version and kept.
+   */
+  private metas = new Map<string, VersionMeta>();
+
+  /** Versions of a map, newest first; `full` also fills in labels and revisions. */
+  private async versionMetas(store: IDBObjectStore, mapId: string, full: boolean): Promise<Pick<VersionMeta, 'id' | 'reason' | 'createdAt'>[]> {
+    const ids = (await req(store.index('mapId').getAllKeys(mapId))) as string[];
+    const out: Pick<VersionMeta, 'id' | 'reason' | 'createdAt'>[] = [];
+    for (const id of ids) {
+      let m: Pick<VersionMeta, 'id' | 'reason' | 'createdAt'> | undefined = this.metas.get(id) ?? (full ? undefined : versionIdMeta(id));
+      if (!m) {
+        // One at a time, so only one old drawing is in memory at once.
+        const r = (await req(store.get(id))) as VersionRecord | undefined;
+        if (!r) continue;
+        const { doc: _doc, ...meta } = r;
+        this.metas.set(id, meta);
+        m = meta;
+      }
+      out.push(m);
+    }
+    return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
   async saveVersion(doc: MapDocument, reason: VersionReason, label?: string): Promise<VersionMeta> {
     const db = await this.db();
+    const now = Date.now();
     const meta: VersionMeta = {
-      id: newId('ver'),
+      id: versionId(now, reason),
       mapId: doc.id,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(now).toISOString(),
       reason,
       label: label ?? defaultLabel(reason),
       revision: doc.revision,
     };
     const tx = db.transaction('versions', 'readwrite');
     const store = tx.objectStore('versions');
-    store.put({ ...meta, doc: clone(doc) } satisfies VersionRecord);
+    // The record is copied by the database itself; the map is never changed in place.
+    store.put({ ...meta, doc } satisfies VersionRecord);
+    this.metas.set(meta.id, meta);
     // Keep the newest automatic versions; named/manual versions are kept.
-    const all = (await req(store.index('mapId').getAll(doc.id))) as VersionRecord[];
-    const autos = all.filter((v) => v.reason === 'auto').sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    for (const v of autos.slice(MAX_AUTO_VERSIONS)) store.delete(v.id);
+    const autos = (await this.versionMetas(store, doc.id, false)).filter((v) => v.reason === 'auto');
+    for (const v of autos.slice(MAX_AUTO_VERSIONS)) {
+      store.delete(v.id);
+      this.metas.delete(v.id);
+    }
     await done(tx);
     return meta;
   }
 
   async listVersions(mapId: string): Promise<VersionMeta[]> {
     const db = await this.db();
-    const all = (await req(db.transaction('versions').objectStore('versions').index('mapId').getAll(mapId))) as VersionRecord[];
-    return all
-      .map(({ doc: _doc, ...meta }) => meta)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return (await this.versionMetas(db.transaction('versions').objectStore('versions'), mapId, true)) as VersionMeta[];
   }
 
   async getVersion(versionId: string): Promise<MapDocument | null> {
@@ -312,6 +343,17 @@ export class IndexedDbRepository implements MapRepository {
     const r = (await req(db.transaction('versions').objectStore('versions').get(versionId))) as VersionRecord | undefined;
     return r ? migrateDocument(r.doc) : null;
   }
+}
+
+/** ver_<time>_<reason>_<random>: the time and reason can be read from the id alone. */
+const versionId = (ms: number, reason: VersionReason) => `ver_${ms.toString(36)}_${reason}_${newId('').slice(1)}`;
+const REASONS: readonly string[] = ['auto', 'manual', 'before-restore', 'conflict', 'publish'] satisfies VersionReason[];
+
+export function versionIdMeta(id: string): Pick<VersionMeta, 'id' | 'reason' | 'createdAt'> | undefined {
+  const m = /^ver_([0-9a-z]+)_([a-z-]+)_/.exec(id);
+  if (!m || !REASONS.includes(m[2])) return undefined;
+  const ms = parseInt(m[1], 36);
+  return Number.isFinite(ms) ? { id, reason: m[2] as VersionReason, createdAt: new Date(ms).toISOString() } : undefined;
 }
 
 function defaultLabel(reason: VersionReason): string {

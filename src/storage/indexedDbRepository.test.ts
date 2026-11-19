@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createMap } from '../model/factory';
-import { IndexedDbRepository } from './indexedDbRepository';
-import { ConflictError, MapGoneError } from './repository';
+import { IndexedDbRepository, versionIdMeta } from './indexedDbRepository';
+import { ConflictError, MAX_AUTO_VERSIONS, MapGoneError } from './repository';
 
 let n = 0;
 const fresh = () => new IndexedDbRepository(`test-${++n}`);
@@ -69,6 +69,39 @@ describe('browser map storage', () => {
 });
 
 describe('publishing', () => {
+  it('keeps the newest automatic versions without reading old drawings back', async () => {
+    const repo = fresh();
+    const doc = await repo.createMap(createMap('Big Garage'));
+    // A version saved by an older copy of the app (plain random id).
+    const db = await (repo as unknown as { db(): Promise<IDBDatabase> }).db();
+    const tx = db.transaction('versions', 'readwrite');
+    tx.objectStore('versions').put({ id: 'ver_oldstyle', mapId: doc.id, createdAt: '2020-01-01T00:00:00.000Z', reason: 'auto', label: 'Automatic save point', revision: 1, doc });
+    await new Promise((r) => (tx.oncomplete = r));
+    const named = await repo.saveVersion(doc, 'manual', 'Before the big change');
+    const get = vi.spyOn(IDBObjectStore.prototype, 'get');
+    for (let i = 0; i < MAX_AUTO_VERSIONS + 3; i++) await repo.saveVersion(doc, 'auto');
+    // Only the older app's version had to be read, once, to learn what it was.
+    expect(get.mock.calls.length).toBeLessThanOrEqual(1);
+    get.mockRestore();
+    const list = await repo.listVersions(doc.id);
+    expect(list.filter((v) => v.reason === 'auto')).toHaveLength(MAX_AUTO_VERSIONS);
+    expect(list.some((v) => v.id === 'ver_oldstyle')).toBe(false);
+    expect(list.find((v) => v.id === named.id)).toMatchObject({ label: 'Before the big change', reason: 'manual' });
+    // Newest first, with each one's label and revision.
+    expect(list[0]).toMatchObject({ reason: 'auto', label: 'Automatic save point', revision: doc.revision });
+    expect([...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt))).toEqual(list);
+    // A fresh page (nothing remembered) lists the same versions.
+    expect(await new IndexedDbRepository((repo as unknown as { dbName: string }).dbName).listVersions(doc.id)).toEqual(list);
+  });
+
+  it('reads the time and reason from a version id', () => {
+    expect(versionIdMeta(`ver_${(1_700_000_000_000).toString(36)}_before-restore_abc`)).toEqual({
+      id: `ver_${(1_700_000_000_000).toString(36)}_before-restore_abc`, reason: 'before-restore', createdAt: new Date(1_700_000_000_000).toISOString(),
+    });
+    expect(versionIdMeta('ver_k3j2h1g0f9')).toBeUndefined();
+    expect(versionIdMeta('ver_abc_nonsense_x')).toBeUndefined();
+  });
+
   it('employees see nothing until published, then only the published version', async () => {
     const repo = new IndexedDbRepository(`pub-${Math.random()}`);
     const created = await repo.createMap(createMap('Harbor'), 'Harbor Hotel');

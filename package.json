@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:db": "vitest run --config vitest.db.config.ts",
-    "build:site": "python3 site/build-drawings.py && vite-node scripts/site-demo.ts && node scripts/site-pages.mjs && tailwindcss -i site/src/input.css -o site/styles.css --minify"
+    "build:site": "python3 site/build-drawings.py && vite-node scripts/site-demo.ts && node scripts/site-pages.mjs && tailwindcss -i site/src/input.css -o site/styles.css --minify",
+    "loadtest": "vite-node scripts/loadtest/node-bench.ts loadtest-out",
+    "loadtest:browser": "node scripts/loadtest/bench.mjs loadtest-out"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.1.0",
