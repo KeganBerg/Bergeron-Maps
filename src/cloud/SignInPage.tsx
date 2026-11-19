@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { friendly, setLocalMode, supabase, clearSignInProblem, takeSignInProblem } from './client';
 
@@ -25,6 +25,10 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(takeSignInProblem);
+  // The button that was pressed is gone once the email is sent: move focus to what replaced it, so a
+  // screen reader says the email went out instead of going quiet.
+  const sentCard = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (sent) sentCard.current?.focus(); }, [sent]);
 
   const send = async () => {
     if (!supabase) return;
@@ -50,24 +54,25 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
       <AppHeader />
       <main className="signin">
         {sent ? (
-          <div className="signin-card" data-testid="signin-sent">
+          <div className="signin-card" data-testid="signin-sent" ref={sentCard} tabIndex={-1} role="region" aria-label="Check your email" aria-describedby="signin-sent-text">
             <h2>Check your email</h2>
-            <p>
+            <p id="signin-sent-text">
               We sent a sign-in link to <strong>{email.trim().toLowerCase()}</strong>. Open it on this device, in this browser. The link works once and expires
               in an hour.
             </p>
             <button className="btn" onClick={() => setSent(false)}>Use a different email</button>
           </div>
         ) : (
-          <form className="signin-card" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+          <form className="signin-card" noValidate onSubmit={(e) => { e.preventDefault(); void send(); }}>
             <h2>{siteLink ? 'Sign in to open your site' : 'Sign in'}</h2>
             <p className="muted">Use the email your manager or admin added. We’ll email you a sign-in link, so there’s no password.</p>
             <label className="stack">
               Work email
               <input type="email" autoComplete="email" inputMode="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@company.com" data-testid="signin-email" />
+                placeholder="name@company.com" data-testid="signin-email"
+                aria-invalid={error ? true : undefined} aria-describedby={error ? 'signin-error' : undefined} />
             </label>
-            {error && <p className="error-text" role="alert">{error}</p>}
+            {error && <p className="error-text" role="alert" id="signin-error">{error}</p>}
             <button className="btn primary big" disabled={busy} data-testid="signin-send">{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
             {!siteLink && (
               <button type="button" className="link small" onClick={() => { setLocalMode(true); window.location.reload(); }} data-testid="try-local">

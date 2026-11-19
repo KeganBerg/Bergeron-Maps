@@ -2,7 +2,7 @@ import Konva from 'konva';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Layer, Rect, Stage } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
-import { searchMap, type SearchHit } from '../model/search';
+import { MAX_HITS, searchMap, type SearchHit } from '../model/search';
 import { floorListing } from '../model/listing';
 import { buildingName, buildingOf, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
@@ -100,7 +100,19 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [shared, setShared] = useState(false);
   // Where keyboard focus goes after the next render: the panel that just replaced the
   // button that was pressed (a result, a start place), so focus never drops to the page.
-  const moveFocus = useRef<'card' | 'sheet' | 'directions' | 'list' | 'list-button' | null>(null);
+  const moveFocus = useRef<'card' | 'sheet' | 'directions' | 'list' | 'list-button' | 'search' | null>(null);
+  /** Focus is going back to the search box after a card closed: don't pop the old results open again. */
+  const quietFocus = useRef(false);
+  /** Read out when a floor button (or a route step) changes the floor on screen. */
+  const [floorNote, setFloorNote] = useState('');
+  const floorNoteTimer = useRef<number>();
+  const sayFloor = (text: string) => {
+    window.clearTimeout(floorNoteTimer.current);
+    setFloorNote(text);
+    // Cleared soon after, so pressing the same floor again later is read out again.
+    floorNoteTimer.current = window.setTimeout(() => setFloorNote(''), 2500);
+  };
+  useEffect(() => () => window.clearTimeout(floorNoteTimer.current), []);
   /** The floor as a text list (for screen readers, or anyone who'd rather read than look). */
   const [listOpen, setListOpen] = useState(false);
   useLayoutEffect(() => {
@@ -111,10 +123,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       : want === 'sheet' ? box?.querySelector<HTMLElement>('.dir-banner button, .dir-sheet')
       : want === 'list' ? box?.querySelector<HTMLElement>('.floor-list')
       : want === 'list-button' ? document.querySelector<HTMLElement>('[data-testid="list-toggle"]')
+      : want === 'search' ? document.querySelector<HTMLElement>('[data-testid="viewer-search"]')
       : box?.querySelector<HTMLElement>('[data-testid="directions"]');
     if (!el) return;
     moveFocus.current = null;
+    if (want === 'search') quietFocus.current = true;
     el.focus({ preventScroll: true });
+    quietFocus.current = false;
   });
   const boxRef = useRef<HTMLDivElement>(null);
   const tracker = useRef(new PanZoomTracker());
@@ -285,6 +300,9 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   }, [fitKey]);
 
   const hits = useMemo(() => (doc ? searchMap(doc, query) : []), [doc, query]);
+  // The result count is read out once typing pauses: said after every letter, the next key press
+  // cuts it off, and a screen reader user hears nothing.
+  const searchSaid = useSettled(showResults && query.trim() ? searchSummary(hits.length) : '', 600);
 
   const goTo = (h: SearchHit) => {
     setShowResults(false);
@@ -417,10 +435,11 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       : dir.stage === 'tap' ? 'Tap where you are on the map, or choose Cancel to pick from a list.'
       : dir.stage === 'busy' ? 'Finding the way…'
       : dir.stage === 'none' ? (dir.reason === 'same' ? 'You’re already there.' : `No way found to ${dir.goal.name} from ${dir.start.name}.`)
-      : `Directions to ${dir.goal.name}: ${feet(dir.route.length)} feet, about ${minutes(dir.route)} minutes, ${dir.route.steps.length} steps.`
+      : `Directions to ${dir.goal.name}: ${feet(dir.route.length)} feet, about ${plural(minutes(dir.route), 'minute')}, ${plural(dir.route.steps.length, 'step')}.`
     : listOpen ? `List of spaces and places on ${floorTitle(doc, floor)}.`
+    // Typing in the search box while a card is open reads out what the search found, not the card again.
+    : showResults && query.trim() ? searchSaid
     : info ? [info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(', ')
-    : showResults && query.trim() ? (hits.length ? `${hits.length} ${hits.length === 1 ? 'result' : 'results'}` : 'No matches')
     : '';
 
   const goInside = (buildingId: string) => {
@@ -534,7 +553,14 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   onEscape.current = () => {
     if (dir?.stage === 'tap') { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); return true; }
     if (dir) { endDirections(); return true; }
-    if (tapped) { setTapped(null); setFocus(null); return true; }
+    if (tapped) {
+      // Focus was on the card (or on nothing): give it to the search box rather than drop it to the page.
+      const at = document.activeElement;
+      if (!at || at === document.body || at.closest('.info-card')) moveFocus.current = 'search';
+      setTapped(null);
+      setFocus(null);
+      return true;
+    }
     return false;
   };
 
@@ -573,7 +599,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           placeholder="Find a space, e.g. B16"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setShowResults(true); }}
-          onFocus={() => setShowResults(true)}
+          onFocus={() => { if (!quietFocus.current) setShowResults(true); }}
           aria-label="Find a parking space"
           aria-controls={showResults && query.trim() ? "viewer-results" : undefined}
           onKeyDown={(e) => {
@@ -707,7 +733,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               title={shared ? 'Link copied' : 'Share a link to this'} onClick={() => void share(tapped!)} data-testid="share">
               <Icon name={shared ? 'check' : 'share'} />
             </button>
-            <button className="icon-btn" aria-label="Close" onClick={() => { setTapped(null); setFocus(null); }}><Icon name="close" /></button>
+            <button className="icon-btn" aria-label="Close" onClick={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}><Icon name="close" /></button>
             {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
           </section>
         )}
@@ -726,7 +752,12 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             onPick={(start) => runRoute(dir.goal, start)}
             onTapMode={() => { moveFocus.current = 'sheet'; setDir({ stage: 'tap', goal: dir.goal }); }}
             onChangeStart={() => { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); }}
-            onStep={(fid) => route && showFloorOfRoute(route, fid)}
+            onStep={(fid) => {
+              if (!route) return;
+              const f = doc.floors.find((x) => x.id === fid);
+              if (f && fid !== floor.id) sayFloor(`${floorTitle(doc, f)} shown.`);
+              showFloorOfRoute(route, fid);
+            }}
             onAvoidStairs={(v) => {
               setAvoidStairs(v);
               if ('start' in dir) runRoute(dir.goal, dir.start, v);
@@ -747,6 +778,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           <button key={f.id} className={[f.id === floor.id ? 'active' : '', routeFloors.has(f.id) ? 'on-route' : ''].join(' ').trim() || undefined} aria-pressed={f.id === floor.id}
             style={floorVars(i)}
             onClick={() => {
+              sayFloor(`${floorTitle(doc, f)} shown${routeFloors.has(f.id) ? ', with the route' : ''}.`);
               if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
               setFloorId(f.id);
               if (!dir) { setTapped(null); setFocus(null); }
@@ -756,6 +788,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         ))}
       </nav>
       <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-announce">{announcement}</p>
+      <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-floor-announce">{floorNote}</p>
     </main>
   );
 }
@@ -944,4 +977,24 @@ function DirectionsSheet(p: {
       </div>
     </div>
   );
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** What a screen reader hears as the search results change. The list stops at MAX_HITS. */
+export function searchSummary(count: number): string {
+  if (!count) return 'No matches';
+  if (count >= MAX_HITS) return `${MAX_HITS} results shown. Type more to narrow them down.`;
+  return plural(count, 'result');
+}
+
+/** `value`, once it has stayed the same for `ms`. An empty value comes through at once. */
+function useSettled(value: string, ms: number): string {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    if (!value) { setSettled(''); return; }
+    const t = window.setTimeout(() => setSettled(value), ms);
+    return () => window.clearTimeout(t);
+  }, [value, ms]);
+  return settled;
 }
