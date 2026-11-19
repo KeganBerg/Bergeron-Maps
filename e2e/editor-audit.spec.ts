@@ -126,8 +126,14 @@ test('placing a text label starts typing in it', async ({ page }) => {
 
 test('Ctrl+S inside a field keeps what was typed and saves the map', async ({ page }) => {
   await openLot(page);
-  const a = (await spaceBox(page, 'A2'))!;
-  await page.mouse.dblclick(a.x, a.y); // into the row
+  // One space picked inside its row, so the panel shows its number field.
+  await page.evaluate(async () => {
+    const { useEditor, currentFloor } = await import('/src/editor/store.ts');
+    const s = useEditor.getState();
+    const sp = currentFloor(s)!.objects.find((o) => o.kind === 'space' && o.label === 'A2') as { id: string; rowId: string };
+    s.enterRow(sp.rowId);
+    s.select([sp.id]);
+  });
   await expect(page.getByTestId('space-label')).toBeVisible();
   await page.getByTestId('space-label').fill('A99');
   // Listens at the document, under the editor's own handler, to see what the browser is left to do.
