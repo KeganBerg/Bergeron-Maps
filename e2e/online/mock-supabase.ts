@@ -228,6 +228,8 @@ export class MockSupabase {
     const args = (req.postDataJSON() ?? {}) as Record<string, string>;
     if (rpc === 'is_platform_admin') return json(!!u.admin);
     if (rpc === 'join_site') {
+      if (u.admin && this.sites.some((s) => s.code === String(args.p_code ?? '').toUpperCase()))
+        return json({ code: '22023', message: 'You’re signed in as a Bergeron Maps admin, so you already have every site. To see what an employee sees, sign in with a different email.' }, 400);
       if (this.wrongCodes >= 10) return json({ code: '54000', message: 'Too many wrong codes. Wait an hour, or ask your manager to add your email instead.' }, 400);
       const site = this.sites.find((s) => s.code === String(args.p_code ?? '').trim().replace(/ /g, '').toUpperCase());
       if (!site) { this.wrongCodes++; return json(null); }
@@ -242,7 +244,22 @@ export class MockSupabase {
     if (rpc === 'list_members') {
       const mine = this.memberOf(u).find((m) => m.company_id === args.p_company);
       if (!u.admin && (!mine || mine.role === 'employee')) return json({ code: '42501', message: 'Only owners and managers can see who has access.' }, 403);
-      return json(this.members.filter((m) => m.company_id === args.p_company).map((m) => ({ ...m, pending: false })));
+      const scope = u.admin ? null : mine!.facility_ids;
+      return json(this.members.filter((m) => m.company_id === args.p_company
+        && (scope === null || m.user_id === u.id || (m.facility_ids !== null && m.facility_ids.some((f) => scope.includes(f)))))
+        .map((m) => ({ ...m, pending: false })));
+    }
+    if (rpc === 'add_member') {
+      const a = req.postDataJSON() as { p_company: string; p_email: string; p_role: Role; p_facility_ids: string[] | null };
+      const mine = this.memberOf(u).find((m) => m.company_id === a.p_company);
+      if (!u.admin && (!mine || mine.role === 'employee')) return json({ code: '42501', message: 'Only owners and managers can add people.' }, 403);
+      const email = a.p_email.trim().toLowerCase();
+      const known = [...this.users.values()].find((x) => x.email === email);
+      this.log.push(`add_member ${email} ${a.p_role} ${JSON.stringify(a.p_facility_ids)}`);
+      const m = this.members.find((x) => x.company_id === a.p_company && x.email === email);
+      if (m) Object.assign(m, { role: a.p_role, facility_ids: a.p_facility_ids });
+      else this.members.push({ user_id: known?.id ?? `u-${email}`, email, company_id: a.p_company, role: a.p_role, facility_ids: a.p_facility_ids });
+      return json(known ? 'added' : 'invited');
     }
     if (rpc === 'admin_overview') {
       if (!u.admin) return json({ code: '42501', message: 'Only Bergeron Maps admins can see all accounts.' }, 403);
@@ -287,6 +304,15 @@ export class MockSupabase {
       return json(null);
     }
     if (rpc === 'remove_member') {
+      if (args.p_user === u.id) return refuse('You can’t remove yourself. Ask another owner or Bergeron Maps.');
+      const mine = u.admin ? undefined : this.memberOf(u).find((m) => m.company_id === args.p_company);
+      const them = this.members.find((x) => x.company_id === args.p_company && x.user_id === args.p_user);
+      if (mine?.facility_ids && them) {
+        // Site managers take away only their own sites (supabase/migrations/20261119010000).
+        if (them.role !== 'employee' || !them.facility_ids?.some((f) => mine.facility_ids!.includes(f))) return refuse('You can only remove employees at sites you manage.');
+        const keep = them.facility_ids.filter((f) => !mine.facility_ids!.includes(f));
+        if (keep.length) { them.facility_ids = keep; return json(null); }
+      }
       const i = this.members.findIndex((x) => x.company_id === args.p_company && x.user_id === args.p_user);
       if (i >= 0) { this.members.splice(i, 1); this.signedOut.push(args.p_user); }
       return json(null);

@@ -129,7 +129,7 @@ export function OnlineApp() {
   if (parts[0] === 'view' && parts[1])
     return <ViewerPage key={parts[1]} mapId={parts[1]} repo={repo} preview={editor && query.get('preview') === '1'} />;
   if (parts[0] === 'edit' && parts[1] && editor) return <EditorPage key={parts[1]} mapId={parts[1]} repo={repo} />;
-  if (parts[0] === 'team' && editor) return <TeamPage membership={membership} nav={nav} account={accountMenu} onRequestsChanged={() => setRequestsTick((t) => t + 1)} />;
+  if (parts[0] === 'team' && editor) return <TeamPage membership={membership} email={s.email ?? ''} nav={nav} account={accountMenu} onRequestsChanged={() => setRequestsTick((t) => t + 1)} />;
 
   if (linkKey && !siteParam)
     return (
