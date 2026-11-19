@@ -212,6 +212,9 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
                         onChange={(e) => setEditingLink({ id: s.id, value: e.target.value })} />
                       <button className="btn small primary">Save</button>
                       <button type="button" className="btn small" onClick={() => setEditingLink(null)}>Cancel</button>
+                      <span className="muted small link-warning" data-testid="slug-warning">
+                        Printed QR signs and links already shared with the old name stop working. Print new signs after you change it.
+                      </span>
                     </form>
                   ) : (
                     <span className="muted small site-url">{siteLink(s.slug)}</span>

@@ -163,7 +163,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 19 | Share links, PDF, high-res image, printable floors, per-floor export, permission-aware | Not started (Phase 3; share links Phase 2). Partial: a map can be downloaded as a map file and imported on the home page (`storage/mapFile.ts`; unit: mapFile.test; e2e: editor.spec download/import). This moves a map between browsers and lets a map built elsewhere (for example from a paper sketch) be loaded privately |
+| 19 | Share links, PDF, high-res image, printable floors, per-floor export, permission-aware | Built: share links (`?at=`), map file download/import (`storage/mapFile.ts`), floor as a PNG of the whole floor at 3,200 px and Print or save as PDF (`editor/view.ts`), the viewer's own browser Print shows the whole floor with any route (`render/printPicture.ts`, print CSS), and printed "You are here" QR signs in card, letter and poster sizes (`model/qr.ts`, `editor/qrSign.ts`, `editor/SignDialog.tsx`; the code holds the public link with the map id when the map is public, and warns when the map is unpublished, private or the object is newer than the last publish) | unit: mapFile.test, qr.test (decoded with jsQR); e2e: pro-editing.spec (image, print), qr-signs.spec (each size decoded off the printed page and opened to the right floor and spot; viewer Print), qr-signs.online.spec (public link, two maps, visitor scan) | Tested |
 
 ## Part 20: Performance
 
