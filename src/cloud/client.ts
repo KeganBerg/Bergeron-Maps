@@ -133,10 +133,4 @@ export const setLocalMode = (on: boolean) => {
 };
 
 /** Postgres/PostgREST errors carry a friendly message from our SQL functions. */
-export function friendly(e: unknown, fallback = 'Something went wrong. Check your connection and try again.'): string {
-  const m = (e as { message?: string } | null)?.message;
-  if (!m) return fallback;
-  if (/row-level security|permission denied/i.test(m)) return 'You don’t have permission to do that.';
-  if (/Failed to fetch|NetworkError/i.test(m)) return 'Can’t reach the server. Check your connection and try again.';
-  return m;
-}
+export { friendly } from '../errors/friendly';

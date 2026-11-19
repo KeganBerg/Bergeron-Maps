@@ -230,5 +230,6 @@ Last updated: 2026-10-30 (Phase 1).
 | Public link with no sign-in | `get_public_site`; `…/app/#/view/<site-link>`; Make public on a published map |
 | Delete companies, sites (only once empty), people | `admin_delete_company` (type the name), `admin_delete_site`, `remove_member` |
 | Back up and restore whole companies (a deleted client that comes back) | All accounts → Download backup / Restore from backup: `src/cloud/backup.ts` (`.bmbackup.json`), `admin_restore_company` + `admin_restore_versions` (migration 20261112020000); tests `supabase/tests/backups.test.ts`, `e2e/online/backups.online.spec.ts` |
+| Hear about live problems (operations) | Uptime check every 15 min opens a GitHub issue: `.github/workflows/uptime.yml`, `scripts/uptime-check.mjs`; error reports without personal data: `src/errors/report.ts` (off until `SENTRY_DSN` is set); see `docs/MONITORING.md` |
 
 Still deferred, waiting on Kegan: Stripe setup fee and per-site billing; custom client domains (needs the move to Cloudflare); email alerts for manager requests (needs an email sender).
