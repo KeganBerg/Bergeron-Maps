@@ -8,6 +8,11 @@
   var send = document.getElementById('form-send');
   var done = document.getElementById('form-done');
   var openedAt = Date.now();
+  // A person touches the form (a click, a tap, a key or autofill after a click); a script that fills
+  // it in does not. Only a quick submit with no real touch is treated as a bot, so a fast autofill
+  // submit from someone who arrived on #contact still goes through.
+  var touched = false;
+  ['pointerdown', 'keydown'].forEach(function (t) { form.addEventListener(t, function (e) { if (e.isTrusted) touched = true; }); });
   // Industry pages link here with ?industry=<slug>, so the form starts on the right industry.
   var pick = new URLSearchParams(location.search).get('industry');
   var sel = document.getElementById('f-industry');
@@ -38,7 +43,7 @@
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return fail('Please add a valid email address, like you@company.com.', form.elements.email);
     err.classList.add('hidden');
     // Spam: bots fill the hidden field or submit within a moment of the page loading. Pretend it worked.
-    if (val('_honey') || Date.now() - openedAt < 3000) return finish();
+    if (val('_honey') || (!touched && Date.now() - openedAt < 3000)) return finish();
     send.disabled = true;
     send.textContent = 'Sending…';
     var industry = sel && sel.value ? sel.options[sel.selectedIndex].text : 'Not given';
