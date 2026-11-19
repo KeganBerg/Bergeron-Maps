@@ -428,7 +428,13 @@ function accessibilityPage() {
   <meta property="og:description" content="${desc}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Bergeron Maps" />
+  <meta property="og:locale" content="en_US" />
   <meta property="og:url" content="${url}" />
+  <meta property="og:image" content="${SITE}img/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Bergeron Maps: a parking site map in the editor, with a space found by search on a phone" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="${url}" />
   <meta name="theme-color" content="#0b0b0b" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
