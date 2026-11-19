@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Icon } from '../ui/icons';
 import { AssetLibrary } from './AssetLibrary';
 import { LayersPanel } from './LayersPanel';
@@ -10,6 +11,18 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 700px)').matches);
   const tool = useEditor((s) => s.tool);
   const st = useEditor.getState;
+
+  // A double tap on a label, or a new text label placed with a finger, goes to its field in
+  // the side panel. On a phone the panel starts shut, so open it first (it did nothing before).
+  useEffect(() => {
+    if (!collapsed) return;
+    const open = () => {
+      flushSync(() => setCollapsed(false));
+      requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('bm:edit-label')));
+    };
+    window.addEventListener('bm:edit-label', open);
+    return () => window.removeEventListener('bm:edit-label', open);
+  }, [collapsed]);
 
   if (collapsed)
     return (

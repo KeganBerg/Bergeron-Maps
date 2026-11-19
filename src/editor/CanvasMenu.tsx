@@ -11,7 +11,7 @@ type Item = { label: string; keys?: string; run: () => void; disabled?: boolean;
  * The map's right-click menu, as in Figma and PowerPoint: what can be done with
  * the selection, or with the map when nothing is under the pointer.
  */
-export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: string | null; onClose: () => void }) {
+export function CanvasMenu({ x, y, id, touch, onClose }: { x: number; y: number; id: string | null; touch?: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: x, top: y });
   const [focus, setFocus] = useState(-1);
@@ -38,6 +38,11 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
   const lockedHere = floor.objects.filter((o) => o.locked).map((o) => o.id);
   const hiddenHere = floor.objects.filter((o) => o.hidden).map((o) => o.id);
 
+  // A finger can't Shift-click or drag a selection box (a drag pans), so the menu opened by
+  // pressing and holding offers the box instead.
+  const boxSelect: Item[] = touch
+    ? [{ label: 'Select an area', run: () => window.dispatchEvent(new CustomEvent('bm:box-select')), disabled: !floor.objects.length, testId: 'menu-box-select' }]
+    : [];
   const items: Item[] = [];
   if (sel.length && target) {
     const sameType = editableIds(floor, floor.objects.filter((o) => typeKey(o) === typeKey(target)).map((o) => o.id)).length;
@@ -55,6 +60,7 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
       { label: 'Send to back', keys: `${modLabel}Shift+[`, run: () => st().reorder('back'), testId: 'menu-back' },
       'sep',
       { label: `Select all ${typePlural(target).toLowerCase().replace(/^ev /, 'EV ').replace(/^vip /, 'VIP ')} (${sameType})`, run: () => st().selectSameType(target.id), testId: 'menu-select-type' },
+      ...boxSelect,
       { label: 'Zoom to selection', keys: 'Shift+2', run: zoomToSelection },
       'sep',
       { label: sel.length > 1 ? 'Lock these' : 'Lock', run: () => setFlag(sel, 'locked'), testId: 'menu-lock' },
@@ -67,6 +73,7 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
     items.push(
       { label: 'Paste', keys: `${modLabel}V`, run: () => st().paste(), disabled: !s.clipboard, testId: 'menu-paste' },
       { label: 'Select all', keys: `${modLabel}A`, run: () => st().selectAll(), disabled: !floor.objects.length, testId: 'menu-select-all' },
+      ...boxSelect,
       { label: 'Find on map', keys: `${modLabel}F`, run: () => window.dispatchEvent(new CustomEvent('bm:find')), testId: 'menu-find' },
       ...(lockedHere.length || hiddenHere.length ? ['sep' as const] : []),
       ...(lockedHere.length ? [{ label: `Unlock all on this floor (${lockedHere.length})`, run: () => st().setObjectFlag(lockedHere, 'locked', false), testId: 'menu-unlock-all' }] : []),
