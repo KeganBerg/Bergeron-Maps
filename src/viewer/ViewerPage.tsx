@@ -11,6 +11,7 @@ import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { useCulledGroup } from '../render/cull';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
+import { layerPicture } from '../render/printPicture';
 import type { Box } from '../model/types';
 import '../render/konvaSetup';
 import { navigate } from '../router';
@@ -19,6 +20,15 @@ import { Icon } from '../ui/icons';
 import { floorVars, MAP_PALETTE } from '../theme';
 import { feet, findRoute, isBig, minutes, placeLabel, startPlaces, type Place, type Route } from '../model/route';
 import { HereMarker, RouteOverlay } from './RouteOverlay';
+
+/** Runs soon, when the browser has nothing else to do (or after half a second at most). */
+const whenIdle = (fn: () => void): number =>
+  typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 500 }) : window.setTimeout(fn, 100);
+const cancelIdle = (id: number) => {
+  if (!id) return;
+  if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(id);
+  else window.clearTimeout(id);
+};
 
 const ROADLIKE = /road|lane|drive|walk|sidewalk|path|zone|area|grass|crosswalk/;
 
@@ -150,35 +160,50 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // While a finger or mouse drags or pinches the map, only the picture is
-  // redrawn each frame. Konva also redraws its hidden hit map (what a tap
-  // lands on) on every frame, about a third of the drawing time on a big
-  // floor; nothing can be tapped mid-gesture, so that waits until the gesture
-  // ends, and is brought up to date before the next touch is looked at.
-  const hit = useRef<{ layer: Konva.Layer | null; paused: boolean; stale: boolean; timer: number }>({ layer: null, paused: false, stale: false, timer: 0 });
+  // Konva redraws its hidden hit map (what a tap lands on) with every drawing of
+  // the picture: about a third of the drawing time on a big floor, and needed by
+  // nothing until the next touch. So the picture comes first and the hit map is
+  // brought up to date a moment later when the phone is idle, or at once when a
+  // finger or mouse comes down (before Konva looks up what it is on). While the
+  // map is dragged or pinched it waits until the gesture ends.
+  const hit = useRef<{ layer: Konva.Layer | null; paused: boolean; stale: boolean; timer: number; idle: number; draw?: () => void }>({ layer: null, paused: false, stale: false, timer: 0, idle: 0 });
   const mapLayer = useCallback((layer: Konva.Layer | null) => {
     const h = hit.current;
     if (h.layer && h.layer !== layer) delete (h.layer as Partial<Konva.Layer>).drawHit;
     h.layer = layer;
-    if (!layer) return;
+    if (!layer) {
+      cancelIdle(h.idle);
+      h.draw = undefined;
+      return;
+    }
     const drawHit = Konva.Layer.prototype.drawHit;
+    h.draw = () => drawHit.call(layer);
     layer.drawHit = function (this: Konva.Layer, ...args: Parameters<Konva.Layer['drawHit']>) {
-      if (h.paused) {
-        h.stale = true;
-        return this;
-      }
-      return drawHit.apply(this, args);
+      // Drawing onto some other canvas (a picture of the map) happens right away.
+      if (args[0]) return drawHit.apply(this, args);
+      h.stale = true;
+      if (!h.paused) hitsSoon();
+      return this;
     };
   }, []);
+  const flushHits = () => {
+    const h = hit.current;
+    cancelIdle(h.idle);
+    if (h.stale && h.draw) {
+      h.stale = false;
+      h.draw();
+    }
+  };
+  const hitsSoon = () => {
+    const h = hit.current;
+    cancelIdle(h.idle);
+    h.idle = whenIdle(flushHits);
+  };
   const pauseHits = () => { hit.current.paused = true; };
   const resumeHits = () => {
-    const h = hit.current;
-    window.clearTimeout(h.timer);
-    h.paused = false;
-    if (h.stale && h.layer) {
-      h.stale = false;
-      h.layer.drawHit();
-    }
+    window.clearTimeout(hit.current.timer);
+    hit.current.paused = false;
+    flushHits();
   };
 
   // Drag to pan, pinch to zoom, wheel/trackpad. Native listeners on the canvas box
@@ -289,6 +314,35 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   }, [doc]);
 
   const floor = doc?.floors.find((f) => f.id === floorId) ?? doc?.floors[0];
+
+  // The browser's own Print (Ctrl+P): the whole floor on the page, with any route or
+  // "You are here" marker, instead of the screen's controls and a map cut off at the
+  // edge. Drawn as the print starts, into a canvas that only shows when printing.
+  const printRef = useRef<HTMLDivElement>(null);
+  const floorRef = useRef(floor);
+  floorRef.current = floor;
+  useEffect(() => {
+    const before = () => {
+      const layer = hit.current.layer, holder = printRef.current, f = floorRef.current;
+      const box = f && floorBounds(f);
+      if (!layer || !holder || !box || box.width <= 0 || box.height <= 0) return;
+      const bg = getComputedStyle(boxRef.current ?? document.body).backgroundColor || '#ffffff';
+      const pic = layerPicture(layer, box, viewRef.current, bg);
+      pic.dataset.testid = 'print-map';
+      holder.querySelector('canvas')?.remove();
+      holder.appendChild(pic);
+      const page = holder.querySelector('style')!;
+      page.textContent = `@page { size: ${pic.width >= pic.height ? 'landscape' : 'portrait'}; margin: 12mm; }`;
+    };
+    const after = () => printRef.current?.querySelector('canvas')?.remove();
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+    };
+  }, []);
+
   const resetView = () => floor && setView(fitViewport(floorBounds(floor), size, 24));
   // Fit when the floor or screen size changes (but not after a search jump).
   const fitKey = `${floor?.id}:${size.width}x${size.height}`;
@@ -571,6 +625,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           Preview — this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
         </div>
       )}
+      <div className="print-only viewer-print" ref={printRef} aria-hidden="true">
+        <style />
+        <h1>{doc.name} · {floorTitle(doc, floor)}</h1>
+      </div>
       <header className="viewer-header">
         {(preview || backTo !== null) && (
           <button className="icon-btn" aria-label={preview ? 'Back to editor' : 'All maps'} onClick={() => navigate(preview ? `/edit/${doc.id}` : backTo ?? '/')}>
@@ -703,6 +761,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             )}
             {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
             {here && !route && <HereMarker x={here.x} y={here.y} scale={view.scale} />}
+          </Layer>
+          {/* The route draws itself in over about a second. On its own layer, each frame of that
+              redraws just the line, not the whole floor (thousands of spaces on a big garage). */}
+          <Layer listening={false}>
             {route && <RouteOverlay route={route} floorId={floor.id} scale={view.scale} />}
           </Layer>
         </Stage>

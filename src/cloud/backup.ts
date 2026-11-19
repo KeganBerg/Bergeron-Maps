@@ -77,9 +77,10 @@ export async function backupCompany(db: Db, c: OverviewCompany, onStep?: (text: 
     onStep?.(`Reading versions of ${m.name} (${i + 1} of ${maps.length})`);
     const versions: BackupVersion[] = [];
     // A page at a time: each version is a whole map, background images included.
+    // Ordered by id as well, so versions saved at the same moment can't be skipped or read twice between pages.
     for (let from = 0; from < MAX_VERSIONS_PER_MAP; from += 25) {
       const page = check(await db.from('map_versions').select('id, created_at, reason, label, revision, doc')
-        .eq('map_id', m.id).order('created_at', { ascending: false }).range(from, Math.min(from + 24, MAX_VERSIONS_PER_MAP - 1))) as BackupVersion[];
+        .eq('map_id', m.id).order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, Math.min(from + 24, MAX_VERSIONS_PER_MAP - 1))) as BackupVersion[];
       versions.push(...page);
       if (page.length < 25) break;
     }

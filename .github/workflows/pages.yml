@@ -38,6 +38,10 @@ jobs:
           # supabase/migrations decides what each signed-in person can reach.
           VITE_SUPABASE_URL: https://ysebxeokxpnmckwdtimj.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZWJ4ZW9reHBubWNrd2R0aW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDU3OTEsImV4cCI6MjEwOTEyMTc5MX0._gioylYj_sf6pLy3o6riTL0n9Y-EVsu3VNzpeRXYQkY
+          # Error reports (docs/MONITORING.md): off until the repository has a SENTRY_DSN variable
+          # (Settings > Secrets and variables > Actions > Variables). The version is this commit.
+          VITE_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          VITE_RELEASE: ${{ github.sha }}
       # Marketing site (site/) at the root, the app under /app/.
       - name: Assemble site
         run: |

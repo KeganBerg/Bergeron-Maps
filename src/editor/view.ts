@@ -37,7 +37,16 @@ const MAX_CANVAS = 8000;
  * Draws the whole floor (not just what is on screen) as a PNG, on the map's own
  * background colour, without selection handles, guides or the grid.
  */
-export async function floorImage(): Promise<{ blob: Blob; url: string; width: number; height: number } | null> {
+export interface FloorImage {
+  blob: Blob;
+  url: string;
+  width: number;
+  height: number;
+  /** Where a point on the map (map units) lands in the picture (pixels). */
+  toPixel: (x: number, y: number) => { x: number; y: number };
+}
+
+export async function floorImage(): Promise<FloorImage | null> {
   const s = useEditor.getState();
   const floor = currentFloor(s);
   const box = floor && floorBounds(floor);
@@ -68,10 +77,14 @@ export async function floorImage(): Promise<{ blob: Blob; url: string; width: nu
   ctx.drawImage(drawn, 0, 0);
   const blob = await new Promise<Blob | null>((res) => out.toBlob(res, 'image/png'));
   if (!blob) return null;
-  return { blob, url: out.toDataURL('image/png'), width: out.width, height: out.height };
+  const k = v.scale * ratio;
+  return {
+    blob, url: out.toDataURL('image/png'), width: out.width, height: out.height,
+    toPixel: (x, y) => ({ x: (x - b.x) * k, y: (y - b.y) * k }),
+  };
 }
 
-const fileSafe = (n: string) => n.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'map';
+export const fileSafe = (n: string) => n.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'map';
 
 export async function downloadFloorImage() {
   const s = useEditor.getState();

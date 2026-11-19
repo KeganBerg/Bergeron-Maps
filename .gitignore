@@ -6,3 +6,5 @@ playwright-report
 .DS_Store
 *.tsbuildinfo
 scripts/orca/out/
+loadtest-out
+.prof

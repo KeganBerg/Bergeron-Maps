@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Sign in to Bergeron Maps</title>
+</head>
+<body style="margin:0;padding:0;background:#f2f2ef;">
+<div style="display:none;max-height:0;overflow:hidden;">Your sign-in link and code for Bergeron Maps. They work once and expire in an hour.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f2f2ef;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border:1px solid #dcdcd6;">
+<tr><td style="padding:24px 28px;background:#0b0b0b;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="vertical-align:middle;"><img src="https://bergeronmaps.com/img/email/logo.png" width="40" height="40" alt="BM" style="display:block;border:0;"></td>
+<td style="vertical-align:middle;padding-left:12px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;letter-spacing:3px;color:#ffffff;">BERGERON MAPS</td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:28px 28px 8px;font-family:Arial,Helvetica,sans-serif;color:#0b0b0b;">
+<h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;">Sign in to Bergeron Maps</h1>
+<p style="margin:0 0 20px;font-size:16px;line-height:1.5;color:#333333;">Press the button to sign in. There's no password. The link works once and expires in an hour.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td bgcolor="#0b0b0b" style="background:#0b0b0b;">
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;">Sign in</a>
+</td></tr></table>
+<p style="margin:24px 0 6px;font-size:15px;line-height:1.5;color:#333333;">Or type this code on the sign-in page:</p>
+<p style="margin:0 0 20px;font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:bold;letter-spacing:6px;color:#0b0b0b;">{{ .Token }}</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.5;color:#666666;">If you didn't ask to sign in, you can ignore this email. Nobody can sign in without it.</p>
+</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #e6e6e1;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#777777;">
+Bergeron Maps &middot; <a href="https://bergeronmaps.com" style="color:#777777;">bergeronmaps.com</a> &middot; Questions? <a href="mailto:bergeronmaps@gmail.com" style="color:#777777;">bergeronmaps@gmail.com</a>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

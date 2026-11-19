@@ -3,6 +3,7 @@ import type { MapRepository, PublishInfo } from '../storage/repository';
 import { Dialog } from '../ui/Dialog';
 import { Notices } from '../ui/Notices';
 import { navigate } from '../router';
+import { friendly } from '../errors/friendly';
 import { CanvasStage } from './CanvasStage';
 import { FloorTabs } from './FloorTabs';
 import { RowDialog } from './RowDialog';
@@ -10,6 +11,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { VersionsDialog } from './VersionsDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { SignDialog } from './SignDialog';
 import { useEditor } from './store';
 import { readBackup, useAutosave } from './useAutosave';
 import { useKeyboard } from './useKeyboard';
@@ -22,6 +24,13 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
     const open = () => setShowShortcuts(true);
     window.addEventListener('bm:shortcuts', open);
     return () => window.removeEventListener('bm:shortcuts', open);
+  }, []);
+  // "You are here" QR sign for one object, asked for from its panel or the right-click menu.
+  const [signFor, setSignFor] = useState<string | null>(null);
+  useEffect(() => {
+    const open = (e: Event) => setSignFor((e as CustomEvent<string>).detail);
+    window.addEventListener('bm:qr-sign', open);
+    return () => window.removeEventListener('bm:qr-sign', open);
   }, []);
   const [backup, setBackup] = useState<ReturnType<typeof readBackup>>(null);
   const doc = useEditor((s) => s.doc);
@@ -51,7 +60,7 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
         if (b && b.savedAt > d.updatedAt) setBackup(b);
         // The canvas fits the floor to the screen when it mounts and measures itself.
       },
-      (e: Error) => alive && setError(e.message || 'This map could not be opened.'),
+      (e: unknown) => alive && setError(friendly(e, 'This map could not be opened.')),
     );
     return () => {
       alive = false;
@@ -79,7 +88,7 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
         action: { label: 'Copy employee link', run: () => void navigator.clipboard?.writeText(link) },
       });
     } catch (e) {
-      useEditor.getState().notify({ tone: 'error', message: (e as Error).message || 'Publishing failed. Try again.' });
+      useEditor.getState().notify({ tone: 'error', message: friendly(e, 'Publishing failed. Try again.') });
     } finally {
       setPublishing(false);
     }
@@ -123,6 +132,7 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
       <Notices />
       {rowDialog && <RowDialog />}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {signFor && <SignDialog repo={repo} mapId={mapId} objectId={signFor} onClose={() => setSignFor(null)} />}
       {showHistory && (
         <VersionsDialog
           repo={repo}

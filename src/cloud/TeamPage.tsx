@@ -48,6 +48,8 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
   const [newSite, setNewSite] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /** The app sends no access email of its own, so after Give access there is a message ready to paste. */
+  const [invite, setInvite] = useState<{ note: string; text: string } | null>(null);
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
   const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
@@ -111,9 +113,15 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
     const r = await supabase!.rpc('add_member', { p_company: company, p_email: email, p_role: role, p_facility_ids: scope });
     if (r.error) return setError(friendly(r.error));
     const who = email.trim().toLowerCase();
-    setNote(r.data === 'added'
+    const msg = r.data === 'added'
       ? `${who} now has access. Send them the site link.`
-      : `${who} will get access as soon as they sign in with that email. Send them the site link.`);
+      : `${who} will get access as soon as they sign in with that email. Send them the site link.`;
+    setNote(msg);
+    const site = sites.find((s) => s.id === siteId);
+    const where = access === 'regional' || !site ? membership.companyName : site.name;
+    const href = access === 'regional' || !site ? `${window.location.origin}${window.location.pathname}` : siteLink(site.slug);
+    const what = access === 'employee' ? 'view the maps for' : access === 'regional' ? 'manage every site in' : 'manage';
+    setInvite({ note: msg, text: `You can now ${what} ${where} on Bergeron Maps.\n\nOpen ${href} and sign in with ${who}. We’ll email you a sign-in link and code, so there’s no password to set.` });
     setEmail('');
     await load();
   };
@@ -180,6 +188,9 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}
+        {note && invite?.note === note && (
+          <button className="btn small" onClick={() => copy(invite.text, 'Invite message')} data-testid="copy-invite">Copy invite message</button>
+        )}
 
         <section className="panel-card">
           <h3>Sites</h3>
@@ -201,6 +212,9 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
                         onChange={(e) => setEditingLink({ id: s.id, value: e.target.value })} />
                       <button className="btn small primary">Save</button>
                       <button type="button" className="btn small" onClick={() => setEditingLink(null)}>Cancel</button>
+                      <span className="muted small link-warning" data-testid="slug-warning">
+                        Printed QR signs and links already shared with the old name stop working. Print new signs after you change it.
+                      </span>
                     </form>
                   ) : (
                     <span className="muted small site-url">{siteLink(s.slug)}</span>

@@ -163,7 +163,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 19 | Share links, PDF, high-res image, printable floors, per-floor export, permission-aware | Not started (Phase 3; share links Phase 2). Partial: a map can be downloaded as a map file and imported on the home page (`storage/mapFile.ts`; unit: mapFile.test; e2e: editor.spec download/import). This moves a map between browsers and lets a map built elsewhere (for example from a paper sketch) be loaded privately |
+| 19 | Share links, PDF, high-res image, printable floors, per-floor export, permission-aware | Built: share links (`?at=`), map file download/import (`storage/mapFile.ts`), floor as a PNG of the whole floor at 3,200 px and Print or save as PDF (`editor/view.ts`), the viewer's own browser Print shows the whole floor with any route (`render/printPicture.ts`, print CSS), and printed "You are here" QR signs in card, letter and poster sizes (`model/qr.ts`, `editor/qrSign.ts`, `editor/SignDialog.tsx`; the code holds the public link with the map id when the map is public, and warns when the map is unpublished, private or the object is newer than the last publish) | unit: mapFile.test, qr.test (decoded with jsQR); e2e: pro-editing.spec (image, print), qr-signs.spec (each size decoded off the printed page and opened to the right floor and spot; viewer Print), qr-signs.online.spec (public link, two maps, visitor scan) | Tested |
 
 ## Part 20: Performance
 
@@ -230,5 +230,6 @@ Last updated: 2026-10-30 (Phase 1).
 | Public link with no sign-in | `get_public_site`; `…/app/#/view/<site-link>`; Make public on a published map |
 | Delete companies, sites (only once empty), people | `admin_delete_company` (type the name), `admin_delete_site`, `remove_member` |
 | Back up and restore whole companies (a deleted client that comes back) | All accounts → Download backup / Restore from backup: `src/cloud/backup.ts` (`.bmbackup.json`), `admin_restore_company` + `admin_restore_versions` (migration 20261112020000); tests `supabase/tests/backups.test.ts`, `e2e/online/backups.online.spec.ts` |
+| Hear about live problems (operations) | Uptime check every 15 min opens a GitHub issue: `.github/workflows/uptime.yml`, `scripts/uptime-check.mjs`; error reports without personal data: `src/errors/report.ts` (off until `SENTRY_DSN` is set); see `docs/MONITORING.md` |
 
 Still deferred, waiting on Kegan: Stripe setup fee and per-site billing; custom client domains (needs the move to Cloudflare); email alerts for manager requests (needs an email sender).
