@@ -47,8 +47,18 @@ export function Dialog({ title, children, onClose, footer, wide }: {
       if (opener && opener.isConnected && opener !== document.body) opener.focus();
     };
   }, []);
+  // A press that starts and ends on the dim backdrop closes the dialog. Closing on mousedown
+  // shut a dialog opened by a finger tap at once: a phone sends its copy-cat mouse events after
+  // the tap, and those landed on the backdrop that had just appeared (tapping once with
+  // "Draw a row of spaces" never showed the row dialog).
+  const pressed = useRef(false);
   return (
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="dialog-backdrop"
+      onPointerDown={(e) => { pressed.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (pressed.current && e.target === e.currentTarget) onClose();
+        pressed.current = false;
+      }}>
       <div className={`dialog${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref} tabIndex={-1}>
         <h2 id={titleId}>{title}</h2>
         <div className="dialog-body">{children}</div>

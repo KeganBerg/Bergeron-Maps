@@ -343,6 +343,8 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .icon-row { display: flex; flex-wrap: wrap; gap: 2px; }
 
 .canvas { flex: 1; min-width: 0; position: relative; background: var(--canvas); overflow: hidden; touch-action: none; }
+/* Press and hold on the map opens its menu: no iOS text selection or callout on top of it. */
+.canvas .konvajs-content { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
 .floor-tabs { display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: var(--panel); border-top: 1px solid var(--border); position: relative; }
 .tabs-scroll { display: flex; gap: 2px; overflow-x: auto; flex: 1; min-width: 0; }
@@ -781,6 +783,7 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .canvas-menu, .download-menu { min-width: 230px; max-height: calc(100vh - 16px); overflow-y: auto; }
 .canvas-menu button, .download-menu button { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--text); font: inherit; font-size: 13px; padding: 6px 10px; }
 .canvas-menu button.focused:not(:disabled) { background: var(--hover); }
+@media (pointer: coarse) { .canvas-menu button { min-height: 40px; font-size: 15px; } }
 .canvas-menu kbd, .shortcuts kbd { font: inherit; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .download-menu { position: fixed; }
 
