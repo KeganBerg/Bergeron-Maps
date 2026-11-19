@@ -13,7 +13,7 @@ export interface SearchHit {
 /** "b-16", "B 16" and "B16" all match space B16. */
 export const normalizeQuery = (s: string) => s.toUpperCase().replace(/[\s\-_.]/g, '');
 
-const MAX_HITS = 30;
+export const MAX_HITS = 30;
 
 /**
  * A bare number finds the spaces with that number after their prefix, so

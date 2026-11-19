@@ -249,7 +249,7 @@ function calcBlock(c) {
             <label class="calc-l">Minutes saved on each<input class="calc-f" type="number" inputmode="decimal" min="0" max="120" step="0.5" name="m" value="${c.minutes}" /></label>
             <label class="calc-l">Hourly labor cost ($)<input class="calc-f" type="number" inputmode="decimal" min="0" max="1000" name="w" value="${c.wage}" /></label>
           </div>
-          <dl class="mt-8 grid border-y border-ink/15 sm:grid-cols-2" aria-live="polite">
+          <dl class="mt-8 grid border-y border-ink/15 sm:grid-cols-2">
             <div class="py-5 sm:pr-5"><dt class="label">Labor hours a month</dt><dd class="calc-out" data-out="h">0</dd></div>
             <div class="border-t border-ink/15 py-5 sm:border-l sm:border-t-0 sm:pl-5"><dt class="label">Labor cost a month</dt><dd class="calc-out" data-out="d">$0</dd></div>
           </dl>

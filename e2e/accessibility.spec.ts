@@ -38,7 +38,7 @@ test('viewer: search, results, directions and closing all work from the keyboard
   await expect(announce).toHaveText(/Where are you starting from/);
   await page.getByTestId('dir-start').first().focus();
   await page.keyboard.press('Enter');
-  await expect(announce).toHaveText(/feet, about \d+ minutes/);
+  await expect(announce).toHaveText(/feet, about \d+ minutes?/);
   await expect(page.getByTestId('directions-sheet')).toBeFocused();
   await page.getByTestId('dir-close').focus();
   await page.keyboard.press('Enter');
@@ -152,4 +152,58 @@ test('editor: the Layers list can be walked and used to select from the keyboard
   await expect(rows.nth(1)).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(rows.nth(1)).toHaveAttribute('aria-selected', 'true');
+});
+
+/** Found with the Orca screen reader (2026-11-19): what it said, or failed to say, at each step. */
+test.describe('screen reader pass', () => {
+  test('closing the card gives focus to the search box, and a floor change is read out', async ({ page }) => {
+    const { id } = await seedGarage(page, 'Reader Garage');
+    await page.goto(`/#/view/${id}`);
+    const search = page.getByTestId('viewer-search');
+    await search.fill('2B5');
+    await search.press('Enter');
+    const card = page.getByTestId('info-card');
+    await expect(card).toBeFocused();
+    // Escape closes the card; focus used to drop to the page, and Orca said nothing.
+    await page.keyboard.press('Escape');
+    await expect(card).toHaveCount(0);
+    await expect(search).toBeFocused();
+    // Coming back to the box doesn't pop the old results open over the map.
+    await expect(page.getByTestId('search-results')).toHaveCount(0);
+    // The Close button does the same.
+    await search.press('Enter');
+    await expect(card).toBeFocused();
+    await card.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(search).toBeFocused();
+    // Pressing a floor button only said "pressed": now the floor on screen is named.
+    await page.getByRole('navigation', { name: 'Floors' }).getByRole('button', { name: 'Floor 3' }).click();
+    await expect(page.getByTestId('viewer-floor-announce')).toHaveText('Floor 3 shown.');
+  });
+
+  test('search results are read out once typing pauses, even with a card open, and say when the list is cut short', async ({ page }) => {
+    const { id } = await seedGarage(page, 'Reader Garage');
+    await page.goto(`/#/view/${id}`);
+    const announce = page.getByTestId('viewer-announce');
+    const search = page.getByTestId('viewer-search');
+    await search.fill('2B5');
+    await search.press('Enter');
+    await expect(announce).toHaveText(/^Space 2B5/);
+    // Typing again while the card is open: the count, not the card, is read.
+    await search.fill('1');
+    await expect(announce).toHaveText('30 results shown. Type more to narrow them down.');
+    await search.fill('1B1');
+    await expect(announce).toHaveText(/^\d+ results?$/);
+    await search.fill('zzz');
+    await expect(announce).toHaveText('No matches');
+  });
+
+  test('a short route says "1 minute", not "1 minutes"', async ({ page }) => {
+    const { id } = await seedGarage(page, 'Reader Garage');
+    await page.goto(`/#/view/${id}`);
+    await page.getByTestId('viewer-search').fill('1A1');
+    await page.getByTestId('viewer-search').press('Enter');
+    await page.getByTestId('directions').click();
+    await page.getByTestId('dir-start').first().click();
+    await expect(page.getByTestId('viewer-announce')).toHaveText(/feet, about 1 minute, \d+ steps?\.$/);
+  });
 });

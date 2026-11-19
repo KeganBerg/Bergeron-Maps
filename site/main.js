@@ -73,7 +73,8 @@
     if (pick && sel && sel.querySelector('option[value="' + pick.replace(/[^a-z]/g, '') + '"]')) sel.value = pick;
     form.classList.add('hidden');
     done.classList.remove('hidden');
-    done.focus();
+    // After the panel is drawn: focus that lands in the same moment it appears isn't read out.
+    setTimeout(function () { done.focus(); }, 60);
   }
   document.getElementById('form-again').addEventListener('click', function () {
     done.classList.add('hidden');
@@ -247,15 +248,16 @@
     ];
 
     var cur = -1, tl = null, next = null, auto = true, visible = false;
-    function select(i) {
+    // Only a tab the visitor picked is read out; the demo stepping on its own would talk over the page.
+    function select(i, picked) {
       tabs.forEach(function (t, k) { t.setAttribute('aria-selected', k === i ? 'true' : 'false'); gsap.set(t.querySelector('.dm-bar'), { scaleX: 0 }); });
       dots.forEach(function (d, k) { d.classList.toggle('on', k === i); });
-      live.textContent = tabs[i].textContent;
+      live.textContent = picked ? tabs[i].textContent : '';
     }
-    function play(i) {
+    function play(i, picked) {
       if (next) next.kill();
       if (tl) tl.kill();
-      cur = i; select(i); base();
+      cur = i; select(i, picked); base();
       tl = gsap.timeline({ paused: true, onComplete: function () { if (auto) next = gsap.delayedCall(0.8, function () { play((cur + 1) % demos.length); }); } });
       demos[i](tl);
       var bar = tabs[i].querySelector('.dm-bar');
@@ -263,7 +265,7 @@
       if (reduced) { tl.progress(1); gsap.set(cursor, { opacity: 0 }); gsap.set(bar, { scaleX: 1 }); return; }
       if (visible) tl.play();
     }
-    function choose(i) { auto = !reduced; play(i); }
+    function choose(i) { auto = !reduced; play(i, true); }
     tabs.forEach(function (t, i) { t.addEventListener('click', function () { choose(i); }); });
     dots.forEach(function (d) { d.addEventListener('click', function () { choose(+d.getAttribute('data-step')); }); });
     new IntersectionObserver(function (es) {
@@ -302,6 +304,7 @@
     var items = [].slice.call(world.querySelectorAll('[data-find]'));
     var q = document.getElementById('hp-q'), res = document.getElementById('hp-res'), form = document.getElementById('hp-form');
     var pmap = document.getElementById('hp-map'), pring = document.getElementById('hp-ring'), ring = document.getElementById('hr-ring');
+    var said = document.getElementById('hp-live');
     var route = document.getElementById('hr-route'), it = document.getElementById('hp-it'), idt = document.getElementById('hp-id');
     var box = world.getAttribute('data-box').split(' ').map(Number);
     var lanes = world.getAttribute('data-lanes').split(',').map(Number), mainX = +world.getAttribute('data-main');
@@ -341,6 +344,10 @@
         g.fromTo('#hp-info', { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, delay: 0.5 });
       }
       if (how !== 'type') { q.value = el.getAttribute('data-find'); }
+      // Read out what the visitor found, but not each find while the demo searches by itself.
+      // A moment later, so it isn't lost behind the search box reading its new text.
+      var text = auto ? '' : el.getAttribute('data-find') + ', Floor 1' + (kind && kind !== el.getAttribute('data-find') ? ', ' + kind : '');
+      if (said) { said.textContent = ''; setTimeout(function () { said.textContent = text; }, 250); }
       res.innerHTML = '';
     }
     function matches(text) {

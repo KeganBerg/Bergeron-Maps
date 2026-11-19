@@ -103,7 +103,7 @@
                     </form>
                     <div class="am-vc">
                       <svg id="hp-map" viewBox="0 0 10 10" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#hr-world"/><rect id="hp-ring" fill="none" rx="5"/></svg>
-                      <div class="am-info" id="hp-info" aria-live="polite"><div><b id="hp-it">1C12</b><span id="hp-id">Floor 1</span></div></div>
+                      <div class="am-info" id="hp-info"><div><b id="hp-it">1C12</b><span id="hp-id">Floor 1</span></div></div><p class="sr-only" id="hp-live" aria-live="polite"></p>
                     </div>
                     <div class="am-vf"><span class="on" style="--fc:#c8102e">Floor 1</span><span style="--fc:#e87722">Floor 2</span></div>
                   </div>
@@ -434,10 +434,10 @@
           </div>
           <p id="form-error" class="hidden text-sm text-sign sm:col-span-2" role="alert"></p>
         </form>
-        <div id="form-done" class="hidden lg:col-span-6 lg:col-start-7" role="status" tabindex="-1">
+        <div id="form-done" class="hidden lg:col-span-6 lg:col-start-7" tabindex="-1" role="region" aria-label="Request sent" aria-describedby="form-done-text">
           <p class="label text-sign">Request sent</p>
-          <p class="mt-4 text-2xl font-[700] tracking-[-0.02em]">Thanks, we have your details.</p>
-          <p class="mt-3 text-lg text-white/70">We'll email you back to set up your first map.</p>
+          <div id="form-done-text"><p class="mt-4 text-2xl font-[700] tracking-[-0.02em]">Thanks, we have your details.</p>
+          <p class="mt-3 text-lg text-white/70">We'll email you back to set up your first map.</p></div>
           <button type="button" class="btn btn-line mt-8" id="form-again">Send another request</button>
         </div>
       </div>

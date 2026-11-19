@@ -44,3 +44,28 @@ test('a failed send says so and offers the email address', async ({ page }) => {
   await expect(page.locator('#form-error')).toContainText("didn't go through");
   await expect(page.locator('#form-done')).toBeHidden();
 });
+
+test('the self-running demos stay quiet for screen readers; what a visitor finds is read out', async ({ page }) => {
+  await page.goto('/site/index.html');
+  // The phone searches on its own: nothing is announced while it does.
+  await expect(page.locator('#hp-q')).not.toHaveValue('', { timeout: 8000 });
+  await expect(page.locator('#hp-info')).not.toHaveAttribute('aria-live');
+  await expect(page.locator('#hp-live')).toHaveText('');
+  await page.fill('#hp-q', 'EV');
+  await page.press('#hp-q', 'Enter');
+  await expect(page.locator('#hp-live')).toHaveText(/^EV charger 1, Floor 1/);
+  await expect(page.locator('#dm-live')).toHaveText('');
+});
+
+test('the contact form thank-you takes focus as a named region, read once', async ({ page }) => {
+  await page.route('https://formsubmit.co/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":"true"}' }));
+  await page.goto('/site/index.html#contact');
+  await page.waitForTimeout(3100);
+  await page.fill('#contact-form [name=name]', 'Pat');
+  await page.fill('#contact-form [name=email]', 'pat@example.com');
+  await page.click('#form-send');
+  const done = page.getByRole('region', { name: 'Request sent' });
+  await expect(done).toBeFocused();
+  await expect(done).not.toHaveAttribute('role', 'status');
+  await expect(done).toHaveAccessibleDescription(/Thanks, we have your details/);
+});
