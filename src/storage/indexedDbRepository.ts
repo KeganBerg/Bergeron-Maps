@@ -148,6 +148,11 @@ export class IndexedDbRepository implements MapRepository {
     return migrateDocument(r.doc);
   }
 
+  async getRevision(id: string): Promise<number | null> {
+    const r = await this.record(id);
+    return r && !r.deletedAt ? r.doc.revision : null;
+  }
+
   async createMap(doc: MapDocument, site?: string, slot?: number): Promise<MapDocument> {
     const stored = { ...clone(doc), revision: 1 };
     const name = site?.trim() || doc.name;
