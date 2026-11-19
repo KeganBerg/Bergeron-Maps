@@ -53,6 +53,8 @@ type Gesture =
       /** Alt/Option held: the drag moves a copy and leaves the originals where they were. */
       altCopy?: boolean;
       copied?: boolean;
+      /** What an Alt-drag copied from, selected again if the drag is called off. */
+      originals?: string[];
       /** Big selections move the drawn objects directly while dragging (see LIVE_DRAG_LIMIT). */
       nodes?: Map<string, Konva.Node>;
       last?: { dx: number; dy: number };
@@ -73,6 +75,8 @@ export function CanvasStage() {
   const trRef = useRef<Konva.Transformer>(null);
   const objLayerRef = useRef<Konva.Layer | null>(null);
   const gesture = useRef<Gesture | null>(null);
+  /** A text label just placed with the mouse, to start typing in once the button is let go. */
+  const pendingEdit = useRef<string | null>(null);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [cutDraft, setCutDraft] = useState<number[] | null>(null);
   const [rowDraft, setRowDraft] = useState<{ a: { x: number; y: number }; b: { x: number; y: number } } | null>(null);
@@ -126,6 +130,20 @@ export function CanvasStage() {
     if (f) s.setViewport(fitViewport(floorBounds(f), size));
     setMeasured(true);
     return () => ro.disconnect();
+  }, []);
+
+  // Escape in the middle of a drag, selection box, row or cut puts things back as
+  // they were. It runs before the editor's own Escape (which would also drop the
+  // selection), and only while a gesture is going.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !gesture.current || gesture.current.type === 'pan') return;
+      cancelGesture.current();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 
   // Space bar held = temporary hand tool (common in drawing apps).
@@ -374,6 +392,10 @@ export function CanvasStage() {
     }
     if (st.tool.type === 'text') {
       st.addText(w);
+      // Type the words straight away, as in other drawing tools, instead of finding the
+      // side panel field to change "Label".
+      // Opened on release: opened on the press, the press itself took the focus back off it.
+      pendingEdit.current = useEditor.getState().selection[0] ?? null;
       return;
     }
 
@@ -439,7 +461,12 @@ export function CanvasStage() {
       return;
     }
     setBgSelected(false);
-    if (!additive) st.clearSelection();
+    // Inside a row a selection box picks some of its spaces, so stay in the row
+    // (a plain click on empty map still leaves it, on release).
+    if (!additive) {
+      if (st.enteredRowId) st.select([]);
+      else st.clearSelection();
+    }
     gesture.current = { type: 'marquee', start: w, additive };
   };
 
@@ -488,6 +515,7 @@ export function CanvasStage() {
             const left = new Set(originals);
             g.others = [...g.others, ...f.objects.filter((o) => left.has(o.id)).map(objectBox)];
             g.copied = true;
+            g.originals = originals;
           }
         }
         st.beginGesture();
@@ -523,6 +551,9 @@ export function CanvasStage() {
   };
 
   const onPointerUp = () => {
+    const edit = pendingEdit.current;
+    pendingEdit.current = null;
+    if (edit) setEditing(edit);
     const g = gesture.current;
     gesture.current = null;
     const st = useEditor.getState();
@@ -555,6 +586,7 @@ export function CanvasStage() {
       if (ring.length >= 6 && big) st.cutWith(ring);
     } else if (g.type === 'marquee') {
       if (marquee && marquee.width * viewport.scale > 2) st.selectInBox(marquee, g.additive);
+      else if (!g.additive) st.clearSelection();
       setMarquee(null);
     } else if (g.type === 'move') {
       if (g.started && g.nodes) {
@@ -608,7 +640,15 @@ export function CanvasStage() {
     gesture.current = null;
     if (!g) return;
     if (g.type === 'move' && g.started) {
-      useEditor.getState().cancelGesture();
+      const st = useEditor.getState();
+      st.cancelGesture();
+      // An Alt-drag made its copies before moving them: take those away too, and
+      // leave the originals selected (the copies used to stay, stacked on top).
+      if (g.copied) {
+        st.undo();
+        useEditor.setState((s) => ({ future: s.future.slice(1) }));
+        if (g.originals) st.select(g.originals);
+      }
       // Directly moved objects go back where they were.
       if (g.nodes) {
         for (const [id, n] of g.nodes) n.position(g.startPos.get(id)!);
