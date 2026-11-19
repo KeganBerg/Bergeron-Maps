@@ -23,24 +23,39 @@ export const isPublicSiteRoute = (parts: string[]) => parts[0] === 'view' && !!p
 export function PublicSitePage({ slug, mapId }: { slug: string; mapId?: string }) {
   const [maps, setMaps] = useState<PublicMap[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const fetchSite = () => supabase!.rpc('get_public_site', { p_slug: slug }).then(({ data, error }) => ({ list: (data ?? []) as PublicMap[], error }));
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
-    supabase!.rpc('get_public_site', { p_slug: slug }).then(({ data, error }) => {
+    fetchSite().then(({ list, error }) => {
       if (!alive) return;
-      if (error) setFailed(true);
-      setMaps((data ?? []) as PublicMap[]);
+      setFailed(!!error);
+      setMaps(list);
     });
     return () => { alive = false; };
-  }, [slug]);
+  }, [slug, attempt]);
 
-  // The viewer reads through a repository; this one only knows the public maps.
-  const repo = useMemo(() => ({
-    getPublishedMap: async (id: string) => {
-      const m = maps?.find((x) => x.map_id === id);
-      return m ? { ...migrateDocument({ ...m.doc, id: m.map_id, name: m.name, updatedAt: m.published_at }), publishedAt: m.published_at } : null;
-    },
-    getMap: async () => null,
-  }) as unknown as MapRepository, [maps]);
+  // The viewer reads through a repository; this one only knows the public maps. It asks the
+  // server again each time, so the viewer's Refresh button brings the latest published version.
+  const repo = useMemo(() => {
+    let first = true;
+    return {
+      getPublishedMap: async (id: string) => {
+        let list = maps ?? [];
+        if (!first) {
+          const r = await fetchSite();
+          if (r.error) throw r.error;
+          list = r.list;
+        }
+        first = false;
+        const m = list.find((x) => x.map_id === id);
+        return m ? { ...migrateDocument({ ...m.doc, id: m.map_id, name: m.name, updatedAt: m.published_at }), publishedAt: m.published_at } : null;
+      },
+      getMap: async () => null,
+    } as unknown as MapRepository;
+    // Made once per site: the list it starts from is the one this page just loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maps === null, slug]);
 
   if (maps === null) return <div className="page-message"><p>Loading…</p></div>;
   const only = maps.length === 1 ? maps[0] : undefined;
@@ -54,6 +69,7 @@ export function PublicSitePage({ slug, mapId }: { slug: string; mapId?: string }
         {maps.length === 0 ? (
           <div className="empty-state" data-testid="public-none">
             <p>{failed ? 'This map couldn’t be loaded. Check your connection and try again.' : 'There’s no public map at this link. It may have been taken offline, or the link changed.'}</p>
+            {failed && <button className="btn primary" onClick={() => { setMaps(null); setAttempt((n) => n + 1); }} data-testid="public-retry">Try again</button>}
           </div>
         ) : (
           <>
