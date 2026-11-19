@@ -17,9 +17,26 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
   const [focus, setFocus] = useState(-1);
   const st = useEditor.getState;
   const s = st();
+  /**
+   * Locked and hidden objects can't be clicked any more, so say where they went and
+   * offer the way back (it used to be only the Layers tab, with no hint).
+   */
+  const setFlag = (ids: string[], key: 'locked' | 'hidden') => {
+    st().setObjectFlag(ids, key, true);
+    const what = ids.length > 1 ? `${ids.length} objects` : 'It';
+    st().notify({
+      tone: 'info',
+      message: key === 'locked'
+        ? `${what} locked, so ${ids.length > 1 ? 'they' : 'it'} can't be picked on the map. Unlock from the Layers tab or a right-click on empty map.`
+        : `${what} hidden. Show ${ids.length > 1 ? 'them' : 'it'} again from the Layers tab or a right-click on empty map.`,
+      action: { label: key === 'locked' ? 'Unlock' : 'Show', run: () => st().setObjectFlag(ids, key, false) },
+    });
+  };
   const floor = currentFloor(s)!;
   const sel = s.selection;
   const target = id ? floor.objects.find((o) => o.id === id) : undefined;
+  const lockedHere = floor.objects.filter((o) => o.locked).map((o) => o.id);
+  const hiddenHere = floor.objects.filter((o) => o.hidden).map((o) => o.id);
 
   const items: Item[] = [];
   if (sel.length && target) {
@@ -40,8 +57,8 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
       { label: `Select all ${typePlural(target).toLowerCase().replace(/^ev /, 'EV ').replace(/^vip /, 'VIP ')} (${sameType})`, run: () => st().selectSameType(target.id), testId: 'menu-select-type' },
       { label: 'Zoom to selection', keys: 'Shift+2', run: zoomToSelection },
       'sep',
-      { label: sel.length > 1 ? 'Lock these' : 'Lock', run: () => st().setObjectFlag(sel, 'locked', true), testId: 'menu-lock' },
-      { label: sel.length > 1 ? 'Hide these' : 'Hide', run: () => st().setObjectFlag(sel, 'hidden', true), testId: 'menu-hide' },
+      { label: sel.length > 1 ? 'Lock these' : 'Lock', run: () => setFlag(sel, 'locked'), testId: 'menu-lock' },
+      { label: sel.length > 1 ? 'Hide these' : 'Hide', run: () => setFlag(sel, 'hidden'), testId: 'menu-hide' },
     );
     if (def && canHaveInterior(def) && !floor.interiorOf && sel.length === 1) {
       items.push('sep', { label: 'Go inside', run: () => st().enterBuilding(target.id), testId: 'menu-enter' });
@@ -51,6 +68,9 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
       { label: 'Paste', keys: `${modLabel}V`, run: () => st().paste(), disabled: !s.clipboard, testId: 'menu-paste' },
       { label: 'Select all', keys: `${modLabel}A`, run: () => st().selectAll(), disabled: !floor.objects.length, testId: 'menu-select-all' },
       { label: 'Find on map', keys: `${modLabel}F`, run: () => window.dispatchEvent(new CustomEvent('bm:find')), testId: 'menu-find' },
+      ...(lockedHere.length || hiddenHere.length ? ['sep' as const] : []),
+      ...(lockedHere.length ? [{ label: `Unlock all on this floor (${lockedHere.length})`, run: () => st().setObjectFlag(lockedHere, 'locked', false), testId: 'menu-unlock-all' }] : []),
+      ...(hiddenHere.length ? [{ label: `Show hidden objects (${hiddenHere.length})`, run: () => st().setObjectFlag(hiddenHere, 'hidden', false), testId: 'menu-show-all' }] : []),
       'sep',
       { label: 'Fit floor to screen', keys: 'Shift+1', run: fitFloor },
       { label: 'Zoom to 100%', keys: `${modLabel}0`, run: zoomTo100 },

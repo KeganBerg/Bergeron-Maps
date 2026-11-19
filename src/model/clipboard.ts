@@ -10,6 +10,8 @@ export interface ClipboardData {
   /** Layers the objects came from, so pasting onto another floor keeps organization. */
   layers: Layer[];
   box: Box;
+  /** The floor it was copied from: a paste onto another floor keeps the position. */
+  floorId?: string;
 }
 
 const clone = <T>(v: T): T => structuredClone(v);

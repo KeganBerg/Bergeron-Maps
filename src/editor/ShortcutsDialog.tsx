@@ -23,6 +23,7 @@ const SECTIONS: { title: string; rows: [string, string][] }[] = [
       ['Find a space or object on the map', `${modLabel}F`],
       ['Type on the map (number, label, name)', 'Double-click a selected object'],
       ['Deselect, or leave a row', 'Esc'],
+      ['Call off a drag or selection box', 'Esc while dragging'],
       ['Nudge 1 px, or 10 px', 'Arrow keys, Shift+arrow keys'],
       ['Bring forward, send backward', `${modLabel}], ${modLabel}[`],
       ['Bring to front, send to back', `${modLabel}Shift+], ${modLabel}Shift+[`],
