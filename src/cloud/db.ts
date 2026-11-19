@@ -1,5 +1,6 @@
 import { GoTrueClient as AuthClient } from '@supabase/auth-js';
 import { PostgrestClient } from '@supabase/postgrest-js';
+import { observedFetch } from '../errors/report';
 
 /**
  * The two parts of Supabase the app uses: sign-in (auth) and the database
@@ -25,14 +26,17 @@ export function createDb(url: string, key: string, auth: { flowType: 'pkce' | 'i
     headers: { Authorization: `Bearer ${key}`, apikey: key, ...headers },
     // supabase-js's default key: sessions saved before this client existed still load.
     storageKey: `sb-${base.hostname.split('.')[0]}-auth-token`,
+    // Server errors and the sign-in email limit are reported (docs/MONITORING.md); nothing else changes.
+    fetch: observedFetch('sign-in'),
     ...auth,
   });
+  const dbFetch = observedFetch('database');
   const fetchWithAuth: typeof fetch = async (input, init) => {
     const { data } = await authClient.getSession();
     const h = new Headers(init?.headers);
     if (!h.has('apikey')) h.set('apikey', key);
     if (!h.has('Authorization')) h.set('Authorization', `Bearer ${data.session?.access_token ?? key}`);
-    return fetch(input, { ...init, headers: h });
+    return dbFetch(input, { ...init, headers: h });
   };
   const rest = new PostgrestClient(new URL('rest/v1', base).href, { headers, schema: 'public', fetch: fetchWithAuth });
   return {

@@ -11,6 +11,7 @@ import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { useCulledGroup } from '../render/cull';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
+import { layerPicture } from '../render/printPicture';
 import type { Box } from '../model/types';
 import '../render/konvaSetup';
 import { navigate } from '../router';
@@ -274,6 +275,35 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   }, [doc]);
 
   const floor = doc?.floors.find((f) => f.id === floorId) ?? doc?.floors[0];
+
+  // The browser's own Print (Ctrl+P): the whole floor on the page, with any route or
+  // "You are here" marker, instead of the screen's controls and a map cut off at the
+  // edge. Drawn as the print starts, into a canvas that only shows when printing.
+  const printRef = useRef<HTMLDivElement>(null);
+  const floorRef = useRef(floor);
+  floorRef.current = floor;
+  useEffect(() => {
+    const before = () => {
+      const layer = hit.current.layer, holder = printRef.current, f = floorRef.current;
+      const box = f && floorBounds(f);
+      if (!layer || !holder || !box || box.width <= 0 || box.height <= 0) return;
+      const bg = getComputedStyle(boxRef.current ?? document.body).backgroundColor || '#ffffff';
+      const pic = layerPicture(layer, box, viewRef.current, bg);
+      pic.dataset.testid = 'print-map';
+      holder.querySelector('canvas')?.remove();
+      holder.appendChild(pic);
+      const page = holder.querySelector('style')!;
+      page.textContent = `@page { size: ${pic.width >= pic.height ? 'landscape' : 'portrait'}; margin: 12mm; }`;
+    };
+    const after = () => printRef.current?.querySelector('canvas')?.remove();
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+    };
+  }, []);
+
   const resetView = () => floor && setView(fitViewport(floorBounds(floor), size, 24));
   // Fit when the floor or screen size changes (but not after a search jump).
   const fitKey = `${floor?.id}:${size.width}x${size.height}`;
@@ -545,6 +575,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           Preview — this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
         </div>
       )}
+      <div className="print-only viewer-print" ref={printRef} aria-hidden="true">
+        <style />
+        <h1>{doc.name} · {floorTitle(doc, floor)}</h1>
+      </div>
       <header className="viewer-header">
         {(preview || backTo !== null) && (
           <button className="icon-btn" aria-label={preview ? 'Back to editor' : 'All maps'} onClick={() => navigate(preview ? `/edit/${doc.id}` : backTo ?? '/')}>

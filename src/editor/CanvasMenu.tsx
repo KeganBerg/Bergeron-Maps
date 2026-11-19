@@ -60,6 +60,9 @@ export function CanvasMenu({ x, y, id, onClose }: { x: number; y: number; id: st
       { label: sel.length > 1 ? 'Lock these' : 'Lock', run: () => setFlag(sel, 'locked'), testId: 'menu-lock' },
       { label: sel.length > 1 ? 'Hide these' : 'Hide', run: () => setFlag(sel, 'hidden'), testId: 'menu-hide' },
     );
+    if (sel.length === 1 && target.kind !== 'text') {
+      items.push('sep', { label: 'Make a “You are here” QR sign', run: () => window.dispatchEvent(new CustomEvent('bm:qr-sign', { detail: target.id })), testId: 'menu-qr-sign' });
+    }
     if (def && canHaveInterior(def) && !floor.interiorOf && sel.length === 1) {
       items.push('sep', { label: 'Go inside', run: () => st().enterBuilding(target.id), testId: 'menu-enter' });
     }

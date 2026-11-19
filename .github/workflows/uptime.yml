@@ -1,0 +1,78 @@
+name: Uptime check
+
+# Every 15 minutes: is the website, the app, sign-in and the database answering?
+# When something is down after retries, this opens one GitHub issue (GitHub emails
+# the repository owner), and closes it with a note once everything is back.
+# Free on a public repository. See docs/MONITORING.md.
+#
+# GitHub runs scheduled workflows only from the repository's default branch, and
+# may start them a few minutes late when it is busy.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: 'Open a test alert issue (to check the email arrives), then close it'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ALERT_TITLE: 'Live site problem (uptime check)'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/uptime-check.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: check
+        env:
+          # Public project URL and anon key, the same ones the app ships with.
+          SUPABASE_URL: https://ysebxeokxpnmckwdtimj.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZWJ4ZW9reHBubWNrd2R0aW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDU3OTEsImV4cCI6MjEwOTEyMTc5MX0._gioylYj_sf6pLy3o6riTL0n9Y-EVsu3VNzpeRXYQkY
+        run: |
+          set +e
+          node scripts/uptime-check.mjs > report.md
+          code=$?
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          cat report.md
+          if [ "$code" -ne 0 ]; then echo "down=true" >> "$GITHUB_OUTPUT"; else echo "down=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Open or close the alert issue
+        run: |
+          open=$(gh issue list --state open --search "\"$ALERT_TITLE\" in:title" --json number,title --jq ".[] | select(.title == \"$ALERT_TITLE\") | .number" | head -n1)
+          if [ "${{ steps.check.outputs.down }}" = "true" ]; then
+            if [ -z "$open" ]; then
+              gh issue create --title "$ALERT_TITLE" --body-file report.md
+            else
+              echo "Alert #$open is already open; not opening another."
+            fi
+          elif [ -n "$open" ]; then
+            { echo "Everything is answering again."; echo; cat report.md; } > back.md
+            gh issue comment "$open" --body-file back.md
+            gh issue close "$open"
+          fi
+
+      - name: Test alert
+        if: ${{ inputs.test_alert }}
+        run: |
+          url=$(gh issue create --title "Test alert (uptime check)" --body "This is a test from the Uptime check workflow. If you got an email about it, alerts reach you. It closes itself.")
+          sleep 5
+          gh issue close "$url" --comment "Test finished."

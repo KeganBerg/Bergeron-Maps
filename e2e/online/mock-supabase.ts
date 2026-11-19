@@ -117,6 +117,15 @@ export class MockSupabase {
       return json(sessionFor(u));
     }
     if (path === '/auth/v1/otp') return json({});
+    // Sign-in email: ?token_hash=hash-<user id> from the link, or code 123456 typed with the email.
+    if (path === '/auth/v1/verify' && req.method() === 'POST') {
+      const b = req.postDataJSON() as { token_hash?: string; email?: string; token?: string; type?: string };
+      const u = b.token_hash
+        ? this.users.get(b.token_hash.replace(/^hash-/, ''))
+        : b.token === '123456' ? [...this.users.values()].find((x) => x.email === b.email) : undefined;
+      if (!u) return json({ code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' }, 403);
+      return json(sessionFor(u));
+    }
     if (path === '/auth/v1/logout') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
     if (path === '/auth/v1/user') {
       const u = this.who(route);
