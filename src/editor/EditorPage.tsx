@@ -10,6 +10,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { VersionsDialog } from './VersionsDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { SignDialog } from './SignDialog';
 import { useEditor } from './store';
 import { readBackup, useAutosave } from './useAutosave';
 import { useKeyboard } from './useKeyboard';
@@ -22,6 +23,13 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
     const open = () => setShowShortcuts(true);
     window.addEventListener('bm:shortcuts', open);
     return () => window.removeEventListener('bm:shortcuts', open);
+  }, []);
+  // "You are here" QR sign for one object, asked for from its panel or the right-click menu.
+  const [signFor, setSignFor] = useState<string | null>(null);
+  useEffect(() => {
+    const open = (e: Event) => setSignFor((e as CustomEvent<string>).detail);
+    window.addEventListener('bm:qr-sign', open);
+    return () => window.removeEventListener('bm:qr-sign', open);
   }, []);
   const [backup, setBackup] = useState<ReturnType<typeof readBackup>>(null);
   const doc = useEditor((s) => s.doc);
@@ -123,6 +131,7 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
       <Notices />
       {rowDialog && <RowDialog />}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {signFor && <SignDialog repo={repo} mapId={mapId} objectId={signFor} onClose={() => setSignFor(null)} />}
       {showHistory && (
         <VersionsDialog
           repo={repo}

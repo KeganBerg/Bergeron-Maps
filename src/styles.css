@@ -650,6 +650,7 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .site-url { word-break: break-all; }
 .link-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .link-edit input { width: 200px; }
+.link-edit .link-warning { flex-basis: 100%; }
 .admin-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
 .admin-stats > div { display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; padding: 14px 8px; }
 .admin-stats > div + div { border-left: 1px solid var(--border); }
@@ -827,3 +828,23 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .floor-list .list-group-title { font-family: var(--font); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 10px 4px 6px; }
 .floor-list .list-group:first-child .list-group-title { margin-top: 2px; }
 .viewer-header .icon-btn.on { background: rgba(127, 127, 127, 0.25); color: inherit; }
+
+/* "You are here" QR sign dialog */
+.sign-setup { display: flex; gap: 16px; align-items: flex-start; margin: 12px 0; }
+.sign-qr-preview { flex: none; width: 132px; height: 132px; border: 1px solid var(--border, #d1d5db); border-radius: 6px; overflow: hidden; background: #fff; }
+.sign-qr-preview svg { display: block; width: 100%; height: 100%; }
+.sign-sizes { flex: 1; min-width: 0; border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.sign-sizes legend { font-weight: 600; margin-bottom: 4px; }
+.sign-sizes .check { align-items: flex-start; }
+@media (max-width: 520px) { .sign-setup { flex-direction: column; } }
+
+/* The viewer printed with the browser's Print: the title and the whole floor, nothing else. */
+.print-only { display: none; }
+@media print {
+  html, body, #root { height: auto !important; overflow: visible !important; background: #fff !important; }
+  .viewer { display: block; height: auto; background: #fff; }
+  .viewer > :not(.viewer-print) { display: none !important; }
+  .viewer-print { display: block; color: #000; }
+  .viewer-print h1 { font-size: 14pt; margin: 0 0 8px; font-family: system-ui, sans-serif; }
+  .viewer-print canvas { display: block; max-width: 100%; max-height: calc(100vh - 40px); width: auto; height: auto; margin: 0 auto; }
+}
