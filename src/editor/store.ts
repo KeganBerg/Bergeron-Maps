@@ -242,6 +242,9 @@ const initialState: EditorState = {
 
 export const useEditor = create<EditorStore>()((set, get) => {
   /** Applies a change to the current floor and records it for undo. */
+  /** A change made while a conflict is open must not hide it: autosave stays paused until it's resolved. */
+  const keepConflict = (status: SaveStatus): SaveStatus => (status === 'conflict' ? 'conflict' : 'unsaved');
+
   const commit: EditorActions['commit'] = (recipe) => {
     const { doc, floorId } = get();
     if (!doc) return;
@@ -410,7 +413,7 @@ export const useEditor = create<EditorStore>()((set, get) => {
         past: opts?.keepHistory && s.doc ? [...s.past, s.doc] : opts?.keepHistory ? s.past : [],
         future: opts?.keepHistory ? [] : [],
         editSeq: s.editSeq + 1,
-        ...(opts?.markSaved ? { savedSeq: s.editSeq + 1, saveStatus: 'saved' as const } : { saveStatus: 'unsaved' as const }),
+        ...(opts?.markSaved ? { savedSeq: s.editSeq + 1, saveStatus: 'saved' as const } : { saveStatus: keepConflict(s.saveStatus) }),
       });
     },
 
@@ -450,7 +453,7 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (!past.length || !doc || gestureBase) return;
       const prev = past[past.length - 1];
       showChangedFloor(doc, prev, 'Undid');
-      set((s) => ({ doc: prev, past: past.slice(0, -1), future: [doc, ...future], editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
+      set((s) => ({ doc: prev, past: past.slice(0, -1), future: [doc, ...future], editSeq: s.editSeq + 1, saveStatus: keepConflict(s.saveStatus) }));
       set(sanitize(prev, doc));
     },
     redo() {
@@ -458,7 +461,7 @@ export const useEditor = create<EditorStore>()((set, get) => {
       if (!future.length || !doc || gestureBase) return;
       const next = future[0];
       showChangedFloor(doc, next, 'Redid');
-      set((s) => ({ doc: next, past: [...past, doc], future: future.slice(1), editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
+      set((s) => ({ doc: next, past: [...past, doc], future: future.slice(1), editSeq: s.editSeq + 1, saveStatus: keepConflict(s.saveStatus) }));
       set(sanitize(next, doc));
     },
 

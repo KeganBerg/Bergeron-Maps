@@ -164,6 +164,11 @@ export class SupabaseRepository implements MapRepository {
     return row ? toDoc(row) : null;
   }
 
+  async getRevision(id: string): Promise<number | null> {
+    const row = check(await this.db.from('maps').select('revision').eq('id', id).is('deleted_at', null).maybeSingle()) as { revision: number } | null;
+    return row ? row.revision : null;
+  }
+
   /** Finds the company's site by name, creating it when allowed (owners and regional managers). */
   async siteId(name: string): Promise<string> {
     const site = name.trim();

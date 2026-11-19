@@ -223,8 +223,10 @@ export class MockSupabase {
       }));
     }
     if (path === '/rest/v1/map_versions' && req.method() === 'POST') {
-      const v = req.postDataJSON() as { map_id: string; reason: string; label: string; revision: number };
-      return rows([{ id: `v${this.log.length}`, map_id: v.map_id, created_at: '2026-11-12T00:00:00Z', reason: v.reason, label: v.label, revision: v.revision }]);
+      const v = req.postDataJSON() as { map_id: string; reason: string; label: string; revision: number; doc: unknown };
+      const row = { id: `v${this.log.length}`, map_id: v.map_id, created_at: '2026-11-12T00:00:00Z', reason: v.reason, label: v.label, revision: v.revision };
+      this.versions.push({ ...row, doc: v.doc });
+      return rows([row]);
     }
     if (path === '/rest/v1/map_versions') {
       const mapId = eq('map_id');

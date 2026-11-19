@@ -1,4 +1,5 @@
 import { createDb, type Db } from './db';
+import { friendly } from '../errors/friendly';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
