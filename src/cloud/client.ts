@@ -2,7 +2,7 @@ import { createDb, type Db } from './db';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
-const LINK_PROBLEM = 'That sign-in link didn’t work. It may have expired or already been used (some work email systems open links to scan them). Enter your email for a new link, and open it in this browser.';
+const LINK_PROBLEM = 'That sign-in link didn’t work. It may have expired or already been used (some work email systems open links to scan them). Enter your email for a new link, or type the code from the email instead.';
 const AUTH_ERROR_KEYS = ['error', 'error_code', 'error_description'];
 
 /**
@@ -23,6 +23,66 @@ function takeLinkErrorFromUrl(): string | null {
   return LINK_PROBLEM;
 }
 let linkProblem = takeLinkErrorFromUrl();
+
+/** Sign-in email types Supabase puts in the link (`type=`). */
+const EMAIL_LINK_TYPES = ['email', 'magiclink', 'signup', 'invite', 'email_change'] as const;
+export type EmailLinkType = (typeof EMAIL_LINK_TYPES)[number];
+
+/**
+ * Our sign-in emails link to the app itself with `?token_hash=…&type=email`
+ * (see supabase/email-templates). Nothing is used up until the person presses
+ * “Finish signing in”, so a work email scanner that opens the link first
+ * doesn't spend it, and it works in any browser (no PKCE code to match).
+ * Read it once and take it out of the address.
+ */
+function takeEmailLinkFromUrl(): { tokenHash: string; type: EmailLinkType } | null {
+  if (typeof window === 'undefined') return null;
+  const u = new URL(window.location.href);
+  const tokenHash = u.searchParams.get('token_hash');
+  const type = u.searchParams.get('type') as EmailLinkType | null;
+  if (!tokenHash) return null;
+  u.searchParams.delete('token_hash');
+  u.searchParams.delete('type');
+  window.history.replaceState(null, '', u.toString());
+  return { tokenHash, type: type && EMAIL_LINK_TYPES.includes(type) ? type : 'email' };
+}
+let emailLink = takeEmailLinkFromUrl();
+
+/** A sign-in link from our email that is waiting for the person to press Finish signing in. */
+export const pendingEmailLink = () => emailLink;
+
+/** Uses the sign-in link from the email. On success the session appears and the app moves on. */
+export async function finishEmailLink(): Promise<string | null> {
+  if (!supabase || !emailLink) return LINK_PROBLEM;
+  const { tokenHash, type } = emailLink;
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+  if (!error) {
+    emailLink = null;
+    return null;
+  }
+  if (/fetch|network/i.test(error.message)) return friendly(error);
+  emailLink = null;
+  return LINK_PROBLEM;
+}
+
+/** The code printed in the sign-in email, typed on the “Check your email” screen. */
+export async function signInWithCode(email: string, code: string): Promise<string | null> {
+  if (!supabase) return 'Sign-in isn’t available here.';
+  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
+  if (!error) return null;
+  if (/fetch|network/i.test(error.message)) return friendly(error);
+  return 'That code didn’t work. Check it against the newest email (each new email replaces the last code), or send a new one.';
+}
+
+/** Messages for the errors Supabase gives when it can't send the sign-in email. */
+export function sendProblem(e: { message?: string } | null): string {
+  const m = e?.message ?? '';
+  if (/rate limit/i.test(m)) return 'Too many sign-in emails were sent. Wait a minute and try again.';
+  if (/only request this after (\d+) seconds/i.test(m)) return `A sign-in email was just sent. Wait ${m.match(/after (\d+) seconds/i)![1]} seconds before asking for another.`;
+  if (/error sending|smtp|mail/i.test(m)) return 'We couldn’t send the sign-in email just now. Try again in a few minutes, or contact bergeronmaps@gmail.com if it keeps happening.';
+  if (/signups not allowed/i.test(m)) return 'This email doesn’t have an account yet. Ask your manager or admin to add it.';
+  return friendly(e);
+}
 
 /**
  * Why the person is back on the sign-in page, if a sign-in link failed. Also
