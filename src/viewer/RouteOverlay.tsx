@@ -81,3 +81,18 @@ function dashFor(length: number, shown: number) {
   const L = length + 1;
   return { dash: [L, L], dashOffset: L * (1 - shown) };
 }
+
+/** "You are here", where a sign's QR code says the person is standing (a ?from= link). */
+export function HereMarker({ x, y, scale }: { x: number; y: number; scale: number }) {
+  const ink = MAP_PALETTE.selection;
+  const k = 1 / scale;
+  return (
+    <Group x={x} y={y} listening={false} name="here-marker">
+      <Circle radius={9 * k} fill="#2563eb" stroke="#ffffff" strokeWidth={3 * k} />
+      <Label y={-14 * k}>
+        <Tag fill={ink} pointerDirection="down" pointerWidth={10 * k} pointerHeight={6 * k} cornerRadius={3 * k} />
+        <Text text="You are here" fill="#ffffff" fontSize={13 * k} fontStyle="bold" fontFamily={MAP_PALETTE.font} padding={6 * k} />
+      </Label>
+    </Group>
+  );
+}

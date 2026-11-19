@@ -18,7 +18,7 @@ import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
 import { floorVars, MAP_PALETTE } from '../theme';
 import { feet, findRoute, isBig, minutes, placeLabel, startPlaces, type Place, type Route } from '../model/route';
-import { RouteOverlay } from './RouteOverlay';
+import { HereMarker, RouteOverlay } from './RouteOverlay';
 
 const ROADLIKE = /road|lane|drive|walk|sidewalk|path|zone|area|grass|crosswalk/;
 
@@ -54,6 +54,13 @@ function linkTo(objectId: string): string {
 const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 function describe(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
+  const d = describeObject(o, doc);
+  // The place a sign's QR code says you're standing at.
+  if (o.id === fromHint()) return { title: d.title, detail: ['You are here', d.detail].filter(Boolean).join(' · ') };
+  return d;
+}
+
+function describeObject(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
   if (o.kind === 'space') return { title: `Space ${o.label || '(no number)'}`, detail: o.accessible ? 'Accessible space' : undefined };
   if (o.kind === 'text') return { title: o.text };
   const def = ASSET_BY_KEY[o.assetKey];
@@ -86,6 +93,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [tapped, setTapped] = useState<MapObject | null>(null);
   const [dir, setDir] = useState<Directions | null>(null);
   const [avoidStairs, setAvoidStairs] = useState(false);
+  const avoidRef = useRef(avoidStairs);
+  avoidRef.current = avoidStairs;
+  /** The version on screen, to tell whether Refresh brought a newer one. */
+  const docRef = useRef<(MapDocument & { publishedAt?: string }) | null>(null);
   const [shared, setShared] = useState(false);
   // Where keyboard focus goes after the next render: the panel that just replaced the
   // button that was pressed (a result, a start place), so focus never drops to the page.
@@ -111,6 +122,18 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const outside = useRef<{ x: number; y: number; scale: number } | null>(null);
   const viewRef = useRef(view);
   viewRef.current = view;
+  const onEscape = useRef<() => boolean>(() => false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      // The search box and the floor list handle their own Escape.
+      if (t?.closest('input, textarea, select, .floor-list, .results')) return;
+      if (onEscape.current()) e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // While a finger or mouse drags or pinches the map, only the picture is
   // redrawn each frame. Konva also redraws its hidden hit map (what a tap
@@ -204,12 +227,34 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     setError(null);
     // Employees only ever see the published version; Preview shows the manager's draft.
     (preview ? repo.getMap(mapId) : repo.getPublishedMap(mapId)).then(
-      (d) => {
+      (loaded) => {
+        const d = loaded as (MapDocument & { publishedAt?: string }) | null;
         if (!d) return setError(preview
           ? 'This map isn’t available. It may have been deleted.'
           : 'This map isn’t published yet, or it was removed. Ask your manager to publish it.');
         setDoc(d);
         setFloorId((cur) => (d.floors.some((f) => f.id === cur) ? cur : d.floors[0].id));
+        // A refresh brings the manager's latest changes: what's selected follows them, and
+        // anything that was removed stops showing (no card for a space that's gone).
+        const prev = docRef.current;
+        docRef.current = d;
+        if (!prev || (prev.publishedAt ?? prev.updatedAt) === (d.publishedAt ?? d.updatedAt)) return;
+        const find = (fid: string, id?: string) => (id ? d.floors.find((f) => f.id === fid)?.objects.find((o) => o.id === id) : undefined);
+        setTapped((t) => (t ? d.floors.flatMap((f) => f.objects).find((o) => o.id === t.id) ?? null : t));
+        setFocus((f) => (f && find(f.floorId, f.id) ? f : null));
+        setDir((cur) => {
+          if (!cur) return cur;
+          const goal = find(cur.goal.floorId, cur.goal.objectId);
+          if (!goal) return null;
+          const g = { ...cur.goal, x: goal.x, y: goal.y };
+          if (!('start' in cur)) return { ...cur, goal: g };
+          const so = cur.start.objectId ? find(cur.start.floorId, cur.start.objectId) : undefined;
+          if (cur.start.objectId && !so) return { stage: 'pick', goal: g };
+          const start = so ? { ...cur.start, x: so.x, y: so.y } : cur.start;
+          // Worked out again on the new map, so the line never runs through something just drawn.
+          const r = findRoute(d, start, g, { avoidStairs: avoidRef.current });
+          return r.ok ? { stage: 'route', goal: g, start, route: r.route } : { stage: 'none', goal: g, start, reason: r.reason };
+        });
       },
       () => setError('The latest version of this map couldn’t be loaded. Check your connection and try again.'),
     );
@@ -243,6 +288,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
   const goTo = (h: SearchHit) => {
     setShowResults(false);
+    // Finding something else while directions are up shows that instead (the route was to somewhere else).
+    setDir(null);
     setListOpen(false);
     moveFocus.current = 'card';
     setFocus({ id: h.object.id, floorId: h.floorId });
@@ -259,7 +306,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const openedAt = useRef(false);
   useEffect(() => {
     if (openedAt.current || !doc || !measured) return;
-    const id = atHint();
+    // A shared link opens on its place; a sign's QR code opens on where you're standing.
+    const id = atHint() ?? fromHint();
     if (!id) return;
     openedAt.current = true;
     for (const f of doc.floors) {
@@ -359,6 +407,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const interiorIds = new Set(doc.floors.map((f) => f.interiorOf).filter((x): x is string => !!x));
   const canGoIn = !!tapped && !floor.interiorOf && interiorIds.has(tapped.id);
   const route = dir?.stage === 'route' ? dir.route : null;
+  const hereId = fromHint();
+  const here = hereId ? floor.objects.find((o) => o.id === hereId) : undefined;
   const routeFloors = new Set(route ? [...route.legs.map((l) => l.floorId), ...route.steps.map((s) => s.floorId)] : []);
 
   // Read out by screen readers when it changes: what search found, what's selected, the route.
@@ -478,6 +528,14 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     setTapped(o ?? null);
     setFocus(o ? { id: o.id, floorId: floor.id } : null);
     if (o) keepInView(o);
+  };
+
+  // Escape backs out one step: tap mode to the list of places, directions to the place, the card to the map.
+  onEscape.current = () => {
+    if (dir?.stage === 'tap') { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); return true; }
+    if (dir) { endDirections(); return true; }
+    if (tapped) { setTapped(null); setFocus(null); return true; }
+    return false;
   };
 
   return (
@@ -618,6 +676,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               </Group>
             )}
             {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
+            {here && !route && <HereMarker x={here.x} y={here.y} scale={view.scale} />}
             {route && <RouteOverlay route={route} floorId={floor.id} scale={view.scale} />}
           </Layer>
         </Stage>
@@ -798,7 +857,7 @@ function DirectionsSheet(p: {
       return 3 + here * 2;
     };
     return all.map((s, i) => ({ s, i, r: rank(s) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.s);
-  }, [doc, dir.goal.objectId]);
+  }, [doc, dir.goal.objectId, p.floorId]);
   const close = <button className="icon-btn" aria-label="Close directions" onClick={p.onClose} data-testid="dir-close"><Icon name="close" /></button>;
   const multiFloor = doc.floors.length > 1;
 

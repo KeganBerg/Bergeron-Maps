@@ -402,6 +402,8 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
   .info-card > div { flex-basis: calc(100% - 52px); }
   .info-card > .icon-btn { order: 1; align-self: flex-start; }
   .info-card > .btn { order: 2; }
+  /* Close stays top right; Share sits on the button row, after Directions. */
+  .info-card > .share-btn { order: 3; align-self: center; }
 }
 
 /* Walking directions */
