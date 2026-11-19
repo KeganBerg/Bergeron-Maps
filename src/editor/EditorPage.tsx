@@ -11,7 +11,8 @@ import { TopBar } from './TopBar';
 import { VersionsDialog } from './VersionsDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useEditor } from './store';
-import { readBackup, useAutosave } from './useAutosave';
+import { useAutosave } from './useAutosave';
+import { clearBackup, readBackup, sameMapContent, type UnsavedBackup } from '../storage/unsavedBackup';
 import { useKeyboard } from './useKeyboard';
 
 export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository }) {
@@ -23,7 +24,8 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
     window.addEventListener('bm:shortcuts', open);
     return () => window.removeEventListener('bm:shortcuts', open);
   }, []);
-  const [backup, setBackup] = useState<ReturnType<typeof readBackup>>(null);
+  /** Unsaved changes this browser kept from an earlier visit (a crash, a closed tab, a dropped connection). */
+  const [backup, setBackup] = useState<(UnsavedBackup & { savedSince: boolean }) | null>(null);
   const doc = useEditor((s) => s.doc);
   const rowDialog = useEditor((s) => s.rowDialog);
   const conflict = useEditor((s) => s.conflict);
@@ -47,8 +49,14 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
           return;
         }
         useEditor.getState().load(d);
-        const b = readBackup(mapId);
-        if (b && b.savedAt > d.updatedAt) setBackup(b);
+        void readBackup(mapId).then((b) => {
+          if (!alive || !b) return;
+          // The copy matches what's stored (its save landed after all): nothing to recover.
+          if (sameMapContent(b.doc, d)) return clearBackup(mapId);
+          // Copies made before they recorded their revision: offered only when newer than the stored map, as before.
+          if (b.baseRevision === undefined && !(b.savedAt > d.updatedAt)) return;
+          setBackup({ ...b, savedSince: b.baseRevision !== undefined && b.baseRevision < d.revision });
+        });
         // The canvas fits the floor to the screen when it mounts and measures itself.
       },
       (e: Error) => alive && setError(e.message || 'This map could not be opened.'),
@@ -57,6 +65,36 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
       alive = false;
     };
   }, [mapId, repo]);
+
+  const recover = async () => {
+    const b = backup;
+    const s = useEditor.getState();
+    if (!b || !s.doc) return;
+    try {
+      await repo.saveVersion({ ...s.doc, revision: s.revision }, 'before-restore', 'Before recovering unsaved changes');
+    } catch {
+      // Without that copy, someone else's newer save would be overwritten for good.
+      if (b.savedSince) {
+        s.notify({ tone: 'error', message: 'Couldn’t reach the server to keep the newer saved version first, so nothing was recovered yet. Check your connection and try again.' });
+        return;
+      }
+    }
+    setBackup(null);
+    const now = useEditor.getState();
+    now.replaceDoc({ ...b.doc, revision: now.revision }, { keepHistory: true });
+  };
+  const keepBackupInHistory = async () => {
+    const b = backup;
+    setBackup(null);
+    if (!b) return;
+    try {
+      const when = new Date(b.savedAt).toLocaleString();
+      await repo.saveVersion({ ...b.doc, revision: b.baseRevision ?? useEditor.getState().revision }, 'manual', `Unsaved changes from ${when} (not recovered)`);
+      clearBackup(mapId);
+    } catch {
+      /* Still kept in this browser until the next save. */
+    }
+  };
 
   const manualSave = useCallback(async () => {
     const ok = await saveNow({ version: 'manual' });
@@ -72,6 +110,12 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
       if (s.editSeq !== s.savedSeq) throw new Error('Your latest changes couldn’t be saved, so nothing was published. Try again.');
       const info = await repo.publishMap(mapId);
       setPublished(info);
+      // Publishing sends what's stored. If someone else saved in the moment between our save and the
+      // publish, their newer version is what went live: say so rather than imply it was ours.
+      if (info.publishedRevision !== useEditor.getState().revision) {
+        s.notify({ tone: 'warning', message: 'Published. Someone else saved this map moments before, so employees see the latest saved version, which includes their changes.' });
+        return;
+      }
       const link = `${window.location.origin}${window.location.pathname}#/view/${mapId}`;
       s.notify({
         tone: 'success',
@@ -90,7 +134,11 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
     const s = useEditor.getState();
     if (s.editSeq !== s.savedSeq && s.saveStatus !== 'conflict') await saveNow();
     const after = useEditor.getState();
-    if (after.editSeq !== after.savedSeq && !window.confirm('Some changes are not saved yet. Leave anyway?')) return;
+    if (
+      after.editSeq !== after.savedSeq &&
+      !window.confirm('Some changes aren’t saved yet. A copy is kept in this browser, and opening this map here again offers to recover it. Leave anyway?')
+    )
+      return;
     navigate(to);
   };
 
@@ -146,20 +194,24 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
         </Dialog>
       )}
       {backup && (
-        <Dialog title="Recover unsaved changes?" onClose={() => setBackup(null)}
+        <Dialog title="Recover unsaved changes?" onClose={keepBackupInHistory}
           footer={
             <>
-              <button className="btn" onClick={() => setBackup(null)}>Not now</button>
-              <button className="btn primary" onClick={() => {
-                useEditor.getState().replaceDoc({ ...backup.doc, revision: useEditor.getState().revision }, { keepHistory: true });
-                setBackup(null);
-              }}>Recover changes</button>
+              <button className="btn" onClick={keepBackupInHistory} data-testid="recover-later">Not now</button>
+              <button className="btn primary" onClick={recover} data-testid="recover-changes">Recover changes</button>
             </>
           }>
           <p>
             This browser kept a copy of changes from {new Date(backup.savedAt).toLocaleString()} that weren’t saved. Recover them? (You can undo
             this.)
           </p>
+          {backup.savedSince && (
+            <p data-testid="recover-saved-since">
+              This map was also saved after that, maybe in another window or by another manager. If you recover, the version saved now is kept in
+              Version history.
+            </p>
+          )}
+          <p className="muted">If you choose Not now, the copy is added to Version history so it isn’t lost.</p>
         </Dialog>
       )}
     </div>

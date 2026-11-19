@@ -64,7 +64,8 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
       window.removeEventListener('keydown', esc);
     };
   }, [downloadMenu]);
-  const info = STATUS[status];
+  // Offline is said plainly (the reason is otherwise only in the tooltip, which phones never show).
+  const info = status === 'failed' && /offline/i.test(error ?? '') ? { text: 'Offline · saves when back', tone: 'error' } : STATUS[status];
   const download = () => {
     const url = URL.createObjectURL(new Blob([serializeMapFile(st().doc!)], { type: 'application/json' }));
     const a = document.createElement('a');
