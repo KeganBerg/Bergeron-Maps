@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { sentryOrigin } from './src/errors/dsn';
 
 /**
  * Google's Material Symbols (Apache 2.0) as one lazily loaded module:
@@ -45,7 +46,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  // Plus the error-tracking host, only when the build reports errors (docs/MONITORING.md).
+  ["connect-src 'self' https://*.supabase.co wss://*.supabase.co", sentryOrigin(process.env.VITE_SENTRY_DSN)].filter(Boolean).join(' '),
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

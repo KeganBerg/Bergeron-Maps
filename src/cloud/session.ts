@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/auth-js';
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from './client';
+import { friendly, supabase } from './client';
+import { reportError } from '../errors/report';
 
 export type Role = 'owner' | 'manager' | 'employee';
 
@@ -49,10 +50,18 @@ export function useSession(): SessionState {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setReady(true);
-    });
+    // Reading the saved sign-in can fail (storage blocked, a refresh that can't reach the
+    // server): carry on signed out rather than sitting on "Loading…" forever.
+    supabase.auth.getSession().then(
+      ({ data }) => {
+        setSession(data.session);
+        setReady(true);
+      },
+      (e) => {
+        reportError(e, 'sign-in', { step: 'restore session' });
+        setReady(true);
+      },
+    );
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
@@ -66,13 +75,15 @@ export function useSession(): SessionState {
     }
     let alive = true;
     setError(null);
-    loadAccess(userId).then((r) => {
-      if (!alive) return;
-      if (r.error) setError(r.error);
-      setMemberships(r.list);
-      setIsAdmin(r.admin);
-      setLoadedFor(`${userId}:${tick}`);
-    });
+    loadAccess(userId)
+      .catch((e: unknown) => ({ list: [] as Membership[], admin: false, error: friendly(e) }))
+      .then((r) => {
+        if (!alive) return;
+        if (r.error) setError(r.error);
+        setMemberships(r.list);
+        setIsAdmin(r.admin);
+        setLoadedFor(`${userId}:${tick}`);
+      });
     return () => {
       alive = false;
     };
@@ -93,7 +104,7 @@ export function useSession(): SessionState {
         if (!alive || r.error) return;
         setMemberships((cur) => (accessKey(cur) === accessKey(r.list) ? cur : r.list));
         setIsAdmin(r.admin);
-      });
+      }, () => { /* offline for a moment: the next check tries again */ });
     };
     if (nudge) check();
     const timer = window.setInterval(check, 60_000);
