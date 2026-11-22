@@ -139,3 +139,15 @@ test('a site manager reaches My Locations from the account menu and joins anothe
   await expect(page.getByTestId(`location-${SITE_A.name}`)).toBeVisible();
   await expect(page.getByTestId('join-code')).toBeVisible();
 });
+
+test('the header button and My Locations label which name is the company and which is a site', async ({ page }) => {
+  const sb = new MockSupabase(page);
+  await sb.install(USERS.owner);
+  await page.goto('/#/locations');
+  await expect(page.getByTestId('account-menu')).toContainText(`Company${COMPANY.name}`);
+  await expect(page.getByTestId(`company-${COMPANY.name}`)).toContainText('Company');
+  await expect(page.getByTestId(`location-${SITE_A.name}`)).toContainText(`Site${SITE_A.name}`);
+  await page.getByTestId('account-menu').click();
+  await expect(page.getByTestId('menu-company')).toContainText(COMPANY.name);
+  await expect(page.getByTestId('menu-locations')).toContainText('Join another site with its code');
+});

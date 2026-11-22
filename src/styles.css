@@ -623,7 +623,24 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
   .page-actions .btn { flex: 1; justify-content: center; }
 }
 .account { position: relative; }
-.account-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 220px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 8px; z-index: 40; display: flex; flex-direction: column; gap: 2px; }
+/* "Company" over the name, so the header button can't be mistaken for a site. */
+.account-btn { display: inline-flex; align-items: center; gap: 10px; padding-top: 5px; padding-bottom: 5px; text-align: left; }
+.account-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.account-kind { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+.account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-caret { flex: none; opacity: 0.8; }
+/* Small "Company" / "Site" labels so similar names are easy to tell apart. */
+.kind-tag { display: inline-block; font-family: var(--font); font-size: 10px; font-weight: 600; line-height: 1.4; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 5px; vertical-align: 0.2em; white-space: nowrap; }
+.site-head > .kind-tag { align-self: center; margin-right: -4px; }
+.loc-head .kind-tag { align-self: flex-start; margin-bottom: 4px; }
+.loc-page-head { flex-direction: column; align-items: flex-start; gap: 6px; }
+.loc-page-head p { margin: 0; max-width: 60ch; line-height: 1.45; }
+.menu-group { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
+.account-menu > p:first-child { border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 6px; }
+.menu-kind { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.account-menu .menu-item-2 { display: flex; flex-direction: column; gap: 2px; }
+.account-menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 220px; width: 280px; max-width: calc(100vw - 32px); background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 8px; z-index: 40; display: flex; flex-direction: column; gap: 2px; }
 .account-menu p { margin: 4px 8px 6px; }
 .account-menu button { text-align: left; background: none; border: 0; padding: 8px; border-radius: 6px; cursor: pointer; color: inherit; }
 .account-menu button:hover, .account-menu button.on { background: var(--hover); }
@@ -730,7 +747,7 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .nav-count { margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
 .locations { display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
 .loc-company { display: flex; flex-direction: column; gap: 10px; }
-.loc-company-name { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.loc-company-name { margin: 8px 0 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
 .loc-site { display: flex; flex-direction: column; gap: 10px; }
 .loc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .loc-head > span { display: flex; flex-direction: column; gap: 2px; }
