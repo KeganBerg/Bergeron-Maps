@@ -22,11 +22,12 @@ const TILE = '#0b0b0b';
 const ICON_RATIO = 2.5;
 
 // size: [mark x, mark y, mark width, mark height, tile corner radius] in output pixels.
+// The mark fills about two thirds of the tile width, leaving black space beside the B and the M.
 const PNG = {
-  16: [0, 5, 16, 6, 3],
-  32: [1, 10, 30, 12, 6],
-  48: [3, 16, 42, 17, 9],
-  180: [20, 62, 140, 56, 0], // iOS rounds the corners itself
+  16: [2, 5, 12, 5, 3],
+  32: [5, 11, 22, 9, 6],
+  48: [8, 17, 32, 13, 9],
+  180: [29, 65, 122, 49, 0], // iOS rounds the corners itself
 };
 
 const browser = await chromium.launch();
@@ -75,21 +76,21 @@ for (const [size, [x, y, w, h, r]] of Object.entries(PNG)) {
 }
 await browser.close();
 
-// 16px is hand-fitted, like a hinted font: one pixel row per band of the mark (two for the
-// B's counter), so the B's open top-left and the M's raised left stem stay sharp.
-// '#' full white, '+' half, '.' tile. Columns 0-6 are the B, 7 the gap, 8-15 the M.
+// 16px is hand-fitted, like a hinted font: one pixel row per band of the mark, so the
+// B's open top-left and the M's raised left stem stay sharp.
+// '#' full white, '+' half, '.' tile. The mark sits in columns 2-13: 2-6 the B, 7 the gap,
+// 8-13 the M, with two tile columns either side.
 const HINT16 = [
-  '######+.#.....##',
-  '.....##..#...###',
-  '#######.#.#.#.##',
-  '#.....#.#..##.##',
-  '#.....#.#..+..##',
-  '######+.#.....##',
+  '####+.#...##',
+  '...+#..#..##',
+  '#####.#.##.#',
+  '#...#.#.++.#',
+  '####+.#....#',
 ];
 {
   const p = await chromium.launch();
   const pg = await p.newPage();
-  const url = await pg.evaluate(({ base, rows, y0 }) => new Promise((res) => {
+  const url = await pg.evaluate(({ base, rows, x0, y0 }) => new Promise((res) => {
     const img = new Image();
     img.onload = () => {
       const c = document.createElement('canvas');
@@ -100,7 +101,7 @@ const HINT16 = [
       const tile = [11, 11, 11];
       rows.forEach((row, j) => [...row].forEach((ch, i) => {
         const t = ch === '#' ? 1 : ch === '+' ? 0.55 : 0;
-        const k = ((y0 + j) * 16 + i) * 4;
+        const k = ((y0 + j) * 16 + x0 + i) * 4;
         for (let n = 0; n < 3; n++) id.data[k + n] = Math.round(tile[n] + (255 - tile[n]) * t);
         id.data[k + 3] = 255;
       }));
@@ -108,7 +109,7 @@ const HINT16 = [
       res(c.toDataURL('image/png'));
     };
     img.src = base;
-  }), { base: 'data:image/png;base64,' + out[16].toString('base64'), rows: HINT16, y0: PNG[16][1] });
+  }), { base: 'data:image/png;base64,' + out[16].toString('base64'), rows: HINT16, x0: PNG[16][0], y0: PNG[16][1] });
   out[16] = Buffer.from(url.split(',')[1], 'base64');
   await p.close();
 }
@@ -128,8 +129,8 @@ function ico(entries) {
   return Buffer.concat([head, ...entries.map(([, png]) => png)]);
 }
 
-// Scalable icon: same tile, compact icon mark 80% of the tile width, centred.
-const mw = 80, mh = mw / ICON_RATIO, mx = (100 - mw) / 2, my = (100 - mh) / 2;
+// Scalable icon: same tile, compact icon mark 68% of the tile width, centred.
+const mw = 68, mh = mw / ICON_RATIO, mx = (100 - mw) / 2, my = (100 - mh) / 2;
 const kx = mw / VW, ky = mh / VH;
 const scalable = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="${TILE}"/><path fill="#fff" fill-rule="evenodd" transform="matrix(${+kx.toFixed(6)} 0 0 ${+ky.toFixed(6)} ${+(mx - VX * kx).toFixed(4)} ${+(my - VY * ky).toFixed(4)})" d="${d}"/></svg>\n`;
 
