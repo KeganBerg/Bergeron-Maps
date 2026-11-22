@@ -233,6 +233,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
               return (
                 <section key={site} className="site" data-testid={`site-${site}`}>
                   <header className="site-head">
+                    <span className="kind-tag">Site</span>
                     <h3>{site}</h3>
                     <span className="site-meta" data-testid={`site-meta-${site}`}>
                       {list.length} of {SITE_MAP_SLOTS} slots used · {live} of {SITE_LIVE_MAPS} published · {plural(spaces, 'space')}

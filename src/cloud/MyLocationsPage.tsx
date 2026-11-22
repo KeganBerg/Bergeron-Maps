@@ -111,7 +111,12 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
     <div className="home">
       <AppHeader nav={nav}>{account}</AppHeader>
       <main className="home-main locations">
-        <div className="page-head"><h2>My Locations</h2></div>
+        <div className="page-head loc-page-head">
+          <h2>My Locations</h2>
+          <p className="muted small" data-testid="locations-intro">
+            Every <strong>site</strong> you belong to, grouped by the <strong>company</strong> that owns it. Open a published map, or join another site with its code.
+          </p>
+        </div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}
 
@@ -124,22 +129,25 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
           const list = locations.filter((l) => l.company_id === cid);
           return (
             <section key={cid} className="loc-company">
-              {companies.length > 1 && <h3 className="loc-company-name">{list[0].company_name}</h3>}
+              <h3 className="loc-company-name" data-testid={`company-${list[0].company_name}`}>
+                <span className="kind-tag">Company</span> {list[0].company_name}
+              </h3>
               {list.map((l) => {
                 const siteMaps = maps.filter((m) => m.facility_id === l.site_id);
                 return (
                   <article key={l.site_id} className="panel-card loc-site" data-testid={`location-${l.site_name}`}>
                     <header className="loc-head">
                       <span>
+                        <span className="kind-tag">Site</span>
                         <strong className="loc-name">{l.site_name}</strong>
                         {l.address && <span className="muted small loc-address">{l.address}</span>}
                       </span>
-                      {l.role !== 'employee' && <span className="muted small">{l.role === 'owner' ? 'Account lead' : 'Manager'}</span>}
+                      {l.role !== 'employee' && <span className="muted small">Your role: {l.role === 'owner' ? 'Account lead' : 'Manager'}</span>}
                     </header>
                     {siteMaps.length === 0 ? (
                       <p className="muted small">No maps are published here yet.</p>
                     ) : (
-                      <ul className="loc-maps">
+                      <ul className="loc-maps" aria-label={`Published maps at ${l.site_name}`}>
                         {siteMaps.map((m) => (
                           <li key={m.map_id}>
                             <button className="loc-map" onClick={() => navigate(`/view/${m.map_id}`)} data-testid={`view-${m.name}`}>
@@ -175,6 +183,7 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
           <h3>{locations?.length ? 'Add another site' : 'Join a site'}</h3>
           <label className="stack">
             Site code
+            <span className="muted small">The 6-character code your manager gave you for that site.</span>
             <input value={code} onChange={(e) => setCode(cleanCode(e.target.value))} autoCapitalize="characters" autoComplete="off"
               placeholder="K7M2QX" className="code-input" data-testid="join-code" />
           </label>
