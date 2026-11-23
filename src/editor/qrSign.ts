@@ -1,4 +1,8 @@
 import { qrSvg } from '../model/qr';
+import { MAP_FONT } from '../theme';
+import overpass400 from '@fontsource/overpass/files/overpass-latin-400-normal.woff2?url';
+import overpass600 from '@fontsource/overpass/files/overpass-latin-600-normal.woff2?url';
+import overpass700 from '@fontsource/overpass/files/overpass-latin-700-normal.woff2?url';
 import type { FloorImage } from './view';
 
 /**
@@ -49,24 +53,29 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};
 /** The link as people would type it: no https://, broken after slashes so it wraps cleanly. */
 export const readableLink = (url: string) => esc(url.replace(/^https?:\/\//, '')).replace(/\//g, '/<wbr>').replace(/\?/g, '<wbr>?');
 
+/** The sign prints in its own window, so it brings the app's one font family with it (docs/TYPOGRAPHY.md). */
+export const signFonts = () => ([[overpass400, 400], [overpass600, 600], [overpass700, 700]] as const)
+  .map(([url, w]) => `@font-face { font-family: 'Overpass'; src: url('${new URL(url, location.href).href}') format('woff2'); font-weight: ${w}; }`).join('\n    ');
+
 export function signStyles(size: SignSize): string {
   const p = PAGE_IN[size];
   const scale = size === 'card' ? 0.55 : size === 'letter' ? 1 : 1.4;
   const pt = (n: number) => `${Math.round(n * scale * 10) / 10}pt`;
   return `@page { size: ${SIGN_SIZES.find((s) => s.key === size)!.page}; margin: ${p.margin}in; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    ${signFonts()}
+    html, body { margin: 0; background: #fff; color: #000; font-family: ${MAP_FONT}; }
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .sign { width: ${p.w - p.margin * 2}in; height: ${p.h - p.margin * 2 - 0.05}in; display: flex; flex-direction: column; gap: ${size === 'card' ? 0.12 : 0.22}in; overflow: hidden; }
     .head { background: #000; color: #fff; padding: ${size === 'card' ? '0.12in 0.16in' : '0.2in 0.3in'}; border-radius: 0.08in; }
-    .head h1 { margin: 0; font-size: ${pt(46)}; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; font-weight: 800; }
+    .head h1 { margin: 0; font-size: ${pt(46)}; line-height: 1; text-transform: uppercase; font-weight: 700; }
     .head p { margin: ${size === 'card' ? 0.05 : 0.08}in 0 0; font-size: ${pt(22)}; font-weight: 600; line-height: 1.15; }
     .map { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
     .map img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; border: 1px solid #000; }
     .scan { display: flex; align-items: center; gap: ${size === 'card' ? 0.14 : 0.3}in; ${size === 'card' ? 'flex-direction: column; text-align: center;' : ''} }
     .sign.alone .scan { flex: 1 1 auto; flex-direction: column; justify-content: center; text-align: center; }
     .qr { flex: none; display: block; }
-    .scan h2 { margin: 0 0 0.06in; font-size: ${pt(28)}; line-height: 1.1; font-weight: 800; }
+    .scan h2 { margin: 0 0 0.06in; font-size: ${pt(28)}; line-height: 1.1; font-weight: 700; }
     .scan p { margin: 0 0 0.06in; font-size: ${pt(15)}; line-height: 1.3; }
     .scan .link { font-size: ${pt(11)}; color: #222; word-break: break-word; }
     .foot { flex: none; font-size: ${pt(11)}; color: #222; border-top: 1px solid #000; padding-top: 0.06in; }`;
@@ -114,7 +123,7 @@ export async function pinnedPicture(img: FloorImage, at: { x: number; y: number 
   ctx.stroke();
   // The tag above the pin, kept inside the picture.
   const font = Math.round(r * 1.5);
-  ctx.font = `800 ${font}px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
+  ctx.font = `700 ${font}px ${MAP_FONT}`;
   const text = 'YOU ARE HERE';
   const tw = ctx.measureText(text).width;
   const pad = font * 0.45;
@@ -142,6 +151,7 @@ export async function printSign(w: Window, c: SignContent) {
   style.textContent = signStyles(c.size);
   d.head.appendChild(style);
   d.body.innerHTML = signBody(c);
+  await d.fonts?.ready;
   await Promise.all([...d.images].map((im) => im.decode().catch(() => undefined)));
   w.focus();
   w.print();

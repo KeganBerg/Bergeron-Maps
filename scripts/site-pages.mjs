@@ -178,7 +178,7 @@ function header(p, current) {
     <div class="wrap flex h-16 items-center gap-4 sm:gap-8">
       <a href="${homeLink}" class="flex items-center gap-3" aria-label="Bergeron Maps home">
         ${MARK}
-        <span class="whitespace-nowrap font-sign text-[16px] tracking-[0.12em] max-[479px]:sr-only sm:text-[19px] sm:tracking-[0.16em]">BERGERON MAPS</span>
+        <img src="${p}wordmark.svg" alt="" width="738" height="52" class="h-[11px] w-auto max-[479px]:hidden sm:h-[13px]" />
       </a>
       <nav class="ml-auto hidden items-center gap-8 text-[15px] text-white/70 lg:flex" aria-label="Main">
         <div class="nav-drop" data-menu>
@@ -211,7 +211,7 @@ function footer(p) {
   const ind = INDUSTRIES.map((i) => `<a class="inline-block py-1 hover:text-white" href="${p}industries/${i.slug}/">${esc(i.name)}</a>`).join('\n        ');
   return `<footer class="border-t border-white/15 bg-ink text-white/60">
     <div class="wrap grid gap-8 py-12 text-sm md:grid-cols-12">
-      <div class="md:col-span-4"><div class="font-sign text-lg tracking-[0.16em] text-white">BERGERON MAPS</div><p class="mt-2">© <span data-year>2026</span> Bergeron Maps</p><p class="mt-4 max-w-xs">This site sets no cookies and uses no trackers or analytics. Fonts and scripts are served from this site only.</p></div>
+      <div class="md:col-span-4"><img src="${p}wordmark.svg" alt="Bergeron Maps" width="738" height="52" class="h-[13px] w-auto" /><p class="mt-2">© <span data-year>2026</span> Bergeron Maps</p><p class="mt-4 max-w-xs">This site sets no cookies and uses no trackers or analytics. Fonts and scripts are served from this site only.</p></div>
       <nav class="flex flex-col gap-2 md:col-span-3 md:col-start-6" aria-label="Industries">
         <div class="label text-white/60">Industries</div>
         ${ind}
@@ -232,7 +232,7 @@ const HEAD_ICONS = (p) => `<link rel="icon" href="${p}favicon.ico" sizes="48x48"
   <link rel="icon" href="${p}favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="${p}favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="${p}apple-touch-icon.png" />
-  <link rel="preload" href="${p}fonts/archivo.woff2" as="font" type="font/woff2" crossorigin />`;
+  <link rel="preload" href="${p}fonts/overpass-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />`;
 
 
 function calcBlock(c) {
@@ -316,7 +316,7 @@ function industryPage(ind) {
       <div class="wrap grid gap-10 pb-14 pt-16 lg:grid-cols-12 lg:pt-24">
         <div class="lg:col-span-7">
           <p class="label text-white/60"><a class="hover:text-white" href="${p}#industries">Industries</a><i class="sep">/</i>${esc(ind.name)}</p>
-          <h1 class="mt-5 text-[clamp(2.4rem,5.6vw,4.6rem)] font-[780] leading-[0.98] tracking-[-0.035em]">${esc(ind.title)}</h1>
+          <h1 class="mt-5 text-[clamp(2.4rem,5.6vw,4.6rem)] font-bold leading-[1.02] tracking-[-0.02em]">${esc(ind.title)}</h1>
         </div>
         <div class="flex flex-col justify-end gap-7 lg:col-span-5">
           <p class="text-lg font-semibold text-sign">${esc(ind.pitch)}</p>
@@ -452,7 +452,7 @@ function accessibilityPage() {
     <section class="bg-ink text-white">
       <div class="wrap pb-14 pt-16 lg:pt-24">
         <p class="label text-white/60">Accessibility statement</p>
-        <h1 class="mt-5 max-w-4xl text-[clamp(2.4rem,5.6vw,4.6rem)] font-[780] leading-[0.98] tracking-[-0.035em]">Maps everyone on your site can use.</h1>
+        <h1 class="mt-5 max-w-4xl text-[clamp(2.4rem,5.6vw,4.6rem)] font-bold leading-[1.02] tracking-[-0.02em]">Maps everyone on your site can use.</h1>
         <p class="mt-7 max-w-2xl text-lg leading-relaxed text-white/75">Bergeron Maps aims to meet the Web Content Accessibility Guidelines (WCAG) 2.1 at level AA, in the map viewer your employees and visitors use, the editor, and this website. Schools, dealerships and public buildings often need that, and so do the people who work there.</p>
       </div>
     </section>

@@ -19,18 +19,21 @@ export interface MapPalette {
   font: string;
 }
 
+/** One family for map labels in every theme, the same as the interface (docs/TYPOGRAPHY.md). */
+export const MAP_FONT = 'Overpass, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
 const PALETTES: Record<ThemeName, MapPalette> = {
   classic: {
     spaceFill: '#ffffff', spaceStroke: '#1f2937', label: '#111827', highlightFill: '#fde68a', highlightLabel: '#111827',
-    ring: '#f59e0b', ringEdge: '#1f2937', selection: '#2563eb', font: 'Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    ring: '#f59e0b', ringEdge: '#1f2937', selection: '#2563eb', font: MAP_FONT,
   },
   night: {
     spaceFill: '#383a40', spaceStroke: '#f4f1e8', label: '#ffffff', highlightFill: '#ffc629', highlightLabel: '#17181a',
-    ring: '#ffc629', ringEdge: '#000000', selection: '#ffc629', font: '"Barlow Condensed", "IBM Plex Sans", sans-serif',
+    ring: '#ffc629', ringEdge: '#000000', selection: '#ffc629', font: MAP_FONT,
   },
   signage: {
     spaceFill: '#ffffff', spaceStroke: '#0b2545', label: '#0b2545', highlightFill: '#f2b705', highlightLabel: '#0b2545',
-    ring: '#f2b705', ringEdge: '#0b2545', selection: '#0b2545', font: 'Overpass, "Segoe UI", sans-serif',
+    ring: '#f2b705', ringEdge: '#0b2545', selection: '#0b2545', font: MAP_FONT,
   },
 };
 
