@@ -12,9 +12,9 @@ lettering on US highway signs, so it suits wayfinding without being decorative.
 
 | Where | Token | Value |
 | --- | --- | --- |
-| App CSS | `--font` (src/styles.css) | `'BM Dot', 'Overpass', system-ui, …, sans-serif` |
-| Map canvas, print windows | `MAP_FONT` (src/theme.ts) | `Overpass, system-ui, …, sans-serif` |
-| Marketing site | `--font-sans` (site/src/input.css) | `"BM Dot", "Overpass", system-ui, …, sans-serif` |
+| App CSS | `--font` (src/styles.css) | `'BM Dot', 'Overpass', 'Segoe UI', …, sans-serif` |
+| Map canvas, print windows | `MAP_FONT` (src/theme.ts) | `Overpass, "Segoe UI", …, sans-serif` |
+| Marketing site | `--font-sans` (site/src/input.css) | `"BM Dot", "Overpass", "Segoe UI", …, sans-serif` |
 
 `BM Dot` only supplies the middle dot (·), because Overpass draws it with no space after.
 
@@ -70,3 +70,6 @@ A theme rule must not set `font-family`, `font-size`, `font-weight`,
 `src/typography.test.ts` fails the build if CSS brings back another family,
 monospace labels, a theme that changes type, a raw font size in the app,
 or an unsupported weight.
+
+Fallback stacks leave out `system-ui` and `-apple-system`. With them in the map's canvas font,
+Safari's engine (WebKit) timed out the editor click tests in CI.

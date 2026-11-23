@@ -9,7 +9,7 @@
 @font-face { font-family: "Overpass"; src: url("../fonts/overpass-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 
 @theme {
-  --font-sans: "BM Dot", "Overpass", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: "BM Dot", "Overpass", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --color-ink: #0b0b0b;
   --color-paper: #f7f6f3;
   --color-sign: #f2b705;

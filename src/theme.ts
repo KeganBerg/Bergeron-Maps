@@ -20,7 +20,7 @@ export interface MapPalette {
 }
 
 /** One family for map labels in every theme, the same as the interface (docs/TYPOGRAPHY.md). */
-export const MAP_FONT = 'Overpass, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+export const MAP_FONT = 'Overpass, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 const PALETTES: Record<ThemeName, MapPalette> = {
   classic: {

@@ -15,7 +15,7 @@
   --ok: #15803d;
   --radius: 8px;
   /* Type: one family everywhere (docs/TYPOGRAPHY.md). Themes change colour, never type. */
-  --font: 'BM Dot', 'Overpass', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font: 'BM Dot', 'Overpass', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --fs-xs: 11px;   /* tile captions, counts */
   --fs-sm: 12px;   /* hints, meta, field labels */
   --fs-md: 13px;   /* dense controls */
