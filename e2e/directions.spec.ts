@@ -53,7 +53,7 @@ test('start by tapping the map: a spot in the aisle, with a real mouse click', a
   const pt = await page.evaluate(async () => {
     type N = { findOne: (s: string) => { text: () => string } | undefined; getClientRect: () => { x: number; y: number; width: number; height: number } };
     const st = (window as unknown as { Konva: { stages: { find: (s: string) => N[]; container: () => HTMLElement }[] } }).Konva.stages[0];
-    const g = st.find('.obj').find((n) => n.findOne('Text')?.text() === '1A12')!;
+    const g = st.find('.obj').find((n) => n.findOne('Text')?.text().replace(/\n/g, '') === '1A12')!;
     const r = g.getClientRect();
     const b = st.container().getBoundingClientRect();
     return { x: b.left + r.x + r.width / 2, y: b.top + r.y + r.height * 1.6 };

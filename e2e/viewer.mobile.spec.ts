@@ -60,7 +60,7 @@ test('tapping a space highlights it, search outlines matches, closing the card c
     const K = (window as unknown as { Konva: { stages: { findOne: (s: string) => { getClientRect: () => { x: number; y: number; width: number; height: number } } | undefined; container: () => HTMLElement }[] } }).Konva;
     const st = K.stages[0];
     const g = (st as unknown as { find: (s: string) => { getClientRect: () => { x: number; y: number; width: number; height: number }; findOne: (s: string) => { text: () => string } | undefined }[] })
-      .find('.obj').find((n) => n.findOne('Text')?.text() === '3');
+      .find('.obj').find((n) => n.findOne('Text')?.text().replace(/\n/g, '') === '3');
     const r = g!.getClientRect();
     const b = st.container().getBoundingClientRect();
     return { x: b.left + r.x + r.width / 2, y: b.top + r.y + r.height / 2 };

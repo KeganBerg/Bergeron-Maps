@@ -20,7 +20,7 @@ export function spaceBox(page: Page, label: string): Promise<ScreenBox | null> {
   return page.evaluate((label) => {
     type N = { getClientRect: () => { x: number; y: number; width: number; height: number }; findOne: (s: string) => { text: () => string } | undefined };
     const st = (window as unknown as { Konva: { stages: { find: (s: string) => N[]; container: () => HTMLElement }[] } }).Konva.stages[0];
-    const g = st.find('.obj').find((n) => n.findOne('Text')?.text() === label);
+    const g = st.find('.obj').find((n) => n.findOne('Text')?.text().replace(/\n/g, '') === label);
     if (!g) return null;
     const r = g.getClientRect();
     const b = st.container().getBoundingClientRect();
