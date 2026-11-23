@@ -13,7 +13,7 @@ export interface MapPalette {
   highlightFill: string;
   highlightLabel: string;
   ring: string;
-  /** A thin dark edge around the ring, so a yellow ring still stands out on a light map (3:1 or more). */
+  /** A thin edge around the ring that sets it apart from dark lines and asphalt (dark edge for a yellow ring, white for a blue one). */
   ringEdge: string;
   selection: string;
   font: string;
@@ -24,16 +24,16 @@ export const MAP_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sa
 
 const PALETTES: Record<ThemeName, MapPalette> = {
   classic: {
-    spaceFill: '#ffffff', spaceStroke: '#1f2937', label: '#111827', highlightFill: '#fde68a', highlightLabel: '#111827',
-    ring: '#f59e0b', ringEdge: '#1f2937', selection: '#2563eb', font: MAP_FONT,
+    spaceFill: '#ffffff', spaceStroke: '#1f2937', label: '#111827', highlightFill: '#2563eb', highlightLabel: '#ffffff',
+    ring: '#2563eb', ringEdge: '#ffffff', selection: '#2563eb', font: MAP_FONT,
   },
   night: {
     spaceFill: '#383a40', spaceStroke: '#f4f1e8', label: '#ffffff', highlightFill: '#ffc629', highlightLabel: '#17181a',
     ring: '#ffc629', ringEdge: '#000000', selection: '#ffc629', font: MAP_FONT,
   },
   signage: {
-    spaceFill: '#ffffff', spaceStroke: '#0b2545', label: '#0b2545', highlightFill: '#f2b705', highlightLabel: '#0b2545',
-    ring: '#f2b705', ringEdge: '#0b2545', selection: '#0b2545', font: MAP_FONT,
+    spaceFill: '#ffffff', spaceStroke: '#0b2545', label: '#0b2545', highlightFill: '#1d6fd8', highlightLabel: '#ffffff',
+    ring: '#1d6fd8', ringEdge: '#ffffff', selection: '#0b2545', font: MAP_FONT,
   },
 };
 

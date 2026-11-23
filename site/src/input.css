@@ -249,7 +249,8 @@
 @media (min-width: 1024px) { .ind-grid { grid-template-columns: repeat(5, 1fr); column-gap: 28px; } }
 .ind-card { display: flex; flex-direction: column; height: 100%; padding: 24px 0; border-bottom: 1px solid rgb(11 11 11 / .15); }
 @media (min-width: 1024px) { .ind-card { border-bottom: 0; } }
-.ind-card img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 35%; border: 2px solid var(--color-ink); background: #e7e4dd; margin-bottom: 18px; }
+/* The whole phone screen, never cropped: header, map and the panel at the bottom all show. */
+.ind-card img { display: block; width: 100%; max-width: 230px; height: auto; aspect-ratio: 1 / 2; margin: 0 auto 20px; border: 7px solid var(--color-ink); border-radius: 26px; background: #e7e4dd; }
 .ind-card b { margin-top: 6px; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
 .ind-pitch { margin-top: 6px; color: rgb(11 11 11 / .7); }
 .ind-more { margin-top: auto; padding-top: 14px; font-weight: 600; }
