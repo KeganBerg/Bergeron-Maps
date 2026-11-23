@@ -145,9 +145,15 @@ async function loadAccess(userId: string): Promise<{ list: Membership[]; admin: 
   const admin = a.data === true;
   if (admin) {
     // Admins can open every company, as if they were its owner.
+    // That includes a company where they also have a smaller role of their own (say they joined one of its
+    // sites with a code, or a client added their email as an employee): the database treats them as owner there too.
     const all = await db.from('companies').select('id, name');
     for (const c of (all.data ?? []) as { id: string; name: string }[]) {
-      if (!list.some((x) => x.companyId === c.id)) list.push({ companyId: c.id, companyName: c.name, role: 'owner', siteIds: null, viaAdmin: true });
+      const own = list.findIndex((x) => x.companyId === c.id);
+      if (own >= 0 && list[own].role === 'owner' && list[own].siteIds === null) continue;
+      const entry: Membership = { companyId: c.id, companyName: c.name, role: 'owner', siteIds: null, viaAdmin: true };
+      if (own >= 0) list[own] = entry;
+      else list.push(entry);
     }
   }
   return { list: list.sort((x, y) => x.companyName.localeCompare(y.companyName)), admin, error };

@@ -12,6 +12,10 @@ import { spaceMarks, spaceOutline } from '../src/assets/catalog/spaces';
 import { createQuickLot } from '../src/model/quickLot';
 import type { AssetDef } from '../src/assets/defs';
 import type { MapObject } from '../src/model/types';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { sideView } from '../src/model/sideView';
+import { SideViewDrawing } from '../src/viewer/SideView';
 
 const NAVY = '#0b2545';
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -175,5 +179,21 @@ put('DM-VALET', valet);
 put('DM-SEARCH', found);
 put('DM-COUNT', String(total));
 put('HERO-PLAN', blueprint + real);
+
+// "Every floor. One search.": the app's own side view (All floors in the viewer), drawn from a sample garage.
+const garage = createQuickLot('Site Name', { floors: 4, rows: 4, spacesPerRow: 12, accessible: 0 });
+garage.floors.forEach((f, i) => { f.name = `Level ${i + 1}`; });
+const g3 = garage.floors[2];
+const found3 = g3.objects.find((o) => o.kind === 'space' && o.label === '3C9')!;
+const side = renderToStaticMarkup(createElement(SideViewDrawing, {
+  model: sideView(garage, garage.floors, { focusId: found3.id }),
+  width: 1200,
+  accent: '#f2b705',
+  idPrefix: 'site-sv',
+}))
+  .replace('<svg class="sv"', '<svg id="section" class="sv block h-auto w-full" preserveAspectRatio="xMidYMid meet"')
+  .replace('aria-label="Side view of the floors"', 'aria-label="Side view of a four-level garage, as the app shows it, with space 3C9 found on Level 3"')
+  .replace(/ data-testid="[^"]*"/g, '');
+put('SECTION', side);
 writeFileSync(p, html);
 console.log(`demo ok: ${floor.objects.length} objects, ${total} library items`);

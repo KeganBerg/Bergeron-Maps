@@ -22,6 +22,8 @@ export interface RoadPiece {
   axis?: [number, number];
   /** Pieces painted with a double yellow centre line: that line, as a world polyline from end 0 to end 1. */
   center?: number[];
+  /** The piece's centre line from end 0 to end 1 (every straight or curved piece), used to blend seams. */
+  spine?: number[];
 }
 
 /**
@@ -38,6 +40,8 @@ export interface RoadJoint {
   c: [number, number];
   sa: number;
   sb: number;
+  /** Nearly lined up (one road running on, placed a little off): blended by a smooth seam, not a bend. */
+  near?: boolean;
 }
 
 /**
@@ -75,7 +79,7 @@ export function roadJoints(pieces: RoadPiece[]): RoadJoint[] {
           const c: [number, number] = [(ax + bx) / 2, (ay + by) / 2];
           const sa = (c[0] - ax) * e.out[0] + (c[1] - ay) * e.out[1];
           const sb = (c[0] - bx) * f.out[0] + (c[1] - by) * f.out[1];
-          found.push({ a: i, ea, b: j, eb, c, sa, sb, d: gap });
+          found.push({ a: i, ea, b: j, eb, c, sa, sb, near: true, d: gap });
           return;
         }
         // Lined up (one road carrying straight on) is handled elsewhere; side by side or a T is not a bend.
@@ -114,6 +118,64 @@ function disk(c: [number, number], r: number, steps = 40): Ring {
   return out;
 }
 
+/** Point and direction (towards the end) on a piece's centre line, `back` px before end `e`. */
+function spinePoint(p: RoadPiece, e: RoadEnd, back: number): { p: [number, number]; t: [number, number] } {
+  const line = p.spine ?? p.center;
+  if (line && line.length >= 4) {
+    const c = cutLine(line, e, back);
+    const n = c.pts.length;
+    if (n >= 2) {
+      const a = c.pts[n - 2], b = c.pts[n - 1];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len > 1e-6) return { p: b, t: [(b[0] - a[0]) / len, (b[1] - a[1]) / len] };
+    }
+  }
+  const [mx, my] = midOf(e);
+  return { p: [mx - e.out[0] * back, my - e.out[1] * back], t: e.out };
+}
+
+/** How far back from each end a seam starts: the road width, so the blend is long and gentle. */
+const SEAM_REACH = 1;
+
+/**
+ * The blended seam of a nearly lined-up joint: a cubic centre line from a
+ * point on A's line to a point on B's line, leaving each along its own
+ * direction (so it carries on smoothly), and the band around it with the
+ * width easing from A's to B's.
+ */
+export function seam(pieces: RoadPiece[], j: RoadJoint) {
+  const pa = pieces[j.a], pb = pieces[j.b];
+  const ea = pa.ends[j.ea], eb = pb.ends[j.eb];
+  const reach = Math.min(pa.width, pb.width) * SEAM_REACH;
+  const backA = Math.max(1, reach - j.sa), backB = Math.max(1, reach - j.sb);
+  const A = spinePoint(pa, ea, backA), B = spinePoint(pb, eb, backB);
+  const k = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]) / 3;
+  const c1 = [A.p[0] + A.t[0] * k, A.p[1] + A.t[1] * k], c2 = [B.p[0] + B.t[0] * k, B.p[1] + B.t[1] * k];
+  const N = 24;
+  const line: [number, number][] = [];
+  const band: { l: number[]; r: number[] } = { l: [], r: [] };
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, u = 1 - t;
+    const x = u * u * u * A.p[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * B.p[0];
+    const y = u * u * u * A.p[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * B.p[1];
+    let dx = 3 * u * u * (c1[0] - A.p[0]) + 6 * u * t * (c2[0] - c1[0]) + 3 * t * t * (B.p[0] - c2[0]);
+    let dy = 3 * u * u * (c1[1] - A.p[1]) + 6 * u * t * (c2[1] - c1[1]) + 3 * t * t * (B.p[1] - c2[1]);
+    const len = Math.hypot(dx, dy) || 1;
+    dx /= len;
+    dy /= len;
+    // Smoothstep, so the width changes gently too.
+    const s = t * t * (3 - 2 * t);
+    const half = (pa.width * (1 - s) + pb.width * s) / 2;
+    line.push([x, y]);
+    band.l.push(x - dy * half, y + dx * half);
+    band.r.push(x + dy * half, y - dx * half);
+  }
+  // Each end of the band reaches a hair back into its piece so the join leaves no hairline.
+  const ring: Ring = [...band.l];
+  for (let i = band.r.length - 2; i >= 0; i -= 2) ring.push(band.r[i], band.r[i + 1]);
+  return { line, band: ring, backA, backB };
+}
+
 /**
  * How bends are smoothed: `fill` per piece is added to the road (each end
  * stretched to the bend's centre, and a round outside corner), and `trim` is
@@ -126,6 +188,21 @@ export function jointShapes(pieces: RoadPiece[], joints: RoadJoint[]): { fill: R
   for (const j of joints) {
     const pa = pieces[j.a], pb = pieces[j.b];
     const ea = pa.ends[j.ea], eb = pb.ends[j.eb];
+    if (j.near) {
+      // A road running on a few degrees or pixels off: both ends are cut back
+      // and replaced by one band that eases from one piece into the other, so the
+      // edges and the centre line flow through with no step, dip or kink.
+      const m = seam(pieces, j);
+      const band = outer(m.band);
+      fill[j.a].push(...band);
+      const others = pieces.filter((_, k) => k !== j.a && k !== j.b).flatMap((o) => o.body);
+      const ends = unionRings([
+        ...intersectRings(pa.body, [swath(ea, -m.backA - 0.5, pa.width)]),
+        ...intersectRings(pb.body, [swath(eb, -m.backB - 0.5, pb.width)]),
+      ]);
+      trim.push(...subtractRings(ends, [...band, ...others]));
+      continue;
+    }
     const r = Math.max(pa.width, pb.width) / 2;
     const round = disk(j.c, r);
     fill[j.a].push(...outer(round));
@@ -340,7 +417,7 @@ function turned(pts: { nx: number; ny: number }[], i: number): boolean {
  * real street or a parking lot's main drive aisle. Where every arm has one
  * across from it (a crossroads), every arm stops.
  */
-function throughArms(runs: Sample[][]): boolean[] {
+function throughArms(runs: Sample[][], bendOf: (number | null)[] = []): boolean[] {
   const info = runs.map((r) => {
     const a = r[0], b = r[r.length - 1];
     const nx = (a.nx + b.nx) / 2, ny = (a.ny + b.ny) / 2;
@@ -357,6 +434,14 @@ function throughArms(runs: Sample[][]): boolean[] {
       return hi - lo > 0.5 * Math.min(p.hi - p.lo, q.hi - q.lo);
     }),
   );
+  // A road ending against the side of a bend: nothing lies straight across,
+  // but the bend itself carries on through the junction (both of its arms
+  // leave it), so the bend is the through road and only the other road stops.
+  if (!through.some(Boolean)) {
+    bendOf.forEach((b, i) => {
+      if (b !== null && bendOf.some((c, j) => j !== i && c === b)) through[i] = true;
+    });
+  }
   // Every arm has one across from it: a crossroads, where every arm stops.
   return through.every(Boolean) ? through.map(() => false) : through;
 }
@@ -402,10 +487,23 @@ export function roadJunctions(pieces: RoadPiece[], road: Ring[], joined: Set<str
       // running across it.
       let depth = near + Math.max(p.width, hit?.width ?? 0) + 8;
       if (hit && !hit.axis) {
-        const hx = sx + e.out[0] * (near + 1), hy = sy + e.out[1] * (near + 1);
-        depth = near + 1 + (march([hit.body], hx, hy, e.out, 800, 'out') ?? 0);
+        // Right across the bend at every point of the end (its far side is curved),
+        // so no sliver of it is left beside the junction as a fourth arm.
+        depth = Math.max(...RAYS.map((t, r) => {
+          const [x, y] = pointOnEnd(e, t);
+          const h = hits[r] + 1;
+          if (!insideRings(hit.body, x + e.out[0] * h, y + e.out[1] * h)) return 0;
+          return h + (march([hit.body], x + e.out[0] * h, y + e.out[1] * h, e.out, 800, 'out') ?? 0);
+        }), near + 1);
       }
-      depth = Math.min(exit, depth);
+      if (hit && !hit.axis) {
+        // The bend's far side is curved, so how far the road goes on differs across the end.
+        const exits = RAYS.map((t) => {
+          const [x, y] = pointOnEnd(e, t);
+          return march([road], x, y, e.out, 800, 'out') ?? 800;
+        });
+        depth = Math.min(Math.max(...exits), depth);
+      } else depth = Math.min(exit, depth);
       let ahead = intersectRings([swath(e, 0, depth)], road);
       if (ringsArea(ahead) < p.width * Math.min(depth, p.width) * 0.25) continue;
       // Joining a straight road at a slant: the junction is the stretch of that
@@ -442,7 +540,13 @@ export function roadJunctions(pieces: RoadPiece[], road: Ring[], joined: Set<str
   const each: Junctions['each'] = [];
   for (const ring of areas) {
     const runs = armRuns([ring], road, minW * 0.3);
-    const through = throughArms(runs);
+    // The bend (if any) each arm carries on into.
+    const bendOf = runs.map((run) => {
+      const m = run[Math.floor(run.length / 2)];
+      const owners = pieces.flatMap((p, i) => ([4, minW * 0.4].some((d) => insideRings(p.body, m.x + m.nx * d, m.y + m.ny * d)) ? [i] : []));
+      return owners.length === 1 && !pieces[owners[0]].axis ? owners[0] : null;
+    });
+    const through = throughArms(runs, bendOf);
     const pass = new Set<number>();
     runs.forEach((run, k) => {
       if (!through[k]) return;
@@ -579,6 +683,13 @@ export function roadCenterLines(pieces: RoadPiece[], joints: RoadJoint[], juncti
     link(j.a, j.b);
     const la = lines[j.a], lb = lines[j.b];
     if (!la || !lb) continue;
+    if (j.near) {
+      const m = seam(pieces, j);
+      const A = cutLine(la, pieces[j.a].ends[j.ea], m.backA), B = cutLine(lb, pieces[j.b].ends[j.eb], m.backB);
+      lines[j.a] = withEnd(A, m.line.slice(1, -1).concat([B.p]));
+      lines[j.b] = withEnd(B, []);
+      continue;
+    }
     // Round the turn: each line stops short of the bend's centre and a curve joins them.
     const ea = pieces[j.a].ends[j.ea], eb = pieces[j.b].ends[j.eb];
     const r = Math.min(pieces[j.a].width, pieces[j.b].width) / 2;

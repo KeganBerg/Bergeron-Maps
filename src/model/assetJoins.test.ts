@@ -101,4 +101,25 @@ describe('asset joins', () => {
       }
     }
   });
+
+  it('keeps a curve running through where a road ends against its side: only that road stops', () => {
+    const f = bend().floors[0];
+    const [tilted, curve, level] = f.objects;
+    const plan = mergePlan([tilted, curve, level]);
+    const cluster = [...plan.leads.values()][0];
+    expect(cluster.members).toHaveLength(3);
+    // One stop bar, straight across the level road's end.
+    const stops = cluster.stops ?? [];
+    expect(stops).toHaveLength(1);
+    const [x1, y1, x2, y2] = stops[0];
+    expect(Math.abs(x2 - x1)).toBeLessThan(1);
+    expect(Math.abs(y2 - y1)).toBeGreaterThan(level.height * 0.6);
+    // The curve's yellow line carries on unbroken: one line runs from the tilted road's far end to the curve's bottom.
+    const longest = Math.max(...(cluster.centers ?? []).map((l) => {
+      let len = 0;
+      for (let i = 2; i < l.length; i += 2) len += Math.hypot(l[i] - l[i - 2], l[i + 1] - l[i - 1]);
+      return len;
+    }));
+    expect(longest).toBeGreaterThan(tilted.width + curve.width * 0.9);
+  });
 });

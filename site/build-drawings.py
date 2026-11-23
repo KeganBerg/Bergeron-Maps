@@ -1,5 +1,5 @@
 # Generates the line drawings on the landing page and injects them into index.html
-# between <!--PLAN-->…<!--/PLAN--> and <!--SECTION-->…<!--/SECTION--> markers.
+# between <!--PLAN-->…<!--/PLAN--> markers. (The SECTION drawing comes from scripts/site-demo.ts.)
 # Run: python3 site/build-drawings.py  (npm run build:site runs it too)
 import pathlib, re
 
@@ -71,44 +71,10 @@ def plan():
             f'role="img" aria-label="Plan drawing of a garage floor with space C12 found and the route to it">{defs}{"".join(o)}</svg>')
 
 
-def section():
-    """Cross-section through a four-story garage, ramps between floors."""
-    o = []
-    floors = [("L4", "#0057b8", 70), ("L3", "#007a33", 160), ("L2", "#e87722", 250), ("L1", "#c8102e", 340)]
-    # ground
-    o.append('<path d="M0 380H1200" stroke-width="2"/>')
-    for x in range(0, 1200, 14):
-        o.append(f'<path d="M{x} 380l-10 12" stroke-width=".7"/>')
-    for name, color, y in floors:
-        o.append(f'<path class="slab" d="M120 {y}H1080" stroke-width="5"/>')
-        o.append(f'<g transform="translate(40 {y-28})"><rect width="56" height="34" fill="{color}" stroke="none"/>'
-                 f'<text x="28" y="26" class="lvl">{name}</text></g>')
-    # columns
-    for x in (120, 360, 600, 840, 1080):
-        o.append(f'<path class="colm" d="M{x} 70V380" stroke-width="2"/>')
-    # ramps between floors, alternating ends
-    ramps = [(860, 340, 1060, 250), (140, 250, 340, 160), (860, 160, 1060, 70)]
-    for x1, y1, x2, y2 in ramps:
-        o.append(f'<path class="ramp" d="M{x1} {y1}L{x2} {y2}" stroke-width="3"/>')
-    # parked cars (simple side profiles) on each slab
-    import random
-    random.seed(4)
-    for name, color, y in floors:
-        for x in range(390, 830, 62):
-            if random.random() < .72:
-                hit = name == "L3" and x == 638
-                cls = ' class="car hit"' if hit else ' class="car"'
-                o.append(f'<g{cls} transform="translate({x} {y-26})"><path d="M2 22V12l10-10h22l12 10h4v10z" stroke-width="1.5"/>'
-                         f'<circle cx="12" cy="22" r="4" stroke-width="1.5"/><circle cx="40" cy="22" r="4" stroke-width="1.5"/></g>')
-    # callout to the found car
-    o.append('<g class="callout"><path d="M664 132 720 40H900" stroke-width="1"/><circle cx="664" cy="132" r="4" fill="currentColor" stroke="none"/>'
-             '<text x="728" y="32" class="note" text-anchor="start">3C21 · FLOOR 3 · NORTH STAIRS</text></g>')
-    return ('<svg id="section" viewBox="0 0 1200 400" class="drawing block h-auto w-full" fill="none" stroke="currentColor" '
-            f'role="img" aria-label="Cross-section of a four-story garage with the found car on Floor 3">{"".join(o)}</svg>')
+# The multi-floor side view is drawn by scripts/site-demo.ts with the app's own SideView, so it always matches the app.
 
 
 p = pathlib.Path(__file__).with_name("index.html")
 html = p.read_text()
-html = re.sub(r"<!--SECTION-->.*?<!--/SECTION-->", lambda m: "<!--SECTION-->" + section() + "<!--/SECTION-->", html, flags=re.S)
 p.write_text(html)
 print("drawings ok")

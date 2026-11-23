@@ -1,6 +1,7 @@
 import type Konva from 'konva';
 import { fitViewport, floorBounds, zoomAt } from '../render/viewport';
 import { currentFloor, selectionBox, useEditor } from './store';
+import { MAP_FONT } from '../theme';
 
 /** Zoom controls shared by the top bar buttons, the keyboard shortcuts and the right-click menu. */
 export function zoomBy(f: number) {
@@ -124,7 +125,7 @@ export async function printFloor() {
   w.document.body.innerHTML = '';
   const style = w.document.createElement('style');
   style.textContent = `@page { size: ${landscape ? 'landscape' : 'portrait'}; margin: 12mm; }
-    html, body { margin: 0; font-family: system-ui, sans-serif; }
+    html, body { margin: 0; font-family: ${MAP_FONT}; }
     h1 { font-size: 14pt; margin: 0 0 8px; }
     img { display: block; max-width: 100%; max-height: calc(100vh - 40px); margin: 0 auto; object-fit: contain; }`;
   w.document.head.appendChild(style);
