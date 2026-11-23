@@ -719,7 +719,7 @@ interface Portal {
   penalty: number;
 }
 
-function connectorKind(key: string): PortalKind {
+export function connectorKind(key: string): PortalKind {
   if (key.startsWith('elevator')) return 'elevator';
   if (key === 'escalator') return 'escalator';
   if (key.includes('ramp')) return 'ramp';
@@ -727,10 +727,10 @@ function connectorKind(key: string): PortalKind {
   return 'stairs';
 }
 
-const isConnector = (o: MapObject): o is AssetObject => o.kind === 'asset' && !!ASSET_BY_KEY[o.assetKey]?.connector;
+export const isConnector = (o: MapObject): o is AssetObject => o.kind === 'asset' && !!ASSET_BY_KEY[o.assetKey]?.connector;
 
 /** Floors a connector reaches. Older maps without "Goes to" use the floors next to it (any floor for elevators). */
-function reaches(doc: MapDocument, floor: Floor, o: AssetObject): Floor[] {
+export function reaches(doc: MapDocument, floor: Floor, o: AssetObject): Floor[] {
   if (o.connectsTo?.length) return o.connectsTo.map((id) => doc.floors.find((f) => f.id === id)).filter((f): f is Floor => !!f && f !== floor);
   const group = floorGroup(doc, floor);
   const i = group.indexOf(floor);

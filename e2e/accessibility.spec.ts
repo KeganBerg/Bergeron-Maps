@@ -49,7 +49,8 @@ test('active floor buttons keep readable text on every floor color', async ({ pa
   const { id } = await seedGarage(page, 'Contrast Garage');
   for (const theme of ['classic', 'night', 'signage']) {
     await page.goto(`/?theme=${theme}#/view/${id}`);
-    const floors = page.getByRole('navigation', { name: 'Floors' }).getByRole('button');
+    // The floor buttons (not All floors, which opens the side view).
+    const floors = page.getByRole('navigation', { name: 'Floors' }).locator('button[aria-pressed]');
     await expect(floors).toHaveCount(3);
     for (let i = 0; i < 3; i++) {
       const btn = floors.nth(i);
