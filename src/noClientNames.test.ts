@@ -32,8 +32,8 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).sp
 
 describe('no client names', () => {
   it('finds a blocked word in a sample', () => {
-    // Built from pieces so the plain name is never written in the repo.
-    expect(blockedWords(['To', 'wne', ' Pa', 'rk'].join(''))).not.toHaveLength(0);
+    // Written backwards so the plain name never appears in the repo.
+    expect(blockedWords([...'krap enwot'].reverse().join(''))).not.toHaveLength(0);
   });
   it('no tracked file or file path contains a blocked name', () => {
     const found: string[] = [];
