@@ -52,6 +52,7 @@ A theme rule must not set `font-family`, `font-size`, `font-weight`,
 - **Small uppercase letter-spaced labels** ("PROJECT", "ON THIS MAP", "STEP 01") above content.
   Write labels in sentence case, semibold, muted colour: "Project", "On this map".
 - **Mixing display faces** (condensed, slab, serif) with the body face for flavour.
+- **Zero-padded index numbers** ("01", "02", "03") above cards or steps. Leave them out.
 - **Positive letter-spacing on words.** Only negative tracking on big headings
   (−0.02em at 32px and up) is allowed.
 

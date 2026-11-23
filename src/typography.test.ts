@@ -65,6 +65,8 @@ describe('typography rule', () => {
     const pages = [...walk('site', /\.html$/), 'scripts/site-pages.mjs'];
     for (const f of pages) {
       const t = read(f);
+      // Zero-padded index numbers ("01", "02") on cards and steps are the same AI-made tell.
+      expect(t, f).not.toMatch(/>\s*0[1-9]\s*<|>0\$\{/);
       expect(t, f).not.toMatch(/\bfont-mono\b|\bfont-sign\b|class="[^"]*\buppercase\b|tracking-\[0\.\d+em\]|font-\[(?!400\]|600\]|700\])\d+\]/);
     }
   });
