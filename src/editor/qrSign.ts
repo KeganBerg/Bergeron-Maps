@@ -1,8 +1,5 @@
 import { qrSvg } from '../model/qr';
 import { MAP_FONT } from '../theme';
-import overpass400 from '@fontsource/overpass/files/overpass-latin-400-normal.woff2?url';
-import overpass600 from '@fontsource/overpass/files/overpass-latin-600-normal.woff2?url';
-import overpass700 from '@fontsource/overpass/files/overpass-latin-700-normal.woff2?url';
 import type { FloorImage } from './view';
 
 /**
@@ -53,17 +50,12 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};
 /** The link as people would type it: no https://, broken after slashes so it wraps cleanly. */
 export const readableLink = (url: string) => esc(url.replace(/^https?:\/\//, '')).replace(/\//g, '/<wbr>').replace(/\?/g, '<wbr>?');
 
-/** The sign prints in its own window, so it brings the app's one font family with it (docs/TYPOGRAPHY.md). */
-export const signFonts = () => ([[overpass400, 400], [overpass600, 600], [overpass700, 700]] as const)
-  .map(([url, w]) => `@font-face { font-family: 'Overpass'; src: url('${new URL(url, location.href).href}') format('woff2'); font-weight: ${w}; }`).join('\n    ');
-
 export function signStyles(size: SignSize): string {
   const p = PAGE_IN[size];
   const scale = size === 'card' ? 0.55 : size === 'letter' ? 1 : 1.4;
   const pt = (n: number) => `${Math.round(n * scale * 10) / 10}pt`;
   return `@page { size: ${SIGN_SIZES.find((s) => s.key === size)!.page}; margin: ${p.margin}in; }
     * { box-sizing: border-box; }
-    ${signFonts()}
     html, body { margin: 0; background: #fff; color: #000; font-family: ${MAP_FONT}; }
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .sign { width: ${p.w - p.margin * 2}in; height: ${p.h - p.margin * 2 - 0.05}in; display: flex; flex-direction: column; gap: ${size === 'card' ? 0.12 : 0.22}in; overflow: hidden; }

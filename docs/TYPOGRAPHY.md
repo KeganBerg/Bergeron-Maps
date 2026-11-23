@@ -6,22 +6,31 @@ the marketing site (`site/`), printed signs and anything new.
 
 ## The rule
 
-**One family everywhere: Overpass.** App, marketing site, map labels, printed
-QR signs and the product demo on the site all use it. Overpass comes from the
-lettering on US highway signs, so it suits wayfinding without being decorative.
+**Use the device's own interface font, everywhere.** That is San Francisco on
+iPhone and Mac, Segoe UI on Windows, and Roboto or Noto on Android. GitHub, the
+Stripe dashboard, Shopify admin, Atlassian (Jira, Confluence) and Zendesk all do
+this. It is the most common choice in established enterprise SaaS, and it is not
+what AI-generated apps reach for (those load Inter or Geist plus a monospace).
+It also means no font files to download, so pages draw at once.
 
-| Where | Token | Value |
-| --- | --- | --- |
-| App CSS | `--font` (src/styles.css) | `'BM Dot', 'Overpass', 'Segoe UI', …, sans-serif` |
-| Map canvas, print windows | `MAP_FONT` (src/theme.ts) | `Overpass, "Segoe UI", …, sans-serif` |
-| Marketing site | `--font-sans` (site/src/input.css) | `"BM Dot", "Overpass", "Segoe UI", …, sans-serif` |
+One stack, the same in every place:
 
-`BM Dot` only supplies the middle dot (·), because Overpass draws it with no space after.
+`-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif`
+
+| Where | Token |
+| --- | --- |
+| App CSS | `--font` (src/styles.css) |
+| Map canvas, printed signs, viewer print | `MAP_FONT` (src/theme.ts) |
+| Marketing site and its product demo | `--font-sans` (site/src/input.css) |
+
+**Never add a web font** (`@font-face`, `@fontsource`, Google Fonts) and never
+name another family. Don't add `system-ui` to the stack either: with it in the
+map's canvas font, the Safari (WebKit) click tests timed out in CI.
 
 ### Weights
 
-Only three: **400** regular, **600** semibold, **700** bold. Those are the only
-files we ship. No 300, 500, 800, 900 or odd values like `font-[760]`.
+Only three: **400** regular, **600** semibold, **700** bold. Every system UI font
+has them. No 300, 500, 800, 900 or odd values like `font-[760]`.
 App CSS uses `--fw-regular`, `--fw-semibold` and `--fw-bold`.
 
 ### Sizes (app)
@@ -38,7 +47,7 @@ Use the tokens in `src/styles.css`, never a raw `px` value:
 | `--fs-xl` | 18px | card and page titles |
 | `--fs-2xl` | 24px | the one big name or number on a screen |
 
-The marketing site keeps its larger editorial sizes (Tailwind classes), still in Overpass.
+The marketing site keeps its larger editorial sizes (Tailwind classes), in the same font.
 
 ### Themes change colour, never type
 
@@ -63,14 +72,11 @@ A theme rule must not set `font-family`, `font-size`, `font-weight`,
   (`src/assets/brand/wordmark.svg`, `site/wordmark.svg`), never live text in a font.
 - **Sign and stencil text drawn inside map artwork** (EXIT, ENTER, drawing notes on the
   site's plan drawings) may be uppercase, like the real paint. Asset SVGs that become
-  images use `SIGN_FONT` (Arial) because an SVG image can't load a web font.
+  images use `SIGN_FONT` (Arial), which every device has.
 - **Printed sign headlines** ("YOU ARE HERE") may be uppercase, like a real wall sign.
 
 ## Checks
 
-`src/typography.test.ts` fails the build if CSS brings back another family,
-monospace labels, a theme that changes type, a raw font size in the app,
-or an unsupported weight.
-
-Fallback stacks leave out `system-ui` and `-apple-system`. With them in the map's canvas font,
-Safari's engine (WebKit) timed out the editor click tests in CI.
+`src/typography.test.ts` fails the build if anything adds a web font or another
+family, monospace labels, zero-padded index numbers, a theme that changes type,
+a raw font size in the app, or an unsupported weight.

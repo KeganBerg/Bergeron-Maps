@@ -19,8 +19,8 @@ export interface MapPalette {
   font: string;
 }
 
-/** One family for map labels in every theme, the same as the interface (docs/TYPOGRAPHY.md). */
-export const MAP_FONT = 'Overpass, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+/** Map labels use the interface font in every theme: the device's own UI font (docs/TYPOGRAPHY.md). */
+export const MAP_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif';
 
 const PALETTES: Record<ThemeName, MapPalette> = {
   classic: {

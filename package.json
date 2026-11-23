@@ -17,7 +17,6 @@
     "loadtest:browser": "node scripts/loadtest/bench.mjs loadtest-out"
   },
   "dependencies": {
-    "@fontsource/overpass": "^5.1.1",
     "@supabase/auth-js": "^2.118.0",
     "@supabase/postgrest-js": "^2.118.0",
     "clipper-lib": "^6.4.2",

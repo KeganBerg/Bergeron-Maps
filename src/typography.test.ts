@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-/** Guards docs/TYPOGRAPHY.md: one family, three weights, no mono or letter-spaced uppercase labels. */
+/** Guards docs/TYPOGRAPHY.md: the device's own UI font, three weights, no mono or letter-spaced uppercase labels. */
 const read = (p: string) => readFileSync(p, 'utf8');
 const walk = (dir: string, ext: RegExp): string[] =>
   readdirSync(dir).flatMap((n) => {
@@ -11,7 +11,8 @@ const walk = (dir: string, ext: RegExp): string[] =>
     return statSync(p).isDirectory() ? walk(p, ext) : ext.test(n) ? [p] : [];
   });
 
-const OTHER_FAMILIES = /Archivo|Barlow|Plex|\bInter\b|Roboto Mono|JetBrains|Space Grotesk|Poppins|monospace|ui-monospace/;
+const OTHER_FAMILIES = /Overpass|Archivo|Barlow|Plex|\bInter\b|Geist|Roboto Mono|JetBrains|Space Grotesk|Poppins|DM Sans|Manrope|monospace|ui-monospace|@font-face|woff2?/;
+const STACK = '-apple-system, BlinkMacSystemFont';
 /** Rules where tracking and uppercase are allowed: codes people type. */
 const CODE_RULE = /\.(code-input|code-chip|am-code)\b/;
 
@@ -21,14 +22,17 @@ describe('typography rule', () => {
   const appCss = read('src/styles.css');
   const siteCss = read('site/src/input.css');
 
-  it('uses one family (Overpass) in the app, the site and the source', () => {
+  it('uses the native UI font stack and loads no web fonts', () => {
+    expect(appCss).toContain(`--font: ${STACK}`);
+    expect(siteCss).toContain(`--font-sans: ${STACK}`);
+    expect(read('package.json')).not.toMatch(/@fontsource/);
     for (const [name, text] of [['src/styles.css', appCss], ['site/src/input.css', siteCss]] as const) {
       expect(text, name).not.toMatch(OTHER_FAMILIES);
     }
     for (const f of walk('src', /\.(ts|tsx)$/).filter((f) => !f.endsWith('.test.ts'))) {
-      expect(read(f), f).not.toMatch(/Archivo|Barlow|Plex|\bInter\b|monospace/);
+      expect(read(f), f).not.toMatch(/@fontsource|Overpass|Archivo|Barlow|Plex|\bInter\b|Geist|monospace/);
     }
-    for (const l of appCss.match(/font-family:[^;]*/g) ?? []) expect(l).toMatch(/var\(--font\)|'BM Dot'|inherit/);
+    for (const l of appCss.match(/font-family:[^;]*/g) ?? []) expect(l).toMatch(/var\(--font\)|inherit/);
   });
 
   it('uses only weights 400, 600 and 700', () => {

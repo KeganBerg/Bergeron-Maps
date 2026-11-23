@@ -231,8 +231,7 @@ function footer(p) {
 const HEAD_ICONS = (p) => `<link rel="icon" href="${p}favicon.ico" sizes="48x48" />
   <link rel="icon" href="${p}favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="${p}favicon-16.png" type="image/png" sizes="16x16" />
-  <link rel="apple-touch-icon" href="${p}apple-touch-icon.png" />
-  <link rel="preload" href="${p}fonts/overpass-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />`;
+  <link rel="apple-touch-icon" href="${p}apple-touch-icon.png" />`;
 
 
 function calcBlock(c) {
