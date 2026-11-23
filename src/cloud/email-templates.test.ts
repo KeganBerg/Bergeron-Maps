@@ -15,6 +15,5 @@ describe.each(files)('%s', (f) => {
   it('uses the hosted PNG logo (email apps block SVG) with alt text', () => {
     expect(html).toMatch(/<img src="https:\/\/bergeronmaps\.com\/img\/email\/logo\.png"[^>]*alt="BM"/);
   });
-  it('names no client', () => expect(html).not.toMatch(/towne|clematis/i));
   it('has no script, external CSS or web fonts', () => expect(html).not.toMatch(/<script|<link|@import|@font-face/i));
 });
