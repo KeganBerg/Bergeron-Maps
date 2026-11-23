@@ -19,18 +19,21 @@ export interface MapPalette {
   font: string;
 }
 
+/** Map labels use the interface font in every theme: the device's own UI font (docs/TYPOGRAPHY.md). */
+export const MAP_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif';
+
 const PALETTES: Record<ThemeName, MapPalette> = {
   classic: {
     spaceFill: '#ffffff', spaceStroke: '#1f2937', label: '#111827', highlightFill: '#2563eb', highlightLabel: '#ffffff',
-    ring: '#2563eb', ringEdge: '#ffffff', selection: '#2563eb', font: 'Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    ring: '#2563eb', ringEdge: '#ffffff', selection: '#2563eb', font: MAP_FONT,
   },
   night: {
     spaceFill: '#383a40', spaceStroke: '#f4f1e8', label: '#ffffff', highlightFill: '#ffc629', highlightLabel: '#17181a',
-    ring: '#ffc629', ringEdge: '#000000', selection: '#ffc629', font: '"Barlow Condensed", "IBM Plex Sans", sans-serif',
+    ring: '#ffc629', ringEdge: '#000000', selection: '#ffc629', font: MAP_FONT,
   },
   signage: {
     spaceFill: '#ffffff', spaceStroke: '#0b2545', label: '#0b2545', highlightFill: '#1d6fd8', highlightLabel: '#ffffff',
-    ring: '#1d6fd8', ringEdge: '#ffffff', selection: '#0b2545', font: 'Overpass, "Segoe UI", sans-serif',
+    ring: '#1d6fd8', ringEdge: '#ffffff', selection: '#0b2545', font: MAP_FONT,
   },
 };
 
