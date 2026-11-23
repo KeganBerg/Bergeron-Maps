@@ -22,10 +22,28 @@ const ACCESS_LABEL: Record<Access, string> = {
 /** Built from the current address, so links follow the app to any domain it's served from. */
 export const siteLink = (slug: string) => `${window.location.origin}${window.location.pathname}#/${slug}`;
 const cleanSlug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
+/** Link names the app itself uses (…/#/team, …/#/locations), so a site can't have them. Same list as the database. */
+const RESERVED_SLUGS = new Set(['edit', 'view', 'team', 'site', 'admin', 'login', 'locations']);
+
+/** Higher means more access: employee, site manager, regional manager or account lead. */
+const rank = (role: Role, ids: string[] | null) => (role === 'owner' ? 3 : role === 'employee' ? 0 : ids === null ? 2 : 1);
+
+/** A new grant for someone who already has access: what to send, and whether it takes anything away. */
+export function plannedAccess(existing: Pick<Member, 'role' | 'facility_ids'>, role: Role, scope: string[] | null) {
+  // Same kind of access at another site adds that site rather than swapping it.
+  const ids = existing.role === role && existing.facility_ids !== null && scope !== null ? [...new Set([...existing.facility_ids, ...scope])] : scope;
+  const lost = existing.facility_ids === null ? ids !== null : ids !== null && existing.facility_ids.some((id) => !ids.includes(id));
+  const same = existing.role === role && (ids === null ? existing.facility_ids === null : existing.facility_ids !== null && ids.length === existing.facility_ids.length && !lost);
+  return { ids, same, takesAway: lost || rank(role, ids) < rank(existing.role, existing.facility_ids) };
+}
 
 function describe(m: Member, sites: Site[]): string {
   if (m.role === 'owner') return 'Account lead (all sites)';
-  const where = m.facility_ids === null ? 'all sites' : m.facility_ids.map((id) => sites.find((s) => s.id === id)?.name ?? 'a site').join(', ');
+  // A site manager only sees their own sites; others the person has are counted, not named.
+  const known = (m.facility_ids ?? []).map((id) => sites.find((s) => s.id === id)?.name).filter((n): n is string => !!n);
+  const others = (m.facility_ids?.length ?? 0) - known.length;
+  const where = m.facility_ids === null ? 'all sites'
+    : [...known, ...(others ? [`${others} other ${others === 1 ? 'site' : 'sites'}`] : [])].join(', ');
   if (m.role === 'manager' && m.facility_ids === null) return 'Regional manager (all sites)';
   return `${m.role === 'manager' ? 'Site manager' : 'Employee'} · ${where}`;
 }
@@ -34,8 +52,8 @@ function describe(m: Member, sites: Site[]): string {
  * Sites and people for one company. Access is given by email to specific
  * sites; each site has a link for its managers and a code for employees.
  */
-export function TeamPage({ membership, nav, account, onRequestsChanged }: {
-  membership: Membership; nav: React.ReactNode; account: React.ReactNode; onRequestsChanged?: () => void;
+export function TeamPage({ membership, email: myEmail = '', nav, account, onRequestsChanged }: {
+  membership: Membership; email?: string; nav: React.ReactNode; account: React.ReactNode; onRequestsChanged?: () => void;
 }) {
   const company = membership.companyId;
   const full = canManageCompany(membership);
@@ -56,6 +74,9 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
   const [maxSites, setMaxSites] = useState<number | null>(null);
   const [requests, setRequests] = useState<ManagerRequest[]>([]);
   const [moving, setMoving] = useState<{ member: Member; from: string; to: string } | null>(null);
+  const [replacing, setReplacing] = useState<{ member: Member; role: Role; ids: string[] | null } | null>(null);
+  /** Sites with at least one public, live map: only those have a public link worth sending. */
+  const [publicSites, setPublicSites] = useState<Set<string>>(new Set());
   const { query } = useRoute();
   const [find, setFind] = useState(() => query.get('q') ?? '');
   const f = find.trim().toLowerCase();
@@ -66,6 +87,7 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
     if (!editingLink) return;
     const slug = cleanSlug(editingLink.value);
     if (!slug) return setError('Use letters and numbers in the link name.');
+    if (RESERVED_SLUGS.has(slug)) return setError(`“${slug}” is used by the app itself. Try another, e.g. ${slug}-${cleanSlug(sites.find((x) => x.id === editingLink.id)?.name ?? 'site') || 'site'}.`);
     const r = await supabase!.from('facilities').update({ slug }).eq('id', editingLink.id).select('slug');
     if (r.error) {
       return setError(/duplicate key/i.test(r.error.message) ? `“${slug}” is already taken by another site. Try adding the city, e.g. ${slug}-miami.`
@@ -91,6 +113,9 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
       if (!r.error) c[x.id] = r.data as string;
     }));
     setCodes(c);
+    const pub = await db.from('maps').select('facility_id, is_public, published_maps(map_id)').eq('company_id', company).eq('is_public', true).is('deleted_at', null);
+    const pubRows = (pub.data ?? []) as unknown as { facility_id: string; is_public: boolean; published_maps: unknown }[];
+    setPublicSites(new Set(pubRows.filter((r) => r.is_public && r.published_maps).map((r) => r.facility_id)));
     if (full) {
       const [c, q] = await Promise.all([
         db.from('companies').select('max_sites').eq('id', company).maybeSingle(),
@@ -105,25 +130,53 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
   };
   useEffect(() => { void load(); }, [company]);
 
+  const grant = async (who: string, role: Role, ids: string[] | null, changed: boolean) => {
+    const r = await supabase!.rpc('add_member', { p_company: company, p_email: who, p_role: role, p_facility_ids: ids });
+    if (r.error) return setError(friendly(r.error));
+    const what = describe({ email: who, role, facility_ids: ids, user_id: null, pending: false }, sites);
+    const msg = changed
+      ? `${who}’s access is now ${what}.`
+      : r.data === 'added'
+        ? `${who} now has access. Send them the site link.`
+        : `${who} will get access as soon as they sign in with that email. Send them the site link.`;
+    setNote(msg);
+    // A ready-to-send message for the person: where to go and how to sign in.
+    const site = ids?.length === 1 ? sites.find((x) => x.id === ids[0]) : undefined;
+    const where = !site ? membership.companyName : site.name;
+    const href = !site ? `${window.location.origin}${window.location.pathname}` : siteLink(site.slug);
+    const verb = role === 'employee' ? 'view the maps for' : ids === null ? 'manage every site in' : 'manage';
+    setInvite({ note: msg, text: `You can now ${verb} ${where} on Bergeron Maps.\n\nOpen ${href} and sign in with ${who}. We’ll email you a sign-in link and code, so there’s no password to set.` });
+    setEmail('');
+    await load();
+  };
+
   const add = async () => {
     setError(null);
     setNote(null);
     const role: Role = access === 'employee' ? 'employee' : 'manager';
     const scope = access === 'regional' ? null : [siteId];
-    const r = await supabase!.rpc('add_member', { p_company: company, p_email: email, p_role: role, p_facility_ids: scope });
-    if (r.error) return setError(friendly(r.error));
     const who = email.trim().toLowerCase();
-    const msg = r.data === 'added'
-      ? `${who} now has access. Send them the site link.`
-      : `${who} will get access as soon as they sign in with that email. Send them the site link.`;
-    setNote(msg);
-    const site = sites.find((s) => s.id === siteId);
-    const where = access === 'regional' || !site ? membership.companyName : site.name;
-    const href = access === 'regional' || !site ? `${window.location.origin}${window.location.pathname}` : siteLink(site.slug);
-    const what = access === 'employee' ? 'view the maps for' : access === 'regional' ? 'manage every site in' : 'manage';
-    setInvite({ note: msg, text: `You can now ${what} ${where} on Bergeron Maps.\n\nOpen ${href} and sign in with ${who}. We’ll email you a sign-in link and code, so there’s no password to set.` });
-    setEmail('');
-    await load();
+    // Someone who already has access: a person has one role per company, so adding them again
+    // changes what they have. Add the site when it's the same role; otherwise say what changes first.
+    const existing = members?.find((m) => m.email.toLowerCase() === who);
+    if (!existing) return grant(who, role, scope, false);
+    if (existing.role === 'owner') return setError(`${who} is an account lead and already has every site.`);
+    if (!full && existing.facility_ids?.some((id) => !sites.some((x) => x.id === id)))
+      return setError(`${who} also has access at sites you don’t manage. Ask an owner or regional manager to change it.`);
+    const plan = plannedAccess(existing, role, scope);
+    if (plan.same) return setNote(`${who} already has that access: ${describe(existing, sites)}.`);
+    if (plan.takesAway) return setReplacing({ member: existing, role, ids: plan.ids });
+    return grant(who, role, plan.ids, true);
+  };
+
+  /** What a site manager's Remove takes away: everything, or only their own sites when the person works at others too. */
+  const mySites = membership.siteIds;
+  const onlyMySites = (m: Member) => !!mySites && !!m.facility_ids && m.facility_ids.some((id) => !mySites.includes(id));
+  const canRemove = (m: Member) => {
+    if (myEmail && m.email.toLowerCase() === myEmail.toLowerCase()) return false;
+    if (m.role === 'owner') return membership.role === 'owner';
+    if (full) return true;
+    return m.role === 'employee' && !!m.facility_ids && m.facility_ids.some((id) => mySites?.includes(id));
   };
 
   const remove = async (m: Member) => {
@@ -196,7 +249,7 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
           <h3>Sites</h3>
           <p className="muted small">
             Send managers their site link. It only works for emails you’ve added below. Employees join a single site with its code and can only view
-            published maps.
+            published maps. A site gets a public link (no sign-in) once one of its live maps is made public on the Maps page.
           </p>
           <ul className="site-list">
             {f && shownSites.length === 0 && <li className="muted small">No site matches “{find.trim()}”.</li>}
@@ -222,8 +275,10 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
                 </span>
                 <span className="site-actions">
                   <button className="btn small" onClick={() => copy(siteLink(s.slug), 'Site link')}>Copy link</button>
-                  <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
-                    title="Opens this site’s public maps without signing in. Make a map public from the Maps page.">Copy public link</button>
+                  {publicSites.has(s.id) && (
+                    <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
+                      title="Opens this site’s public maps without signing in." data-testid={`public-link-${s.name}`}>Copy public link</button>
+                  )}
                   {full && editingLink?.id !== s.id && (
                     <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>
                   )}
@@ -306,13 +361,17 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
                     <strong>{m.email}</strong>
                     <span className="muted small">{describe(m, sites)}{m.pending ? ' · hasn’t signed in yet' : ''}</span>
                   </span>
-                  {m.role !== 'owner' && (
+                  {(canRemove(m) || (full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1)) && (
                     <span className="site-actions">
                       {full && m.facility_ids !== null && sites.length > 1 && (
                         <button className="btn small" onClick={() => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' })}
                           data-testid={`move-${m.email}`}>Move</button>
                       )}
-                      <button className="btn small danger-text" onClick={() => setRemoving(m)}>Remove</button>
+                      {canRemove(m) && (
+                        <button className="btn small danger-text" onClick={() => setRemoving(m)} data-testid={`remove-${m.email}`}>
+                          {onlyMySites(m) ? 'Remove from my sites' : 'Remove'}
+                        </button>
+                      )}
                     </span>
                   )}
                 </li>
@@ -323,7 +382,9 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
       </main>
       {removing && (
         <ConfirmDialog title={`Remove ${removing.email}?`} confirmLabel="Remove access" danger onCancel={() => setRemoving(null)} onConfirm={() => void remove(removing)}
-          message={<p>They lose access right away and are signed out on every device. Maps, site codes and links stay with the site.</p>} />
+          message={onlyMySites(removing)
+            ? <p>They lose access to {removing.facility_ids!.filter((id) => mySites!.includes(id)).map((id) => sites.find((x) => x.id === id)?.name ?? 'your site').join(', ')} right away. They keep their other sites.</p>
+            : <p>They lose access right away and are signed out on every device. Maps, site codes and links stay with the site.</p>} />
       )}
       {moving && (
         <Dialog title={`Move ${moving.member.email}`} onClose={() => setMoving(null)}
@@ -345,6 +406,14 @@ export function TeamPage({ membership, nav, account, onRequestsChanged }: {
             </select>
           </label>
         </Dialog>
+      )}
+      {replacing && (
+        <ConfirmDialog title={`Change ${replacing.member.email}’s access?`} confirmLabel="Change access" onCancel={() => setReplacing(null)}
+          onConfirm={() => { const x = replacing; setReplacing(null); void grant(x.member.email, x.role, x.ids, true); }}
+          message={<>
+            <p>They’re {describe(replacing.member, sites)} now. Each person has one kind of access in a company, so this replaces it with{' '}
+              <strong>{describe({ ...replacing.member, role: replacing.role, facility_ids: replacing.ids }, sites)}</strong>.</p>
+          </>} />
       )}
       {rotating && (
         <ConfirmDialog title={`New code for ${rotating.name}?`} confirmLabel="Make new code" onCancel={() => setRotating(null)} onConfirm={() => void rotate(rotating)}
