@@ -881,6 +881,6 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .sv-floor[role='button']:hover .sv-hit { fill-opacity: 0.05; }
 .sv-floor.current[role='button']:hover .sv-hit { fill-opacity: 0.09; }
 .sv-floor[role='button']:focus-visible .sv-hit { stroke: var(--focus); stroke-width: 3px; }
-.side-view-key { margin: 0; padding: 6px 14px 12px; font-size: 13px; }
+.side-view-key { margin: 0; padding: 6px 14px 12px; font-size: var(--fs-md); }
 @media (min-width: 900px) { .dir-sheet.side-view { width: 640px; } }
 @media print { .side-view { display: none; } }
