@@ -437,14 +437,6 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     else setShowResults(true);
   };
 
-  if (error)
-    return (
-      <div className="page-message">
-        <p>{error}</p>
-        <button className="btn primary" onClick={load}>Try again</button>
-        {backTo !== null && <button className="btn" onClick={() => navigate(backTo)}>All maps</button>}
-      </div>
-    );
   // Room the info card takes at the bottom of the map: a guess until the card has been shown,
   // then its real height (it varies with the buttons). Once the card is on screen, measure it:
   // the map button sits just above it on a phone, and if the space turned out to be under it,
@@ -466,6 +458,14 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       reKeep.current(tappedId);
     }
   }, [tappedId]);
+  if (error)
+    return (
+      <div className="page-message">
+        <p>{error}</p>
+        <button className="btn primary" onClick={load}>Try again</button>
+        {backTo !== null && <button className="btn" onClick={() => navigate(backTo)}>All maps</button>}
+      </div>
+    );
   if (!doc || !floor) return <div className="page-message"><p>Loading map…</p></div>;
 
   const keepInView = (o: MapObject) => {
