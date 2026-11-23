@@ -13,6 +13,7 @@ const MIN_SIZE = 6;
 const FILL_W = 0.7;
 const FILL_H = 0.8;
 
+const FONT = `bold 100px ${MAP_FONT}`;
 let ctx: CanvasRenderingContext2D | null | undefined;
 const widths = new Map<string, number>();
 /** Width of `text` in em (at font size 1), bold, in the map font. */
@@ -22,13 +23,13 @@ export function emWidth(text: string): number {
   if (ctx === undefined) {
     try {
       ctx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+      if (ctx) ctx.font = FONT; // set once: resolving a font list is slow in Safari
     } catch {
       ctx = null;
     }
   }
   let w = text.length * CHAR_W;
   if (ctx) {
-    ctx.font = `bold 100px ${MAP_FONT}`;
     const m = ctx.measureText(text).width / 100;
     if (m > 0) w = m;
   }
