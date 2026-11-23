@@ -445,11 +445,32 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         {backTo !== null && <button className="btn" onClick={() => navigate(backTo)}>All maps</button>}
       </div>
     );
+  // Room the info card takes at the bottom of the map: a guess until the card has been shown,
+  // then its real height (it varies with the buttons). Once the card is on screen, measure it:
+  // the map button sits just above it on a phone, and if the space turned out to be under it,
+  // slide the map a little more.
+  const cardRoom = useRef(160);
+  const reKeep = useRef<(id: string) => void>(() => {});
+  const tappedId = tapped?.id;
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const card = box?.querySelector<HTMLElement>('.info-card');
+    if (!box || !card || !tappedId) return;
+    const b = box.getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    const room = Math.round(b.bottom - c.top) + 12;
+    box.style.setProperty('--sheet-room', `${room}px`);
+    // A card beside the map (wide screens) doesn't cover the middle of it.
+    if (c.width > b.width * 0.6 && room !== cardRoom.current) {
+      cardRoom.current = room;
+      reKeep.current(tappedId);
+    }
+  }, [tappedId]);
   if (!doc || !floor) return <div className="page-message"><p>Loading map…</p></div>;
 
-  // Room the info card takes at the bottom of the map, so a tapped space never hides under it.
-  const CARD_ROOM = 96;
   const keepInView = (o: MapObject) => {
+    // Room the info card takes at the bottom of the map, so a tapped space never hides under it.
+    const CARD_ROOM = cardRoom.current;
     const v = viewRef.current;
     const sx = v.x + o.x * v.scale;
     const sy = v.y + o.y * v.scale;
@@ -465,6 +486,11 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       viewRef.current = next;
       setView(next);
     }
+  };
+
+  reKeep.current = (id: string) => {
+    const o = floor.objects.find((x) => x.id === id);
+    if (o) keepInView(o);
   };
 
   const focused = focus && focus.floorId === floor.id ? floor.objects.find((o) => o.id === focus.id) : undefined;
@@ -739,23 +765,23 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             {focused && (
               <Group x={focused.x} y={focused.y} rotation={focused.rotation} listening={false}>
                 <Rect
-                  x={-focused.width / 2 - 6 / view.scale}
-                  y={-focused.height / 2 - 6 / view.scale}
-                  width={focused.width + 12 / view.scale}
-                  height={focused.height + 12 / view.scale}
-                  stroke={MAP_PALETTE.ring}
-                  strokeWidth={4 / view.scale}
+                  x={-focused.width / 2 - 4.5 / view.scale}
+                  y={-focused.height / 2 - 4.5 / view.scale}
+                  width={focused.width + 9 / view.scale}
+                  height={focused.height + 9 / view.scale}
+                  stroke={MAP_PALETTE.ringEdge}
+                  strokeWidth={2 / view.scale}
                   cornerRadius={4 / view.scale}
-                  name="focus-ring"
                 />
                 <Rect
-                  x={-focused.width / 2 - 8.5 / view.scale}
-                  y={-focused.height / 2 - 8.5 / view.scale}
-                  width={focused.width + 17 / view.scale}
-                  height={focused.height + 17 / view.scale}
-                  stroke={MAP_PALETTE.ringEdge}
-                  strokeWidth={1.5 / view.scale}
-                  cornerRadius={6 / view.scale}
+                  x={-focused.width / 2 - 2.5 / view.scale}
+                  y={-focused.height / 2 - 2.5 / view.scale}
+                  width={focused.width + 5 / view.scale}
+                  height={focused.height + 5 / view.scale}
+                  stroke={MAP_PALETTE.ring}
+                  strokeWidth={2.5 / view.scale}
+                  cornerRadius={3 / view.scale}
+                  name="focus-ring"
                 />
               </Group>
             )}
@@ -779,23 +805,28 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         )}
         {info && !dir && !listOpen && (
           <section className="info-card" aria-label={info.title} tabIndex={-1} data-testid="info-card">
-            <div>
+            <div className="info-head">
               <strong>{info.title}</strong>
-              <span className="muted">{[tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(' · ')}</span>
+              <span className="info-meta">
+                {tappedFloor && group.length > 1 && <span className="floor-swatch" aria-hidden="true" />}
+                {[tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(' · ')}
+              </span>
             </div>
-            {canGoIn && (
-              <button className="btn primary go-inside" onClick={() => goInside(tapped!.id)} data-testid="go-inside">
-                <Icon name="enter" size={16} /> Go inside
+            <button className="icon-btn info-close" aria-label="Close" onClick={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}><Icon name="close" /></button>
+            <div className="info-actions">
+              {canGoIn && (
+                <button className="btn primary go-inside" onClick={() => goInside(tapped!.id)} data-testid="go-inside">
+                  <Icon name="enter" size={18} /> Go inside
+                </button>
+              )}
+              <button className={`btn directions-btn${canGoIn ? '' : ' primary'}`} onClick={() => startDirections(tapped!)} data-testid="directions">
+                <Icon name="directions" size={18} /> Directions
               </button>
-            )}
-            <button className={`btn directions-btn${canGoIn ? '' : ' primary'}`} onClick={() => startDirections(tapped!)} data-testid="directions">
-              <Icon name="directions" size={16} /> Directions
-            </button>
-            <button className={`icon-btn share-btn${shared ? ' done' : ''}`} aria-label={shared ? 'Link copied' : `Share a link to ${info.title}`}
-              title={shared ? 'Link copied' : 'Share a link to this'} onClick={() => void share(tapped!)} data-testid="share">
-              <Icon name={shared ? 'check' : 'share'} />
-            </button>
-            <button className="icon-btn" aria-label="Close" onClick={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}><Icon name="close" /></button>
+              <button className={`btn share-btn${shared ? ' done' : ''}`} aria-label={shared ? 'Link copied' : `Share a link to ${info.title}`}
+                title={shared ? 'Link copied' : 'Share a link to this'} onClick={() => void share(tapped!)} data-testid="share">
+                <Icon name={shared ? 'check' : 'share'} size={20} />
+              </button>
+            </div>
             {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
           </section>
         )}
@@ -829,6 +860,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         )}
       </div>
 
+      {/* One floor and nothing to go back out to: the header already names it, so no bar. */}
+      {(inside || group.length > 1) && (
       <nav className="viewer-floors" aria-label="Floors">
         {inside && (
           <button className="outside" onClick={goOutside} data-testid="go-outside" title={`Back outside to ${inside.floor.name}`}>
@@ -849,6 +882,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           </button>
         ))}
       </nav>
+      )}
       <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-announce">{announcement}</p>
       <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-floor-announce">{floorNote}</p>
     </main>
