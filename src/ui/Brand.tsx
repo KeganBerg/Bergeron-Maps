@@ -13,7 +13,7 @@ const monogramIcon = monogram.replace('<svg ', '<svg preserveAspectRatio="none" 
 /** The monogram on its black tile, used as the app mark. In a tile it is the compact icon version, 30% taller than the card, like the favicons (scripts/build-icons.mjs). */
 export function BrandMark({ size = 32, title = 'Bergeron Maps' }: { size?: number; title?: string }) {
   // Whole-pixel glyph box and offsets, so the mark's edges land on pixels and stay sharp on 1x screens.
-  const gw = Math.round((size * 0.78) / 2) * 2;
+  const gw = Math.round((size * 0.68) / 2) * 2; // about two thirds of the tile, leaving black space beside the B and the M
   const gh = Math.round(gw / 2.5);
   const vars = { width: size, height: size, '--gw': `${gw}px`, '--gh': `${gh}px`, '--gl': `${(size - gw) / 2}px`, '--gt': `${Math.floor((size - gh) / 2)}px` } as React.CSSProperties;
   return (

@@ -5,6 +5,7 @@ import { MAP_FILE_EXTENSION, MAX_MAP_FILE_BYTES, parseMapFile } from '../storage
 import { SITE_LIVE_MAPS, SITE_MAP_SLOTS, TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
 import { preloadEditor } from '../lazyPages';
 import { navigate } from '../router';
+import { friendly } from '../errors/friendly';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { NewMapDialog } from './NewMapDialog';
 import { Icon } from '../ui/icons';
@@ -85,7 +86,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
     try {
       await fn();
     } catch (e) {
-      setError((e as Error).message || 'That didn’t go through. Try again.');
+      setError(friendly(e, 'That didn’t go through. Try again.'));
     }
     await refresh();
   };
@@ -99,7 +100,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
       if (sites) setSites(sites);
       setTrash(trash);
     } catch (e) {
-      setError(`Your maps couldn’t be loaded. ${(e as Error).message ?? ''}`.trim());
+      setError(`Your maps couldn’t be loaded. ${friendly(e, '')}`.trim());
       setMaps([]);
     }
   };
@@ -134,7 +135,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
     try {
       await repo.createMap(copy, m.site);
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendly(e));
     }
     await refresh();
   };
@@ -232,6 +233,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
               return (
                 <section key={site} className="site" data-testid={`site-${site}`}>
                   <header className="site-head">
+                    <span className="kind-tag">Site</span>
                     <h3>{site}</h3>
                     <span className="site-meta" data-testid={`site-meta-${site}`}>
                       {list.length} of {SITE_MAP_SLOTS} slots used · {live} of {SITE_LIVE_MAPS} published · {plural(spaces, 'space')}
@@ -299,7 +301,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
               navigate(`/edit/${stored.id}`);
             } catch (e) {
               setCreating(false);
-              setError((e as Error).message);
+              setError(friendly(e));
             }
           }}
         />
@@ -332,7 +334,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
             setSharing(on ? { ...m, isPublic: true } : null);
           } catch (e) {
             setSharing(null);
-            setError((e as Error).message || 'That didn’t go through. Try again.');
+            setError(friendly(e, 'That didn’t go through. Try again.'));
           }
           await refresh();
         };

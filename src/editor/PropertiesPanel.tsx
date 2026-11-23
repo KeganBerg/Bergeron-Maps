@@ -78,6 +78,14 @@ export function PropertiesPanel() {
       )}
 
       {spaces.length > 0 && <NumberSizeField spaces={spaces} />}
+      {single && single.kind !== 'text' && (
+        <div className="btn-row">
+          <button className="btn small" onClick={() => window.dispatchEvent(new CustomEvent('bm:qr-sign', { detail: single.id }))} data-testid="qr-sign"
+            title="Print a sign with a QR code that opens the map here, with “You are here” on this spot">
+            <Icon name="qr" size={16} /> “You are here” QR sign
+          </button>
+        </div>
+      )}
 
       <StyleFields objs={objs} />
 

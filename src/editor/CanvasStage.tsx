@@ -33,6 +33,8 @@ const DRAG_THRESHOLD = 3;
 const LIVE_DRAG_LIMIT = 150;
 const ALL_ANCHORS = ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right'];
 const COARSE = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+/** A finger held this long without moving opens the map menu (phones and tablets have no right-click). */
+export const LONG_PRESS_MS = 500;
 
 type Gesture =
   | { type: 'pan'; startX: number; startY: number; vx: number; vy: number }
@@ -53,6 +55,8 @@ type Gesture =
       /** Alt/Option held: the drag moves a copy and leaves the originals where they were. */
       altCopy?: boolean;
       copied?: boolean;
+      /** What an Alt-drag copied from, selected again if the drag is called off. */
+      originals?: string[];
       /** Big selections move the drawn objects directly while dragging (see LIVE_DRAG_LIMIT). */
       nodes?: Map<string, Konva.Node>;
       last?: { dx: number; dy: number };
@@ -73,6 +77,8 @@ export function CanvasStage() {
   const trRef = useRef<Konva.Transformer>(null);
   const objLayerRef = useRef<Konva.Layer | null>(null);
   const gesture = useRef<Gesture | null>(null);
+  /** A text label just placed with the mouse, to start typing in once the button is let go. */
+  const pendingEdit = useRef<string | null>(null);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [cutDraft, setCutDraft] = useState<number[] | null>(null);
   const [rowDraft, setRowDraft] = useState<{ a: { x: number; y: number }; b: { x: number; y: number } } | null>(null);
@@ -80,17 +86,22 @@ export function CanvasStage() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [panning, setPanning] = useState(false);
   const [bgSelected, setBgSelected] = useState(false);
-  const [menu, setMenu] = useState<{ x: number; y: number; id: string | null } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; id: string | null; touch?: boolean } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [finding, setFinding] = useState(false);
   /** The last two presses on the map, so a drag followed by a quick click doesn't count as a double-click. */
-  const presses = useRef<{ id: string | null; moved: boolean }[]>([]);
+  const presses = useRef<{ id: string | null; moved: boolean; picked?: boolean }[]>([]);
   useEffect(() => {
     const open = () => setFinding(true);
     window.addEventListener('bm:find', open);
     return () => window.removeEventListener('bm:find', open);
   }, []);
   const touch = useRef(new PanZoomTracker());
+  /** A finger that may become a long press, and whether the last one did. */
+  const longPress = useRef<{ timer: number; id: number; x: number; y: number } | null>(null);
+  /** "Select an area" from the menu: the next finger drag draws a selection box instead of panning. */
+  const boxArmed = useRef(false);
+  const openMenuAt = useRef<(clientX: number, clientY: number) => void>(() => {});
   // Latest versions of the gesture handlers, for the window listeners above.
   const endGesture = useRef<() => void>(() => {});
   const cancelGesture = useRef<() => void>(() => {});
@@ -128,6 +139,20 @@ export function CanvasStage() {
     return () => ro.disconnect();
   }, []);
 
+  // Escape in the middle of a drag, selection box, row or cut puts things back as
+  // they were. It runs before the editor's own Escape (which would also drop the
+  // selection), and only while a gesture is going.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !gesture.current || gesture.current.type === 'pan') return;
+      cancelGesture.current();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+
   // Space bar held = temporary hand tool (common in drawing apps).
   useEffect(() => {
     const isTyping = (e: KeyboardEvent) => (e.target as HTMLElement)?.closest('input, textarea, select, [contenteditable]');
@@ -159,17 +184,41 @@ export function CanvasStage() {
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
     const view = () => useEditor.getState().viewport;
+    const stopLongPress = () => {
+      if (longPress.current) window.clearTimeout(longPress.current.timer);
+      longPress.current = null;
+    };
     const onDown = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return;
-      if (t.down(e.pointerId, at(e), view())) cancelGesture.current();
+      stopLongPress();
+      if (t.down(e.pointerId, at(e), view())) {
+        cancelGesture.current();
+        return;
+      }
+      // Only a finger on the map itself, not on the menu, find bar or label box drawn over it.
+      if (t.count !== 1 || (e.target as HTMLElement)?.tagName !== 'CANVAS') return;
+      const lp = { id: e.pointerId, x: e.clientX, y: e.clientY, timer: 0 };
+      lp.timer = window.setTimeout(() => {
+        if (longPress.current !== lp) return;
+        longPress.current = null;
+        if (t.count !== 1 || t.moved) return;
+        // The finger stays down, but it no longer pans the map or lifts as a tap.
+        t.reset();
+        openMenuAt.current(lp.x, lp.y);
+      }, LONG_PRESS_MS);
+      longPress.current = lp;
     };
     const onMove = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return;
       const v = t.move(e.pointerId, at(e));
+      if (t.moved) stopLongPress();
       if (v) useEditor.getState().setViewport(v);
     };
     const onUp = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') t.up(e.pointerId, view());
+      if (e.pointerType === 'touch') {
+        stopLongPress();
+        t.up(e.pointerId, view());
+      }
       // A finger or button let go outside the canvas still ends the gesture.
       endGesture.current();
     };
@@ -183,7 +232,14 @@ export function CanvasStage() {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     el.addEventListener('wheel', onWheel, { passive: false });
+    const arm = () => {
+      boxArmed.current = true;
+      useEditor.getState().notify({ tone: 'info', message: 'Drag a box over the map to select everything inside it.' });
+    };
+    window.addEventListener('bm:box-select', arm);
     return () => {
+      stopLongPress();
+      window.removeEventListener('bm:box-select', arm);
       t.reset();
       el.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('pointermove', onMove);
@@ -324,7 +380,9 @@ export function CanvasStage() {
     // The handles that bend a curved road do their own dragging.
     if (e.target.hasName('curve-handle')) return;
     let target: Konva.Node = e.target;
-    presses.current = [...presses.current.slice(-1), { id: objFromTarget(e.target), moved: false }];
+    const pressedId = objFromTarget(e.target);
+    // picked: it was already the one thing selected when this press began.
+    presses.current = [...presses.current.slice(-1), { id: pressedId, moved: false, picked: !!pressedId && st.selection.length === 1 && st.selection[0] === pressedId }];
     const tr = e.target.findAncestor('Transformer') as Konva.Transformer | null;
     if (tr) {
       // A resize handle sits half over the neighbor (often right on its number).
@@ -340,6 +398,17 @@ export function CanvasStage() {
     // Keep getting moves (and the release) when the mouse leaves the canvas mid-drag.
     if (!isTouch) stageRef.current?.content.setPointerCapture?.(evt.pointerId);
 
+    // "Select an area" from the press-and-hold menu: this finger draws the selection box.
+    if (isTouch && boxArmed.current) {
+      boxArmed.current = false;
+      if (st.tool.type === 'select' && evt.button === 0) {
+        setBgSelected(false);
+        if (st.enteredRowId) st.select([]);
+        else st.clearSelection();
+        gesture.current = { type: 'marquee', start: w, additive: false };
+        return;
+      }
+    }
     if (evt.button === 1 || spaceHeld || st.tool.type === 'hand') {
       if (evt.button === 1) evt.preventDefault(); // no browser autoscroll
       if (isTouch) {
@@ -374,6 +443,10 @@ export function CanvasStage() {
     }
     if (st.tool.type === 'text') {
       st.addText(w);
+      // Type the words straight away, as in other drawing tools, instead of finding the
+      // side panel field to change "Label".
+      // Opened on release: opened on the press, the press itself took the focus back off it.
+      pendingEdit.current = useEditor.getState().selection[0] ?? null;
       return;
     }
 
@@ -439,7 +512,12 @@ export function CanvasStage() {
       return;
     }
     setBgSelected(false);
-    if (!additive) st.clearSelection();
+    // Inside a row a selection box picks some of its spaces, so stay in the row
+    // (a plain click on empty map still leaves it, on release).
+    if (!additive) {
+      if (st.enteredRowId) st.select([]);
+      else st.clearSelection();
+    }
     gesture.current = { type: 'marquee', start: w, additive };
   };
 
@@ -488,6 +566,7 @@ export function CanvasStage() {
             const left = new Set(originals);
             g.others = [...g.others, ...f.objects.filter((o) => left.has(o.id)).map(objectBox)];
             g.copied = true;
+            g.originals = originals;
           }
         }
         st.beginGesture();
@@ -523,6 +602,9 @@ export function CanvasStage() {
   };
 
   const onPointerUp = () => {
+    const edit = pendingEdit.current;
+    pendingEdit.current = null;
+    if (edit) setEditing(edit);
     const g = gesture.current;
     gesture.current = null;
     const st = useEditor.getState();
@@ -535,7 +617,11 @@ export function CanvasStage() {
     else if (g.type === 'touch-place') {
       if (touch.current.moved) return;
       if (st.tool.type === 'asset') st.addAsset(st.tool.key, g.at);
-      else if (st.tool.type === 'text') st.addText(g.at);
+      else if (st.tool.type === 'text') {
+        st.addText(g.at);
+        // No box to type in on the map with a finger: go to the label field in the side panel.
+        requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('bm:edit-label')));
+      }
     } else if (g.type === 'touch-tap') {
       if (touch.current.moved) return; // it was a pan or a pinch
       if (g.id === '__background') {
@@ -555,6 +641,7 @@ export function CanvasStage() {
       if (ring.length >= 6 && big) st.cutWith(ring);
     } else if (g.type === 'marquee') {
       if (marquee && marquee.width * viewport.scale > 2) st.selectInBox(marquee, g.additive);
+      else if (!g.additive) st.clearSelection();
       setMarquee(null);
     } else if (g.type === 'move') {
       if (g.started && g.nodes) {
@@ -608,7 +695,15 @@ export function CanvasStage() {
     gesture.current = null;
     if (!g) return;
     if (g.type === 'move' && g.started) {
-      useEditor.getState().cancelGesture();
+      const st = useEditor.getState();
+      st.cancelGesture();
+      // An Alt-drag made its copies before moving them: take those away too, and
+      // leave the originals selected (the copies used to stay, stacked on top).
+      if (g.copied) {
+        st.undo();
+        useEditor.setState((s) => ({ future: s.future.slice(1) }));
+        if (g.originals) st.select(g.originals);
+      }
       // Directly moved objects go back where they were.
       if (g.nodes) {
         for (const [id, n] of g.nodes) n.position(g.startPos.get(id)!);
@@ -642,19 +737,46 @@ export function CanvasStage() {
     const [first, second] = presses.current;
     const realDouble = !!first && !!second && first.id === o?.id && second.id === o?.id && !first.moved && !second.moved;
     if (o && realDouble && e.type !== 'dbltap' && st.selection.length === 1 && st.selection[0] === o.id) setEditing(o.id);
-    else window.dispatchEvent(new CustomEvent('bm:edit-label'));
+    // A finger goes to the panel field only when the double tap began on what was already picked
+    // alone: on a phone that opens the side panel, and quick taps that pick a row and then a
+    // space in it (tap, double tap) also count as a second double tap.
+    else if (e.type !== 'dbltap' || (realDouble && first.picked)) window.dispatchEvent(new CustomEvent('bm:edit-label'));
   };
 
-  /** Right-click: picks what is under the pointer (unless it is already selected) and opens the menu there. */
-  const onContextMenu = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    e.evt.preventDefault();
-    gesture.current = null;
+  /** Picks what is under the pointer (unless it is already selected) and opens the map menu there. */
+  const showMenu = (id: string | null, clientX: number, clientY: number, byTouch: boolean) => {
     const st = useEditor.getState();
     if (st.tool.type !== 'select') st.setTool({ type: 'select' });
-    const id = objFromTarget(e.target);
     if (id && !st.selection.includes(id)) st.clickObject(id, { additive: false });
     else if (!id) st.clearSelection();
-    setMenu({ x: e.evt.clientX, y: e.evt.clientY, id: id && useEditor.getState().selection.includes(id) ? id : null });
+    boxArmed.current = false;
+    setMenu({ x: clientX, y: clientY, id: id && useEditor.getState().selection.includes(id) ? id : null, touch: byTouch });
+  };
+
+  /** Right-click (and, on Android, a long press). */
+  const onContextMenu = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    e.evt.preventDefault();
+    if (longPress.current) window.clearTimeout(longPress.current.timer);
+    longPress.current = null;
+    const byTouch = (e.evt as PointerEvent).pointerType === 'touch' || touch.current.count > 0;
+    // A finger held still with the row or cut tool is the start of a slow drag (see openMenuAt).
+    const tool = useEditor.getState().tool.type;
+    if (byTouch && (tool === 'row' || tool === 'cut')) return;
+    gesture.current = null;
+    showMenu(objFromTarget(e.target), e.evt.clientX, e.evt.clientY, byTouch);
+  };
+
+  /** Press and hold with a finger: the same menu a right-click opens (iPhone and iPad send no right-click). */
+  openMenuAt.current = (clientX, clientY) => {
+    const st = useEditor.getState();
+    // Holding still with the row or cut tool is the start of a slow drag, not a menu.
+    if (st.tool.type === 'row' || st.tool.type === 'cut') return;
+    cancelGesture.current();
+    const stage = stageRef.current;
+    const r = containerRef.current?.getBoundingClientRect();
+    if (!stage || !r) return;
+    const hit = objLayerRef.current?.getIntersection({ x: clientX - r.left, y: clientY - r.top });
+    showMenu(hit ? objFromTarget(hit) : null, clientX, clientY, true);
   };
 
   const onTransformEnd = () => {
@@ -734,6 +856,10 @@ export function CanvasStage() {
       style={{ cursor }}
       onDragOver={onDragOver}
       onDrop={onDrop}
+      // A press on the map never moves the keyboard focus (fields are left on pointerdown above).
+      // A phone's copy-cat mousedown after a double tap took the focus straight back off the
+      // panel field the double tap had just opened.
+      onMouseDown={(e) => (e.target as HTMLElement).tagName === 'CANVAS' && e.preventDefault()}
       data-testid="canvas"
     >
       <Stage

@@ -66,6 +66,8 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const [newSite, setNewSite] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /** The app sends no access email of its own, so after Give access there is a message ready to paste. */
+  const [invite, setInvite] = useState<{ note: string; text: string } | null>(null);
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
   const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
@@ -132,11 +134,18 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
     const r = await supabase!.rpc('add_member', { p_company: company, p_email: who, p_role: role, p_facility_ids: ids });
     if (r.error) return setError(friendly(r.error));
     const what = describe({ email: who, role, facility_ids: ids, user_id: null, pending: false }, sites);
-    setNote(changed
+    const msg = changed
       ? `${who}’s access is now ${what}.`
       : r.data === 'added'
         ? `${who} now has access. Send them the site link.`
-        : `${who} will get access as soon as they sign in with that email. Send them the site link.`);
+        : `${who} will get access as soon as they sign in with that email. Send them the site link.`;
+    setNote(msg);
+    // A ready-to-send message for the person: where to go and how to sign in.
+    const site = ids?.length === 1 ? sites.find((x) => x.id === ids[0]) : undefined;
+    const where = !site ? membership.companyName : site.name;
+    const href = !site ? `${window.location.origin}${window.location.pathname}` : siteLink(site.slug);
+    const verb = role === 'employee' ? 'view the maps for' : ids === null ? 'manage every site in' : 'manage';
+    setInvite({ note: msg, text: `You can now ${verb} ${where} on Bergeron Maps.\n\nOpen ${href} and sign in with ${who}. We’ll email you a sign-in link and code, so there’s no password to set.` });
     setEmail('');
     await load();
   };
@@ -232,6 +241,9 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}
+        {note && invite?.note === note && (
+          <button className="btn small" onClick={() => copy(invite.text, 'Invite message')} data-testid="copy-invite">Copy invite message</button>
+        )}
 
         <section className="panel-card">
           <h3>Sites</h3>
@@ -253,6 +265,9 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                         onChange={(e) => setEditingLink({ id: s.id, value: e.target.value })} />
                       <button className="btn small primary">Save</button>
                       <button type="button" className="btn small" onClick={() => setEditingLink(null)}>Cancel</button>
+                      <span className="muted small link-warning" data-testid="slug-warning">
+                        Printed QR signs and links already shared with the old name stop working. Print new signs after you change it.
+                      </span>
                     </form>
                   ) : (
                     <span className="muted small site-url">{siteLink(s.slug)}</span>

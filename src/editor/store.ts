@@ -242,6 +242,9 @@ const initialState: EditorState = {
 
 export const useEditor = create<EditorStore>()((set, get) => {
   /** Applies a change to the current floor and records it for undo. */
+  /** A change made while a conflict is open must not hide it: autosave stays paused until it's resolved. */
+  const keepConflict = (status: SaveStatus): SaveStatus => (status === 'conflict' ? 'conflict' : 'unsaved');
+
   const commit: EditorActions['commit'] = (recipe) => {
     const { doc, floorId } = get();
     if (!doc) return;
@@ -291,6 +294,22 @@ export const useEditor = create<EditorStore>()((set, get) => {
     const out = new Set(ids);
     for (const o of floor.objects) if (o.kind === 'space' && o.rowId && rowIds.has(o.rowId)) out.add(o.id);
     return floor.objects.filter((o) => out.has(o.id)).map((o) => o.id);
+  };
+
+  /**
+   * Undo or redo of a change made on another floor: go to that floor, so the change
+   * can be seen (it used to happen out of sight, and looked like nothing happened).
+   */
+  const showChangedFloor = (from: MapDocument, to: MapDocument, verb: string) => {
+    const { floorId } = get();
+    const here = to.floors.find((f) => f.id === floorId);
+    if (here && here === from.floors.find((f) => f.id === floorId)) {
+      const changed = to.floors.find((f) => f !== from.floors.find((x) => x.id === f.id) && from.floors.some((x) => x.id === f.id));
+      if (changed) {
+        set({ floorId: changed.id, selection: [], enteredRowId: null, activeLayer: 'auto' });
+        notify({ tone: 'info', message: `${verb} a change on “${changed.name}”.` });
+      }
+    }
   };
 
   const viewCenter = () => {
@@ -394,7 +413,7 @@ export const useEditor = create<EditorStore>()((set, get) => {
         past: opts?.keepHistory && s.doc ? [...s.past, s.doc] : opts?.keepHistory ? s.past : [],
         future: opts?.keepHistory ? [] : [],
         editSeq: s.editSeq + 1,
-        ...(opts?.markSaved ? { savedSeq: s.editSeq + 1, saveStatus: 'saved' as const } : { saveStatus: 'unsaved' as const }),
+        ...(opts?.markSaved ? { savedSeq: s.editSeq + 1, saveStatus: 'saved' as const } : { saveStatus: keepConflict(s.saveStatus) }),
       });
     },
 
@@ -429,17 +448,20 @@ export const useEditor = create<EditorStore>()((set, get) => {
     },
 
     undo() {
-      const { past, doc, future } = get();
-      if (!past.length || !doc) return;
+      const { past, doc, future, gestureBase } = get();
+      // Mid-drag the map is a live preview: undoing under it mixed the two up.
+      if (!past.length || !doc || gestureBase) return;
       const prev = past[past.length - 1];
-      set((s) => ({ doc: prev, past: past.slice(0, -1), future: [doc, ...future], editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
+      showChangedFloor(doc, prev, 'Undid');
+      set((s) => ({ doc: prev, past: past.slice(0, -1), future: [doc, ...future], editSeq: s.editSeq + 1, saveStatus: keepConflict(s.saveStatus) }));
       set(sanitize(prev, doc));
     },
     redo() {
-      const { past, doc, future } = get();
-      if (!future.length || !doc) return;
+      const { past, doc, future, gestureBase } = get();
+      if (!future.length || !doc || gestureBase) return;
       const next = future[0];
-      set((s) => ({ doc: next, past: [...past, doc], future: future.slice(1), editSeq: s.editSeq + 1, saveStatus: 'unsaved' }));
+      showChangedFloor(doc, next, 'Redid');
+      set((s) => ({ doc: next, past: [...past, doc], future: future.slice(1), editSeq: s.editSeq + 1, saveStatus: keepConflict(s.saveStatus) }));
       set(sanitize(next, doc));
     },
 
@@ -507,7 +529,10 @@ export const useEditor = create<EditorStore>()((set, get) => {
       const floor = currentFloor(get());
       if (!floor) return;
       const hits = floor.objects.filter((o) => boxesIntersect(objectBox(o), box)).map((o) => o.id);
-      const ids = editableIds(floor, hits);
+      // Whole rows, as a click picks them: moving half a row by itself split it in two
+      // (and the next change to the row's settings snapped it back into one line).
+      // Inside a row (double-clicked) the box picks single spaces of that row.
+      const ids = editableIds(floor, expandRows(floor, hits));
       set({ selection: additive ? [...new Set([...get().selection, ...ids])] : ids });
     },
 
@@ -515,9 +540,13 @@ export const useEditor = create<EditorStore>()((set, get) => {
       const floor = currentFloor(get());
       const { selection } = get();
       if (!floor || !selection.length) return;
-      set({ clipboard: copySelection(floor, selection), pasteCount: 0 });
+      const clip = copySelection(floor, selection);
+      set({ clipboard: clip && { ...clip, floorId: floor.id }, pasteCount: 0 });
     },
     cut() {
+      // Nothing selected: keep the clipboard and paste position as they were (a stray
+      // Ctrl+X used to make the next paste land exactly on top of the original).
+      if (!get().selection.length) return;
       get().copy();
       get().deleteSelection();
       set({ pasteCount: -1 });
@@ -526,6 +555,14 @@ export const useEditor = create<EditorStore>()((set, get) => {
       const { clipboard, pasteCount } = get();
       if (!clipboard) {
         notify({ tone: 'info', message: 'Nothing to paste yet. Select something and press Ctrl+C (⌘C on Mac) first.' });
+        return;
+      }
+      // On another floor the first copy lands where the originals are (stacked floors
+      // line up), not shifted, as in other design tools; repeat pastes then step on.
+      const otherFloor = !!clipboard.floorId && clipboard.floorId !== get().floorId;
+      if (otherFloor) {
+        set({ clipboard: { ...clipboard, floorId: get().floorId }, pasteCount: 0 });
+        pasteClip(clipboard, 0);
         return;
       }
       const step = pasteCount + 1;
@@ -866,7 +903,15 @@ export const useEditor = create<EditorStore>()((set, get) => {
       get().setFloor(floor.id);
     },
     renameFloor(id, name) {
-      if (!name.trim()) return;
+      const { doc } = get();
+      const target = doc?.floors.find((f) => f.id === id);
+      if (!doc || !target || !name.trim()) return;
+      // Floors are told apart by name (tabs, the viewer's floor list, "Connects to").
+      const clash = floorGroup(doc, target).find((f) => f.id !== id && f.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (clash) {
+        notify({ tone: 'warning', message: `There is already a floor called “${clash.name}”. Pick another name.` });
+        return;
+      }
       commit((d) => {
         const f = d.floors.find((x) => x.id === id);
         if (f) f.name = name.trim();

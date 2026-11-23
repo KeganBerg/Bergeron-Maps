@@ -84,6 +84,12 @@ export interface MapRepository {
   listTrash(): Promise<MapSummary[]>;
   getMap(id: string): Promise<MapDocument | null>;
   /**
+   * The stored revision alone (a tiny request), so an open editor can notice
+   * that another window or manager saved, without downloading the map. Null
+   * when the map is gone.
+   */
+  getRevision?(id: string): Promise<number | null>;
+  /**
    * `site` defaults to the map name, so a one-map location needs no extra step.
    * `slot` asks for a particular free slot; otherwise the lowest free one is used.
    * Fails when all of the site's slots are in use.

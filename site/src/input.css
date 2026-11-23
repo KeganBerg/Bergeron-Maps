@@ -76,7 +76,7 @@
 
 .am-top { position: absolute; inset: 0 0 auto 0; height: 46px; background: #0b2545; color: #fff; display: flex; align-items: center; gap: 8px; padding: 0 10px; }
 .am-logo { width: 30px; height: 30px; border-radius: 3px; background: #0b0b0b; display: grid; place-items: center; }
-.am-logo svg { width: 23px; height: auto; aspect-ratio: 2.5; color: #fff; }
+.am-logo svg { width: 20px; height: auto; aspect-ratio: 2.5; color: #fff; }
 .am-name { width: 188px; height: 30px; padding: 6px 8px; border-radius: 3px; background: rgba(255,255,255,.08); font-weight: 800; font-size: 14px; }
 .am-saved { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.12); color: #c8f2d2; font-size: 12px; }
 .am-saved b { font-weight: 400; }
@@ -289,6 +289,6 @@
 .calc-out { margin-top: 6px; font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 760; letter-spacing: -0.02em; }
 
 /* Contact form spam trap: off screen for people, still in the form for bots. */
-.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.hp-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 /* The header stays at the top while scrolling, so in-page links stop below it. */
 html { scroll-padding-top: 72px; }

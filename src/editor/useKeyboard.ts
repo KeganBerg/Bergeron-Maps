@@ -38,7 +38,6 @@ export function useKeyboard(onSave: () => void) {
         return;
       }
       if (mod && key === 'a') { s.selectAll(); e.preventDefault(); return; }
-      if (mod && key === 's') { onSave(); e.preventDefault(); return; }
       if (mod && key === 'z' && !e.shiftKey) { s.undo(); e.preventDefault(); return; }
       if ((mod && key === 'y') || (mod && key === 'z' && e.shiftKey)) { s.redo(); e.preventDefault(); return; }
       if (key === 'delete' || key === 'backspace') {
@@ -58,8 +57,25 @@ export function useKeyboard(onSave: () => void) {
         e.preventDefault();
       }
     };
+    // Save works from inside a field too (a space number, a floor name): the field is
+    // left first so what was typed is kept, and the browser's own "Save page" dialog
+    // doesn't open. Fields stop their keys from reaching the handler above, so this
+    // one listens first.
+    const onSaveKey = (e: KeyboardEvent) => {
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (!mod || e.altKey || e.key.toLowerCase() !== 's') return;
+      e.preventDefault();
+      if (document.querySelector('.dialog-backdrop')) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('input, textarea, select, [contenteditable="true"]')) t.blur();
+      onSave();
+    };
+    window.addEventListener('keydown', onSaveKey, true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onSaveKey, true);
+      window.removeEventListener('keydown', onKey);
+    };
   }, [onSave]);
 }
 

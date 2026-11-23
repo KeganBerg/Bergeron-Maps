@@ -40,7 +40,12 @@
       h.textContent = Math.round(hours).toLocaleString('en-US');
       d.textContent = '$' + Math.round(hours * num('w', 1000)).toLocaleString('en-US');
     }
-    form.addEventListener('input', update);
+    // Read out as the visitor changes a number, but not the starting figures as the page loads.
+    var out = form.querySelector('dl');
+    form.addEventListener('input', function () {
+      if (out && !out.hasAttribute('aria-live')) { out.setAttribute('aria-live', 'polite'); out.setAttribute('aria-atomic', 'true'); }
+      update();
+    });
     form.addEventListener('submit', function (e) { e.preventDefault(); });
     update();
   });

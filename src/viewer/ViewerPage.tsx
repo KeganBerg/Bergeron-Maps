@@ -2,7 +2,7 @@ import Konva from 'konva';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Layer, Rect, Stage } from 'react-konva';
 import { ASSET_BY_KEY } from '../assets/library';
-import { searchMap, type SearchHit } from '../model/search';
+import { MAX_HITS, searchMap, type SearchHit } from '../model/search';
 import { floorListing } from '../model/listing';
 import { buildingName, buildingOf, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
@@ -11,6 +11,7 @@ import { BackgroundShape, LayerObjects } from '../render/MapObjects';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
 import { useCulledGroup } from '../render/cull';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
+import { layerPicture } from '../render/printPicture';
 import type { Box } from '../model/types';
 import '../render/konvaSetup';
 import { navigate } from '../router';
@@ -18,7 +19,16 @@ import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
 import { floorVars, MAP_PALETTE } from '../theme';
 import { feet, findRoute, isBig, minutes, placeLabel, startPlaces, type Place, type Route } from '../model/route';
-import { RouteOverlay } from './RouteOverlay';
+import { HereMarker, RouteOverlay } from './RouteOverlay';
+
+/** Runs soon, when the browser has nothing else to do (or after half a second at most). */
+const whenIdle = (fn: () => void): number =>
+  typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 500 }) : window.setTimeout(fn, 100);
+const cancelIdle = (id: number) => {
+  if (!id) return;
+  if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(id);
+  else window.clearTimeout(id);
+};
 
 const ROADLIKE = /road|lane|drive|walk|sidewalk|path|zone|area|grass|crosswalk/;
 
@@ -54,6 +64,13 @@ function linkTo(objectId: string): string {
 const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 function describe(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
+  const d = describeObject(o, doc);
+  // The place a sign's QR code says you're standing at.
+  if (o.id === fromHint()) return { title: d.title, detail: ['You are here', d.detail].filter(Boolean).join(' · ') };
+  return d;
+}
+
+function describeObject(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
   if (o.kind === 'space') return { title: `Space ${o.label || '(no number)'}`, detail: o.accessible ? 'Accessible space' : undefined };
   if (o.kind === 'text') return { title: o.text };
   const def = ASSET_BY_KEY[o.assetKey];
@@ -86,10 +103,26 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [tapped, setTapped] = useState<MapObject | null>(null);
   const [dir, setDir] = useState<Directions | null>(null);
   const [avoidStairs, setAvoidStairs] = useState(false);
+  const avoidRef = useRef(avoidStairs);
+  avoidRef.current = avoidStairs;
+  /** The version on screen, to tell whether Refresh brought a newer one. */
+  const docRef = useRef<(MapDocument & { publishedAt?: string }) | null>(null);
   const [shared, setShared] = useState(false);
   // Where keyboard focus goes after the next render: the panel that just replaced the
   // button that was pressed (a result, a start place), so focus never drops to the page.
-  const moveFocus = useRef<'card' | 'sheet' | 'directions' | 'list' | 'list-button' | null>(null);
+  const moveFocus = useRef<'card' | 'sheet' | 'directions' | 'list' | 'list-button' | 'search' | null>(null);
+  /** Focus is going back to the search box after a card closed: don't pop the old results open again. */
+  const quietFocus = useRef(false);
+  /** Read out when a floor button (or a route step) changes the floor on screen. */
+  const [floorNote, setFloorNote] = useState('');
+  const floorNoteTimer = useRef<number>();
+  const sayFloor = (text: string) => {
+    window.clearTimeout(floorNoteTimer.current);
+    setFloorNote(text);
+    // Cleared soon after, so pressing the same floor again later is read out again.
+    floorNoteTimer.current = window.setTimeout(() => setFloorNote(''), 2500);
+  };
+  useEffect(() => () => window.clearTimeout(floorNoteTimer.current), []);
   /** The floor as a text list (for screen readers, or anyone who'd rather read than look). */
   const [listOpen, setListOpen] = useState(false);
   useLayoutEffect(() => {
@@ -100,10 +133,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       : want === 'sheet' ? box?.querySelector<HTMLElement>('.dir-banner button, .dir-sheet')
       : want === 'list' ? box?.querySelector<HTMLElement>('.floor-list')
       : want === 'list-button' ? document.querySelector<HTMLElement>('[data-testid="list-toggle"]')
+      : want === 'search' ? document.querySelector<HTMLElement>('[data-testid="viewer-search"]')
       : box?.querySelector<HTMLElement>('[data-testid="directions"]');
     if (!el) return;
     moveFocus.current = null;
+    if (want === 'search') quietFocus.current = true;
     el.focus({ preventScroll: true });
+    quietFocus.current = false;
   });
   const boxRef = useRef<HTMLDivElement>(null);
   const tracker = useRef(new PanZoomTracker());
@@ -111,36 +147,63 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const outside = useRef<{ x: number; y: number; scale: number } | null>(null);
   const viewRef = useRef(view);
   viewRef.current = view;
+  const onEscape = useRef<() => boolean>(() => false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      // The search box and the floor list handle their own Escape.
+      if (t?.closest('input, textarea, select, .floor-list, .results')) return;
+      if (onEscape.current()) e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
-  // While a finger or mouse drags or pinches the map, only the picture is
-  // redrawn each frame. Konva also redraws its hidden hit map (what a tap
-  // lands on) on every frame, about a third of the drawing time on a big
-  // floor; nothing can be tapped mid-gesture, so that waits until the gesture
-  // ends, and is brought up to date before the next touch is looked at.
-  const hit = useRef<{ layer: Konva.Layer | null; paused: boolean; stale: boolean; timer: number }>({ layer: null, paused: false, stale: false, timer: 0 });
+  // Konva redraws its hidden hit map (what a tap lands on) with every drawing of
+  // the picture: about a third of the drawing time on a big floor, and needed by
+  // nothing until the next touch. So the picture comes first and the hit map is
+  // brought up to date a moment later when the phone is idle, or at once when a
+  // finger or mouse comes down (before Konva looks up what it is on). While the
+  // map is dragged or pinched it waits until the gesture ends.
+  const hit = useRef<{ layer: Konva.Layer | null; paused: boolean; stale: boolean; timer: number; idle: number; draw?: () => void }>({ layer: null, paused: false, stale: false, timer: 0, idle: 0 });
   const mapLayer = useCallback((layer: Konva.Layer | null) => {
     const h = hit.current;
     if (h.layer && h.layer !== layer) delete (h.layer as Partial<Konva.Layer>).drawHit;
     h.layer = layer;
-    if (!layer) return;
+    if (!layer) {
+      cancelIdle(h.idle);
+      h.draw = undefined;
+      return;
+    }
     const drawHit = Konva.Layer.prototype.drawHit;
+    h.draw = () => drawHit.call(layer);
     layer.drawHit = function (this: Konva.Layer, ...args: Parameters<Konva.Layer['drawHit']>) {
-      if (h.paused) {
-        h.stale = true;
-        return this;
-      }
-      return drawHit.apply(this, args);
+      // Drawing onto some other canvas (a picture of the map) happens right away.
+      if (args[0]) return drawHit.apply(this, args);
+      h.stale = true;
+      if (!h.paused) hitsSoon();
+      return this;
     };
   }, []);
+  const flushHits = () => {
+    const h = hit.current;
+    cancelIdle(h.idle);
+    if (h.stale && h.draw) {
+      h.stale = false;
+      h.draw();
+    }
+  };
+  const hitsSoon = () => {
+    const h = hit.current;
+    cancelIdle(h.idle);
+    h.idle = whenIdle(flushHits);
+  };
   const pauseHits = () => { hit.current.paused = true; };
   const resumeHits = () => {
-    const h = hit.current;
-    window.clearTimeout(h.timer);
-    h.paused = false;
-    if (h.stale && h.layer) {
-      h.stale = false;
-      h.layer.drawHit();
-    }
+    window.clearTimeout(hit.current.timer);
+    hit.current.paused = false;
+    flushHits();
   };
 
   // Drag to pan, pinch to zoom, wheel/trackpad. Native listeners on the canvas box
@@ -204,12 +267,34 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     setError(null);
     // Employees only ever see the published version; Preview shows the manager's draft.
     (preview ? repo.getMap(mapId) : repo.getPublishedMap(mapId)).then(
-      (d) => {
+      (loaded) => {
+        const d = loaded as (MapDocument & { publishedAt?: string }) | null;
         if (!d) return setError(preview
           ? 'This map isn’t available. It may have been deleted.'
           : 'This map isn’t published yet, or it was removed. Ask your manager to publish it.');
         setDoc(d);
         setFloorId((cur) => (d.floors.some((f) => f.id === cur) ? cur : d.floors[0].id));
+        // A refresh brings the manager's latest changes: what's selected follows them, and
+        // anything that was removed stops showing (no card for a space that's gone).
+        const prev = docRef.current;
+        docRef.current = d;
+        if (!prev || (prev.publishedAt ?? prev.updatedAt) === (d.publishedAt ?? d.updatedAt)) return;
+        const find = (fid: string, id?: string) => (id ? d.floors.find((f) => f.id === fid)?.objects.find((o) => o.id === id) : undefined);
+        setTapped((t) => (t ? d.floors.flatMap((f) => f.objects).find((o) => o.id === t.id) ?? null : t));
+        setFocus((f) => (f && find(f.floorId, f.id) ? f : null));
+        setDir((cur) => {
+          if (!cur) return cur;
+          const goal = find(cur.goal.floorId, cur.goal.objectId);
+          if (!goal) return null;
+          const g = { ...cur.goal, x: goal.x, y: goal.y };
+          if (!('start' in cur)) return { ...cur, goal: g };
+          const so = cur.start.objectId ? find(cur.start.floorId, cur.start.objectId) : undefined;
+          if (cur.start.objectId && !so) return { stage: 'pick', goal: g };
+          const start = so ? { ...cur.start, x: so.x, y: so.y } : cur.start;
+          // Worked out again on the new map, so the line never runs through something just drawn.
+          const r = findRoute(d, start, g, { avoidStairs: avoidRef.current });
+          return r.ok ? { stage: 'route', goal: g, start, route: r.route } : { stage: 'none', goal: g, start, reason: r.reason };
+        });
       },
       () => setError('The latest version of this map couldn’t be loaded. Check your connection and try again.'),
     );
@@ -229,6 +314,35 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   }, [doc]);
 
   const floor = doc?.floors.find((f) => f.id === floorId) ?? doc?.floors[0];
+
+  // The browser's own Print (Ctrl+P): the whole floor on the page, with any route or
+  // "You are here" marker, instead of the screen's controls and a map cut off at the
+  // edge. Drawn as the print starts, into a canvas that only shows when printing.
+  const printRef = useRef<HTMLDivElement>(null);
+  const floorRef = useRef(floor);
+  floorRef.current = floor;
+  useEffect(() => {
+    const before = () => {
+      const layer = hit.current.layer, holder = printRef.current, f = floorRef.current;
+      const box = f && floorBounds(f);
+      if (!layer || !holder || !box || box.width <= 0 || box.height <= 0) return;
+      const bg = getComputedStyle(boxRef.current ?? document.body).backgroundColor || '#ffffff';
+      const pic = layerPicture(layer, box, viewRef.current, bg);
+      pic.dataset.testid = 'print-map';
+      holder.querySelector('canvas')?.remove();
+      holder.appendChild(pic);
+      const page = holder.querySelector('style')!;
+      page.textContent = `@page { size: ${pic.width >= pic.height ? 'landscape' : 'portrait'}; margin: 12mm; }`;
+    };
+    const after = () => printRef.current?.querySelector('canvas')?.remove();
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+    };
+  }, []);
+
   const resetView = () => floor && setView(fitViewport(floorBounds(floor), size, 24));
   // Fit when the floor or screen size changes (but not after a search jump).
   const fitKey = `${floor?.id}:${size.width}x${size.height}`;
@@ -240,9 +354,14 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   }, [fitKey]);
 
   const hits = useMemo(() => (doc ? searchMap(doc, query) : []), [doc, query]);
+  // The result count is read out once typing pauses: said after every letter, the next key press
+  // cuts it off, and a screen reader user hears nothing.
+  const searchSaid = useSettled(showResults && query.trim() ? searchSummary(hits.length) : '', 600);
 
   const goTo = (h: SearchHit) => {
     setShowResults(false);
+    // Finding something else while directions are up shows that instead (the route was to somewhere else).
+    setDir(null);
     setListOpen(false);
     moveFocus.current = 'card';
     setFocus({ id: h.object.id, floorId: h.floorId });
@@ -259,7 +378,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const openedAt = useRef(false);
   useEffect(() => {
     if (openedAt.current || !doc || !measured) return;
-    const id = atHint();
+    // A shared link opens on its place; a sign's QR code opens on where you're standing.
+    const id = atHint() ?? fromHint();
     if (!id) return;
     openedAt.current = true;
     for (const f of doc.floors) {
@@ -359,6 +479,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const interiorIds = new Set(doc.floors.map((f) => f.interiorOf).filter((x): x is string => !!x));
   const canGoIn = !!tapped && !floor.interiorOf && interiorIds.has(tapped.id);
   const route = dir?.stage === 'route' ? dir.route : null;
+  const hereId = fromHint();
+  const here = hereId ? floor.objects.find((o) => o.id === hereId) : undefined;
   const routeFloors = new Set(route ? [...route.legs.map((l) => l.floorId), ...route.steps.map((s) => s.floorId)] : []);
 
   // Read out by screen readers when it changes: what search found, what's selected, the route.
@@ -367,10 +489,11 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       : dir.stage === 'tap' ? 'Tap where you are on the map, or choose Cancel to pick from a list.'
       : dir.stage === 'busy' ? 'Finding the way…'
       : dir.stage === 'none' ? (dir.reason === 'same' ? 'You’re already there.' : `No way found to ${dir.goal.name} from ${dir.start.name}.`)
-      : `Directions to ${dir.goal.name}: ${feet(dir.route.length)} feet, about ${minutes(dir.route)} minutes, ${dir.route.steps.length} steps.`
+      : `Directions to ${dir.goal.name}: ${feet(dir.route.length)} feet, about ${plural(minutes(dir.route), 'minute')}, ${plural(dir.route.steps.length, 'step')}.`
     : listOpen ? `List of spaces and places on ${floorTitle(doc, floor)}.`
+    // Typing in the search box while a card is open reads out what the search found, not the card again.
+    : showResults && query.trim() ? searchSaid
     : info ? [info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(', ')
-    : showResults && query.trim() ? (hits.length ? `${hits.length} ${hits.length === 1 ? 'result' : 'results'}` : 'No matches')
     : '';
 
   const goInside = (buildingId: string) => {
@@ -480,6 +603,21 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     if (o) keepInView(o);
   };
 
+  // Escape backs out one step: tap mode to the list of places, directions to the place, the card to the map.
+  onEscape.current = () => {
+    if (dir?.stage === 'tap') { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); return true; }
+    if (dir) { endDirections(); return true; }
+    if (tapped) {
+      // Focus was on the card (or on nothing): give it to the search box rather than drop it to the page.
+      const at = document.activeElement;
+      if (!at || at === document.body || at.closest('.info-card')) moveFocus.current = 'search';
+      setTapped(null);
+      setFocus(null);
+      return true;
+    }
+    return false;
+  };
+
   return (
     <main className="viewer" style={floorVars(group.indexOf(floor))}>
       {preview && (
@@ -487,6 +625,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           Preview — this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
         </div>
       )}
+      <div className="print-only viewer-print" ref={printRef} aria-hidden="true">
+        <style />
+        <h1>{doc.name} · {floorTitle(doc, floor)}</h1>
+      </div>
       <header className="viewer-header">
         {(preview || backTo !== null) && (
           <button className="icon-btn" aria-label={preview ? 'Back to editor' : 'All maps'} onClick={() => navigate(preview ? `/edit/${doc.id}` : backTo ?? '/')}>
@@ -515,7 +657,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           placeholder="Find a space, e.g. B16"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setShowResults(true); }}
-          onFocus={() => setShowResults(true)}
+          onFocus={() => { if (!quietFocus.current) setShowResults(true); }}
           aria-label="Find a parking space"
           aria-controls={showResults && query.trim() ? "viewer-results" : undefined}
           onKeyDown={(e) => {
@@ -618,6 +760,11 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               </Group>
             )}
             {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
+            {here && !route && <HereMarker x={here.x} y={here.y} scale={view.scale} />}
+          </Layer>
+          {/* The route draws itself in over about a second. On its own layer, each frame of that
+              redraws just the line, not the whole floor (thousands of spaces on a big garage). */}
+          <Layer listening={false}>
             {route && <RouteOverlay route={route} floorId={floor.id} scale={view.scale} />}
           </Layer>
         </Stage>
@@ -648,7 +795,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               title={shared ? 'Link copied' : 'Share a link to this'} onClick={() => void share(tapped!)} data-testid="share">
               <Icon name={shared ? 'check' : 'share'} />
             </button>
-            <button className="icon-btn" aria-label="Close" onClick={() => { setTapped(null); setFocus(null); }}><Icon name="close" /></button>
+            <button className="icon-btn" aria-label="Close" onClick={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}><Icon name="close" /></button>
             {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
           </section>
         )}
@@ -667,7 +814,12 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             onPick={(start) => runRoute(dir.goal, start)}
             onTapMode={() => { moveFocus.current = 'sheet'; setDir({ stage: 'tap', goal: dir.goal }); }}
             onChangeStart={() => { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); }}
-            onStep={(fid) => route && showFloorOfRoute(route, fid)}
+            onStep={(fid) => {
+              if (!route) return;
+              const f = doc.floors.find((x) => x.id === fid);
+              if (f && fid !== floor.id) sayFloor(`${floorTitle(doc, f)} shown.`);
+              showFloorOfRoute(route, fid);
+            }}
             onAvoidStairs={(v) => {
               setAvoidStairs(v);
               if ('start' in dir) runRoute(dir.goal, dir.start, v);
@@ -688,6 +840,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           <button key={f.id} className={[f.id === floor.id ? 'active' : '', routeFloors.has(f.id) ? 'on-route' : ''].join(' ').trim() || undefined} aria-pressed={f.id === floor.id}
             style={floorVars(i)}
             onClick={() => {
+              sayFloor(`${floorTitle(doc, f)} shown${routeFloors.has(f.id) ? ', with the route' : ''}.`);
               if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
               setFloorId(f.id);
               if (!dir) { setTapped(null); setFocus(null); }
@@ -697,6 +850,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         ))}
       </nav>
       <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-announce">{announcement}</p>
+      <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-floor-announce">{floorNote}</p>
     </main>
   );
 }
@@ -798,7 +952,7 @@ function DirectionsSheet(p: {
       return 3 + here * 2;
     };
     return all.map((s, i) => ({ s, i, r: rank(s) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.s);
-  }, [doc, dir.goal.objectId]);
+  }, [doc, dir.goal.objectId, p.floorId]);
   const close = <button className="icon-btn" aria-label="Close directions" onClick={p.onClose} data-testid="dir-close"><Icon name="close" /></button>;
   const multiFloor = doc.floors.length > 1;
 
@@ -885,4 +1039,24 @@ function DirectionsSheet(p: {
       </div>
     </div>
   );
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** What a screen reader hears as the search results change. The list stops at MAX_HITS. */
+export function searchSummary(count: number): string {
+  if (!count) return 'No matches';
+  if (count >= MAX_HITS) return `${MAX_HITS} results shown. Type more to narrow them down.`;
+  return plural(count, 'result');
+}
+
+/** `value`, once it has stayed the same for `ms`. An empty value comes through at once. */
+function useSettled(value: string, ms: number): string {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    if (!value) { setSettled(''); return; }
+    const t = window.setTimeout(() => setSettled(value), ms);
+    return () => window.clearTimeout(t);
+  }, [value, ms]);
+  return settled;
 }

@@ -39,19 +39,21 @@ export function OnlineApp() {
   // site is looked up through row-level security, so it only resolves for
   // people who were given access.
   const linkKey = parts[0] === 'site' ? parts[1] : parts[0] && !RESERVED.has(parts[0]) ? parts[0] : undefined;
-  const [site, setSite] = useState<{ key: string; id: string | null; companyId?: string } | null>(null);
+  const [site, setSite] = useState<{ key: string; id: string | null; companyId?: string; failed?: boolean } | null>(null);
+  const [siteTry, setSiteTry] = useState(0);
   useEffect(() => {
     if (!linkKey || !s.session || s.loading) return;
     let alive = true;
     const byId = parts[0] === 'site';
     supabase!.from('facilities').select('id, company_id').eq(byId ? 'id' : 'slug', byId ? linkKey : linkKey.toLowerCase()).maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (!alive) return;
         const row = data as { id: string; company_id: string } | null;
-        setSite({ key: linkKey, id: row?.id ?? null, companyId: row?.company_id });
+        // A lookup that failed (no connection) must not read as "this link isn't yours".
+        setSite({ key: linkKey, id: row?.id ?? null, companyId: row?.company_id, failed: !!error });
       });
     return () => { alive = false; };
-  }, [linkKey, !!s.session, s.loading]);
+  }, [linkKey, !!s.session, s.loading, siteTry]);
   const resolving = !!linkKey && site?.key !== linkKey;
   const siteParam = linkKey && site?.key === linkKey ? site.id ?? undefined : undefined;
   const membership = useMemo(() => {
@@ -131,6 +133,13 @@ export function OnlineApp() {
   if (parts[0] === 'edit' && parts[1] && editor) return <EditorPage key={parts[1]} mapId={parts[1]} repo={repo} />;
   if (parts[0] === 'team' && editor) return <TeamPage membership={membership} email={s.email ?? ''} nav={nav} account={accountMenu} onRequestsChanged={() => setRequestsTick((t) => t + 1)} />;
 
+  if (linkKey && !siteParam && site?.failed)
+    return (
+      <div className="page-message" role="alert">
+        <p>This site link couldn’t be opened. Check your connection and try again.</p>
+        <button className="btn" onClick={() => { setSite(null); setSiteTry((t) => t + 1); }}>Try again</button>
+      </div>
+    );
   if (linkKey && !siteParam)
     return (
       <div className="home">

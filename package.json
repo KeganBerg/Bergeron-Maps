@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:db": "vitest run --config vitest.db.config.ts",
-    "build:site": "python3 site/build-drawings.py && vite-node scripts/site-demo.ts && node scripts/site-pages.mjs && tailwindcss -i site/src/input.css -o site/styles.css --minify"
+    "build:site": "python3 site/build-drawings.py && vite-node scripts/site-demo.ts && node scripts/site-pages.mjs && tailwindcss -i site/src/input.css -o site/styles.css --minify",
+    "loadtest": "vite-node scripts/loadtest/node-bench.ts loadtest-out",
+    "loadtest:browser": "node scripts/loadtest/bench.mjs loadtest-out"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.1.0",
@@ -24,6 +26,7 @@
     "immer": "10.1.1",
     "konva": "9.3.18",
     "nanoid": "5.1.16",
+    "qrcode-generator": "2.0.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-konva": "18.2.10",
@@ -41,6 +44,7 @@
     "@vitejs/plugin-react": "4.3.3",
     "fake-indexeddb": "6.0.0",
     "jsdom": "25.0.1",
+    "jsqr": "1.4.0",
     "pg": "^8.13.1",
     "tailwindcss": "^4.1.11",
     "typescript": "5.6.3",
