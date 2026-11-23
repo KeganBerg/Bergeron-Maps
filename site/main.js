@@ -94,10 +94,10 @@
   var sec = document.getElementById('section');
   var sl = sec.querySelectorAll('path, circle');
   sl.forEach(function (el) { var len = el.getTotalLength(); gsap.set(el, { strokeDasharray: len, strokeDashoffset: len }); });
-  gsap.set(sec.querySelectorAll('text, .callout'), { opacity: 0 });
+  gsap.set(sec.querySelectorAll('text, .sv-mark'), { opacity: 0 });
   var draw = gsap.timeline({ paused: true })
     .to(sl, { strokeDashoffset: 0, duration: 1.2, ease: 'power2.out', stagger: { amount: 0.6 } })
-    .to(sec.querySelectorAll('text, .callout'), { opacity: 1, duration: 0.5 }, '-=0.4');
+    .to(sec.querySelectorAll('text, .sv-mark'), { opacity: 1, duration: 0.5 }, '-=0.4');
   // Plays once when the top of the drawing passes 75% of the screen height.
   if (window.IntersectionObserver) {
     var seen = new IntersectionObserver(function (entries) {

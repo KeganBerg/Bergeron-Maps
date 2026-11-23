@@ -30,6 +30,7 @@ const paths: Record<string, string> = {
   play: 'M7 4v16l13-8z',
   history: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 3',
   save: 'M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6',
+  floors: 'M3 20h18M3 14h18M3 8h18M5 20V8M19 20V8M8 14l8-6',
   layers: 'm12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17l9 5 9-5',
   shapes: 'M4 4h7v7H4zM17.5 4a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM4 20l3.5-6 3.5 6zM14 14h7v7h-7z',
   chevronLeft: 'm15 6-6 6 6 6',

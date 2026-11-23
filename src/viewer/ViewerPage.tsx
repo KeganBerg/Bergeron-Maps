@@ -20,6 +20,8 @@ import { Icon } from '../ui/icons';
 import { floorVars, MAP_PALETTE } from '../theme';
 import { feet, findRoute, isBig, minutes, placeLabel, startPlaces, type Place, type Route } from '../model/route';
 import { HereMarker, RouteOverlay } from './RouteOverlay';
+import { SideViewSheet } from './SideView';
+import { sideView } from '../model/sideView';
 
 /** Runs soon, when the browser has nothing else to do (or after half a second at most). */
 const whenIdle = (fn: () => void): number =>
@@ -110,7 +112,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const [shared, setShared] = useState(false);
   // Where keyboard focus goes after the next render: the panel that just replaced the
   // button that was pressed (a result, a start place), so focus never drops to the page.
-  const moveFocus = useRef<'card' | 'sheet' | 'directions' | 'list' | 'list-button' | 'search' | null>(null);
+  const moveFocus = useRef<'card' | 'sheet' | 'directions' | 'list' | 'list-button' | 'side' | 'side-button' | 'search' | null>(null);
   /** Focus is going back to the search box after a card closed: don't pop the old results open again. */
   const quietFocus = useRef(false);
   /** Read out when a floor button (or a route step) changes the floor on screen. */
@@ -125,6 +127,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   useEffect(() => () => window.clearTimeout(floorNoteTimer.current), []);
   /** The floor as a text list (for screen readers, or anyone who'd rather read than look). */
   const [listOpen, setListOpen] = useState(false);
+  /** The side view of every floor, stacked (a cross-section of the building). */
+  const [sideOpen, setSideOpen] = useState(false);
   useLayoutEffect(() => {
     const want = moveFocus.current;
     if (!want) return;
@@ -133,6 +137,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       : want === 'sheet' ? box?.querySelector<HTMLElement>('.dir-banner button, .dir-sheet')
       : want === 'list' ? box?.querySelector<HTMLElement>('.floor-list')
       : want === 'list-button' ? document.querySelector<HTMLElement>('[data-testid="list-toggle"]')
+      : want === 'side' ? box?.querySelector<HTMLElement>('.side-view')
+      : want === 'side-button' ? document.querySelector<HTMLElement>('[data-testid="side-view-toggle"]')
       : want === 'search' ? document.querySelector<HTMLElement>('[data-testid="viewer-search"]')
       : box?.querySelector<HTMLElement>('[data-testid="directions"]');
     if (!el) return;
@@ -363,6 +369,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     // Finding something else while directions are up shows that instead (the route was to somewhere else).
     setDir(null);
     setListOpen(false);
+    setSideOpen(false);
     moveFocus.current = 'card';
     setFocus({ id: h.object.id, floorId: h.floorId });
     setTapped(h.object);
@@ -484,7 +491,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const routeFloors = new Set(route ? [...route.legs.map((l) => l.floorId), ...route.steps.map((s) => s.floorId)] : []);
 
   // Read out by screen readers when it changes: what search found, what's selected, the route.
-  const announcement = dir
+  const announcement = sideOpen ? `Side view of ${group.length} floors. Pick a floor to open it.`
+    : dir
     ? dir.stage === 'pick' ? `Directions to ${dir.goal.name}. Where are you starting from?`
       : dir.stage === 'tap' ? 'Tap where you are on the map, or choose Cancel to pick from a list.'
       : dir.stage === 'busy' ? 'Finding the way…'
@@ -605,6 +613,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
   // Escape backs out one step: tap mode to the list of places, directions to the place, the card to the map.
   onEscape.current = () => {
+    if (sideOpen) { moveFocus.current = 'side-button'; setSideOpen(false); return true; }
     if (dir?.stage === 'tap') { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); return true; }
     if (dir) { endDirections(); return true; }
     if (tapped) {
@@ -772,12 +781,34 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         <button className="fab" onClick={resetView} aria-label="Show whole floor" title="Show whole floor" data-testid="reset-view">
           <Icon name="fit" />
         </button>
-        {listOpen && !dir && (
+        {sideOpen && group.length > 1 && (
+          <SideViewSheet
+            model={sideView(doc, group, {
+              focusId: route && dir ? dir.goal.objectId : tapped?.id,
+              focusTitle: route && dir ? dir.goal.name : info?.title,
+              route,
+            })}
+            currentId={floor.id}
+            title={inside ? `${buildingName(inside.building)}, side view` : 'Side view'}
+            onPick={(fid) => {
+              const f = doc.floors.find((x) => x.id === fid);
+              if (f) sayFloor(`${floorTitle(doc, f)} shown.`);
+              moveFocus.current = route ? 'sheet' : tapped ? 'card' : 'side-button';
+              setSideOpen(false);
+              if (route) return showFloorOfRoute(route, fid);
+              setFloorId(fid);
+              // The space found stays picked when its own floor is opened.
+              if (tappedFloor?.id !== fid) { setTapped(null); setFocus(null); }
+            }}
+            onClose={() => { moveFocus.current = 'side-button'; setSideOpen(false); }}
+          />
+        )}
+        {listOpen && !dir && !sideOpen && (
           <FloorList doc={doc} floor={floor}
             onPick={(o, title) => goTo({ floorId: floor.id, floorName: floorTitle(doc, floor), object: o, title, exact: true })}
             onClose={() => { moveFocus.current = 'list-button'; setListOpen(false); }} />
         )}
-        {info && !dir && !listOpen && (
+        {info && !dir && !listOpen && !sideOpen && (
           <section className="info-card" aria-label={info.title} tabIndex={-1} data-testid="info-card">
             <div>
               <strong>{info.title}</strong>
@@ -799,13 +830,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
           </section>
         )}
-        {dir?.stage === 'tap' && (
+        {dir?.stage === 'tap' && !sideOpen && (
           <div className="dir-banner dir-sheet" data-testid="dir-tap-banner">
             <span>Tap where you are now</span>
             <button className="btn" onClick={() => { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); }}>Cancel</button>
           </div>
         )}
-        {dir && dir.stage !== 'tap' && (
+        {dir && dir.stage !== 'tap' && !sideOpen && (
           <DirectionsSheet
             dir={dir}
             doc={doc}
@@ -836,6 +867,17 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           </button>
         )}
         {inside && <span className="viewer-building" data-testid="viewer-building">{buildingName(inside.building)}</span>}
+        {group.length > 1 && (
+          <button className={`side-toggle${sideOpen ? ' on' : ''}`} aria-expanded={sideOpen} data-testid="side-view-toggle"
+            aria-label="Side view of all floors" title="See every floor stacked, side on"
+            onClick={() => {
+              moveFocus.current = sideOpen ? 'side-button' : 'side';
+              setSideOpen(!sideOpen);
+              if (!sideOpen) setListOpen(false);
+            }}>
+            <Icon name="floors" size={18} /> <span>All floors</span>
+          </button>
+        )}
         {(inside && group.length < 2 ? [] : group).map((f, i) => (
           <button key={f.id} className={[f.id === floor.id ? 'active' : '', routeFloors.has(f.id) ? 'on-route' : ''].join(' ').trim() || undefined} aria-pressed={f.id === floor.id}
             style={floorVars(i)}
