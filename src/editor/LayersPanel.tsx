@@ -130,7 +130,7 @@ export function LayersPanel() {
               {hasObjects ? (
                 <button className="icon-btn tiny twisty" title={isOpen ? 'Hide this layer’s objects' : 'Show this layer’s objects'} aria-label={isOpen ? 'Collapse layer' : 'Expand layer'}
                   onClick={(e) => { e.stopPropagation(); toggleOpen(l.id); }} data-testid={`expand-${l.name}`}>
-                  <Icon name={isOpen ? 'down' : 'chevronRight'} size={18} strokeWidth={2.2} />
+                  <Icon name="chevronRight" size={14} strokeWidth={2.2} className={`lib-chevron${isOpen ? ' open' : ''}`} />
                 </button>
               ) : (
                 <span className="twisty-gap" />
@@ -200,7 +200,7 @@ export function LayersPanel() {
       <button className="btn small" onClick={() => st().addLayer()} data-testid="add-layer">
         <Icon name="plus" size={14} /> New layer
       </button>
-      <p className="hint">Click a layer to see what’s on it. Drag objects to change their order or move them to another layer. Shift or Ctrl-click to pick several. Locked things can’t be selected or moved on the map, and hidden things aren’t shown.</p>
+      <p className="hint">Click a layer to see what’s on it. Drag objects to reorder them or move them to another layer. Locked layers can’t be changed on the map.</p>
 
       <BackgroundSection />
 

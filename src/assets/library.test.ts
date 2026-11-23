@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fitLabel, splitLabel } from '../render/fitLabel';
-import { ASSET_BY_KEY, ASSET_CATEGORIES, ASSETS, assetPreviewUrl, assetsIn, isShapeable, mergeKey, renderAssetSvg, searchAssets } from './library';
+import { ASSET_BY_KEY, ASSET_CATEGORIES, ASSET_GROUPS, ASSETS, assetPreviewUrl, assetsIn, isShapeable, mergeKey, renderAssetSvg, searchAssets } from './library';
 import { icon } from './style';
 
 /** Every key an earlier version of the app could have saved in a map. */
@@ -17,6 +17,12 @@ describe('asset library', () => {
   it('fills every category from the spec', () => {
     for (const c of ASSET_CATEGORIES) expect(assetsIn(c).length, c).toBeGreaterThan(5);
     expect(ASSETS.length).toBeGreaterThan(330);
+  });
+
+  it('the Add panel groups list every category exactly once', () => {
+    const listed = ASSET_GROUPS.flatMap((g) => g.categories);
+    expect([...listed].sort()).toEqual([...ASSET_CATEGORIES].sort());
+    expect(ASSET_GROUPS.length).toBeLessThanOrEqual(6);
   });
 
   it('keeps every key older maps may contain', () => {

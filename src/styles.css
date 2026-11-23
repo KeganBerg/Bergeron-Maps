@@ -271,8 +271,8 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .sidebar-body { flex: 1; overflow: auto; padding: 4px 12px 12px; min-height: 120px; }
 .spaces-tools h4 { margin-top: 10px; }
 
-.search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--field-border); border-radius: 8px; padding: 0 8px; margin: 12px 0 4px; color: var(--muted); }
-.search input { border: 0 !important; flex: 1; padding: 7px 0 !important; outline: none; }
+.search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--field-border); border-radius: 8px; padding: 0 10px; margin: 14px 0 4px; color: var(--muted); }
+.search input { border: 0 !important; flex: 1; min-width: 0; padding: 8px 0 !important; outline: none; text-overflow: ellipsis; }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .tile-wrap { position: relative; }
 .tile { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); cursor: grab; font-size: var(--fs-xs); line-height: 1.2; text-align: center; min-height: 74px; }
@@ -472,6 +472,7 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 :root[data-theme='night'] .floor-tab { color: #b9bbc1; }
 :root[data-theme='night'] .floor-tab.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); border-radius: 3px; border-bottom: 3px solid var(--primary); }
 :root[data-theme='night'] .sidebar-tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
+:root[data-theme='night'] .btn.primary-soft { border-color: rgba(255, 198, 41, 0.4); }
 :root[data-theme='night'] .tile { background: #2a2c31; border-color: #34363c; color: #d9d7d0; }
 :root[data-theme='night'] .tile:hover { border-color: var(--primary); background: #302f2a; }
 :root[data-theme='night'] .tile img { filter: drop-shadow(0 1px 0 rgba(0,0,0,0.4)); }
@@ -558,14 +559,22 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Asset library categories */
-.lib-cat { border-top: 1px solid var(--border); padding: 6px 0; }
-.lib-cat > summary { cursor: pointer; font-weight: var(--fw-bold); font-size: var(--fs-sm); padding: 4px 2px; list-style: none; display: flex; justify-content: space-between; }
+/* Add panel library: a few groups, each a short list of categories that open into tiles. */
+.lib-group { padding: 4px 0 8px; border-top: 1px solid var(--border); }
+.lib-group:first-of-type { margin-top: 8px; }
+.lib-group > h4 { margin: 10px 0 4px; }
+.lib-cat > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 6px; margin: 0 -6px; border-radius: 6px; font-size: var(--fs-md); line-height: var(--lh-tight, 1.3); color: var(--text); }
 .lib-cat > summary::-webkit-details-marker { display: none; }
-.lib-cat > summary::before { content: '▸'; margin-right: 6px; }
-.lib-cat[open] > summary::before { content: '▾'; }
-.lib-cat > summary { justify-content: flex-start; gap: 0; }
-.lib-cat > summary .muted { margin-left: auto; font-weight: var(--fw-regular); }
-.lib-cat .tiles { margin-top: 6px; }
+.lib-cat > summary:hover { background: var(--hover); }
+.lib-cat > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.lib-chevron { flex: none; color: var(--muted); transition: transform 0.12s ease; }
+.lib-cat[open] > summary .lib-chevron, .lib-chevron.open { transform: rotate(90deg); }
+.lib-cat[open] > summary { font-weight: var(--fw-semibold); }
+.lib-cat-name, .lib-count { line-height: 20px; }
+.lib-cat-name { flex: 1; min-width: 0; }
+.lib-count { flex: none; color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.lib-cat .tiles { margin: 4px 0 10px; }
+@media (pointer: coarse) { .lib-cat > summary { min-height: 44px; } }
 .tile.soon { opacity: 0.6; border-style: dashed; cursor: help; }
 .soon-tag { font-style: normal; font-size: var(--fs-xs); color: var(--muted, #6b7280); }
 
