@@ -49,6 +49,16 @@ Use the tokens in `src/styles.css`, never a raw `px` value:
 
 The marketing site keeps its larger editorial sizes (Tailwind classes), in the same font.
 
+### Line spacing
+
+Text must never look stacked on top of itself.
+
+- Running text uses `--lh-body` (1.45), set once on `body`.
+- One-line names and titles use `--lh-tight` (1.3). Nothing goes below 1.2, except a
+  label drawn on the map itself.
+- A small label over its value ("Company" over the company name, "Floor 1" under
+  a title) keeps `--stack-gap` (3px) between them. Form labels keep 6px above their field.
+
 ### Themes change colour, never type
 
 Classic, Night and Level signage share the same family, sizes and weights.
