@@ -14,8 +14,6 @@ import { describe, expect, it } from 'vitest';
  */
 const MAX_LINES = 600;
 const OVER_LIMIT: Record<string, number> = {
-  'src/model/shape.ts': 631,
-  'src/model/roads.ts': 737,
   'src/render/MapObjects.tsx': 805,
   'src/editor/store.ts': 1065,
   'src/editor/CanvasStage.tsx': 1079,
