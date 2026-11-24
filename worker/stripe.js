@@ -17,6 +17,7 @@
 import { INBOX, ORIGIN, EMAIL, reply, esc, shell, button } from './shared.js';
 import { STRIPE_VERSION, StripeError } from './stripe-api.js';
 import { findReferrer, readReferralCode, settleReferral } from './referrals.js';
+import { accountChange, applyAccountChange } from './accounts.js';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 export { STRIPE_VERSION };
@@ -143,7 +144,19 @@ export async function stripeWebhook(request, env, send = fetch, now = Date.now()
   try { event = JSON.parse(raw); } catch { return reply(400, { received: false }); }
 
   const note = describeEvent(event);
+  const change = accountChange(event);
+  if (!note && !change) return reply(200, { received: true });
+  // Opening or pausing the account. A failed database call answers 500 before any email, so
+  // Stripe retries; opening and pausing are both safe to repeat.
+  let account = '';
+  try {
+    account = await applyAccountChange(env, send, change);
+  } catch (e) {
+    console.error('Account step failed', e.message);
+    return reply(500, { received: false });
+  }
   if (!note) return reply(200, { received: true });
+  if (account) note.rows.push(['Bergeron Maps account', account]);
   if (note.paidOrder) {
     // A failed Stripe call answers 500 before any email goes out, so Stripe retries the whole
     // event; the referral credit's idempotency key keeps a retry from crediting twice.

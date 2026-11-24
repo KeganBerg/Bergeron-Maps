@@ -41,6 +41,7 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
   const [requesting, setRequesting] = useState<Location | null>(null);
   const [requestNote, setRequestNote] = useState('');
   const [leaving, setLeaving] = useState<Location | null>(null);
+  const [paused, setPaused] = useState<string[]>([]);
 
   const load = async () => {
     const db = supabase!;
@@ -60,6 +61,12 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
     setMaps(rows.map(({ level_count, ...r }) => ({ ...r, floors: level_count ?? (Array.isArray(r.floors) ? r.floors.length : 1) })));
   };
   useEffect(() => { void load(); }, [accessKey]);
+  // Companies paused for an unpaid bill: their sites drop out of the list above, so say why.
+  // Before the paid-accounts database step runs this call fails, and nothing is shown.
+  useEffect(() => {
+    void supabase!.rpc('my_paused_accounts').then((r) =>
+      setPaused(r.error ? [] : ((r.data ?? []) as { company_name: string }[]).map((c) => c.company_name)));
+  }, [accessKey]);
 
   const run = async (fn: () => Promise<string | null>) => {
     setBusy(true);
@@ -121,6 +128,12 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {note && <p className="ok-text" role="status">{note}</p>}
+        {paused.map((name) => (
+          <p key={name} className="error-text" role="status" data-testid="paused-account">
+            {name}’s Bergeron Maps service is paused because a payment didn’t go through. Its maps come back as soon as it’s paid.
+            Questions? Email <a href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a>.
+          </p>
+        ))}
 
         {locations === null ? <p className="muted">Loading…</p> : locations.length === 0 ? (
           <div className="empty-state" data-testid="no-locations">
