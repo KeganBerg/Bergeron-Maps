@@ -229,6 +229,7 @@ Last updated: 2026-11-24. Rows marked Tested are covered by automated tests that
 | Maps tied to the site, not the manager | `maps.facility_id` |
 | Employee My Locations, join with 6-character code, leave a site | `my_locations`, `join_site`, `leave_site` |
 | Public link with no sign-in | `get_public_site`; `…/app/#/view/<site-link>`; Make public on a published map |
+| Rename a company or site (admins on All accounts; the account lead and regional managers rename their company on Sites & people). Site links and QR signs stay the same, and two sites in one company can't share a name | `src/cloud/rename.tsx`, checks in `src/model/names.ts` (unit test); allowed by the `companies_rename` and `facilities_update` policies, tested in `supabase/tests/rls.test.ts` and `e2e/online/rename.online.spec.ts` |
 | Delete companies, sites (only once empty), people | `admin_delete_company` (type the name), `admin_delete_site`, `remove_member` |
 | Back up and restore whole companies (a deleted client that comes back) | All accounts → Download backup / Restore from backup: `src/cloud/backup.ts` (`.bmbackup.json`), `admin_restore_company` + `admin_restore_versions` (migration 20261112020000); tests `supabase/tests/backups.test.ts`, `e2e/online/backups.online.spec.ts` |
 | Restore a map deleted forever or a deleted site into a company that still exists | Same dialog: `findMissing` + `restoreMissing` in `src/cloud/backup.ts`, `admin_restore_missing` (migration 20261124000000, step 15); same tests |

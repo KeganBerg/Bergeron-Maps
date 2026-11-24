@@ -6,6 +6,7 @@ import { Icon } from '../ui/icons';
 import { useMotion } from '../ui/motion';
 import { friendly, supabase } from './client';
 import { publicSiteLink } from './PublicSitePage';
+import { RenameForm } from './rename';
 import { canManageCompany, type Membership, type Role } from './session';
 
 interface Site { id: string; name: string; slug: string; address: string | null }
@@ -70,8 +71,10 @@ function describe(m: Member, sites: Site[]): string {
  * Sites and people for one company. Access is given by email to specific
  * sites; each site has a link for its managers and a code for employees.
  */
-export function TeamPage({ membership, email: myEmail = '', nav, account, onRequestsChanged }: {
+export function TeamPage({ membership, email: myEmail = '', nav, account, onRequestsChanged, onRenamed }: {
   membership: Membership; email?: string; nav: React.ReactNode; account: React.ReactNode; onRequestsChanged?: () => void;
+  /** The company was renamed: the header and account menu read the name from access, so reload it. */
+  onRenamed?: () => void;
 }) {
   const company = membership.companyId;
   const full = canManageCompany(membership);
@@ -105,6 +108,10 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const peopleCard = useMotion();
   const accessForm = useMotion();
   const [find, setFind] = useState(() => query.get('q') ?? '');
+  const [renamingCompany, setRenamingCompany] = useState(false);
+  /** The new company name, shown until the reloaded access carries it. */
+  const [newName, setNewName] = useState<{ id: string; name: string } | null>(null);
+  const companyName = newName?.id === company ? newName.name : membership.companyName;
   const f = find.trim().toLowerCase();
   const shownSites = f ? sites.filter((x) => x.name.toLowerCase().includes(f) || x.slug.includes(f) || codes[x.id]?.toLowerCase() === f) : sites;
   const shownMembers = members && f ? members.filter((m) => m.email.includes(f) || describe(m, sites).toLowerCase().includes(f)) : members;
@@ -180,7 +187,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
     setNote(msg);
     // A ready-to-send message for the person: where to go and how to sign in.
     const site = ids?.length === 1 ? sites.find((x) => x.id === ids[0]) : undefined;
-    const where = !site ? membership.companyName : site.name;
+    const where = !site ? companyName : site.name;
     const href = !site ? `${window.location.origin}${window.location.pathname}` : siteLink(site.slug);
     const verb = role === 'employee' ? 'view the maps for' : ids === null ? 'manage every site in' : 'manage';
     setInvite({ note: msg, text: `You can now ${verb} ${where} on Bergeron Maps.\n\nOpen ${href} and sign in with ${who}. We’ll email you a sign-in link and code, so there’s no password to set.` });
@@ -279,7 +286,14 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
       <AppHeader nav={nav}>{account}</AppHeader>
       <main className="home-main team" ref={motion}>
         <div className="page-head">
-          <h2>Sites and people <span className="page-sub">{membership.companyName}</span></h2>
+          {renamingCompany ? (
+            <RenameForm kind="company" id={company} current={companyName} onCancel={() => setRenamingCompany(false)}
+              onDone={(name) => { setRenamingCompany(false); setNewName({ id: company, name }); setNote(`The company is now called ${name}.`); onRenamed?.(); }} />
+          ) : (
+            <h2>Sites and people <span className="page-sub">{companyName}</span>
+              {full && <button className="link rename-link" onClick={() => setRenamingCompany(true)} data-testid="rename-company">Rename</button>}
+            </h2>
+          )}
           <input type="search" className="page-search" value={find} onChange={(e) => setFind(e.target.value)}
             placeholder="Search sites, people or a join code" aria-label="Search sites and people" data-testid="team-search" />
         </div>

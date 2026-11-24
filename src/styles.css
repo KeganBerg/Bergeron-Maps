@@ -723,6 +723,9 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .link-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .link-edit input { width: 200px; }
 .link-edit .link-warning { flex-basis: 100%; }
+/* "Rename" beside a company or site name: a plain link, not part of the heading. */
+.rename-link { font-size: var(--fs-sm); font-weight: var(--fw-regular); margin-left: 8px; }
+.rename-form input { width: 260px; max-width: 100%; }
 .admin-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
 .admin-stats > div { display: flex; flex-direction: column-reverse; align-items: center; gap: var(--stack-gap); padding: 14px 8px; }
 .admin-stats > div + div { border-left: 1px solid var(--border); }

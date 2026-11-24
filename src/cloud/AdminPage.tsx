@@ -7,6 +7,7 @@ import { backupCompany, backupFileName, serializeBackup } from './backup';
 import { RestoreFromBackup } from './RestoreFromBackup';
 import { moveInlineImages, removeCompanyImages } from './mapImages';
 import { friendly, supabase } from './client';
+import { RenameForm } from './rename';
 import { siteLink } from './TeamPage';
 
 interface AdminSite {
@@ -97,6 +98,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   const [limit, setLimit] = useState('1');
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<{ kind: 'limit' | 'address'; id: string; value: string } | null>(null);
+  const [renaming, setRenaming] = useState<{ kind: 'company' | 'site'; id: string } | null>(null);
   const [adding, setAdding] = useState<{ company: string; name: string; address: string } | null>(null);
   const [deletingSite, setDeletingSite] = useState<{ company: AdminCompany; site: AdminSite } | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<AdminCompany | null>(null);
@@ -150,6 +152,15 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
     const r = await fn();
     if (r.error) return setError(friendly(r.error));
     setNote(ok);
+    onCreated();
+    await load();
+  };
+
+  /** After a rename: say so, update the header and menus, and reload the overview. */
+  const renamed = async (was: string, name: string) => {
+    setRenaming(null);
+    setError(null);
+    setNote(`${was} is now called ${name}.`);
     onCreated();
     await load();
   };
@@ -301,7 +312,13 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
         {shown.map((c) => (
           <section className="panel-card" key={c.id} data-testid={`admin-company-${c.name}`} ref={lists(`${c.id}-card`)}>
             <div className="admin-company-head">
-              <h3>{c.name}</h3>
+              {renaming?.kind === 'company' && renaming.id === c.id ? (
+                <RenameForm kind="company" id={c.id} current={c.name} onDone={(n) => void renamed(c.name, n)} onCancel={() => setRenaming(null)} />
+              ) : (
+                <h3>{c.name}{' '}
+                  <button className="link rename-link" onClick={() => setRenaming({ kind: 'company', id: c.id })} data-testid={`rename-company-${c.name}`}>Rename</button>
+                </h3>
+              )}
               <span className="site-actions">
                 <button className="btn small" disabled={!!working} onClick={() => void download([c])} data-testid={`backup-${c.name}`}>Download backup</button>
                 <button className="btn small" onClick={() => onOpen(c.id, '/team')}>Sites &amp; people</button>
@@ -353,7 +370,14 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
               {c.sites.map((s) => (
                 <li key={s.id} data-testid={`admin-site-${s.name}`}>
                   <span className="site-name">
-                    <strong>{s.name}</strong>
+                    {renaming?.kind === 'site' && renaming.id === s.id ? (
+                      <RenameForm kind="site" id={s.id} current={s.name} others={c.sites.filter((x) => x.id !== s.id).map((x) => x.name)}
+                        onDone={(n) => void renamed(s.name, n)} onCancel={() => setRenaming(null)} />
+                    ) : (
+                      <strong>{s.name}{' '}
+                        <button className="link rename-link" onClick={() => setRenaming({ kind: 'site', id: s.id })} data-testid={`rename-site-${s.name}`}>Rename</button>
+                      </strong>
+                    )}
                     {editing?.kind === 'address' && editing.id === s.id ? (
                       <form className="link-edit" onSubmit={(e) => { e.preventDefault(); setEditing(null);
                         void act(() => supabase!.rpc('set_site_address', { p_facility: s.id, p_address: editing.value }), `Address for ${s.name} saved.`); }}>
