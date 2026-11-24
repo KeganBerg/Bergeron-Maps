@@ -3,7 +3,7 @@
 //  - site/industries/<slug>/index.html: one page per industry, written from INDUSTRIES below.
 //  - site/404.html: the shared header between <!--NAV-->…<!--/NAV-->.
 //  - site/sitemap.xml
-// Runs in `npm run build:site`. Screenshots come from the real app (scripts/industry-shots/).
+// Runs in `npm run build:site`. Clips and stills come from the real app (scripts/industry-shots/clips.mjs).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
@@ -303,6 +303,7 @@ function industryPage(ind) {
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   ${HEAD_ICONS(p)}
   <link rel="stylesheet" href="${p}styles.css" />
+  <link rel="preload" as="image" href="${p}img/industries/${ind.scene}-editor.webp" fetchpriority="high" />
 </head>
 <body>
   <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-sign focus:px-3 focus:py-2 focus:text-ink">Skip to content</a>
@@ -330,17 +331,20 @@ function industryPage(ind) {
       <div class="wrap pb-20">
         <figure class="relative border border-white/25">
           <div class="grid items-center gap-6 p-3 sm:p-6 lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8 lg:p-8">
-            <img class="shot" src="${p}img/industries/${ind.scene}-editor.webp" width="2000" height="1222" fetchpriority="high" alt="The Bergeron Maps editor showing ${esc(s.project.toLowerCase().replace('sample ', 'a sample '))}" />
-            <img class="shot shot-phone mx-auto w-full max-w-[250px]" src="${p}img/industries/${ind.scene}-phone.webp" width="780" height="1560" loading="lazy" alt="The same map on a phone, with ${esc(s.find)} found by search" />
+            <video class="shot clip" src="${p}img/industries/${ind.scene}-editor.mp4" poster="${p}img/industries/${ind.scene}-editor.webp" width="1600" height="1000" muted loop playsinline preload="none" aria-label="Clip of the Bergeron Maps editor: ${esc(s.project.toLowerCase().replace('sample ', 'a sample '))}, where an item is found in the library, placed on the map and published"></video>
+            <video class="shot shot-phone clip mx-auto w-full max-w-[250px]" src="${p}img/industries/${ind.scene}-phone.mp4" poster="${p}img/industries/${ind.scene}-phone.webp" width="624" height="1248" muted loop playsinline preload="none" aria-label="Clip of the same map on a phone: a search for ${esc(s.find)}, which lights up on the map, then walking directions to it"></video>
           </div>
           <figcaption class="titleblock grid grid-cols-2 border-t border-white/25 text-white/70 sm:grid-cols-4">
             <div><span>Project</span>${esc(s.project)}</div>
             <div><span>Map</span>${esc(s.sheet)}</div>
             <div class="hidden sm:block"><span>On this map</span>${esc(s.count)}</div>
-            <div class="hidden sm:block"><span>Phone</span>Searched for ${esc(s.find)}</div>
+            <div class="hidden sm:block"><span>Phone</span>Directions to ${esc(s.find)}</div>
           </figcaption>
         </figure>
-        <p class="mt-3 text-sm text-white/60">Screenshots of the real app with a sample site. Not a real client.</p>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p class="text-sm text-white/60">Recorded in the real app with a sample site. Not a real client.</p>
+          <button type="button" class="btn btn-line clip-toggle" hidden>Pause</button>
+        </div>
       </div>
     </section>
 
@@ -399,13 +403,14 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
   ${footer(p)}
 
   <script src="${p}nav.js" defer></script>
+  <script src="${p}clips.js" defer></script>
 </body>
 </html>
 `;
 }
 
 const cards = INDUSTRIES.map((i) => `<li><a class="ind-card" href="industries/${i.slug}/">
-            <img src="img/industries/${i.scene}-phone.webp" width="780" height="1560" loading="lazy" alt="" />
+            <img src="img/industries/${i.scene}-phone.webp" width="624" height="1248" loading="lazy" alt="" />
             <b>${esc(i.name)}</b><span class="ind-pitch">${esc(i.pitch)}</span><span class="ind-more">Learn more <i aria-hidden="true">&rarr;</i></span>
           </a></li>`).join('\n          ');
 
