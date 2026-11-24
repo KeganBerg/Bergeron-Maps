@@ -459,7 +459,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     <main className="viewer" style={floorVars(group.indexOf(floor))}>
       {preview && (
         <div className="preview-banner">
-          Preview — this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
+          Preview: this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
         </div>
       )}
       <div className="print-only viewer-print" ref={printRef} aria-hidden="true">

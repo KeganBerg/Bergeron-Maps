@@ -92,7 +92,7 @@ export function preparePaste(
 
 /**
  * Gives the given spaces new sequential identifiers that do not clash with any
- * other space on the floor (e.g. a pasted copy of A1–A10 becomes A11–A20).
+ * other space on the floor (e.g. a pasted copy of A1 to A10 becomes A11 to A20).
  * Spaces in the same row keep row order. Mutates `floor`; also updates the row
  * numbering settings so later row edits continue the new sequence.
  */

@@ -66,7 +66,7 @@ export const TEXTS = [
   T('label-road', 'Road name', { text: 'Main St', fontSize: 15, color: '#ffffff', fill: '#1d6b3a', stroke: '#ffffff', strokeWidth: 1.5 }, 100, 26, ['street', 'road', 'name']),
   T('label-directional', 'Directional text', { text: 'Service Drive →', fontSize: 15, color: P.ink }, 150, 26, ['direction', 'this way']),
   T('label-location', 'Location description', { text: 'Behind the showroom, next to the car wash', fontSize: 12, color: P.ink, fill: '#ffffff', fillOpacity: 0.9, stroke: P.inkSoft, strokeWidth: 1 }, 190, 44, ['description', 'where']),
-  T('label-instructions', 'Employee instructions', { text: 'Employees: park in rows K–M only', fontSize: 12, color: P.ink, fill: '#fff4c2', stroke: '#c9a227', strokeWidth: 1 }, 200, 44, ['instructions', 'staff', 'note']),
+  T('label-instructions', 'Employee instructions', { text: 'Employees: park in rows K to M only', fontSize: 12, color: P.ink, fill: '#fff4c2', stroke: '#c9a227', strokeWidth: 1 }, 200, 44, ['instructions', 'staff', 'note']),
   T('label-warning', 'Warning text', { text: 'CAUTION: LOW CLEARANCE', fontSize: 13, color: P.danger, fill: '#fde8e6', stroke: P.danger, strokeWidth: 1.5 }, 200, 30, ['warning', 'caution']),
   T('label-notes', 'Notes', { text: 'Notes', fontSize: 12, color: P.ink, fill: '#fff4c2', stroke: '#c9a227', strokeWidth: 1 }, 160, 60, ['note', 'memo', 'sticky']),
   T('label-textbox', 'Custom text box', { text: 'Text', fontSize: 14, color: P.ink, fill: '#ffffff', stroke: P.ink, strokeWidth: 1 }, 120, 32, ['text box', 'custom']),

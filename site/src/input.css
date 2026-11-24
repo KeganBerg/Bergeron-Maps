@@ -225,15 +225,17 @@
 
 /* ===== Header: Industries menu (desktop) and the menu button (tablet and phone) ===== */
 .nav-drop { position: relative; }
-.nav-menu { display: none; position: absolute; left: -16px; top: calc(100% + 22px); min-width: 230px; padding: 6px 0; background: var(--color-ink); border: 1px solid rgb(255 255 255 / .2); border-top: 3px solid var(--color-sign); }
+.nav-menu { visibility: hidden; opacity: 0; translate: 0 -6px; transition: opacity .16s ease-out, translate .16s ease-out, visibility 0s linear .16s; position: absolute; left: -16px; top: calc(100% + 22px); min-width: 230px; padding: 6px 0; background: var(--color-ink); border: 1px solid rgb(255 255 255 / .2); border-top: 3px solid var(--color-sign); }
 .nav-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -26px; height: 26px; }
-.nav-drop.open .nav-menu { display: block; }
-@media (hover: hover) and (pointer: fine) { .nav-drop:hover .nav-menu { display: block; } }
+/* The menu fades and drops in rather than popping; visibility keeps a closed menu out of the tab order. */
+.nav-drop.open .nav-menu { visibility: visible; opacity: 1; translate: 0 0; transition-delay: 0s; }
+@media (hover: hover) and (pointer: fine) { .nav-drop:hover .nav-menu { visibility: visible; opacity: 1; translate: 0 0; transition-delay: 0s; } }
 .nav-menu a { display: block; padding: 9px 16px; color: rgb(255 255 255 / .75); white-space: nowrap; }
 .nav-menu a:hover, .nav-menu a[aria-current] { color: #fff; background: rgb(255 255 255 / .06); }
+.nav-drop button svg { transition: transform .16s ease-out; }
 .nav-drop button[aria-expanded="true"] svg { transform: rotate(180deg); }
 .nav-burger { display: none; gap: 5px; place-content: center; width: 40px; height: 40px; margin-right: -8px; }
-@media (max-width: 1023px) { .nav-burger { display: grid; } .mnav.open { display: block; } }
+@media (max-width: 1023px) { .nav-burger { display: grid; } }
 .nav-burger span { display: block; width: 20px; height: 2px; background: #fff; transition: transform .15s, opacity .15s; }
 .nav-burger[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .nav-burger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
@@ -245,6 +247,11 @@
 .mnav-ind { margin-top: 4px; display: grid; border-bottom: 1px solid rgb(255 255 255 / .15); padding-bottom: 8px; }
 @media (min-width: 640px) { .mnav-ind { grid-template-columns: repeat(2, 1fr); column-gap: 32px; } }
 .mnav-main { padding-top: 8px; }
+/* The phone menu fades and drops in rather than popping; visibility keeps a closed menu out of the tab order. */
+@media (max-width: 1023px) {
+  .mnav { display: block; visibility: hidden; opacity: 0; translate: 0 -6px; transition: opacity .18s ease-out, translate .18s ease-out, visibility 0s linear .18s; }
+  .mnav.open { visibility: visible; opacity: 1; translate: 0 0; transition-delay: 0s; }
+}
 
 /* ===== Industries ===== */
 .ind-grid { display: grid; gap: 0; border-top: 2px solid var(--color-ink); }
@@ -257,9 +264,7 @@
 .ind-card b { margin-top: 6px; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
 .ind-pitch { margin-top: 6px; color: rgb(11 11 11 / .7); }
 .ind-more { margin-top: auto; padding-top: 14px; font-weight: 600; }
-.ind-more i { font-style: normal; display: inline-block; transition: transform .15s; }
 .ind-card:hover b, .ind-card:hover .ind-more { text-decoration: underline; text-decoration-color: var(--color-sign); text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.ind-card:hover .ind-more i { transform: translateX(3px); }
 
 /* ===== Platform features ===== */
 .feat { display: grid; border-top: 1px solid rgb(255 255 255 / .25); }
@@ -291,3 +296,18 @@ html { scroll-padding-top: 72px; }
    rather than jumping, so the visitor sees where they went. Visitors who ask for reduced motion
    still jump straight there. */
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+/* Moving between pages (home, the industry pages, accessibility) fades the page body across instead of
+   snapping, in browsers that support cross-page view transitions; others change pages as before. The
+   header is its own layer so it stays put while the content changes under it. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  .site-head { view-transition-name: site-head; }
+  ::view-transition-old(root) { animation: 160ms ease-in both page-out; }
+  ::view-transition-new(root) { animation: 240ms ease-out 60ms both page-in; }
+  ::view-transition-group(site-head) { animation-duration: 0s; }
+}
+@keyframes page-out { to { opacity: 0; } }
+@keyframes page-in { from { opacity: 0; translate: 0 8px; } }
+/* Visitors who ask for reduced motion get menus that open at once. */
+@media (prefers-reduced-motion: reduce) { .nav-menu, .mnav, .nav-drop button svg { transition: none; } }
