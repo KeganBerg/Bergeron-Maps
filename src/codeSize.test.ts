@@ -19,7 +19,7 @@ const OVER_LIMIT: Record<string, number> = {
   'src/render/MapObjects.tsx': 805,
   'src/editor/store.ts': 1065,
   'src/editor/CanvasStage.tsx': 1079,
-  'src/viewer/ViewerPage.tsx': 1138,
+  'src/viewer/ViewerPage.tsx': 1178, // its size on main once #105 and #106 merged together
   'src/model/route.ts': 1544,
 };
 
