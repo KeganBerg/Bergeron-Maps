@@ -1,5 +1,5 @@
 scheduled jobs: pg_cron is off
-208 objects, fingerprint fbaa3fae7066
+212 objects, fingerprint b5ad2d84ac90
 constraint audit_log.audit_log_company_id_fkey 328812a1 
 constraint audit_log.audit_log_pkey 4c6419b3 
 constraint companies.companies_contract_term_months_check 59ee97a4 
@@ -64,12 +64,15 @@ constraint published_maps.published_maps_pkey d49b11e4
 constraint published_maps.published_maps_published_by_fkey f9035883 
 function add_contract_site(p_company uuid, p_name text, p_address text) 495ba539 authenticated
 function add_member(p_company uuid, p_email text, p_role member_role, p_facility_ids uuid[]) 85ef52fc authenticated
+function admin_copy_inline_image(p_kind text, p_id uuid, p_hash text) 0f28b7bf authenticated
 function admin_delete_company(p_company uuid, p_confirm_name text) 60978569 authenticated
 function admin_delete_site(p_facility uuid) c031eb77 authenticated
 function admin_inline_image(p_company uuid, p_hash text) f70c40f2 authenticated
 function admin_inline_images() c5acab17 authenticated
+function admin_map_copies(p_map uuid) e96e5ebe authenticated
 function admin_map_inline_image(p_map uuid, p_hash text) 747a93ed authenticated
 function admin_map_inline_images(p_map uuid) 2ae38236 authenticated
+function admin_move_copy_images(p_kind text, p_id uuid, p_hashes text[], p_urls text[]) 854b21cb authenticated
 function admin_overview() c371f0b5 authenticated
 function admin_restore_company(p_backup jsonb) 63d24888 authenticated
 function admin_restore_missing(p_backup jsonb) de43e7d6 authenticated
@@ -107,6 +110,7 @@ function leave_site(p_facility uuid) 6154918f authenticated
 function level_count(p published_maps) 5462d9f7 authenticated
 function list_members(p_company uuid) 5e7dd678 authenticated
 function log_action(p_company uuid, p_action text, p_target text, p_details jsonb) 146a9da9 
+function map_copy_doc(p_kind text, p_id uuid, OUT doc jsonb, OUT company_id uuid) e433be09 
 function map_image_hash(p_src text) 902ad66c 
 function map_is_live(p_map uuid) 9ef6bc22 authenticated
 function maps_after_move() 430a7bda 

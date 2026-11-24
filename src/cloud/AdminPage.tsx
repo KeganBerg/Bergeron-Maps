@@ -11,7 +11,7 @@ import { useMotion } from '../ui/motion';
 import { AdminCompanyPane } from './AdminCompanyPane';
 import { BackupsPanel, SetupCompanyPanel } from './AdminTools';
 import { backupCompany, backupFileName, serializeBackup } from './backup';
-import { removeCompanyImages } from './mapImages';
+import { removeCompanyImages, runPictureMoveOnce } from './mapImages';
 import { friendly, supabase } from './client';
 
 const MAX_HITS = 50;
@@ -103,7 +103,11 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
       .order('updated_at', { ascending: false }).limit(5000);
     if (!m.error) setMaps(m.data as unknown as AdminMap[]);
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    // Pictures in maps saved before file storage existed move out on their own, in the background (cloud/mapImages.ts).
+    void runPictureMoveOnce(supabase!);
+  }, []);
 
   const q = filter.trim().toLowerCase();
   const hits = q && data ? searchAccounts(q, data, maps) : [];
