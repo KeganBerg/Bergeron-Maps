@@ -1,30 +1,28 @@
 // bergeronmaps.com Worker. Serves the built site and app from _site/ (the ASSETS binding) and
-// handles two routes of its own, both sent through Resend:
+// handles a few routes of its own (emails go through Resend):
 //   POST /api/contact  the "Get your map now" form, emailed to the company inbox;
 //   POST /api/access   the "you've been given access" email to a person a manager just added.
+//   POST /api/checkout and /api/stripe-webhook  Get Your Map Now payments (worker/stripe.js).
 // Every other request goes straight to the static files.
 // The Resend key lives only in Cloudflare (Worker → Settings → Variables and Secrets →
 // RESEND_API_KEY); see docs/EMAIL.md.
 
-const INBOX = 'bergeronmaps@gmail.com';
-const FROM = 'Bergeron Maps website <noreply@bergeronmaps.com>';
-// Pages allowed to post the form: the live site, the workers.dev test and preview addresses,
-// and local development.
-const ORIGIN = /^https:\/\/((www\.)?bergeronmaps\.com|([a-z0-9-]+-)?bergeron-maps\.bergeronmaps\.workers\.dev)$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+import { INBOX, FROM, ORIGIN, EMAIL, reply, esc, shell, button } from './shared.js';
+import { checkout, checkoutTestPage, stripeWebhook } from './stripe.js';
+
 const FIELDS = ['Name', 'Company', 'Work email', 'Industry', 'Number of sites', 'Anything else', 'Page'];
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/contact') return contact(request, env);
     if (url.pathname === '/api/access') return access(request, env);
+    if (url.pathname === '/api/checkout') return checkout(request, env);
+    if (url.pathname === '/api/checkout-test') return checkoutTestPage(request, env);
+    if (url.pathname === '/api/stripe-webhook') return stripeWebhook(request, env);
     return env.ASSETS.fetch(request);
   },
 };
-
-const reply = (status, body) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 export async function contact(request, env, send = fetch) {
   if (request.method !== 'POST') return reply(405, { success: false, error: 'POST only' });
@@ -119,31 +117,6 @@ export async function access(request, env, send = fetch) {
   if (!res.ok) return reply(502, { success: false, error: 'Email service failed' });
   return reply(200, { success: true });
 }
-
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const FONT = 'font-family:Arial,Helvetica,sans-serif;';
-
-/** Same frame as the sign-in emails in supabase/email-templates/: logo bar, white card, small footer. */
-const FOOTER = '<a href="https://bergeronmaps.com" style="color:#777777;">bergeronmaps.com</a><br>Questions? Email <a href="mailto:bergeronmaps@gmail.com" style="color:#777777;">bergeronmaps@gmail.com</a>';
-
-function shell(inner, footer = FOOTER) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light only"></head>
-<body style="margin:0;padding:0;background:#f2f2ef;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f2f2ef;"><tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border:1px solid #dcdcd6;">
-<tr><td style="padding:24px 28px;background:#0b0b0b;"><img src="https://bergeronmaps.com/img/email/lockup.png" width="331" height="40" alt="Bergeron Maps" style="display:block;border:0;"></td></tr>
-<tr><td style="padding:28px 28px 8px;${FONT}color:#0b0b0b;">
-${inner}
-</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #e6e6e1;${FONT}font-size:12px;line-height:1.5;color:#777777;">
-${footer}
-</td></tr></table></td></tr></table></body></html>`;
-}
-
-const button = (href, label) =>
-  `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#0b0b0b" style="background:#0b0b0b;">
-<a href="${href}" style="display:inline-block;padding:14px 28px;${FONT}font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;">${label}</a>
-</td></tr></table>`;
 
 /**
  * The website form's lead, for the company inbox. Only the answers the visitor gave are listed;

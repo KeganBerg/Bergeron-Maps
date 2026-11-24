@@ -1,5 +1,5 @@
 // Cloudflare deploy for bergeronmaps.com: a Worker that serves the files in _site/ (the marketing
-// site at the root, the app under /app/) and runs worker/index.js only for /api/* (the contact form). Built by scripts/build-deploy.sh and
+// site at the root, the app under /app/) and runs worker/index.js only for /api/* (contact form, access email, Stripe payments). Built by scripts/build-deploy.sh and
 // deployed by .github/workflows/cloudflare.yml. Steps and settings: docs/HOSTING.md.
 {
   "name": "bergeron-maps",

@@ -234,4 +234,4 @@ Last updated: 2026-11-24. Rows marked Tested are covered by automated tests that
 | Restore a map deleted forever or a deleted site into a company that still exists | Same dialog: `findMissing` + `restoreMissing` in `src/cloud/backup.ts`, `admin_restore_missing` (migration 20261124000000, step 15); same tests |
 | Hear about live problems (operations) | Uptime check every 15 min opens a GitHub issue: `.github/workflows/uptime.yml`, `scripts/uptime-check.mjs`; error reports without personal data: `src/errors/report.ts` (off until `SENTRY_DSN` is set); see `docs/MONITORING.md` |
 
-Still deferred, waiting on Kegan: Stripe setup fee and per-site billing; custom client domains (needs the move to Cloudflare); email alerts for manager requests (needs an email sender).
+Stripe setup fee and per-location monthly billing: the payment backend is built in test mode (`docs/STRIPE.md`); the purchase page and automatic account opening still wait on the onboarding plan. Still deferred, waiting on Kegan: custom client domains (needs the move to Cloudflare); email alerts for manager requests (needs an email sender).
