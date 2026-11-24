@@ -27,7 +27,8 @@ const COST = {
   walk: 10, // walkways, sidewalks, crosswalks, doors, entrances, stairs, elevators
   road: 12, // drive aisles and roads
   open: 14, // open ground with nothing drawn on it (inside a building: the floor of a room)
-  bare: 40, // open ground on a site with roads or walkways drawn: keep to what's drawn
+  lot: 13, // the paved aisles in front of and around parking spaces (drawn lanes or not)
+  bare: 40, // open ground on a site with roads, walkways or parking drawn: keep to what's drawn
   area: 16, // service bays, loading areas, sports fields
   edge: 45, // the walls of a room drawn without a door: crossable, but a door wins
   land: 50, // grass, flower beds, trees
@@ -40,6 +41,17 @@ const LANE_EDGE = 14;
 /** Extra cost right next to a wall or a parked car, fading out over CLEAR_REACH px. */
 const CLEAR_COST = 30;
 const CLEAR_REACH = 45;
+/**
+ * A lot's undrawn aisles: the open ground up to LOT_REACH px from the ends and
+ * sides of parking spaces. Routes keep LOT_MID px off the stalls (half of a
+ * 24 ft aisle), paying up to LOT_EDGE more right next to them, so they run down
+ * the middle of the aisle and face the stalls like a car would.
+ */
+const LOT_REACH = 120;
+const LOT_MID = 60;
+const LOT_EDGE = 16;
+/** No aisle where there's less than this much room either side (map px): 8 ft across. */
+const LOT_SLOT = 20;
 
 type Role = 'ignore' | 'walk' | 'road' | 'area' | 'land' | 'thing' | 'block' | 'space' | 'opener' | 'room' | 'shell';
 
@@ -74,6 +86,8 @@ function roleOf(o: MapObject, def: AssetDef | undefined, interior: boolean): Rol
   if (LAND.has(k)) return 'land';
   if (WALK_AREAS.has(k)) return 'walk';
   if (ROAD_KEYS.has(k)) return 'road';
+  // Dashed zones (a delivery area, a service zone) mark ground, they don't pave it.
+  if (def.dashed && def.category !== 'Pedestrian areas') return 'ignore';
   if (def.creates === 'space' || k === 'custom-row') return 'space';
   if (def.enterable || k === 'custom-building') return interior ? 'room' : 'block';
   if (def.layer === 'labels' || def.layer === 'background') return 'ignore';
@@ -109,6 +123,14 @@ export interface Grid {
   spaceOnly: Uint8Array;
   /** Map px from each square to the nearest wall, parked car or other blocked square. */
   room: Float32Array;
+  /** Cost per cell before the keep-off-walls extra: what the ground is. */
+  base: Uint8Array;
+  /**
+   * The way the lot is laid out, in degrees (0..90): the rows' and roads' own
+   * angle. Routes over open ground run square to it. Null inside buildings and
+   * where nothing sets it.
+   */
+  axis: number | null;
 }
 
 /** Biggest grid per floor. ~160k squares keeps a 2,000-space level under a tenth of a second. */
@@ -156,13 +178,15 @@ function buildGrid(floor: Floor): Grid {
   const cell = Math.max(MIN_CELL, Math.ceil(Math.sqrt(((x2 - x1) * (y2 - y1)) / MAX_CELLS)));
   const cols = Math.ceil((x2 - x1) / cell);
   const rows = Math.ceil((y2 - y1) / cell);
-  const g: Grid = { x0: x1, y0: y1, cell, cols, rows, cost: new Uint8Array(cols * rows), spaceOnly: new Uint8Array(cols * rows), room: new Float32Array(cols * rows) };
+  const g: Grid = { x0: x1, y0: y1, cell, cols, rows, cost: new Uint8Array(cols * rows), spaceOnly: new Uint8Array(cols * rows), room: new Float32Array(cols * rows), base: new Uint8Array(0), axis: interiorFloor(floor) ? null : layoutAxis(items) };
 
   const shells = items.filter((p) => p.role === 'shell');
   // Inside a building's floor plan, the space outside its outer walls isn't walkable.
   // Where roads or walkways are drawn, bare ground (and any picture under it) is only a last resort.
-  const drawnWays = items.some((p) => p.role === 'road' || p.role === 'walk');
-  g.cost.fill(shells.length ? 0 : drawnWays ? COST.bare : COST.open);
+  // Parking spaces count: the ground between their rows is the way (see paintLots).
+  const drawnWays = items.some((p) => p.role === 'road' || p.role === 'walk' || (p.role === 'space' && !interiorFloor(floor)));
+  const ground = shells.length ? 0 : drawnWays ? COST.bare : COST.open;
+  g.cost.fill(ground);
   for (const { o } of shells) paint(g, o, undefined, 0, () => COST.open);
   for (const { o } of shells) {
     const t = Math.max(6, (o.strokeWidth ?? 6) + 2);
@@ -201,22 +225,94 @@ function buildGrid(floor: Floor): Grid {
     const tiny = (v: number) => (v < 3 * g.cell ? g.cell : 0);
     return o.width <= o.height ? [g.cell, tiny(o.height)] : [tiny(o.width), g.cell];
   };
+  // The aisles between and around the rows, where none are drawn.
+  if (ground === COST.bare) distanceToBlocked(g);
+  const lot = ground === COST.bare ? paintLots(g, COST.bare, items) : null;
   for (const p of items) if (p.role === 'opener') paint(g, p.o, p.def, openerGrow(p.o), opened, undefined, true);
   // Keep off walls and parked cars, most of all right next to them, so routes run down the middle of an aisle.
   distanceToBlocked(g);
+  g.base = g.cost.slice();
   for (let i = 0; i < g.cost.length; i++) {
     if (g.cost[i] === 0) continue;
     const near = Math.max(0, 1 - g.room[i] / CLEAR_REACH);
-    if (near > 0) g.cost[i] = Math.min(250, g.cost[i] + Math.round(CLEAR_COST * near * near));
+    let extra = CLEAR_COST * near * near;
+    if (lot?.[i] && g.cost[i] === COST.lot) extra += LOT_EDGE * Math.max(0, 1 - g.room[i] / LOT_MID);
+    if (extra > 0) g.cost[i] = Math.min(250, g.cost[i] + Math.round(extra));
   }
   return g;
 }
 
-/** Map px from every square to the nearest blocked one (a two-pass chamfer distance). */
+const interiorFloor = (f: Floor) => !!f.interiorOf;
+
+/** The most common angle (mod 90°) of the floor's parking spaces and roads, weighted by size. */
+function layoutAxis(items: Painted[]): number | null {
+  const votes = new Map<number, number>();
+  for (const { o, role } of items) {
+    if (role !== 'space' && role !== 'road') continue;
+    if (role === 'road' && o.kind === 'asset' && ASSET_BY_KEY[o.assetKey]?.outline && ASSET_BY_KEY[o.assetKey]?.outline !== 'rect') continue;
+    const a = Math.round((((o.rotation % 90) + 90) % 90)) % 90;
+    votes.set(a, (votes.get(a) ?? 0) + Math.max(o.width, o.height));
+  }
+  let best: number | null = null, n = 0;
+  for (const [a, v] of votes) if (v > n) { n = v; best = a; }
+  return best;
+}
+
+/**
+ * Bare ground next to parking spaces is the lot's pavement: the aisle in front
+ * of each stall and the cross aisles past the ends of its row. A stall whose
+ * front opens onto a drawn lane or walkway gets no pavement behind it (the
+ * curb or strip behind a row isn't a way in); one with nothing drawn at
+ * either end is paved at both. Drawn lanes stay as they are, and grass,
+ * buildings and zones painted over the ground too. Returns the squares paved.
+ */
+function paintLots(g: Grid, bare: number, items: Painted[]): Uint8Array | null {
+  const stalls = items.filter((p) => p.role === 'space');
+  if (!stalls.length) return null;
+  const out = new Uint8Array(g.cols * g.rows);
+  const R = LOT_REACH;
+  const drawn = (i: number) => i >= 0 && !out[i] && g.cost[i] > 0 && g.cost[i] < bare && g.cost[i] !== COST.land;
+  for (const { o } of stalls) {
+    // Along: the way a car drives into the stall (across it, for a parallel one).
+    const par = o.kind === 'space' && o.variant === 'parallel';
+    const A = par ? o.width : o.height, B = par ? o.height : o.width;
+    const at = (a: number, b: number) => {
+      const [x, y] = par ? toWorld(o, a, b) : toWorld(o, b, a);
+      return cellAt(g, x, y);
+    };
+    // What each end opens onto: a drawn way, or nothing (a wall or another stall stops the look).
+    const front = [false, false];
+    for (const end of [0, 1]) {
+      for (let d = g.cell * 0.5; d <= R; d += g.cell * 0.5) {
+        const i = at(end ? A + d : -d, B / 2);
+        if (i < 0) break;
+        if (drawn(i)) { front[end] = true; break; }
+        if (g.cost[i] === 0) break;
+      }
+    }
+    const open = front[0] || front[1] ? front : [true, true];
+    eachCell(g, o, undefined, R, (i, lx, ly) => {
+      // A slot too narrow for a car (between a wall and a row, say) isn't an aisle.
+      if (g.cost[i] !== bare || g.room[i] < LOT_SLOT) return;
+      const a = par ? lx : ly;
+      const beside = a >= 0 && a <= A;
+      const ahead = (open[0] && a < 0) || (open[1] && a > A);
+      if (beside || ahead) { g.cost[i] = COST.lot; out[i] = 1; }
+    });
+  }
+  return out;
+}
+
+/** Map px from every square to the nearest blocked one. */
 function distanceToBlocked(g: Grid) {
-  const { cols, rows, cell, cost, room } = g;
+  chamfer(g, g.room, (i) => g.cost[i] === 0);
+}
+
+/** Map px from every square to the nearest one where `at` holds (a two-pass chamfer distance). */
+function chamfer(g: Grid, room: Float32Array, at: (i: number) => boolean) {
+  const { cols, rows, cell } = g;
   const BIG = 1e6, D1 = cell, D2 = cell * Math.SQRT2;
-  for (let i = 0; i < room.length; i++) room[i] = cost[i] === 0 ? 0 : BIG;
+  for (let i = 0; i < room.length; i++) room[i] = at(i) ? 0 : BIG;
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const i = r * cols + c;
@@ -380,6 +476,22 @@ class Heap {
 
 const SQRT2 = Math.SQRT2;
 const DIRS: [number, number, number][] = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, SQRT2], [1, -1, SQRT2], [-1, 1, SQRT2], [-1, -1, SQRT2]];
+const DX = DIRS.map((d) => d[0]), DY = DIRS.map((d) => d[1]), LEN = DIRS.map((d) => d[2]);
+/** Each of DIRS as a compass point, 0..7 in 45° steps. */
+const HEADING = DIRS.map(([dx, dy]) => (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8);
+/**
+ * Cost of turning, per 45°. A car (and a person following an aisle) keeps
+ * going straight: without it, the cheapest path wobbles from side to side of
+ * a wide aisle and cuts open ground on a slant.
+ */
+const TURN = 30;
+/**
+ * On a lot's open ground (its undrawn aisles and bare ground), a step on the
+ * slant costs as much as going across and then along: routes there run square
+ * to the rows, like the aisles, instead of cutting corners. Drawn lanes and
+ * walkways keep the true √2.
+ */
+const OPEN_SLANT = 2.05;
 
 interface SearchResult {
   prev: Int32Array;
@@ -447,6 +559,100 @@ function search(g: Grid, cost: Uint8Array, sources: number[], targets: number[][
     }
   }
   return { prev, dist, reached };
+}
+
+/**
+ * The line that gets drawn: the cheapest path from `sources` to `targets`
+ * counting turns too (see TURN). It searches square-and-heading pairs, so it
+ * runs only for the one walk that is drawn; picking floors and connections
+ * uses the plain search's distances. A*, toward the `toward` box.
+ */
+function searchTurns(g: Grid, cost: Uint8Array, sources: number[], targets: number[], toward: Box): { cells: number[]; dist: number } | null {
+  const n = g.cols * g.rows;
+  const N = n * 8;
+  const b = turnBuffers(N);
+  // Stamped instead of cleared: a square-and-heading's numbers count only when stamped this search.
+  const gen = ++b.gen;
+  const { dist, prev, stamp, best } = b;
+  const D = (st: number) => (stamp[st] === gen ? dist[st] : Infinity);
+  const isTarget = new Uint8Array(n);
+  for (const t of targets) isTarget[t] = 1;
+  const h = (i: number) => {
+    const x = cellX(g, i), y = cellY(g, i);
+    const dx = Math.max(toward.x - x, 0, x - toward.x - toward.width);
+    const dy = Math.max(toward.y - y, 0, y - toward.y - toward.height);
+    return Math.hypot(dx, dy);
+  };
+  const heap = new Heap();
+  for (const s of sources) {
+    if (s < 0 || cost[s] === 0) continue;
+    // A start has no heading yet: any first move is free of a turn.
+    for (let d = 0; d < 8; d++) {
+      const st = s * 8 + d;
+      if (D(st) === 0) continue;
+      stamp[st] = gen; dist[st] = 0; prev[st] = -1;
+      heap.push(h(s), st);
+    }
+    best[s] = 0; b.bestStamp[s] = gen;
+  }
+  const cols = g.cols, rows = g.rows, cell = g.cell;
+  // Only where the rows run along the grid: a lot laid out on a slant keeps true slants.
+  const squareLot = g.axis === 0;
+  const base = g.base;
+  // A heading is never worth more than a U-turn's cost over the best way into the same square.
+  const SPAN = 4 * TURN;
+  let end = -1;
+  while (heap.size) {
+    const st = heap.pop();
+    const ds = dist[st];
+    if (b.done[st] === gen) continue;
+    const i = st >> 3, hd = st & 7;
+    // Squares come off the heap cheapest first, so the first heading out of one is its best.
+    if (b.bestStamp[i] === gen) { if (ds > best[i] + SPAN) continue; }
+    else { best[i] = ds; b.bestStamp[i] = gen; }
+    if (isTarget[i]) { end = st; break; }
+    b.done[st] = gen;
+    const c = i % cols, r = (i - c) / cols;
+    const ci = cost[i];
+    const hi = h(i);
+    for (let k = 0; k < 8; k++) {
+      const dx = DX[k], dy = DY[k], len = LEN[k];
+      const nc = c + dx, nr = r + dy;
+      if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+      const j = nr * cols + nc;
+      const cj = cost[j];
+      if (cj === 0) continue;
+      if (dx && dy && (cost[r * cols + nc] === 0 || cost[nr * cols + c] === 0)) continue;
+      const nh = HEADING[k];
+      const ns = j * 8 + nh;
+      if (b.done[ns] === gen) continue;
+      const step = dx && dy && squareLot && (base[i] === COST.lot || base[i] >= COST.bare || base[j] === COST.lot || base[j] >= COST.bare) && base[i] !== COST.land && base[j] !== COST.land ? OPEN_SLANT : len;
+      const t = Math.abs(hd - nh);
+      // The very first move (dist 0) turns from nothing.
+      const turn = ds === 0 ? 0 : Math.min(t, 8 - t) * TURN;
+      const nd = ds + ((ci + cj) / 20) * step * cell + turn;
+      if (b.bestStamp[j] === gen && nd > best[j] + SPAN) continue;
+      if (nd < D(ns)) {
+        stamp[ns] = gen; dist[ns] = nd; prev[ns] = st;
+        // The estimate changes by at most a step's length: cheaper than a square root per push.
+        heap.push(nd + Math.max(0, hi - len * cell), ns);
+      }
+    }
+  }
+  if (end < 0) return null;
+  const cells: number[] = [];
+  for (let st = end; st >= 0; st = prev[st]) cells.push(st >> 3);
+  return { cells: cells.reverse(), dist: dist[end] };
+}
+
+/** Kept between searches (a big floor's are tens of MB): see searchTurns. */
+interface TurnBuffers { N: number; gen: number; dist: Float32Array; prev: Int32Array; stamp: Uint32Array; done: Uint32Array; best: Float32Array; bestStamp: Uint32Array }
+let turnBuf: TurnBuffers | null = null;
+function turnBuffers(N: number): TurnBuffers {
+  if (!turnBuf || turnBuf.N < N || turnBuf.gen > 4e9) {
+    turnBuf = { N, gen: 0, dist: new Float32Array(N), prev: new Int32Array(N), stamp: new Uint32Array(N), done: new Uint32Array(N), best: new Float32Array(N / 8), bestStamp: new Uint32Array(N / 8) };
+  }
+  return turnBuf;
 }
 
 function trace(prev: Int32Array, end: number): number[] {
@@ -518,6 +724,81 @@ function simplify(g: Grid, cost: Uint8Array, cells: number[]): number[] {
   }
   const out: number[] = [];
   for (let k = 0; k < n; k++) if (keep[k]) out.push(xs[k], ys[k]);
+  return out;
+}
+
+/** A slanted line is squared off once it leans more than this many degrees off the lot's layout. */
+const SLANT = 8;
+
+/**
+ * Lot routes run square to the rows, like the aisles do: a line that cuts
+ * across open ground on a slant becomes two lines along the layout (an L),
+ * when both stay on ground no worse than the slanted line crossed, keep as
+ * much room from what's around, and aren't much longer. The ends stay put.
+ */
+function square(g: Grid, cost: Uint8Array, p: number[]): number[] {
+  if (g.axis === null || p.length < 4) return p;
+  const r = (g.axis * Math.PI) / 180;
+  const ux = Math.cos(r), uy = Math.sin(r), vx = -uy, vy = ux;
+  const out = [p[0], p[1]];
+  for (let k = 2; k < p.length; k += 2) {
+    const ax = out[out.length - 2], ay = out[out.length - 1], bx = p[k], by = p[k + 1];
+    const dx = bx - ax, dy = by - ay;
+    const a = dx * ux + dy * uy, b = dx * vx + dy * vy;
+    const L = Math.hypot(a, b);
+    const lean = (Math.atan2(Math.min(Math.abs(a), Math.abs(b)), Math.max(Math.abs(a), Math.abs(b))) * 180) / Math.PI;
+    if (L > 2 * g.cell && lean > SLANT) {
+      const corner = bestCorner(g, cost, ax, ay, bx, by, [[ax + a * ux, ay + a * uy], [ax + b * vx, ay + b * vy]]);
+      if (corner) out.push(corner[0], corner[1]);
+    }
+    out.push(bx, by);
+  }
+  return straightRuns(out);
+}
+
+/** Of the two corners of an L, the one that works and costs least; null when neither does. */
+function bestCorner(g: Grid, cost: Uint8Array, ax: number, ay: number, bx: number, by: number, corners: number[][]): number[] | null {
+  const along = sample(g, cost, [[ax, ay, bx, by]]);
+  if (!along) return null;
+  let best: number[] | null = null, bc = Infinity;
+  for (const c of corners) {
+    const l = sample(g, cost, [[ax, ay, c[0], c[1]], [c[0], c[1], bx, by]]);
+    if (!l || l.ground > along.ground || l.room < Math.min(KEEP_CLEAR, along.room) - g.cell * 0.5) continue;
+    if (l.cost > along.cost * 1.15 + 20 || l.cost >= bc) continue;
+    bc = l.cost; best = c;
+  }
+  return best;
+}
+
+/** Walks the lines: their summed cost, the worst ground and the least room on them; null where blocked. */
+function sample(g: Grid, cost: Uint8Array, lines: number[][]) {
+  let total = 0, ground = 0, room = Infinity;
+  for (const [ax, ay, bx, by] of lines) {
+    const d = Math.hypot(bx - ax, by - ay);
+    const steps = Math.max(1, Math.ceil(d / (g.cell * 0.5)));
+    for (let s = 1; s < steps; s++) {
+      const i = cellAt(g, ax + ((bx - ax) * s) / steps, ay + ((by - ay) * s) / steps);
+      if (i < 0 || cost[i] === 0) return null;
+      total += (cost[i] / 10) * (d / steps);
+      ground = Math.max(ground, g.base[i]);
+      room = Math.min(room, g.room[i]);
+    }
+  }
+  return { cost: total, ground, room };
+}
+
+/** Drops points that sit on a straight line between their neighbours. */
+function straightRuns(p: number[]): number[] {
+  const out = [p[0], p[1]];
+  for (let k = 2; k < p.length - 2; k += 2) {
+    const ax = out[out.length - 2], ay = out[out.length - 1];
+    const bx = p[k], by = p[k + 1], cx = p[k + 2], cy = p[k + 3];
+    const cross = (bx - ax) * (cy - by) - (by - ay) * (cx - bx);
+    const dot = (bx - ax) * (cx - bx) + (by - ay) * (cy - by);
+    if (Math.abs(cross) < 1e-6 * Math.max(1, Math.hypot(bx - ax, by - ay) * Math.hypot(cx - bx, cy - by)) * 1000 && dot > 0) continue;
+    out.push(bx, by);
+  }
+  out.push(p[p.length - 2], p[p.length - 1]);
   return out;
 }
 
@@ -677,8 +958,20 @@ function approachOf(g: Grid, o: MapObject): Approach | null {
       bx = mx + ux * d; by = my + uy * d;
       best = cellAt(g, bx, by);
       if (best < 0 || g.cost[best] === 0) best = probe[k].i;
+      // A wide aisle with no lane drawn has a band of equally good points: the route turns
+      // in from wherever it runs down that band, with no jog over to its middle.
+      if (g.base[best] === COST.lot) {
+        const ok = (j: number) => g.base[probe[j].i] === COST.lot && g.cost[probe[j].i] <= g.cost[best] + 3;
+        let b0 = k, b1 = k;
+        while (b0 > 0 && ok(b0 - 1)) b0--;
+        while (b1 < probe.length - 1 && ok(b1 + 1)) b1++;
+        for (let j = b0; j <= b1; j++) {
+          const q = probe[j];
+          if (q.i !== best) found.push({ i: q.i, at: [mx + ux * q.d, my + uy * q.d, mx, my, o.x, o.y], c: g.cost[q.i] });
+        }
+      }
     }
-    if (best >= 0) found.push({ i: best, at: [bx, by, mx, my, o.x, o.y], c: g.cost[best] });
+    if (best >= 0) found.unshift({ i: best, at: [bx, by, mx, my, o.x, o.y], c: g.cost[best] });
   }
   // A stall is driven into from its lane: when one end opens onto a lane or walkway,
   // the other (a strip of bare ground behind the row, say) isn't a way in.
@@ -904,16 +1197,14 @@ function walk(from: End, to: End, squeeze: boolean): LegResult | null {
   const mid = cellAt(g, from.x, from.y);
   const start = from.obj && !isBig(from.obj) && src.includes(mid) ? [mid] : src;
   const box = to.obj ? (approachBox(g, to.obj) ?? objectBox(to.obj)) : { x: to.x, y: to.y, width: 0, height: 0 };
-  const r = search(g, cost, start, [dst], box);
-  if (r.reached[0] < 0) return null;
-  return finish(g, cost, r, r.reached[0], from, to, false);
+  const r = searchTurns(g, cost, start, dst, box);
+  if (!r) return null;
+  return finish(g, cost, r.cells, r.dist, from, to);
 }
 
-/** The line for a search result. `reversed`: the search ran from `to` back to `from`. */
-function finish(g: Grid, cost: Uint8Array, r: SearchResult, end: number, from: End, to: End, reversed: boolean): LegResult {
-  let cells = trace(r.prev, end);
-  if (reversed) cells = cells.reverse();
-  const pts = simplify(g, cost, cells);
+/** The line along a path of squares from one place to another. */
+function finish(g: Grid, cost: Uint8Array, cells: number[], total: number, from: End, to: End): LegResult {
+  const pts = square(g, cost, simplify(g, cost, cells));
   // Start and finish on the places themselves; buildings and big areas at their edge.
   let head = from.obj && isBig(from.obj) ? [] : [from.x, from.y];
   let tail = to.obj && isBig(to.obj) ? [] : [to.x, to.y];
@@ -932,7 +1223,7 @@ function finish(g: Grid, cost: Uint8Array, r: SearchResult, end: number, from: E
   const near = (x: number, y: number, i: number) => Math.hypot(pts[i] - x, pts[i + 1] - y) < g.cell * 1.5;
   if (!inA && head.length && pts.length > 2 && near(head[head.length - 2], head[head.length - 1], 0)) pts.splice(0, 2);
   if (!inB && tail.length && pts.length > 2 && near(tail[0], tail[1], pts.length - 2)) pts.splice(pts.length - 2, 2);
-  return { points: roundCorners(dedupe([...head, ...pts, ...tail]), BEND, curveFits(g)), cost: r.dist[end] };
+  return { points: roundCorners(dedupe([...head, ...pts, ...tail]), BEND, curveFits(g)), cost: total };
 }
 
 /**
@@ -1083,7 +1374,9 @@ function routeOnce(doc: MapDocument, from: End, to: End, squeeze: boolean, opts:
       if (end < 0) return;
       exact.set(key(i), {
         cost: r.dist[end],
-        leg: () => (reversed ? finish(g, cost, r, end, ends[i], src, true) : finish(g, cost, r, end, src, ends[i], false)),
+        // Drawn with turns counted (see searchTurns); the plain search's path if that finds none.
+        leg: () => (reversed ? walk(ends[i], src, squeeze) : walk(src, ends[i], squeeze))
+          ?? (reversed ? finish(g, cost, trace(r.prev, end).reverse(), r.dist[end], ends[i], src) : finish(g, cost, trace(r.prev, end), r.dist[end], src, ends[i])),
       });
     });
   };

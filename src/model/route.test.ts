@@ -362,3 +362,94 @@ describe('directions audit fixes', () => {
     expect(g1.cost[cellAt(g1, road.x, road.y)]).toBe(before);
   });
 });
+
+describe('lots with no aisles drawn (a site drawn over a satellite photo)', () => {
+  /** A tap on the public road at the front, the only driving surface drawn. */
+  const onRoad = (doc: MapDocument) => ({ floorId: doc.floors[0].id, x: 356, y: 1476 });
+  const spaceOn = (doc: MapDocument, label: string) => {
+    const o = doc.floors[0].objects.find((x) => x.kind === 'space' && x.label === label)!;
+    return { floorId: doc.floors[0].id, objectId: o.id, x: o.x, y: o.y, o };
+  };
+  const route = async (label: string) => {
+    const { dealerLot } = await import('./fixtures/dealerLot');
+    const doc = dealerLot();
+    const to = spaceOn(doc, label);
+    const r = findRoute(doc, onRoad(doc), to);
+    if (!r.ok) throw new Error('no route to ' + label);
+    expect(r.route.squeezed).toBe(false);
+    return { doc, to, p: r.route.legs[0].points };
+  };
+  /** The straight stretches of a line (rounded corners left out). */
+  const straights = (p: number[], min = 40) => {
+    const out: number[][] = [];
+    for (let i = 2; i < p.length; i += 2) if (Math.hypot(p[i] - p[i - 2], p[i + 1] - p[i - 1]) >= min) out.push([p[i - 2], p[i - 1], p[i], p[i + 1]]);
+    return out;
+  };
+  const LABELS = ['B12', 'A10', 'A25', 'B45', '257', 'B3', 'A40'];
+
+  it('keeps off parked cars and buildings, and never cuts across a zone', async () => {
+    for (const label of LABELS) {
+      const { doc, to, p } = await route(label);
+      const objs = doc.floors[0].objects;
+      expect(crossesSpaces(p, objs, [to.objectId])).toBeNull();
+      const solid = objs.filter((o) => o.kind === 'asset' && /department|building|office|room|lounge|delivery-area/.test(o.assetKey));
+      const at = sampled(p);
+      for (let i = 0; i < at.length; i += 2)
+        for (const o of solid) {
+          const b = { x: o.x - o.width / 2, y: o.y - o.height / 2 };
+          const inside = at[i] > b.x + 2 && at[i] < b.x + o.width - 2 && at[i + 1] > b.y + 2 && at[i + 1] < b.y + o.height - 2;
+          if (inside) throw new Error(`${label}: crosses ${o.name}`);
+        }
+    }
+  });
+
+  it('runs square to the rows, like the aisles do, with no slanted shortcuts over open ground', async () => {
+    for (const label of LABELS) {
+      const { p } = await route(label);
+      for (const [ax, ay, bx, by] of straights(p)) {
+        const lean = (Math.atan2(Math.min(Math.abs(bx - ax), Math.abs(by - ay)), Math.max(Math.abs(bx - ax), Math.abs(by - ay))) * 180) / Math.PI;
+        if (lean > 3) throw new Error(`${label}: a ${lean.toFixed(0)}° slant from ${ax.toFixed(0)},${ay.toFixed(0)}`);
+      }
+    }
+  });
+
+  it('drives down the middle of the unmarked aisle between two rows', async () => {
+    const { doc, p } = await route('A10');
+    const objs = doc.floors[0].objects;
+    const edge = (l: string, side: 1 | -1) => { const o = spaceOn(doc, l).o; return o.x + (side * o.height) / 2; };
+    // A1-A6 face east, A7-A18 face west: the aisle is between them.
+    const mid = (edge('A3', 1) + edge('A13', -1)) / 2;
+    const a3 = objs.find((o) => o.kind === 'space' && o.label === 'A3')!;
+    const at = sampled(p);
+    let n = 0;
+    for (let i = 0; i < at.length; i += 2) if (Math.abs(at[i + 1] - a3.y) < 60) { n++; expect(Math.abs(at[i] - mid)).toBeLessThan(6); }
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it('turns off the road square to it and pulls into the stall from its open end', async () => {
+    for (const label of ['B12', 'A10']) {
+      const { to, p } = await route(label);
+      const n = p.length;
+      // Last stretch: straight along the stall from the aisle on its west end (rows face the aisle).
+      expect(p[n - 1]).toBeCloseTo(to.y, 0);
+      expect(p[n - 2]).toBeCloseTo(to.x, 0);
+      expect(Math.abs(p[n - 3] - to.y)).toBeLessThan(1);
+      expect(p[n - 4]).toBeLessThan(to.x);
+      // The road is left once, at a right angle: the first long stretch off the road is straight up.
+      const s = straights(p).filter(([, ay, , by]) => Math.abs(by - ay) > 100);
+      expect(s.length).toBeGreaterThan(0);
+      expect(Math.abs(s[0][2] - s[0][0])).toBeLessThan(4);
+    }
+  });
+
+  it('treats a dashed zone as marked ground, not as a cheaper way', async () => {
+    const { dealerLot } = await import('./fixtures/dealerLot');
+    const doc = dealerLot();
+    const f = doc.floors[0];
+    const zone = f.objects.find((o) => o.kind === 'asset' && o.assetKey === 'delivery-area')!;
+    const g = floorGrid(f);
+    const without = floorGrid({ ...f, objects: f.objects.filter((o) => o !== zone) });
+    const i = cellAt(g, zone.x, zone.y + zone.height / 2 - 10);
+    expect(g.cost[i]).toBe(without.cost[i]);
+  });
+});
