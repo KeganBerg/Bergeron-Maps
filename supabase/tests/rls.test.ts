@@ -449,6 +449,24 @@ describe('custom site links', () => {
 });
 });
 
+describe('renaming companies and sites', () => {
+  it('the account lead, regional managers and admins rename; the site link stays the same', async () => {
+    const [{ slug }] = await as<{ slug: string }>(w.owner, 'select slug from facilities where id = $1', [w.facilityA]);
+    expect(await as(w.owner, `update companies set name = 'Acme Parking' where id = $1 returning id`, [w.company])).toHaveLength(1);
+    expect(await as(w.manager, `update facilities set name = 'Harbor Garage' where id = $1 returning id`, [w.facilityA])).toHaveLength(1);
+    expect(await as(w.admin, `update companies set name = 'Acme Parking Co' where id = $1 returning id`, [w.company])).toHaveLength(1);
+    const [site] = await as<{ name: string; slug: string }>(w.owner, 'select name, slug from facilities where id = $1', [w.facilityA]);
+    expect(site).toEqual({ name: 'Harbor Garage', slug });
+  });
+
+  it('employees and other companies cannot rename, and a blank name is refused', async () => {
+    expect(await as(w.employee, `update companies set name = 'Hijack' where id = $1 returning id`, [w.company])).toHaveLength(0);
+    expect(await as(w.employee, `update facilities set name = 'Hijack' where id = $1 returning id`, [w.facilityA])).toHaveLength(0);
+    expect(await as(w.outsider, `update companies set name = 'Hijack' where id = $1 returning id`, [w.company])).toHaveLength(0);
+    await expect(as(w.owner, `update companies set name = '' where id = $1`, [w.company])).rejects.toThrow(/check constraint/);
+  });
+});
+
 describe('map slots and live maps per site', () => {
   const newMap = (site: string, name: string, slot?: number) =>
     as<{ id: string; slot: number }>(w.manager, 'insert into maps (facility_id, name, draft, slot) values ($1, $2, $3, $4) returning id, slot', [site, name, doc(name), slot ?? null]);
