@@ -143,7 +143,7 @@ function lineSvg(o: MapObject): string {
   if (o.assetKey === 'road') {
     return `<g transform="${t}"><path d="M${r2(-w / 2)} ${r2(-h / 2)}H${r2(w / 2)}M${r2(-w / 2)} ${r2(h / 2)}H${r2(w / 2)}" stroke-width=".8" opacity=".5"/><path class="bp-aisle" d="M${r2(-w / 2 + 10)} 0H${r2(w / 2 - 10)}"/></g>`;
   }
-  const name = (o.name ?? '').replace(/ \d+$/, '').toUpperCase();
+  const name = (o.name ?? '').replace(/ \d+$/, '');
   return `<g transform="${t}"><rect class="bp-box" x="${r2(-w / 2)}" y="${r2(-h / 2)}" width="${w}" height="${h}"/>` +
     `<path d="M${r2(-w / 2)} ${r2(-h / 2)}L${r2(w / 2)} ${r2(h / 2)}" stroke-width=".5" opacity=".45"/>` +
     `<text class="bp-note" y="${r2(h / 2 + 13)}">${esc(name)}</text></g>`;
@@ -152,9 +152,9 @@ const hByLayer = hf.layers.flatMap((l) => hf.objects.filter((o) => o.layerId ===
 const dimY = hb.y - 24;
 const extras =
   `<path d="M0 ${r2(dimY)}H${rowEnd}M0 ${r2(dimY - 6)}v12M${rowEnd} ${r2(dimY - 6)}v12" stroke-width=".8"/>` +
-  `<text class="bp-note" x="${rowEnd / 2}" y="${r2(dimY - 8)}">16 SPACES @ 9'-0" = 144'-0"</text>` +
+  `<text class="bp-note" x="${rowEnd / 2}" y="${r2(dimY - 8)}">16 spaces @ 9'-0" = 144'-0"</text>` +
   `<g transform="translate(${r2(hb.x + hb.w + 10)} ${r2(hb.y + hb.h + 40)})"><circle r="14" stroke-width=".8"/><path d="M0 -10 5 7 0 3-5 7z" fill="currentColor" stroke="none"/><text class="bp-note" y="-19">N</text></g>` +
-  `<g transform="translate(${r2(hb.x)} ${r2(hb.y + hb.h + 40)})"><path d="M0 0h180M0-5v10M45-3v6M90-5v10M180-5v10" stroke-width=".8"/><text class="bp-note" x="0" y="18" text-anchor="start">0</text><text class="bp-note" x="90" y="18">25</text><text class="bp-note" x="180" y="18">50 FT</text></g>`;
+  `<g transform="translate(${r2(hb.x)} ${r2(hb.y + hb.h + 40)})"><path d="M0 0h180M0-5v10M45-3v6M90-5v10M180-5v10" stroke-width=".8"/><text class="bp-note" x="0" y="18" text-anchor="start">0</text><text class="bp-note" x="90" y="18">25</text><text class="bp-note" x="180" y="18">50 ft</text></g>`;
 const blueprint = `<svg id="plan" viewBox="${vb}" class="drawing hero-svg" fill="none" stroke="currentColor" aria-hidden="true"><g>${hByLayer.map(lineSvg).join('')}${extras}</g></svg>`;
 const roads = hf.objects.filter((o) => o.kind === 'asset' && o.assetKey === 'road');
 const lanesY = roads.filter((o) => o.rotation === 0).map((o) => r2(o.y));
@@ -176,6 +176,8 @@ const put = (name: string, value: string) => {
 put('DM-MAP', map);
 put('DM-PARKING', parking);
 put('DM-VALET', valet);
+put('DM-NPARK', String(ASSETS.filter((a) => a.category === 'Parking spaces').length));
+put('DM-NVALET', String(ASSETS.filter((a) => a.category === 'Valet operations').length));
 put('DM-SEARCH', found);
 put('DM-COUNT', String(total));
 put('HERO-PLAN', blueprint + real);
