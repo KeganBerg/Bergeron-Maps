@@ -183,6 +183,11 @@
     var back = q.get('checkout');
     if (back === 'done') {
       $('s4-assisted').hidden = state.n < ASSISTED_FROM;
+      // Straight into the app, with the address they paid with already filled in on sign-in.
+      if (saved && EMAIL.test(saved.email || '')) {
+        $('s4-email').textContent = saved.email;
+        $('s4-go').setAttribute('href', '/app/?email=' + encodeURIComponent(saved.email));
+      }
       setText('.s4-date', monthlyStarts);
       try { sessionStorage.removeItem(KEY); } catch { /* private mode */ }
       show(4);

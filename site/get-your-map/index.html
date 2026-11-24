@@ -189,24 +189,23 @@
   </aside>
 </section>
 
-<!-- STEP 4: back from Stripe -->
+<!-- STEP 4: back from Stripe. The order webhook (worker/accounts.js) opens the account within seconds. -->
 <section id="s4" class="grid" hidden aria-labelledby="s4-title">
   <div class="card">
-    <div class="success"><span class="ok"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><h2 id="s4-title" tabindex="-1">You're in</h2><p class="hint">Thank you. Your order is placed, and Stripe is emailing your receipt.</p></div></div>
-    <p>We're setting up your account now and will email you how to sign in. Sign-in uses a link and code sent to your email, so there's no password to create.</p>
+    <div class="success"><span class="ok"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><h2 id="s4-title" tabindex="-1">You're in. Build your map now.</h2><p class="hint">Thank you. Your account is open, and Stripe is emailing your receipt.</p></div></div>
+    <p>Sign in with <strong id="s4-email">the email you used</strong> and start your first map. We'll email you a code to sign in, so there's no password to create.</p>
     <div class="callout" id="s4-assisted" hidden>
       <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M16 11l2 2 4-4"/></svg></span>
-      <div><b>Assisted setup</b><span>We'll be in touch to help build your first maps. Have a sketch or site plan of each location ready.</span></div>
+      <div><b>Assisted setup</b><span>We'll also be in touch to help build your first maps. Have a sketch or site plan of each location ready.</span></div>
     </div>
-    <div class="actions"><a class="btn btn-sign" href="/app/">Go to sign in</a><a class="btn btn-line" href="/">Back to bergeronmaps.com</a></div>
+    <div class="actions"><a class="btn btn-sign" id="s4-go" href="/app/">Build your map now</a><a class="btn btn-line" href="/">Back to bergeronmaps.com</a></div>
   </div>
   <aside class="order" aria-label="What happens next">
     <h2>What happens next</h2>
     <ol class="timeline">
-      <li><span class="n">1</span><span><b>Today:</b> look out for our email with your sign-in details.</span></li>
-      <li><span class="n">2</span><span><b>Next:</b> build your map and publish it.</span></li>
-      <li><span class="n">3</span><span><b>Then:</b> hand your team the site code.</span></li>
-      <li><span class="n">4</span><span><b class="s4-date"></b>: first monthly charge.</span></li>
+      <li><span class="n">1</span><span><b>Now:</b> sign in and start your map. Trace your sketch, or let the builder lay out the rows.</span></li>
+      <li><span class="n">2</span><span><b>Then:</b> publish it and hand your team the site code.</span></li>
+      <li><span class="n">3</span><span><b class="s4-date"></b>: first monthly charge.</span></li>
     </ol>
   </aside>
 </section>
