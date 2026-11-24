@@ -49,8 +49,11 @@
     setText('.o-term', state.term);
     all('input[name=term]').forEach(function (r) { r.checked = r.value === state.term; });
     all('#biz .tile').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-kind') === state.kind)); });
-    var shot = $('shot'), src = '/img/industries/' + state.kind + '-phone.webp';
-    if (shot.getAttribute('src') !== src) shot.setAttribute('src', src);
+    // The hero shows the chosen site type's sample map on each device (data-shot: editor, tablet, phone).
+    all('.devices img').forEach(function (img) {
+      var src = '/img/industries/' + state.kind + '-' + img.getAttribute('data-shot') + '.webp';
+      if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    });
   }
 
   function show(step) {
