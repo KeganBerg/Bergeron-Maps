@@ -1,5 +1,6 @@
-/* Get Your Map Now: the purchase page. Ink hero with a phone preview of the chosen site type, a step
-   bar, then the choices on the left and a dark order card on the right. Stacks on phones.
+/* Get Your Map Now: the purchase page. Ink hero with the chosen site type's sample map on a computer,
+   a tablet and a phone, a step bar, then the plan on the left and a dark order card on the right.
+   Below 900px it is one column, with the order right after the plan so the price is never far away.
    Fonts follow docs/TYPOGRAPHY.md: the device's own UI font, weights 400/600/700. */
 :root {
   --ink: #0b0b0b; --ink-2: #1c1c1c; --ink-line: #2e2e2e; --sign: #f2b705; --sign-hover: #ffc61a; --sign-soft: #fdf3d4;
@@ -28,20 +29,37 @@ a { color: inherit; }
 .topbar nav a { color: #bdbab2; text-decoration: none; }
 .topbar nav a:hover { color: #fff; }
 @media (max-width: 479px) { .brand .word { display: none; } }
-.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; align-items: center; padding-top: 44px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); gap: 48px; align-items: center; padding-top: 48px; padding-bottom: 48px; }
 .hero h1 { font-size: var(--fs-hero); line-height: 1.1; font-weight: 700; text-wrap: balance; }
 .hero h1 span { color: var(--sign); }
 .hero .sub { margin-top: 14px; font-size: var(--fs-lg); color: #cfccc4; max-width: 46ch; }
-.ticks { margin: 24px 0 44px; padding: 0; list-style: none; display: grid; gap: 10px; }
+.ticks { margin: 24px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .ticks li { display: flex; gap: 10px; align-items: center; color: #e9e6de; }
 .ticks svg { flex: none; color: var(--sign); }
-.phone { align-self: end; justify-self: center; width: 260px; height: 340px; border: 8px solid #2a2a2a; border-bottom: 0; border-radius: 28px 28px 0 0; overflow: hidden; background: #2a2a2a; }
-.phone img { display: block; width: 100%; height: auto; }
-@media (max-width: 820px) {
-  .hero .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 32px; }
+
+/* Devices: one box with a fixed shape, so the three frames keep their places at any width.
+   Sizes and places are percentages of the box. */
+.devices { position: relative; margin: 0; width: 100%; aspect-ratio: 52 / 38; }
+.devices img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.desk { position: absolute; left: 6%; top: 0; width: 94%; }
+.desk .screen { border: 6px solid #2a2a2a; border-bottom-width: 14px; border-radius: 10px; overflow: hidden; background: #2a2a2a; aspect-ratio: 16 / 10; }
+.desk .stand { display: block; width: 22%; height: 7%; margin: 0 auto; aspect-ratio: 5 / 1; background: #2a2a2a; clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%); }
+.tablet, .phone { position: absolute; bottom: 0; background: #1a1a1a; border: 1px solid #3a3a3a; box-shadow: 0 12px 28px rgba(0, 0, 0, .45); overflow: hidden; }
+.tablet { left: 0; width: 34%; aspect-ratio: 834 / 1194; border-radius: 14px; padding: 2.2%; }
+.phone { right: 4%; width: 20%; aspect-ratio: 624 / 1248; border-radius: 16px; padding: 1.6%; }
+.tablet img { border-radius: 6px; }
+.phone img { border-radius: 10px; }
+@media (max-width: 900px) {
+  .hero .wrap { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-top: 32px; padding-bottom: 32px; }
   .hero h1 { font-size: 32px; }
-  .phone { width: 220px; height: 240px; }
-  .ticks { margin-bottom: 28px; }
+  .devices { max-width: 560px; justify-self: center; }
+}
+@media (max-width: 479px) {
+  .hero h1 { font-size: 28px; }
+  .hero .sub { font-size: var(--fs-md); }
+  .ticks { margin-top: 18px; gap: 8px; }
+  .tablet { border-radius: 10px; }
+  .phone { border-radius: 12px; }
 }
 
 /* step bar */
@@ -52,57 +70,90 @@ a { color: inherit; }
 .stepbar li.on { color: var(--fg); font-weight: 600; }
 .stepbar li.on .dot { background: var(--sign); border-color: var(--sign); color: var(--ink); }
 .stepbar li.past .dot { background: var(--fg); border-color: var(--fg); color: var(--paper); }
+/* Phones: four steps fit on one line when only the current step shows its name. */
+@media (max-width: 559px) {
+  .stepbar ol { flex-wrap: nowrap; gap: 6px; }
+  .stepbar li { padding-right: 6px; }
+  .stepbar li:not(.on) { font-size: 0; }
+  .stepbar li:not(:last-child)::after { content: ""; width: 16px; height: 1.5px; background: var(--line); margin-left: 6px; }
+}
 
 main .wrap { padding-top: 32px; padding-bottom: 72px; }
-.grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: start; }
-@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-.stack { display: grid; gap: 20px; min-width: 0; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 22px; display: grid; gap: 16px; min-width: 0; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-items: start; }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  /* Step 1: plan, then the order, then what's included. */
+  #s1 .stack { display: contents; }
+  #s1 .order { order: 1; }
+  #s1 .included { order: 2; }
+}
+.stack { display: grid; gap: 32px; min-width: 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 24px; display: grid; gap: 16px; min-width: 0; }
 .card h2 { font-size: var(--fs-lg); font-weight: 700; }
 .hint { color: var(--muted); font-size: var(--fs-sm); }
 .notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); }
 .notice svg { flex: none; margin-top: 2px; }
 .notice.bad { border-color: #e7b8b3; background: var(--bad-soft); color: var(--bad); }
 
-/* site type tiles */
-.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 640px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.tile { display: grid; justify-items: center; gap: 8px; padding: 16px 8px; border: 1.5px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; text-align: center; }
-.tile svg { color: var(--muted); }
-.tile[aria-pressed="true"] { border-color: var(--sign); background: var(--sign-soft); }
+/* the plan: three questions in one card, split by thin rules */
+.plan { padding: 0; gap: 0; }
+.q { padding: 24px 28px; display: grid; gap: 14px; }
+.q + .q { border-top: 1px solid var(--line); }
+.q h3 { font-size: var(--fs-lg); font-weight: 700; }
+.q .hint { margin-top: -8px; }
+@media (max-width: 479px) { .q { padding: 20px 18px; } }
+
+/* site type */
+.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.tile { display: grid; justify-items: center; gap: 6px; padding: 14px 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; text-align: center; }
+.tile:hover { border-color: #c9c5bb; }
+.tile svg { color: var(--muted); width: 24px; height: 24px; }
+.tile[aria-pressed="true"] { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
 .tile[aria-pressed="true"] svg { color: var(--fg); }
+/* Phones: three across, then two wider ones, so no tile sits alone. */
+@media (max-width: 559px) {
+  .tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .tile { grid-column: span 2; font-size: var(--fs-sm); }
+  .tile:nth-child(n + 4) { grid-column: span 3; }
+}
 
 /* locations */
-.qty { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
-.stepper { display: inline-flex; align-items: center; border: 1.5px solid var(--line); border-radius: 6px; overflow: hidden; }
+.qty { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .stepper button { width: 48px; height: 48px; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: 22px; cursor: pointer; }
+.stepper button:hover:not(:disabled) { background: var(--paper); }
 .stepper button:disabled { color: var(--line); cursor: default; }
 .stepper output { min-width: 52px; text-align: center; font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; }
-.chip { font-size: var(--fs-sm); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; }
+.each { color: var(--muted); }
+.each b { color: var(--fg); font-weight: 600; }
+.perk { display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-sm); color: var(--muted); }
+.perk svg { flex: none; color: #b38600; margin-top: 1px; }
+.perk b { color: var(--fg); font-weight: 600; }
 .callout { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 6px; background: var(--sign-soft); }
 .callout .ic { flex: none; width: 32px; height: 32px; border-radius: 6px; background: var(--sign); color: var(--ink); display: grid; place-items: center; }
 .callout b { display: block; }
 .callout span { color: var(--muted); font-size: var(--fs-sm); }
 
-/* options (term) */
-.terms { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.option { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1.5px solid var(--line); border-radius: 6px; cursor: pointer; }
-.option input { margin-top: 3px; accent-color: var(--ink); }
-.option strong { display: block; }
-.option .hint { display: block; }
-.option:has(input:checked) { border-color: var(--sign); background: var(--sign-soft); }
+/* term: two choices side by side */
+.terms { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 420px; }
+.option { position: relative; display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font-weight: 600; }
+.option:hover { border-color: #c9c5bb; }
+.option input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.option:has(input:checked) { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
 .option:focus-within { outline: 2px solid var(--sign); outline-offset: 2px; }
 
-/* included */
-.feat { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+/* included: a plain list under the plan */
+.included { display: grid; gap: 16px; padding: 0 4px; }
+.included h2 { font-size: var(--fs-lg); font-weight: 700; }
+.feat { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; }
 @media (max-width: 640px) { .feat { grid-template-columns: 1fr; } }
-.feat li { display: flex; gap: 12px; align-items: flex-start; }
-.feat .ic { flex: none; width: 36px; height: 36px; border-radius: 6px; background: var(--sign-soft); display: grid; place-items: center; color: var(--fg); }
-.feat b { display: block; }
+.feat li { display: flex; gap: 10px; align-items: flex-start; }
+.feat svg { flex: none; color: #b38600; margin-top: 2px; }
+.feat b { display: block; font-weight: 600; }
 .feat span { color: var(--muted); font-size: var(--fs-sm); }
 
 /* order card */
-.order { background: var(--ink); color: #fff; border-radius: 6px; padding: 24px; display: grid; gap: 14px; position: sticky; top: 16px; }
+.order { background: var(--ink); color: #fff; border-radius: 8px; padding: 24px; display: grid; gap: 14px; position: sticky; top: 16px; }
 @media (max-width: 900px) { .order { position: static; } }
 .order h2 { font-size: var(--fs-lg); font-weight: 700; }
 .line { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; color: #dcd9d1; }

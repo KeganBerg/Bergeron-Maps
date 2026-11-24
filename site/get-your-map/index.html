@@ -26,7 +26,7 @@
   </div></div>
   <section class="hero" id="hero"><div class="wrap">
     <div>
-      <h1>Your lot, on every worker's phone. <span>Get your map now.</span></h1>
+      <h1>Your lot, on any mobile device. <span>Get your map now.</span></h1>
       <p class="sub">Pick your plan, see the full price, and pay securely. No sales call needed.</p>
       <ul class="ticks">
         <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Full price shown before you enter any details</li>
@@ -34,7 +34,11 @@
         <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Monthly billing starts 30 days after setup</li>
       </ul>
     </div>
-    <div class="phone"><img id="shot" src="/img/industries/valet-phone.webp" width="624" height="1248" alt="Bergeron Maps on a phone: a sample site map, with a space found by search and walking directions to it" /></div>
+    <figure class="devices" aria-label="The same sample map on a computer, a tablet and a phone">
+      <div class="desk"><div class="screen"><img data-shot="editor" src="/img/industries/valet-editor.webp" width="1600" height="1000" alt="The Bergeron Maps editor on a computer, with a sample site map" /></div><span class="stand" aria-hidden="true"></span></div>
+      <div class="tablet"><img data-shot="tablet" src="/img/industries/valet-tablet.webp" width="834" height="1194" alt="The published map on a tablet, with walking directions to a space found by search" /></div>
+      <div class="phone"><img data-shot="phone" src="/img/industries/valet-phone.webp" width="624" height="1248" alt="The same map on a phone, with walking directions to the space" /></div>
+    </figure>
   </div></section>
 </header>
 
@@ -56,8 +60,9 @@
 <section id="s1" class="grid" aria-labelledby="s1-title">
   <div class="stack">
     <h2 id="s1-title" class="skip">Your plan</h2>
-    <div class="card">
-      <h2>What kind of site is it?</h2>
+    <div class="card plan">
+      <div class="q">
+      <h3>What kind of site is it?</h3>
       <div class="tiles" id="biz">
         <button type="button" class="tile" aria-pressed="true" data-kind="valet" data-label="Valet"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg>Valet</button>
         <button type="button" class="tile" aria-pressed="false" data-kind="dealership" data-label="Dealership"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16v-4l2-5h12l2 5v4"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="13" r="1"/><circle cx="16.5" cy="13" r="1"/></svg>Dealership</button>
@@ -65,10 +70,10 @@
         <button type="button" class="tile" aria-pressed="false" data-kind="warehouse" data-label="Warehouse"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-5 9 5v11H3z"/><path d="M7 20v-7h10v7M7 16h10"/></svg>Warehouse</button>
         <button type="button" class="tile" aria-pressed="false" data-kind="office" data-label="Other"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>Other</button>
       </div>
-    </div>
+      </div>
 
-    <div class="card">
-      <h2>How many locations?</h2>
+      <div class="q">
+      <h3>How many locations?</h3>
       <p class="hint">Each location is one lot, garage or campus, with its own map and site code.</p>
       <div class="qty">
         <div class="stepper" role="group" aria-label="Number of locations">
@@ -76,12 +81,9 @@
           <output id="locs" aria-live="polite">1</output>
           <button type="button" id="plus" aria-label="One more location">+</button>
         </div>
-        <span class="chip">$2,500 setup + $500 a month, per location</span>
+        <span class="each"><b>$2,500</b> setup, then <b>$500</b> a month, per location</span>
       </div>
-      <div class="callout" id="assisted" hidden>
-        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M16 11l2 2 4-4"/></svg></span>
-        <div><b>Assisted setup included</b><span>For a first order of 5 or more locations, we help you build your first maps.</span></div>
-      </div>
+      <p class="perk" id="assisted" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Assisted setup included.</b> With 5 or more locations, we help you build your first maps.</span></p>
       <p class="hint" id="bigorder">More than 20 locations, or rather talk first? <a href="#talk-box" id="talk">Talk to Alex</a> and we'll set it up with you.</p>
       <div class="reply" id="talk-box" hidden>
         <form id="talk-form" novalidate>
@@ -101,28 +103,29 @@
           <div class="done"><span class="ok"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><b>Sent to Alex</b><span>He'll reply to <strong id="t-to"></strong> to set up a time.</span></div></div>
         </div>
       </div>
-    </div>
-
-    <div class="card">
-      <h2>Choose your term</h2>
-      <div class="terms" role="radiogroup" aria-label="Contract term">
-        <label class="option"><input type="radio" name="term" value="12" checked /><span><strong>12 months</strong><span class="hint">$500 a month per location</span></span></label>
-        <label class="option"><input type="radio" name="term" value="6" /><span><strong>6 months</strong><span class="hint">$500 a month per location</span></span></label>
       </div>
-      <p class="hint">Same price either way. Pick the length that suits you.</p>
+
+      <div class="q">
+      <h3 id="term-title">How long a term?</h3>
+      <div class="terms" role="radiogroup" aria-labelledby="term-title">
+        <label class="option"><input type="radio" name="term" value="12" checked /><span>12 months</span></label>
+        <label class="option"><input type="radio" name="term" value="6" /><span>6 months</span></label>
+      </div>
+      <p class="hint">Same price either way.</p>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>Included at every location</h2>
+    <section class="included" aria-labelledby="inc-title">
+      <h2 id="inc-title">Included at every location</h2>
       <ul class="feat">
-        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M6 16l4-4 3 3 5-6"/></svg></span><div><b>Build your map fast</b><span>Trace a photo of your sketch, or answer four questions and the builder lays out the rows</span></div></li>
-        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span><div><b>Find any space fast</b><span>Search, switch floors, walking directions</span></div></li>
-        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M10 17h4"/></svg></span><div><b>Workers join in a minute</b><span>A six-character site code, nothing to install</span></div></li>
-        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span><div><b>1 live map, 5 saved</b><span>Keep spare layouts ready</span></div></li>
-        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/></svg></span><div><b>Edits stay in draft</b><span>Workers see the change when you publish</span></div></li>
-        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15c2.8 0 5 1.6 5 4"/></svg></span><div><b>Right access for each role</b><span>Regional managers, site managers, employees</span></div></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Build your map fast</b><span>Trace a photo of your sketch, or answer four questions and the builder lays out the rows</span></div></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Find any space fast</b><span>Search, switch floors, walking directions</span></div></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Workers join in a minute</b><span>A six-character site code, nothing to install</span></div></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>1 live map, 5 saved</b><span>Keep spare layouts ready</span></div></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Edits stay in draft</b><span>Workers see the change when you publish</span></div></li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Right access for each role</b><span>Regional managers, site managers, employees</span></div></li>
       </ul>
-    </div>
+    </section>
   </div>
 
   <aside class="order" aria-label="Your order">
