@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { useMotion } from '../ui/motion';
 import { AppHeader } from '../home/HomePage';
 import { navigate } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
@@ -30,6 +31,7 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
   onChanged: () => void;
 }) {
   const [locations, setLocations] = useState<Location[] | null>(null);
+  const motion = useMotion();
   const [maps, setMaps] = useState<LiveMap[]>([]);
   const [code, setCode] = useState('');
   const [askManager, setAskManager] = useState(false);
@@ -110,7 +112,7 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
   return (
     <div className="home">
       <AppHeader nav={nav}>{account}</AppHeader>
-      <main className="home-main locations">
+      <main className="home-main locations" ref={motion}>
         <div className="page-head loc-page-head">
           <h2>My Locations</h2>
           <p className="muted small" data-testid="locations-intro">

@@ -19,7 +19,7 @@
 src/
   model/      Pure map logic, no UI: types, row generation and numbering, snapping,
               alignment, copy/paste, floors, layers, duplicates, search, migrations,
-              walking directions (route), side view
+              walking directions (route.ts + route/), side view
   assets/     Built-in symbol library (original artwork drawn in code)
   storage/    MapRepository interface + IndexedDB implementation, map files
   render/     Konva shapes shared by the editor and the viewer
@@ -27,7 +27,7 @@ src/
   viewer/     Phone-first, read-only view with search and directions
   home/       Maps list, new map, recently deleted (browser-only and online)
   cloud/      Online mode: Supabase client, SupabaseRepository, sign-in, team, admin pages
-  ui/         Shared UI pieces: dialogs, fields, icons, brand
+  ui/         Shared UI pieces: dialogs, fields, icons, brand, motion (useMotion: admin pages ease in/out)
   errors/     Friendly error messages and optional error reports
 supabase/
   migrations/ The database schema, in order (source of truth)
@@ -82,11 +82,13 @@ Every space has a stable id that survives renumbering, so vehicle-location recor
 These keep the code readable for the next person. `src/codeSize.test.ts` and ESLint enforce the first two; files
   that were already too big are listed in that test and may only shrink.
 
-- **Files stay under 600 lines** (tests and the symbol catalog data excepted). When a file gets close, split
+- **Files stay under 600 lines** (tests and the symbol catalog data excepted). Big features are a
+  small entry file plus a folder or set of files by job, e.g. `model/route.ts` + `model/route/`, or
+  `editor/store.ts` + `objectActions.ts` / `structureActions.ts`. When a file gets close, split
   it by job, not by line count: a component per panel or sheet, a hook per concern, a module per step.
 - **No `any`, no `@ts-ignore`.** Model the type instead.
 - **Logic lives in `src/model/`**, with unit tests, not inside React components. Components show state and
   call model functions.
 - **Facts about a symbol live on the symbol** (`src/assets/catalog/*`), not in lists elsewhere. For example,
-  whether a symbol blocks walking belongs on the symbol, so a new symbol can't be forgotten elsewhere.
+  how walking directions treat a symbol is its `walk` property (and `entersBuilding` for building doors).
 - **Docs change in the same pull request as the code** they describe.
