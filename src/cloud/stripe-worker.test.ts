@@ -39,7 +39,10 @@ describe('POST /api/checkout', () => {
     expect(form.get('customer_email')).toBe('pat@example.com');
     expect(form.get('metadata[company]')).toBe('Company');
     expect(form.get('subscription_data[metadata][locations]')).toBe('3');
-    expect(form.get('success_url')).toBe('https://bergeronmaps.com/api/checkout-test?checkout=done&session_id={CHECKOUT_SESSION_ID}');
+    expect(form.get('metadata[term_months]')).toBe('12');
+    expect(form.get('metadata[assisted_setup]')).toBe('no');
+    expect(form.get('custom_text[submit][message]')).toMatch(/^12-month term\. .*non-refundable/);
+    expect(form.get('success_url')).toBe('https://bergeronmaps.com/get-your-map/?checkout=done&session_id={CHECKOUT_SESSION_ID}');
     // Stripe's guidance: let the Dashboard decide payment methods.
     expect([...form.keys()].some((k) => k.startsWith('payment_method_types'))).toBe(false);
     // The terms box only once the terms page exists.
@@ -92,8 +95,12 @@ describe('POST /api/checkout', () => {
   });
   it('only sends buyers back to a page on this site', () => {
     expect(readOrder({ ...buyer, returnPath: '/get-your-map/' }).returnPath).toBe('/get-your-map/');
-    expect(readOrder({ ...buyer, returnPath: '//evil.example' }).returnPath).toBe('/api/checkout-test');
-    expect(readOrder({ ...buyer, returnPath: 'https://evil.example' }).returnPath).toBe('/api/checkout-test');
+    expect(readOrder(buyer).term).toBe(12);
+    expect(readOrder({ ...buyer, term: 6 }).term).toBe(6);
+    expect(readOrder({ ...buyer, term: '6' }).term).toBe(6);
+    expect(readOrder({ ...buyer, term: 9 })).toBe('Choose a 6 or 12 month term');
+    expect(readOrder({ ...buyer, returnPath: '//evil.example' }).returnPath).toBe('/get-your-map/');
+    expect(readOrder({ ...buyer, returnPath: 'https://evil.example' }).returnPath).toBe('/get-your-map/');
   });
 });
 

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Get Your Map Now | Bergeron Maps</title>
+  <meta name="description" content="Choose your plan, see the full price and pay securely for Bergeron Maps." />
+  <!-- Not linked from the site or listed in the sitemap until sales go live (docs/STRIPE.md). -->
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0b0b0b" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/get-your-map/page.css" />
+  <script src="/get-your-map/page.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="dark">
+  <div class="topbar"><div class="wrap">
+    <a class="brand" href="/" aria-label="Bergeron Maps home"><img class="mono" src="/logo.svg" alt="" width="32" height="32" /><img class="word" src="/wordmark.svg" alt="" width="738" height="52" /></a>
+    <nav aria-label="Help"><a href="/app/">Sign in</a></nav>
+  </div></div>
+  <section class="hero" id="hero"><div class="wrap">
+    <div>
+      <h1>Your lot, on every worker's phone. <span>Get your map now.</span></h1>
+      <p class="sub">Pick your plan, see the full price, and pay securely. No sales call needed.</p>
+      <ul class="ticks">
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Full price shown before you enter any details</li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Secure payment through Stripe</li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Monthly billing starts 30 days after setup</li>
+      </ul>
+    </div>
+    <div class="phone"><img id="shot" src="/img/industries/valet-phone.webp" width="624" height="1248" alt="Bergeron Maps on a phone: a sample site map, with a space found by search and walking directions to it" /></div>
+  </div></section>
+</header>
+
+<nav class="stepbar" aria-label="Steps"><div class="wrap"><ol>
+  <li id="st1" class="on"><span class="dot">1</span>Your plan</li>
+  <li id="st2"><span class="dot">2</span>Your details</li>
+  <li id="st3"><span class="dot">3</span>Secure payment</li>
+  <li id="st4"><span class="dot">4</span>You're in</li>
+</ol></div></nav>
+
+<main id="main"><div class="wrap">
+
+<div class="notice" id="canceled" role="status" hidden>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+  <span>Payment was canceled and nothing was charged. Your choices are still here.</span>
+</div>
+
+<!-- STEP 1: the plan -->
+<section id="s1" class="grid" aria-labelledby="s1-title">
+  <div class="stack">
+    <h2 id="s1-title" class="skip">Your plan</h2>
+    <div class="card">
+      <h2>What kind of site is it?</h2>
+      <div class="tiles" id="biz">
+        <button type="button" class="tile" aria-pressed="true" data-kind="valet" data-label="Valet"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg>Valet</button>
+        <button type="button" class="tile" aria-pressed="false" data-kind="dealership" data-label="Dealership"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16v-4l2-5h12l2 5v4"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="13" r="1"/><circle cx="16.5" cy="13" r="1"/></svg>Dealership</button>
+        <button type="button" class="tile" aria-pressed="false" data-kind="school" data-label="School"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-5 9 5-9 5z"/><path d="M7 12v4c0 1.5 2.5 3 5 3s5-1.5 5-3v-4"/></svg>School</button>
+        <button type="button" class="tile" aria-pressed="false" data-kind="warehouse" data-label="Warehouse"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-5 9 5v11H3z"/><path d="M7 20v-7h10v7M7 16h10"/></svg>Warehouse</button>
+        <button type="button" class="tile" aria-pressed="false" data-kind="office" data-label="Other"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>Other</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>How many locations?</h2>
+      <p class="hint">Each location is one lot, garage or campus, with its own map and site code.</p>
+      <div class="qty">
+        <div class="stepper" role="group" aria-label="Number of locations">
+          <button type="button" id="minus" aria-label="One fewer location">−</button>
+          <output id="locs" aria-live="polite">1</output>
+          <button type="button" id="plus" aria-label="One more location">+</button>
+        </div>
+        <span class="chip">$2,500 setup + $500 a month, per location</span>
+      </div>
+      <div class="callout" id="assisted" hidden>
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M16 11l2 2 4-4"/></svg></span>
+        <div><b>Assisted setup included</b><span>For a first order of 5 or more locations, we help you build your first maps.</span></div>
+      </div>
+      <p class="hint" id="bigorder">More than 20 locations, or rather talk first? <a href="#talk-box" id="talk">Talk to Alex</a> and we'll set it up with you.</p>
+      <div class="reply" id="talk-box" hidden>
+        <form id="talk-form" novalidate>
+          <div class="reply-head"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></span><div><b>Talk to Alex</b><span>Tell us a little about your sites and Alex will get in touch to set things up with you.</span></div></div>
+          <div class="two">
+            <div class="field"><label for="t-nm">Your name</label><input type="text" id="t-nm" required maxlength="120" autocomplete="name" /></div>
+            <div class="field"><label for="t-em">Work email</label><input type="email" id="t-em" required maxlength="200" autocomplete="email" placeholder="name@company.com" /></div>
+          </div>
+          <div class="two">
+            <div class="field"><label for="t-co">Company</label><input type="text" id="t-co" maxlength="120" autocomplete="organization" /></div>
+            <div class="field"><label for="t-n">About how many locations?</label><input type="text" id="t-n" inputmode="numeric" maxlength="20" placeholder="For example, 25" /></div>
+          </div>
+          <p class="form-error" id="t-err" role="alert" hidden></p>
+          <div class="reply-actions"><button class="btn btn-sign" type="submit" id="t-send">Send to Alex</button><button class="linkbtn" type="button" id="t-cancel">Cancel</button></div>
+        </form>
+        <div id="talk-done" hidden tabindex="-1">
+          <div class="done"><span class="ok"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><b>Sent to Alex</b><span>He'll reply to <strong id="t-to"></strong> to set up a time.</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Choose your term</h2>
+      <div class="terms" role="radiogroup" aria-label="Contract term">
+        <label class="option"><input type="radio" name="term" value="12" checked /><span><strong>12 months</strong><span class="hint">$500 a month per location</span></span></label>
+        <label class="option"><input type="radio" name="term" value="6" /><span><strong>6 months</strong><span class="hint">$500 a month per location</span></span></label>
+      </div>
+      <p class="hint">Same price either way. Pick the length that suits you.</p>
+    </div>
+
+    <div class="card">
+      <h2>Included at every location</h2>
+      <ul class="feat">
+        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M6 16l4-4 3 3 5-6"/></svg></span><div><b>Build your map fast</b><span>Trace a photo of your sketch, or answer four questions and the builder lays out the rows</span></div></li>
+        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span><div><b>Find any space fast</b><span>Search, switch floors, walking directions</span></div></li>
+        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M10 17h4"/></svg></span><div><b>Workers join in a minute</b><span>A six-character site code, nothing to install</span></div></li>
+        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span><div><b>2 live maps, 5 saved</b><span>Keep a spare layout ready</span></div></li>
+        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/></svg></span><div><b>Edits stay in draft</b><span>Workers see the change when you publish</span></div></li>
+        <li><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15c2.8 0 5 1.6 5 4"/></svg></span><div><b>Right access for each role</b><span>Regional managers, site managers, employees</span></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <aside class="order" aria-label="Your order">
+    <h2>Your order</h2>
+    <div class="line"><span class="o-n">Setup, 1 location</span><span class="o-setup">$2,500</span></div>
+    <div class="line o-assist" hidden><span>Assisted setup</span><span>Included</span></div>
+    <div class="total"><span>Due today</span><span class="big o-today">$2,500</span></div>
+    <div class="monthly"><span>Then, from <span class="o-date"></span>, on a <span class="o-term">12</span>-month term</span><b class="o-month">$500 a month</b></div>
+    <button class="btn btn-sign btn-wide" id="go2" type="button">Continue</button>
+    <button class="btn btn-ghost btn-wide" id="quote" type="button" aria-expanded="false" aria-controls="quote-box"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>Email me this quote</button>
+    <div class="reply dark-panel" id="quote-box" hidden>
+      <form id="quote-form" novalidate>
+        <div class="reply-head"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><div><b>Email this quote</b><span>Send it to yourself or to whoever approves the purchase.</span></div></div>
+        <div class="field"><label for="q-em">Email address</label><input type="email" id="q-em" required maxlength="200" autocomplete="email" placeholder="name@company.com" /></div>
+        <div class="preview" aria-label="What the email says">
+          <div class="subj">Your Bergeron Maps quote</div>
+          <div class="pl"><span class="o-n">Setup, 1 location</span><span class="o-setup">$2,500</span></div>
+          <div class="pl"><span>Due today</span><b class="o-today">$2,500</b></div>
+          <div class="pl"><span>Then monthly</span><span class="o-month">$500 a month</span></div>
+          <span class="hint">With a link that reopens this order, ready to pay.</span>
+        </div>
+        <p class="form-error" id="q-err" role="alert" hidden></p>
+        <div class="reply-actions"><button class="btn btn-sign" type="submit">Open in my email</button><button class="linkbtn" type="button" id="q-copy">Copy link</button><button class="linkbtn" type="button" id="q-cancel">Cancel</button></div>
+      </form>
+      <div id="quote-done" hidden tabindex="-1">
+        <div class="done"><span class="ok"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><b id="q-done-title">Quote ready to send</b><span id="q-done-text"></span></div></div>
+        <div class="reply-actions"><button class="linkbtn" type="button" id="q-again">Send to someone else</button></div>
+      </div>
+    </div>
+    <h2>After you pay</h2>
+    <ol class="timeline">
+      <li><span class="n">1</span><span>We set up your account and email you how to sign in.</span></li>
+      <li><span class="n">2</span><span>You build your map: trace your sketch, or let the builder lay out the rows.</span></li>
+      <li><span class="n">3</span><span>You publish it and hand your team the site code.</span></li>
+    </ol>
+    <p class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Payment is handled by Stripe. We never see your card details.</p>
+  </aside>
+</section>
+
+<!-- STEP 2: details, then on to Stripe -->
+<section id="s2" class="grid" hidden aria-labelledby="s2-title">
+  <form class="card" id="f2" novalidate>
+    <h2 id="s2-title">Your details</h2>
+    <p class="hint">We use these for your account and receipt. You'll enter payment details on Stripe's secure page next.</p>
+    <div class="field"><label for="co">Company name</label><input type="text" id="co" required maxlength="200" autocomplete="organization" /></div>
+    <div class="two">
+      <div class="field"><label for="nm">Your name</label><input type="text" id="nm" required maxlength="200" autocomplete="name" /></div>
+      <div class="field"><label for="em">Work email</label><input type="email" id="em" required maxlength="200" autocomplete="email" placeholder="name@company.com" /></div>
+    </div>
+    <div class="field"><label for="ref">Referral code <span class="opt">(optional)</span></label><input type="text" id="ref" maxlength="20" autocomplete="off" placeholder="BM-XXXXXX" /></div>
+    <p class="form-error" id="f2-err" role="alert" hidden></p>
+    <div class="actions">
+      <button class="btn btn-line" type="button" id="back1">Back</button>
+      <button class="btn btn-sign" type="submit" id="pay">Continue to secure payment</button>
+    </div>
+  </form>
+  <aside class="order" aria-label="Your order">
+    <h2>Your order</h2>
+    <div class="line"><span class="o-n">Setup, 1 location</span><span class="o-setup">$2,500</span></div>
+    <div class="line o-assist" hidden><span>Assisted setup</span><span>Included</span></div>
+    <div class="total"><span>Due today</span><span class="big o-today">$2,500</span></div>
+    <div class="monthly"><span>Then, from <span class="o-date"></span>, on a <span class="o-term">12</span>-month term</span><b class="o-month">$500 a month</b></div>
+    <p class="secure">The setup fee is a one-time onboarding and setup fee and is non-refundable.</p>
+  </aside>
+</section>
+
+<!-- STEP 4: back from Stripe -->
+<section id="s4" class="grid" hidden aria-labelledby="s4-title">
+  <div class="card">
+    <div class="success"><span class="ok"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><h2 id="s4-title" tabindex="-1">You're in</h2><p class="hint">Thank you. Your order is placed, and Stripe is emailing your receipt.</p></div></div>
+    <p>We're setting up your account now and will email you how to sign in. Sign-in uses a link and code sent to your email, so there's no password to create.</p>
+    <div class="callout" id="s4-assisted" hidden>
+      <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5"/><path d="M16 11l2 2 4-4"/></svg></span>
+      <div><b>Assisted setup</b><span>We'll be in touch to help build your first maps. Have a sketch or site plan of each location ready.</span></div>
+    </div>
+    <div class="actions"><a class="btn btn-sign" href="/app/">Go to sign in</a><a class="btn btn-line" href="/">Back to bergeronmaps.com</a></div>
+  </div>
+  <aside class="order" aria-label="What happens next">
+    <h2>What happens next</h2>
+    <ol class="timeline">
+      <li><span class="n">1</span><span><b>Today:</b> look out for our email with your sign-in details.</span></li>
+      <li><span class="n">2</span><span><b>Next:</b> build your map and publish it.</span></li>
+      <li><span class="n">3</span><span><b>Then:</b> hand your team the site code.</span></li>
+      <li><span class="n">4</span><span><b class="s4-date"></b>: first monthly charge.</span></li>
+    </ol>
+  </aside>
+</section>
+
+</div></main>
+
+<footer class="foot"><div class="wrap">
+  <span>Bergeron Maps</span>
+  <span>Questions? Email <a href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a></span>
+</div></footer>
+</body>
+</html>
