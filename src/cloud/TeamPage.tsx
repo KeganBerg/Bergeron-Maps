@@ -3,6 +3,7 @@ import { AppHeader } from '../home/HomePage';
 import { useRoute } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
+import { useMotion } from '../ui/motion';
 import { friendly, supabase } from './client';
 import { publicSiteLink } from './PublicSitePage';
 import { canManageCompany, type Membership, type Role } from './session';
@@ -95,6 +96,12 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   /** Sites with at least one public, live map: only those have a public link worth sending. */
   const [publicSites, setPublicSites] = useState<Set<string>>(new Set());
   const { query } = useRoute();
+  const motion = useMotion();
+  const listMotion = useMotion();
+  const requestMotion = useMotion();
+  const peopleMotion = useMotion();
+  const peopleCard = useMotion();
+  const accessForm = useMotion();
   const [find, setFind] = useState(() => query.get('q') ?? '');
   const f = find.trim().toLowerCase();
   const shownSites = f ? sites.filter((x) => x.name.toLowerCase().includes(f) || x.slug.includes(f) || codes[x.id]?.toLowerCase() === f) : sites;
@@ -256,7 +263,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   return (
     <div className="home">
       <AppHeader nav={nav}>{account}</AppHeader>
-      <main className="home-main team">
+      <main className="home-main team" ref={motion}>
         <div className="page-head">
           <h2>Sites and people <span className="page-sub">{membership.companyName}</span></h2>
           <input type="search" className="page-search" value={find} onChange={(e) => setFind(e.target.value)}
@@ -274,7 +281,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
             Send managers their site link. It only works for emails you’ve added below. Employees join a single site with its code and can only view
             published maps. A site gets a public link (no sign-in) once one of its live maps is made public on the Maps page.
           </p>
-          <ul className="site-list">
+          <ul className="site-list" ref={listMotion}>
             {f && shownSites.length === 0 && <li className="muted small">No site matches “{find.trim()}”.</li>}
             {shownSites.map((s) => (
               <li key={s.id} data-testid={`team-site-${s.name}`}>
@@ -333,7 +340,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
           <section className="panel-card requests" data-testid="manager-requests">
             <h3>Manager requests</h3>
             <p className="muted small">These people joined a site with its code and asked to manage it. Approve makes them site manager of that site only.</p>
-            <ul className="people">
+            <ul className="people" ref={requestMotion}>
               {requests.map((q) => (
                 <li key={q.id} data-testid={`request-${q.email}`}>
                   <span>
@@ -355,7 +362,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
 
         <section className="panel-card">
           <h3>Give someone access</h3>
-          <form className="add-person" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+          <form className="add-person" ref={accessForm} onSubmit={(e) => { e.preventDefault(); void add(); }}>
             <label className="stack">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" required /></label>
             <label className="stack">Access
               <select value={access} onChange={(e) => setAccess(e.target.value as Access)}>
@@ -373,10 +380,10 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
           </form>
         </section>
 
-        <section className="panel-card">
+        <section className="panel-card" ref={peopleCard}>
           <h3>People</h3>
           {shownMembers === null ? <p className="muted">Loading…</p> : (
-            <ul className="people">
+            <ul className="people" ref={peopleMotion}>
               {f && shownMembers.length === 0 && <li className="muted small">Nobody matches “{find.trim()}”.</li>}
               {shownMembers.map((m) => (
                 <li key={m.email}>
