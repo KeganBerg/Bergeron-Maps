@@ -1,7 +1,9 @@
 # Stripe payments (Get Your Map Now)
 
 How a buyer pays online, what the code does, and the steps in the Stripe and Cloudflare dashboards.
-Code: `worker/stripe.js`, tests in `src/cloud/stripe-worker.test.ts`.
+Code: `worker/stripe.js`, `worker/accounts.js` (opening and pausing accounts), `worker/grace.js` (daily reminders),
+tests in `src/cloud/stripe-worker.test.ts` and `src/cloud/accounts-worker.test.ts`, database part in
+`supabase/migrations/20261124030000_paid_accounts.sql`.
 
 ## What happens
 
@@ -40,9 +42,27 @@ Each order records `term_months` (6 or 12) and `assisted_setup` (`yes` for 5 or 
 team helps build the first maps) in the Checkout and subscription metadata, and the order email shows
 both. Stripe bills monthly either way; the term is for the agreement.
 
-Not built yet (on purpose, waiting on decisions in the onboarding plan): opening the customer's Bergeron Maps account automatically after payment, the terms page, sales
-tax, and white-label ($5,000). Until the purchase page exists, `GET /api/checkout-test` is a bare test
-form that only works with a test key and isn't linked from the site.
+Not built yet (on purpose, waiting on decisions in the onboarding plan): the terms page, sales tax and
+white-label ($5,000).
+
+## Opening and pausing accounts
+
+- **Opening.** As soon as Checkout finishes (even while a bank payment is still clearing), the Worker
+  opens a company named after the order, with one site called "First location", room for as many
+  sites as were bought and the contract term on record. The buyer's email becomes the owner (invited,
+  if they have never signed in) and gets a "Your Bergeron Maps account is open" email. A repeated
+  webhook never opens a second company: the Stripe customer ID is the key.
+- **Pausing.** A failed bank payment, the end of the grace period (subscription unpaid) or a canceled
+  subscription pauses the whole company: nobody in it can open its maps, everyone is signed out, and
+  its public map links stop working. Nothing is deleted. The billing contact gets "Your service is
+  paused" with a link to pay, and people who sign in see why their maps are gone.
+- **Resuming.** Once the payment goes through (subscription active again), everyone gets their access
+  back exactly as it was.
+- The order email says what happened under "Bergeron Maps account". Until the
+  `SUPABASE_SERVICE_ROLE_KEY` secret is set, the Worker changes nothing and that line says to do it by
+  hand in All accounts.
+
+`GET /api/checkout-test` is a bare test form that only works with a test key and isn't linked from the site.
 
 ## Referral codes (1 month free)
 
@@ -57,8 +77,14 @@ Checkout page). Code: `worker/referrals.js`.
 ## The 10-day grace period
 
 Stripe retries a failed monthly payment by itself. Set the retries to end after 10 days (step 8);
-then the subscription becomes **unpaid**, and the order inbox gets "Grace period over". Until the
-account pause is built, pausing is done by hand from that email.
+then the subscription becomes **unpaid**, the order inbox gets "Grace period over", and the account
+pauses by itself.
+
+Every day of those 10 days, at 15:00 UTC (10 AM Eastern in winter), the Worker's cron
+(`wrangler.jsonc` "triggers") emails each customer with an overdue payment: how many days are left,
+the amount, a **Pay now** button to Stripe's page for the invoice (where they can use another card),
+and that the service will be halted when the days run out. The days count from the first failed
+attempt. The order inbox keeps getting its own alerts.
 
 ## Safety rules in the code
 
@@ -80,8 +106,8 @@ Never paste keys in chat. They go straight from Stripe into Cloudflare.
    - Name **Map subscription**, recurring price **$500.00 USD monthly**. Copy its price ID too.
 3. **Restricted key.** Developers → API keys → **Create restricted key**, name it "bergeronmaps.com
    website". Set **Checkout Sessions: Write**, **Customers: Write**, **Subscriptions: Read**,
-   **Products: Read** and **Prices: Read**; leave everything else at None. (Customers and
-   Subscriptions are for referral codes and credits.) Create it and keep the `rk_test_…` value on screen for step 5.
+   **Invoices: Read**, **Products: Read** and **Prices: Read**; leave everything else at None. (Customers and
+   Subscriptions are for referral codes and credits; Invoices for the pay link in reminders.) Create it and keep the `rk_test_…` value on screen for step 5.
 4. **Webhook.** Developers → Webhooks → **Add destination** → your account → choose these events:
    the nine in the table above. Endpoint URL `https://bergeronmaps.com/api/stripe-webhook`. After saving,
    reveal the **Signing secret** (`whsec_…`).
@@ -91,6 +117,9 @@ Never paste keys in chat. They go straight from Stripe into Cloudflare.
    - `STRIPE_WEBHOOK_SECRET`: the `whsec_…` from step 4
    - `STRIPE_SETUP_PRICE`: the Map setup price ID
    - `STRIPE_MONTHLY_PRICE`: the Map subscription price ID
+   - `SUPABASE_SERVICE_ROLE_KEY`: Supabase → Project Settings → API Keys → the **secret** key
+     (`sb_secret_…`, or the older `service_role` key). It lets the Worker open and pause accounts, so
+     it lives only here.
 6. **Emails Stripe sends to customers.** Settings → Customer emails: turn on successful payments,
    refunds, and failed payment and expiring card reminders. Settings → Billing → **Customer portal**:
    activate the no-code login link (free).

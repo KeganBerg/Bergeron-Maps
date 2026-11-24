@@ -20,6 +20,9 @@
     "SUPABASE_URL": "https://ysebxeokxpnmckwdtimj.supabase.co",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZWJ4ZW9reHBubWNrd2R0aW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDU3OTEsImV4cCI6MjEwOTEyMTc5MX0._gioylYj_sf6pLy3o6riTL0n9Y-EVsu3VNzpeRXYQkY"
   },
+  // Every day at 15:00 UTC (10 AM Eastern in winter, 11 AM in summer): grace-period reminder
+  // emails (worker/grace.js). Cron triggers are free on the Workers free plan.
+  "triggers": { "crons": ["0 15 * * *"] },
   // The test address (bergeron-maps.<account>.workers.dev) and per-pull-request preview addresses.
   "workers_dev": true,
   "preview_urls": true,

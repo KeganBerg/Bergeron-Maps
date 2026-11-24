@@ -1,11 +1,13 @@
 scheduled jobs: pg_cron is off
-186 objects, fingerprint b1f61abf7d91
+208 objects, fingerprint fbaa3fae7066
 constraint audit_log.audit_log_company_id_fkey 328812a1 
 constraint audit_log.audit_log_pkey 4c6419b3 
+constraint companies.companies_contract_term_months_check 59ee97a4 
 constraint companies.companies_created_by_fkey 1ceab562 
 constraint companies.companies_max_sites_check 80a32ef5 
 constraint companies.companies_name_check f42578d1 
 constraint companies.companies_pkey 4c6419b3 
+constraint companies.companies_stripe_customer_id_key 233ac048 
 constraint facilities.facilities_address_check 12801802 
 constraint facilities.facilities_company_id_fkey 328812a1 
 constraint facilities.facilities_join_code_check 342d5842 
@@ -44,6 +46,14 @@ constraint memberships.memberships_company_id_fkey 328812a1
 constraint memberships.memberships_company_id_user_id_key 60e14dc5 
 constraint memberships.memberships_pkey 4c6419b3 
 constraint memberships.memberships_user_id_fkey 85d8b2f5 
+constraint paused_invitations.invitations_email_check cee62410 
+constraint paused_invitations.paused_invitations_company_fkey 328812a1 
+constraint paused_invitations.paused_invitations_company_id_email_key dd84de95 
+constraint paused_invitations.paused_invitations_pkey 4c6419b3 
+constraint paused_memberships.paused_memberships_company_fkey 328812a1 
+constraint paused_memberships.paused_memberships_company_id_user_id_key 60e14dc5 
+constraint paused_memberships.paused_memberships_pkey 4c6419b3 
+constraint paused_memberships.paused_memberships_user_fkey 85d8b2f5 
 constraint platform_admins.platform_admins_email_check cee62410 
 constraint platform_admins.platform_admins_pkey 3ffed38f 
 constraint published_maps.published_maps_company_id_fkey 328812a1 
@@ -87,8 +97,8 @@ function facilities_protect_maps() 5e482776 -,authenticated
 function floor_count(m maps) 8dcd2ed4 authenticated
 function floor_count(p published_maps) 3da37e6a authenticated
 function get_join_code(p_facility uuid) 121ce9bd authenticated
-function get_public_map(p_map uuid) 26a35276 anon,authenticated
-function get_public_site(p_slug text) ff64da65 anon,authenticated
+function get_public_map(p_map uuid) 8c00e004 anon,authenticated
+function get_public_site(p_slug text) 802f3e0b anon,authenticated
 function inline_map_images(p_doc jsonb) 800debb4 
 function is_member(p_company uuid) 1e208447 authenticated
 function is_platform_admin() 4df9982f authenticated
@@ -105,14 +115,17 @@ function maps_before_write() deafe54c authenticated
 function move_member(p_company uuid, p_email text, p_from uuid, p_to uuid) 4aa0d718 authenticated
 function my_locations() f14a06f2 authenticated
 function my_membership(p_company uuid) bc894708 authenticated
+function my_paused_accounts() f40e97dd authenticated
 function new_join_code() 687d78f4 
 function on_auth_user_created() 625185a2 authenticated
+function provision_paid_account(p_customer text, p_subscription text, p_company text, p_email text, p_locations integer, p_term integer) 0a803f5c 
 function prune_auto_versions() d14d97a0 
 function publish_map(p_map uuid) 2b2e283d authenticated
 function purge_expired_trash() 01eb4274 
 function remove_member(p_company uuid, p_user uuid) ccfdfee0 authenticated
 function request_manager_access(p_facility uuid, p_note text) 3b15761c authenticated
 function rotate_join_code(p_facility uuid) 92489618 authenticated
+function set_account_paused(p_customer text, p_paused boolean) fed2db86 
 function set_site_address(p_facility uuid, p_address text) 8d0e805b authenticated
 function set_site_limit(p_company uuid, p_max_sites integer) 259d378d authenticated
 function setup_company(p_name text, p_site_name text, p_site_address text, p_lead_email text, p_max_sites integer) 466b4cb9 authenticated
@@ -125,6 +138,7 @@ function unpublish_map(p_map uuid) 028034b2 authenticated
 index audit_log_company_id_created_at_idx 1efb4b6d 
 index audit_log_pkey 699c2e83 
 index companies_pkey 5432bdbc 
+index companies_stripe_customer_id_key 243e4781 
 index facilities_company_id_idx c4e0b71e 
 index facilities_join_code_key 586b4750 
 index facilities_pkey 074666ca 
@@ -144,6 +158,12 @@ index maps_pkey ba72d99d
 index memberships_company_id_user_id_key d08ae10f 
 index memberships_pkey 43b28d1f 
 index memberships_user_id_idx 2c6ba2c3 
+index paused_invitations_company_id_email_key 9e2d0f5b 
+index paused_invitations_pkey ce7fb1b6 
+index paused_memberships_company_id_user_id_key f1f9405c 
+index paused_memberships_pkey 1815f581 
+index paused_memberships_user 9bd3a0b0 
+index paused_memberships_user_id_idx da6981e5 
 index platform_admins_pkey 12df5d77 
 index published_maps_company_id 62565497 
 index published_maps_pkey cb5e3b79 
@@ -165,7 +185,7 @@ policy maps.maps_update b6cd4fa3
 policy memberships.memberships_read 416a3418 
 policy published_maps.published_read b6051c97 
 table audit_log 89529d30 true
-table companies aa248d90 true
+table companies 6fc5cb78 true
 table facilities 13a8527c true
 table invitations 2826f599 true
 table join_attempts 55cfaf10 true
@@ -173,6 +193,8 @@ table manager_requests 218eb4f7 true
 table map_versions f6b6cd69 true
 table maps 92fb1e66 true
 table memberships d80c1b71 true
+table paused_invitations 2826f599 true
+table paused_memberships d80c1b71 true
 table platform_admins f26bdfe2 true
 table published_maps 56059395 true
 trigger facilities.facilities_after_delete 287ec6c5 

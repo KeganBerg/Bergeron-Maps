@@ -2,13 +2,16 @@
 // handles a few routes of its own (emails go through Resend):
 //   POST /api/contact  the "Get your map now" form, emailed to the company inbox;
 //   POST /api/access   the "you've been given access" email to a person a manager just added.
-//   POST /api/checkout and /api/stripe-webhook  Get Your Map Now payments (worker/stripe.js).
+//   POST /api/checkout and /api/stripe-webhook  Get Your Map Now payments (worker/stripe.js),
+//                      which also open and pause accounts (worker/accounts.js).
+// Once a day it also emails grace-period reminders (worker/grace.js).
 // Every other request goes straight to the static files.
 // The Resend key lives only in Cloudflare (Worker → Settings → Variables and Secrets →
 // RESEND_API_KEY); see docs/EMAIL.md.
 
 import { INBOX, FROM, ORIGIN, EMAIL, reply, esc, shell, button } from './shared.js';
 import { checkout, checkoutTestPage, stripeWebhook } from './stripe.js';
+import { sendGraceReminders } from './grace.js';
 
 const FIELDS = ['Name', 'Company', 'Work email', 'Industry', 'Number of sites', 'Anything else', 'Page'];
 
@@ -21,6 +24,10 @@ export default {
     if (url.pathname === '/api/checkout-test') return checkoutTestPage(request, env);
     if (url.pathname === '/api/stripe-webhook') return stripeWebhook(request, env);
     return env.ASSETS.fetch(request);
+  },
+  // The daily cron in wrangler.jsonc: grace-period reminders to customers with an overdue payment.
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(sendGraceReminders(env));
   },
 };
 
