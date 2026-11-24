@@ -32,21 +32,45 @@
   });
 
   // Savings calculator on the dealership and valet pages: the visitor's own numbers, nothing stored or sent.
+  // The results count up or down to each new figure (400ms, ease-out) so the change reads as a change,
+  // not a flicker. Visitors who ask for reduced motion get the new figure straight away.
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  function countTo(el, prefix) {
+    var shown = 0, target = 0, frame = 0;
+    function paint(v) { el.textContent = prefix + Math.round(v).toLocaleString('en-US'); }
+    return function (next, animate) {
+      target = next;
+      cancelAnimationFrame(frame);
+      if (!animate || (still && still.matches) || shown === target) { shown = target; paint(target); return; }
+      var from = shown, start = 0;
+      frame = requestAnimationFrame(function step(now) {
+        if (!start) start = now;
+        var t = Math.min((now - start) / 400, 1);
+        shown = from + (target - from) * (1 - Math.pow(1 - t, 3));
+        paint(shown);
+        if (t < 1) frame = requestAnimationFrame(step);
+      });
+    };
+  }
   [].forEach.call(document.querySelectorAll('[data-calc]'), function (form) {
-    var h = form.querySelector('[data-out="h"]'), d = form.querySelector('[data-out="d"]');
+    var setHours = countTo(form.querySelector('[data-out="h"]'), '');
+    var setCost = countTo(form.querySelector('[data-out="d"]'), '$');
+    // Screen readers hear the final figures once, from this hidden line, rather than every step of the count.
+    var said = document.createElement('p');
+    said.setAttribute('aria-live', 'polite');
+    said.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap';
+    form.appendChild(said);
     function num(name, max) { var v = parseFloat(form.elements[name].value); return isFinite(v) && v > 0 ? Math.min(v, max) : 0; }
-    function update() {
-      var hours = num('n', 100000) * num('m', 120) * 30 / 60;
-      h.textContent = Math.round(hours).toLocaleString('en-US');
-      d.textContent = '$' + Math.round(hours * num('w', 1000)).toLocaleString('en-US');
+    function update(animate) {
+      var exact = num('n', 100000) * num('m', 120) * 30 / 60;
+      var hours = Math.round(exact), cost = Math.round(exact * num('w', 1000));
+      setHours(hours, animate);
+      setCost(cost, animate);
+      // Only as the visitor changes a number, not the starting figures as the page loads.
+      if (animate) said.textContent = hours.toLocaleString('en-US') + ' labor hours a month, $' + cost.toLocaleString('en-US') + ' labor cost a month.';
     }
-    // Read out as the visitor changes a number, but not the starting figures as the page loads.
-    var out = form.querySelector('dl');
-    form.addEventListener('input', function () {
-      if (out && !out.hasAttribute('aria-live')) { out.setAttribute('aria-live', 'polite'); out.setAttribute('aria-atomic', 'true'); }
-      update();
-    });
+    form.addEventListener('input', function () { update(true); });
     form.addEventListener('submit', function (e) { e.preventDefault(); });
-    update();
+    update(false);
   });
 })();
