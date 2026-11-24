@@ -83,7 +83,10 @@ export async function checkout(request, env, send = fetch) {
   const session = await res.json().catch(() => null);
   if (!res.ok || !session?.url) {
     console.error('Stripe Checkout failed', res.status, session?.error?.message);
-    return reply(502, { success: false, error: 'Payment service failed' });
+    // With a test key, show Stripe's own reason so setup mistakes are easy to spot. Live
+    // buyers only ever see the plain message.
+    const detail = isTestKey(key) && session?.error?.message ? `: ${String(session.error.message).slice(0, 300)}` : '';
+    return reply(502, { success: false, error: `Payment service failed${detail}` });
   }
   return reply(200, { success: true, url: session.url });
 }

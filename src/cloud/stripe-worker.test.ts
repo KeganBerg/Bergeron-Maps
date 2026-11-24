@@ -68,7 +68,12 @@ describe('POST /api/checkout', () => {
   it('says the payment service failed when Stripe refuses', async () => {
     const send = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'No such price' } }), { status: 400 }));
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect((await checkout(post(buyer), env, send)).status).toBe(502);
+    const res = await checkout(post(buyer), env, send);
+    expect(res.status).toBe(502);
+    // Test keys show Stripe's reason; live keys never do.
+    expect((await res.json()).error).toBe('Payment service failed: No such price');
+    const live = await checkout(post(buyer), { ...env, STRIPE_SECRET_KEY: 'rk_live_x', CHECKOUT_LIVE: 'true' }, send);
+    expect((await live.json()).error).toBe('Payment service failed');
   });
   it('only sends buyers back to a page on this site', () => {
     expect(readOrder({ ...buyer, returnPath: '/get-your-map/' }).returnPath).toBe('/get-your-map/');
