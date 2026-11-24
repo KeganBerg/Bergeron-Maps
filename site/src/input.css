@@ -107,9 +107,11 @@
 .am-search.on { border-color: #0b2545; box-shadow: 0 0 0 2px #93c5fd; }
 .am-search svg { width: 15px; height: 15px; flex: none; color: #5d6b7e; }
 .am .ph { color: #5d6b7e; }
-.am-cat { display: flex; justify-content: space-between; padding: 10px 0 0; border-top: 1px solid #dedad2; font-size: 12px; }
-.am-cat b { font-weight: 700; }
+.am .am-group { padding-top: 12px; border-top: 1px solid #dedad2; }
+.am-cat { display: flex; align-items: center; gap: 6px; padding: 6px 0 2px; font-size: 12px; }
+.am-cat b { flex: 1; font-weight: 600; }
 .am-cat span { color: #5d6b7e; }
+.am-chev { width: 12px; height: 12px; flex: none; fill: none; stroke: #5d6b7e; stroke-width: 2.4; transform: rotate(90deg); }
 .am-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 10px; }
 .am-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 96px; padding: 8px 4px; border: 2px solid #dedad2; border-radius: 3px; background: #fff; font-size: 11px; line-height: 1.2; text-align: center; }
 .am-tile img { width: 34px; height: 34px; object-fit: contain; }

@@ -61,10 +61,10 @@ def plan():
     o.append('<path class="route" d="M52 452H140V420H745V372" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>')
     # dimension line
     o.append('<path d="M170 22H970M170 16v12M970 16v12" stroke-width="1"/>')
-    o.append('<text class="note" x="570" y="16">16 SPACES @ 9\'-0" = 144\'-0"</text>')
+    o.append('<text class="note" x="570" y="16">16 spaces @ 9\'-0" = 144\'-0"</text>')
     # north arrow + scale bar
     o.append('<g transform="translate(1150 560)"><circle r="16" fill="none" stroke-width="1"/><path d="M0 -12 6 8 0 3-6 8z" fill="currentColor" stroke="none"/><text class="note" y="-22">N</text></g>')
-    o.append('<g transform="translate(40 560)"><path d="M0 0h200M0-6v12M50-4v8M100-6v12M200-6v12" stroke-width="1"/><text class="note" x="0" y="22" text-anchor="start">0</text><text class="note" x="100" y="22">25</text><text class="note" x="200" y="22">50 FT</text></g>')
+    o.append('<g transform="translate(40 560)"><path d="M0 0h200M0-6v12M50-4v8M100-6v12M200-6v12" stroke-width="1"/><text class="note" x="0" y="22" text-anchor="start">0</text><text class="note" x="100" y="22">25</text><text class="note" x="200" y="22">50 ft</text></g>')
     defs = ('<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
             '<path d="M0 0v10" stroke="currentColor" stroke-width=".8"/></pattern></defs>')
     return (f'<svg id="plan" viewBox="-40 0 {W+40} {H}" class="drawing block h-auto w-full" fill="none" stroke="{INK}" '
