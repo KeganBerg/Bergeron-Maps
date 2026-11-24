@@ -57,7 +57,9 @@ jobs:
           command: deploy
       - name: Check the deployed site
         if: env.HAS_TOKEN == 'true' && github.event_name != 'pull_request'
-        run: scripts/check-deploy.sh "${{ steps.deploy.outputs.deployment-url || 'https://bergeron-maps.bergeronmaps.workers.dev' }}"
+        run: |
+          scripts/check-deploy.sh https://bergeron-maps.bergeronmaps.workers.dev
+          scripts/check-deploy.sh https://bergeronmaps.com
       - name: Preview (pull request)
         id: preview
         if: env.HAS_TOKEN == 'true' && github.event_name == 'pull_request'

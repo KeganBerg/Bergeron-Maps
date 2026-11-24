@@ -12,5 +12,11 @@
   },
   // The test address (bergeron-maps.<account>.workers.dev) and per-pull-request preview addresses.
   "workers_dev": true,
-  "preview_urls": true
+  "preview_urls": true,
+  // The live addresses. Kept here so a deploy never drops them (they were first added in the
+  // Cloudflare dashboard on 2026-11-24). www is sent to the root by a Redirect Rule in the dashboard.
+  "routes": [
+    { "pattern": "bergeronmaps.com", "custom_domain": true },
+    { "pattern": "www.bergeronmaps.com", "custom_domain": true }
+  ]
 }
