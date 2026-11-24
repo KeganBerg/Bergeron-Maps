@@ -14,3 +14,12 @@
   Build the gap if it's small, otherwise reword or cut and ask Kegan about bigger ones.
   Follow the checklist in [docs/SITE_CLAIMS.md](docs/SITE_CLAIMS.md); `src/siteClaims.test.ts` enforces part of it.
 - **Assets:** follow docs/ASSET_STYLE.md and record licenses in docs/ASSET_LICENSES.md.
+- **Readable code:** a new engineer must be able to follow it. Follow "Code size and structure" in
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): app files under 600 lines (`src/codeSize.test.ts`), split by job
+  when they get close; logic in `src/model/` with unit tests, not in components; facts about a symbol on the
+  symbol, not in lists elsewhere; plain names; comments say why. No `any` or `@ts-ignore` (ESLint). Run
+  `npm run lint` and `npm run typecheck` before pushing.
+- **Docs move with the code:** update README.md, docs/ARCHITECTURE.md and docs/REQUIREMENTS.md in the same pull
+  request when a change makes them wrong.
+- **Database:** every schema change is a new file in `supabase/migrations/` with tests in `supabase/tests/`;
+  never edit one that already ran on the live database.

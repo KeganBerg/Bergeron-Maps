@@ -1,4 +1,4 @@
-import { open, startOrca, mark, key, keys, type, finish, sleep } from './lib.mjs';
+import { open, startOrca, mark, key, keys, finish, sleep } from './lib.mjs';
 const page = await open();
 await page.goto('http://localhost:5174/');
 const { id } = await page.evaluate(async () => {

@@ -7,24 +7,34 @@
 | App | React 18 + TypeScript, built with Vite | Mainstream, fast to build, easy to hire for |
 | Map canvas | Konva via react-konva (MIT) | Handles thousands of shapes smoothly; built-in resize/rotate handles; works with touch |
 | Editor state | Zustand + Immer | Small, predictable; whole-document snapshots make undo/redo simple and reliable |
-| Phase 1 storage | Browser IndexedDB | Lets the editor, autosave, versions, trash and conflict handling be built and tested before a server exists |
-| Phase 2 backend (proposed) | Supabase: Postgres, Auth, Storage, row-level security | Authorization enforced in the database, not the UI; fits the ~$50/month backend budget |
-| Tests | Vitest (unit), Playwright (browser, desktop + phone) | |
+| Browser-only storage | Browser IndexedDB | Used when there is no account ("Try it without an account") and in most tests |
+| Backend | Supabase: Postgres, Auth, row-level security | Authorization enforced in the database, not the UI; free plan today |
+| Hosting | Cloudflare Workers (static files only) | See `docs/HOSTING.md` |
+| Tests | Vitest (unit), Playwright (browser, desktop + phone), Vitest against real Postgres (database) | |
+| Code style | TypeScript strict mode, ESLint, Prettier | Run in CI; see "Code size and structure" below |
 
 ## Layout
 
 ```
 src/
   model/      Pure map logic, no UI: types, row generation and numbering, snapping,
-              alignment, copy/paste, floors, layers, duplicates, search, migrations
-  assets/     Built-in symbol library (original artwork)
-  storage/    MapRepository interface + IndexedDB implementation
+              alignment, copy/paste, floors, layers, duplicates, search, migrations,
+              walking directions (route), side view
+  assets/     Built-in symbol library (original artwork drawn in code)
+  storage/    MapRepository interface + IndexedDB implementation, map files
   render/     Konva shapes shared by the editor and the viewer
   editor/     Desktop editor: store (state + undo), canvas, panels, autosave, keyboard
-  viewer/     Phone-first, read-only employee view with search
-  home/       Maps list, new map, recently deleted
-e2e/          Playwright tests
-docs/         Requirements matrix, architecture, asset licenses
+  viewer/     Phone-first, read-only view with search and directions
+  home/       Maps list, new map, recently deleted (browser-only and online)
+  cloud/      Online mode: Supabase client, SupabaseRepository, sign-in, team, admin pages
+  ui/         Shared UI pieces: dialogs, fields, icons, brand
+  errors/     Friendly error messages and optional error reports
+supabase/
+  migrations/ The database schema, in order (source of truth)
+  tests/      Database tests against a real Postgres
+e2e/          Playwright tests (e2e/online/: online mode against a mock Supabase)
+site/         Marketing site
+docs/         Architecture, runbooks, rules
 ```
 
 ## Data model
@@ -49,19 +59,34 @@ Every space has a stable id that survives renumbering, so vehicle-location recor
 - **Selection:** clicking a space selects its whole row (like a group in drawing apps); double-click enters the row to select one space. Locked and hidden layers are never selectable.
 - **New-object layer:** "Automatic" by default (spaces → Parking spaces, columns → Structure, booths → Landmarks, …). Choosing a layer makes it the target.
 
-## Phase 2 plan (server)
+## Online mode
 
-1. Supabase project: tables `companies`, `facilities`, `maps` (draft JSON + revision), `map_versions`, `published_maps`, `memberships(user, company/facility, role)`, `audit_log`.
-2. Row-level security on every table: users only see rows for companies/facilities they belong to; only managers can write, publish, or manage members. Public maps are readable through a separate published-snapshot table with an explicit `is_public` flag, never by guessing ids.
-3. `SupabaseRepository` implements the existing `MapRepository`; the editor code does not change.
-4. Background images move to Supabase Storage with signed URLs scoped by the same policies.
-5. Publish = copy the current draft into `published_maps`; viewers always load the latest published snapshot.
-6. Daily database backups (Supabase), plus version history and trash for user-level recovery.
-
-## Online mode (Phase 2)
-
-- `src/cloud/client.ts` turns on online mode when the build has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (set in `.github/workflows/pages.yml`; the anon key is public by design). Without them, or after "Try it without an account", the app runs in browser-only mode with `IndexedDbRepository`.
+- `src/cloud/client.ts` turns on online mode when the build has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (set in `.github/workflows/cloudflare.yml`; the anon key is public by design). Without them, or after "Try it without an account", the app runs in browser-only mode with `IndexedDbRepository`.
 - Sign-in is an emailed one-time link (PKCE). There is no role picker: access comes only from `memberships`, which admins and managers grant by email (`add_member`; invitations become memberships when the person first signs in).
 - Access model: a Bergeron Maps admin (`platform_admins`, set in the SQL editor) creates each customer company and its sites. Each site has a **site link** (`#/site/<id>`) for its managers. The link narrows the view to that site, but grants nothing by itself. Employees join one site with its 6-character code and only see published maps.
 - `SupabaseRepository` implements `MapRepository` against the tables in `supabase/migrations`. Saves are `update … where revision = base`: zero rows means someone else saved first (`ConflictError`). Row-level security enforces company and site separation on every request, so removed people lose access immediately.
-- Not yet built: public (no sign-in) links, live push updates, server-side pruning of automatic versions, and scheduled trash purge (`purge_expired_trash` exists; it needs a Supabase cron job).
+- Public links: a published map marked public opens with no sign-in at `…/app/#/view/<site-link>` (`get_public_site`, `src/cloud/PublicSitePage.tsx`).
+- Not yet built: live push updates (viewers refresh to get a newer publish), and a scheduled trash purge (`purge_expired_trash` exists; it needs a Supabase cron job).
+
+## Database changes
+
+- Every schema change is a new, dated file in `supabase/migrations/`. Never edit a migration that has already
+  run on the live database; add a new one.
+- `npm run test:db` builds a fresh database from all migrations in order (with a small shim for the Supabase
+  parts, `supabase/tests/supabase-shim.sql`) and tests permissions, concurrency and backups against it. CI runs it.
+- Migrations are not applied automatically. Each one is run on the live Supabase project by hand, in the SQL
+  Editor, after review and before the app change that needs it is merged.
+
+## Code size and structure
+
+These keep the code readable for the next person. `src/codeSize.test.ts` and ESLint enforce the first two; files
+  that were already too big are listed in that test and may only shrink.
+
+- **Files stay under 600 lines** (tests and the symbol catalog data excepted). When a file gets close, split
+  it by job, not by line count: a component per panel or sheet, a hook per concern, a module per step.
+- **No `any`, no `@ts-ignore`.** Model the type instead.
+- **Logic lives in `src/model/`**, with unit tests, not inside React components. Components show state and
+  call model functions.
+- **Facts about a symbol live on the symbol** (`src/assets/catalog/*`), not in lists elsewhere. For example,
+  whether a symbol blocks walking belongs on the symbol, so a new symbol can't be forgotten elsewhere.
+- **Docs change in the same pull request as the code** they describe.
