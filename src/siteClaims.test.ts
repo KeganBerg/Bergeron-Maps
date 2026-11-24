@@ -13,7 +13,6 @@ const NOT_LIVE: [RegExp, string][] = [
   [/\bstripe\b|checkout|credit card|pay online|subscribe now|free trial/i, 'online payment is not live'],
   [/\$\s?[1-9]/, 'prices are not published on the site yet'],
   [/white[- ]label|your own (domain|subdomain)|maps\.[a-z]+\.com|custom domain/i, 'white-label branding and subdomains are not live'],
-  [/\binvit(e|es|ation)\b[^.]{0,40}\bemail\b|email[^.]{0,20}\binvit/i, 'the app sends no invitation emails; access is given by email address'],
   [/sign up (now|today|free)|create (an|your) account|self[- ]serve/i, 'self-serve sign-up is not live'],
   [/\bgps\b|real[- ]time|live (tracking|location|occupancy)|occupancy (sensor|detection)|(?<!(don't|doesn't|not|never) )track(s|ing)? (vehicles|cars|people)/i, 'the product does not track anything'],
   [/use my location|current location/i, '"Use my location" is not built'],

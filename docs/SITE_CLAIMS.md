@@ -7,7 +7,7 @@ screenshots, drawings and animations, alt text, titles, meta descriptions, link 
 
 When a claim isn't true yet, either build it (if it's small and clearly valuable) or reword
 or remove the claim. Bigger gaps go to Kegan as a build-or-cut choice. Planned work that
-isn't live (online payment, white-label subdomains, invitation and notification emails,
+isn't live (online payment, white-label subdomains, notification emails other than the access email,
 self-serve sign-up, "Use my location") must not be implied. A finished section that waits
 for launch stays in an HTML comment.
 
@@ -46,7 +46,7 @@ Where each claim is backed in the app. Update this when the site or the app chan
 | --- | --- |
 | Trace over a photo of your sketch | Layers > Upload site plan or aerial photo (`src/editor/LayersPanel.tsx`), curve handles to match it |
 | Answer four questions and the builder lays out rows, lanes and ramps | New map > Build it for me (`src/model/quickLot.ts`: floors, rows, spaces per row, accessible spaces) |
-| Give access by email address, or a six-character site code | Team page > Give access (`add_member`), site join code (`get_join_code`, Join site needs 6 characters). The app sends no access email; it shows a message to paste. |
+| Add people by email and they get an email telling them how to sign in, or a six-character site code | Team page > Give access (`add_member`), then the access email (`sendAccessEmail` in `src/cloud/TeamPage.tsx`, Worker `/api/access`, PR #109); site join code (`get_join_code`, Join site needs 6 characters) |
 | Edits stay in draft until you publish | Editor Publish and Preview, viewer shows the published version |
 | Employees see the update within a minute, without reloading | Viewer checks the publish time every minute and when the page is shown again, and loads the new version (`src/viewer/ViewerPage.tsx`); the public link reloads when someone comes back after 5 minutes |
 | Search lights a space up on the right floor | `src/model/search.ts`, viewer search |
