@@ -130,7 +130,8 @@ export function useSession(): SessionState {
   };
 }
 
-const accessKey = (list: Membership[]) => JSON.stringify(list.map((m) => [m.companyId, m.role, m.siteIds, m.viaAdmin ?? false]));
+// The company name is part of it so a rename reaches the header and account menu without a reload.
+const accessKey = (list: Membership[]) => JSON.stringify(list.map((m) => [m.companyId, m.companyName, m.role, m.siteIds, m.viaAdmin ?? false]));
 
 /** The signed-in person's memberships, plus every company when they are a Bergeron Maps admin. */
 async function loadAccess(userId: string): Promise<{ list: Membership[]; admin: boolean; error: string | null }> {

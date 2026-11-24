@@ -39,8 +39,8 @@ export function sessionFor(u: User, expiresInSec = 3600) {
 }
 
 export class MockSupabase {
-  companies = [COMPANY, OTHER_COMPANY];
-  sites = [SITE_A, SITE_B, SITE_C];
+  companies = [COMPANY, OTHER_COMPANY].map((c) => ({ ...c }));
+  sites = [SITE_A, SITE_B, SITE_C].map((x) => ({ ...x }));
   members: Member[] = [
     { user_id: USERS.owner.id, email: USERS.owner.email, company_id: COMPANY.id, role: 'owner', facility_ids: null },
     { user_id: USERS.siteManager.id, email: USERS.siteManager.email, company_id: COMPANY.id, role: 'manager', facility_ids: [SITE_A.id] },
@@ -173,6 +173,18 @@ export class MockSupabase {
 
     if (path === '/rest/v1/memberships') {
       return rows(this.memberOf(u).map((m) => ({ company_id: m.company_id, role: m.role, facility_ids: m.facility_ids, companies: { name: this.companies.find((c) => c.id === m.company_id)!.name } })));
+    }
+    // Renames: the account lead, regional managers and admins (companies_rename and facilities_update policies).
+    // Anyone else changes no rows, which the app reads as "not allowed".
+    const leads = (company: string) => !!u.admin || this.memberOf(u).some((m) => m.company_id === company && (m.role === 'owner' || (m.role === 'manager' && m.facility_ids === null)));
+    if ((path === '/rest/v1/companies' || path === '/rest/v1/facilities') && req.method() === 'PATCH') {
+      const { name } = req.postDataJSON() as { name: string };
+      const list: { id: string; name: string }[] = path === '/rest/v1/companies'
+        ? this.companies.filter((c) => c.id === eq('id') && leads(c.id))
+        : this.sites.filter((x) => x.id === eq('id') && leads(x.company_id));
+      for (const row of list) row.name = name;
+      this.log.push(`renamed ${list.map((r) => r.id).join(',')} to ${name}`);
+      return json(list.map((r) => ({ id: r.id })));
     }
     if (path === '/rest/v1/companies') {
       const id = eq('id');
