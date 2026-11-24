@@ -1,9 +1,7 @@
 /* bergeronmaps.com home page: a few purposeful animations (GSAP), nothing else. The header menus are in nav.js. */
 (function () {
-  // Contact form → emailed to bergeronmaps@gmail.com through FormSubmit (formsubmit.co), no mail app needed.
-  // The address is FormSubmit's alias for that inbox (from its activation email), so bots can't read the inbox from this file.
-  // FormSubmit sends nothing until the inbox owner clicks the one-time activation link it emails on the first request.
-  var LEADS = 'https://formsubmit.co/ajax/9687e6712bcfabfe421759ed9ba285e3';
+  // Contact form → POST /api/contact (worker/index.js), which emails it to bergeronmaps@gmail.com through Resend.
+  var LEADS = '/api/contact';
   var form = document.getElementById('contact-form');
   var err = document.getElementById('form-error');
   var send = document.getElementById('form-send');
@@ -49,7 +47,7 @@
     send.textContent = 'Sending…';
     var industry = sel && sel.value ? sel.options[sel.selectedIndex].text : 'Not given';
     var company = val('company');
-    // FormSubmit can hang for a long time; give up after 20 seconds so the button never spins forever.
+    // The send can hang for a long time; give up after 20 seconds so the button never spins forever.
     var ctl = window.AbortController ? new AbortController() : null;
     var timer = ctl && setTimeout(function () { ctl.abort(); }, 20000);
     fetch(LEADS, {
@@ -57,10 +55,6 @@
       signal: ctl ? ctl.signal : undefined,
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        _subject: 'New map request: ' + (company || name),
-        _template: 'table',
-        _captcha: 'false',
-        _replyto: email,
         Name: name,
         Company: company || 'Not given',
         'Work email': email,

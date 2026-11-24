@@ -8,7 +8,7 @@ What the app and site send, and the one-time setup that makes those emails arriv
 | --- | --- | --- | --- |
 | Sign-in link and code (existing person) | Supabase Auth, **Magic Link** template | Supabase's sender until custom SMTP is set up | The only email the app sends. |
 | Sign-in link and code (first sign-in for an email) | Supabase Auth, **Confirm signup** template | same | Same flow; Supabase picks this template the first time an email signs in. |
-| Contact form lead | FormSubmit (formsubmit.co) | FormSubmit | Goes to bergeronmaps@gmail.com. Needs the one-time **Activate form** click. |
+| Contact form lead ("Get your map now") | The site's Worker (`worker/index.js`, `POST /api/contact`) through Resend | Bergeron Maps website &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com; press Reply to answer the visitor. Needs the `RESEND_API_KEY` secret in Cloudflare (section 5). |
 
 Not sent by email (shown in the app only): manager access requests, access given, access removed or moved
 (offboarding and transfers), new account set up. After **Give access**, the Sites and people page offers
@@ -78,6 +78,15 @@ What the new emails fix:
 
 ## 5. Contact form
 
-FormSubmit sends one **Activate form** email to bergeronmaps@gmail.com the first time the form is used. Until
-someone clicks it, leads are dropped. Send a test from bergeronmaps.com#contact and look for that email (check
-spam too).
+The form on bergeronmaps.com posts to `/api/contact` on our own Worker, which emails the lead through Resend.
+The Resend key is kept only in Cloudflare, once:
+
+1. Resend → **API Keys → Create API key**: name `Website form`, **Sending access**, domain `bergeronmaps.com`.
+   Copy the `re_…` key (it's shown once).
+2. Cloudflare dashboard → **Workers & Pages → bergeron-maps → Settings → Variables and Secrets → Add**:
+   type **Secret**, name `RESEND_API_KEY`, value the key. Press **Deploy**.
+3. Send a test from bergeronmaps.com#contact. It arrives from "Bergeron Maps website" with the visitor as the
+   reply-to address.
+
+Until the secret exists, the form says it didn't go through and shows the email address instead. Deploys keep
+the secret; it never goes in the repository or GitHub.
