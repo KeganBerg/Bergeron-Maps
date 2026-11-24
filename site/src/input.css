@@ -287,3 +287,7 @@
 .hp-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 /* The header stays at the top while scrolling, so in-page links stop below it. */
 html { scroll-padding-top: 72px; }
+/* Buttons and links to a section on the same page (Get your map now, How it works) glide there
+   rather than jumping, so the visitor sees where they went. Visitors who ask for reduced motion
+   still jump straight there. */
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
