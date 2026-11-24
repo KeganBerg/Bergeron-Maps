@@ -37,7 +37,7 @@ test('a building opens its own floor plan in the editor and the viewer', async (
   await expect(page.getByTestId('viewer-floor-Floor 2')).toBeVisible();
 
   await page.getByTestId('viewer-search').fill('conference table');
-  await expect(page.getByTestId('search-results')).toContainText('Service department 1 · Floor 1');
+  await expect(page.getByTestId('search-results')).toContainText('Service department 1, Floor 1');
 
   await page.getByTestId('go-outside').click();
   await expect(page.getByTestId('viewer-building')).toHaveCount(0);

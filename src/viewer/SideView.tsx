@@ -175,7 +175,7 @@ export function SideViewSheet({ model, currentId, title, onPick, onClose }: {
       </div>
       <p className="side-view-key muted" data-testid="side-view-key">
         {kinds.length
-          ? [...kinds.map((k) => KIND_NAMES[k]), model.route ? 'Your route' : ''].filter(Boolean).join(' · ')
+          ? [...kinds.map((k) => KIND_NAMES[k]), model.route ? 'Your route' : ''].filter(Boolean).join(', ')
           : 'No ramps, stairs or elevators connect these floors on the map yet.'}
       </p>
     </div>

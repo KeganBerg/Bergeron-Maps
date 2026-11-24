@@ -5,7 +5,9 @@
   uppercase letter-spaced labels; labels are sentence case. Themes change colour, never type.
   `src/typography.test.ts` enforces it.
 - **Look:** no "AI-made" styling (glows, shimmer, bento grids, pinned scroll, pill buttons,
-  mono eyebrows). It should read like an established enterprise SaaS product.
+  mono eyebrows). It should read like an established enterprise SaaS product. No middle-dot
+  separators ("·"): use commas in text, " | " in page titles, spacing between links.
+  `src/separators.test.ts` enforces it.
 - **Names:** never put client names in the app, site, repo or copy. Use "Company" or "Site Name".
 - **Logo:** never draw "BM" or the wordmark in a font; use the traced SVGs in `src/assets/brand/`.
 - **Site claims:** nothing on the marketing site (`site/`) may claim or show something the app

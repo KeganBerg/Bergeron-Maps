@@ -342,8 +342,7 @@
       [ring, pring].forEach(function (r) { r.setAttribute('x', x - w / 2 - 7); r.setAttribute('y', y - h / 2 - 7); r.setAttribute('width', w + 14); r.setAttribute('height', h + 14); });
       it.textContent = el.getAttribute('data-find');
       var kind = el.getAttribute('data-kind');
-      idt.textContent = 'Floor 1';
-      if (kind && kind !== el.getAttribute('data-find')) { var sep = document.createElement('i'); sep.className = 'sep'; sep.textContent = '\u00b7'; idt.appendChild(sep); idt.appendChild(document.createTextNode(kind)); }
+      idt.textContent = kind && kind !== el.getAttribute('data-find') ? 'Floor 1, ' + kind : 'Floor 1';
       route.setAttribute('d', el === entry ? 'M0 0' : pathTo(el));
       var vw = 260, vh = 340;
       setView([x - vw / 2, y - vh / 2, vw, vh], true);

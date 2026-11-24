@@ -37,7 +37,7 @@ export interface SideLink {
 export interface SideMark {
   level: number;
   x: number;
-  /** "3C21 · Floor 3 · North stairs" */
+  /** "3C21, Floor 3, North stairs" */
   text: string;
   space: boolean;
 }
@@ -159,7 +159,7 @@ export function sideView(doc: MapDocument, group: Floor[], opts: { focusId?: str
       model.mark = {
         level: levelOf.get(f.id)!,
         x: fx(o.x),
-        text: [title, f.name, near].filter(Boolean).join(' · '),
+        text: [title, f.name, near].filter(Boolean).join(', '),
         space: o.kind === 'space',
       };
     }

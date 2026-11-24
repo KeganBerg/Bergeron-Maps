@@ -80,7 +80,7 @@ export function signBody(c: SignContent): string {
     ? `<div class="map"><img src="${c.mapPicture}" alt="${esc(`${c.floor} map with ${c.place} marked`)}" data-testid="sign-map"></div>`
     : '';
   return `<div class="sign ${map ? 'with-map' : 'alone'} ${c.size}" data-testid="sign">
-    <div class="head"><h1>You are here</h1><p>${esc(c.place)} · ${esc(c.floor)}</p></div>
+    <div class="head"><h1>You are here</h1><p>${esc(c.place)}, ${esc(c.floor)}</p></div>
     ${map}
     <div class="scan">${qr}<div>
       <h2>Scan for directions</h2>

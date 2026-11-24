@@ -68,7 +68,7 @@ const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 's
 function describe(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
   const d = describeObject(o, doc);
   // The place a sign's QR code says you're standing at.
-  if (o.id === fromHint()) return { title: d.title, detail: ['You are here', d.detail].filter(Boolean).join(' · ') };
+  if (o.id === fromHint()) return { title: d.title, detail: ['You are here', d.detail].filter(Boolean).join(', ') };
   return d;
 }
 
@@ -79,7 +79,7 @@ function describeObject(o: MapObject, doc: MapDocument): { title: string; detail
   const to = (o.connectsTo ?? []).map((id) => doc.floors.find((f) => f.id === id)?.name).filter(Boolean);
   return {
     title: o.name || o.label || def?.name || 'Object',
-    detail: [def && o.name !== def.name ? def.name : null, to.length ? `Goes to ${to.join(', ')}` : null].filter(Boolean).join(' · ') || undefined,
+    detail: [def && o.name !== def.name ? def.name : null, to.length ? `Goes to ${to.join(', ')}` : null].filter(Boolean).join(', ') || undefined,
   };
 }
 
@@ -702,7 +702,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       )}
       <div className="print-only viewer-print" ref={printRef} aria-hidden="true">
         <style />
-        <h1>{doc.name} · {floorTitle(doc, floor)}</h1>
+        <h1>{doc.name}, {floorTitle(doc, floor)}</h1>
       </div>
       <header className="viewer-header">
         {(preview || backTo !== null) && (
@@ -713,7 +713,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         <div className="titles">
           <h1 data-testid="viewer-facility">{doc.name}</h1>
           <span className="muted small">
-            {floorTitle(doc, floor)} · {preview ? 'Draft' : 'Updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
+            {floorTitle(doc, floor)}, {preview ? 'draft' : 'updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
           </span>
         </div>
         <button className={`icon-btn${listOpen ? ' on' : ''}`} aria-label="List of spaces and places" title="List of spaces and places on this floor"
@@ -880,7 +880,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               <strong>{info.title}</strong>
               <span className="info-meta">
                 {tappedFloor && group.length > 1 && <span className="floor-swatch" aria-hidden="true" />}
-                {[tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(' · ')}
+                {[tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(', ')}
               </span>
             </div>
             <button className="icon-btn info-close" aria-label="Close" onClick={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}><Icon name="close" /></button>
@@ -1128,7 +1128,7 @@ function DirectionsSheet(p: {
         <div>
           <strong>To {dir.goal.name}</strong>
           <span className="muted" data-testid="dir-summary">
-            {feet(route.length)} ft · about {mins} min · from {dir.start.name}
+            {feet(route.length)} ft, about {mins} min from {dir.start.name}
           </span>
         </div>
         {close}
@@ -1139,7 +1139,7 @@ function DirectionsSheet(p: {
             <button className={s.floorId === p.floorId ? 'here' : ''} onClick={() => p.onStep(s.kind === 'walk' ? s.floorId : s.toFloorId ?? s.floorId)} data-testid="route-step">
               <Icon name={STEP_ICON[s.kind] ?? 'directions'} size={16} />
               <span>{s.text}</span>
-              {multiFloor && <span className="muted">{s.kind === 'walk' ? `${floorName(s.floorId)} · ${feet(route.legs[s.leg!]?.length ?? 0)} ft` : floorName(s.floorId)}</span>}
+              {multiFloor && <span className="muted">{s.kind === 'walk' ? `${floorName(s.floorId)}, ${feet(route.legs[s.leg!]?.length ?? 0)} ft` : floorName(s.floorId)}</span>}
             </button>
           </li>
         ))}

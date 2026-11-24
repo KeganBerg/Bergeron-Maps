@@ -57,7 +57,7 @@ function mapState(m: AdminMap): string {
 function access(p: AdminPerson, sites: AdminSite[]): string {
   const role = p.role === 'owner' ? 'Account lead' : p.role === 'manager' ? (p.facility_ids === null ? 'Regional manager' : 'Site manager') : 'Employee';
   const where = p.facility_ids === null ? 'all sites' : p.facility_ids.map((id) => sites.find((s) => s.id === id)?.name ?? 'a site').join(', ');
-  return `${role} · ${where}`;
+  return `${role}, ${where}`;
 }
 
 /** Saves text as a file in the browser's downloads. */
@@ -217,9 +217,9 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   };
   const describeHit = (h: Hit) => {
     if (h.kind === 'company') return `${h.company.sites.length} sites, ${h.company.people.length} people`;
-    if (h.kind === 'site') return `${h.company.name} · ${h.site.maps} ${h.site.maps === 1 ? 'map' : 'maps'}`;
-    if (h.kind === 'person') return `${h.company.name} · ${access(h.person, h.company.sites)}${h.person.pending ? ' · hasn’t signed in yet' : ''}`;
-    return `${h.company.name} · ${h.site?.name ?? 'a site'} · ${mapState(h.map)} · edited ${when(h.map.updated_at)}`;
+    if (h.kind === 'site') return `${h.company.name}, ${h.site.maps} ${h.site.maps === 1 ? 'map' : 'maps'}`;
+    if (h.kind === 'person') return `${h.company.name}, ${access(h.person, h.company.sites)}${h.person.pending ? ' (hasn’t signed in yet)' : ''}`;
+    return `${h.company.name}, ${h.site?.name ?? 'a site'}, ${mapState(h.map)}, edited ${when(h.map.updated_at)}`;
   };
   const totals = data && {
     companies: data.length,
@@ -315,7 +315,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
               </span>
             </div>
             <p className="muted small admin-contract">
-              Set up {when(c.created_at)} ·{' '}
+              Set up {when(c.created_at)},{' '}
               {editing?.kind === 'limit' && editing.id === c.id ? (
                 <form className="link-edit" onSubmit={(e) => { e.preventDefault(); setEditing(null);
                   void act(() => supabase!.rpc('set_site_limit', { p_company: c.id, p_max_sites: editing.value.trim() ? Number(editing.value) : null }), `Site limit for ${c.name} saved.`); }}>
@@ -340,7 +340,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
                     <li key={q.id}>
                       <span>
                         <strong>{q.email}</strong>
-                        <span className="muted small">{c.sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'}{q.note ? ` · “${q.note}”` : ''}</span>
+                        <span className="muted small">{c.sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'}{q.note ? `: “${q.note}”` : ''}</span>
                       </span>
                       <span className="site-actions">
                         <button className="btn small primary" onClick={() => void act(() => supabase!.rpc('decide_manager_request', { p_request: q.id, p_approve: true }),
@@ -377,7 +377,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
                     <span className="muted small site-url">{siteLink(s.slug)}</span>
                   </span>
                   <span className="site-actions">
-                    <span className="muted small">{s.maps} {s.maps === 1 ? 'map' : 'maps'} · {s.published} published{s.public ? ` · ${s.public} public` : ''}</span>
+                    <span className="muted small">{s.maps} {s.maps === 1 ? 'map' : 'maps'}, {s.published} published{s.public ? `, ${s.public} public` : ''}</span>
                     <button className="btn small danger-text" onClick={() => setDeletingSite({ company: c, site: s })} data-testid={`delete-site-${s.name}`}>Delete</button>
                   </span>
                 </li>
@@ -491,7 +491,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
               </button>
             </>}>
             <p className="muted small">
-              {restoring.fileName} · made {when(restoring.file.exportedAt)}{restoring.file.exportedBy ? ` by ${restoring.file.exportedBy}` : ''}
+              {restoring.fileName}, made {when(restoring.file.exportedAt)}{restoring.file.exportedBy ? ` by ${restoring.file.exportedBy}` : ''}
             </p>
             <ul className="restore-list">
               {restoring.file.companies.map((c) => {
@@ -505,7 +505,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
                       <span>
                         <strong>{c.name}</strong>
                         <span className="muted small">
-                          {exists ? 'Still in All accounts, so there’s nothing to restore · ' : ''}
+                          {exists ? 'Still in All accounts, so there’s nothing to restore. ' : ''}
                           {plural(k.sites, 'site')}, {plural(k.people, 'person', 'people')}, {plural(k.maps, 'map')}
                           {k.trashed ? ` and ${k.trashed} in Recently deleted` : ''}, {plural(k.versions, 'saved version')}
                         </span>

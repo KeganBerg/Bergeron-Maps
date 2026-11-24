@@ -85,7 +85,7 @@ export function roadJoints(pieces: RoadPiece[]): RoadJoint[] {
         // Lined up (one road carrying straight on) is handled elsewhere; side by side or a T is not a bend.
         if (Math.abs(cross) < 0.05 || dot > -0.17) return;
         if (Math.hypot(bx - ax, by - ay) > w) return;
-        // a + sa·outA = b + sb·outB
+        // a + sa*outA = b + sb*outB
         const sa = ((bx - ax) * f.out[1] - (by - ay) * f.out[0]) / cross;
         const sb = ((bx - ax) * e.out[1] - (by - ay) * e.out[0]) / cross;
         if (Math.abs(sa) > 0.75 * w || Math.abs(sb) > 0.75 * w) return;
