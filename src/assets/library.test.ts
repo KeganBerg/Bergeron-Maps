@@ -92,6 +92,13 @@ describe('space number fitting', () => {
     expect(f.size * 0.62 * 3).toBeLessThanOrEqual(44);
   });
 
+  it('leaves a margin inside the space instead of filling it edge to edge', () => {
+    // A warehouse rack "D-09" in a 70-wide bay: the number keeps clear of both lines.
+    const f = fitLabel('D-09', 40, 70, 60);
+    expect(f.lines).toEqual(['D-09']);
+    expect(f.size * 0.68 * 4).toBeLessThanOrEqual(70 * 0.75);
+  });
+
   it('keeps short numbers on one line at full size', () => {
     expect(fitLabel('12', 15, 45, 90)).toEqual({ lines: ['12'], size: 15 });
   });

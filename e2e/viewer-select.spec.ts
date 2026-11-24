@@ -19,7 +19,7 @@ test('clicking a space with a mouse opens its card and highlights it', async ({ 
   await expect.poll(() => page.evaluate(`(${stage})().find('.obj').length`)).toBeGreaterThan(0);
   const where = () => page.evaluate(() => {
     const st = (window as unknown as { Konva: { stages: St[] } }).Konva.stages[0];
-    const g = st.find('.obj').find((n) => n.findOne('Text')?.text() === 'B4')!;
+    const g = st.find('.obj').find((n) => n.findOne('Text')?.text().replace(/\n/g, '') === 'B4')!;
     const r = g.getClientRect();
     const b = st.container().getBoundingClientRect();
     return { x: b.left + r.x + r.width / 2, y: b.top + r.y + r.height / 2 };
