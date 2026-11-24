@@ -57,7 +57,7 @@ export class MockSupabase {
   /** Manager requests (Request Manager Status). */
   requests: { id: string; company_id: string; facility_id: string; user_id: string; email: string; note: string | null; status: string; created_at: string }[] = [];
   /** Published copies: map id → whether a manager made it public. */
-  published = new Map<string, { isPublic: boolean }>();
+  published = new Map<string, { isPublic: boolean; revision?: number; doc?: Record<string, unknown> }>();
   /** Set to act like a database from before the floor/space counting columns (lighter map lists). */
   countsMissing = false;
   /** Users whose sessions were ended (removed from a company). */
@@ -219,11 +219,24 @@ export class MockSupabase {
     };
     if ((path === '/rest/v1/maps' || path === '/rest/v1/published_maps') && /floor_count|space_count|level_count/.test(select) && this.countsMissing)
       return json({ code: '42703', message: `column ${path.split('/').pop()}.${/level_count/.test(select) ? 'level_count' : 'floor_count'} does not exist` }, 400);
+    if (path === '/rest/v1/maps' && req.method() === 'POST') {
+      // A new map: the database fills company_id from the site and picks the first free slot.
+      const b = req.postDataJSON() as { id: string; facility_id: string; name: string; draft: Record<string, unknown>; slot: number | null };
+      const site = this.sites.find((s) => s.id === b.facility_id);
+      if (!site || !this.canManage(u, site)) return json({ code: '42501', message: 'new row violates row-level security policy for table "maps"' }, 403);
+      const used = this.maps.filter((m) => m.facility_id === site.id).map((m) => m.slot);
+      const slot = b.slot && !used.includes(b.slot) ? b.slot : [1, 2, 3, 4, 5].find((n) => !used.includes(n));
+      if (!slot) return json({ code: 'P0001', message: 'This site already has 5 maps.' }, 400);
+      this.maps.push({ id: b.id, company_id: site.company_id, facility_id: site.id, name: b.name, draft: b.draft, revision: 1, slot });
+      url.searchParams.set('id', `eq.${b.id}`);
+    }
     if (path === '/rest/v1/maps') {
       let list = this.maps.filter((m) => this.canSee(u, this.sites.find((s) => s.id === m.facility_id)!));
       const id = eq('id'), mapCompany = eq('company_id');
       if (id) list = list.filter((m) => m.id === id);
       if (mapCompany) list = list.filter((m) => m.company_id === mapCompany);
+      // No map here is ever deleted, so the Recently deleted list (deleted_at=not.is.null) is empty.
+      if (url.searchParams.get('deleted_at') === 'not.is.null') list = [];
       if (req.method() === 'PATCH' && url.searchParams.has('revision')) {
         const rev = Number(eq('revision'));
         list = list.filter((m) => m.revision === rev && this.canManage(u, this.sites.find((s) => s.id === m.facility_id)!));
@@ -243,7 +256,7 @@ export class MockSupabase {
         const c = countsOf(draft);
         return { ...row, ...(wants('draft') ? { draft } : {}), ...(wants('floor_count') ? { floor_count: c.floor_count } : {}), ...(wants('space_count') ? { space_count: c.space_count } : {}),
           created_at: now, updated_at: now, deleted_at: null, is_public: pub?.isPublic ?? false, facilities: { name: site.name, slug: site.slug },
-          published_maps: pub ? { published_at: now, revision: m.revision } : null };
+          published_maps: pub ? { published_at: now, revision: pub.revision ?? m.revision } : null };
       }));
     }
     if (path === '/rest/v1/published_maps') {
@@ -252,9 +265,10 @@ export class MockSupabase {
         && (!pubCompany || m.company_id === pubCompany));
       return rows(list.map((m) => {
         const c = countsOf(m.draft);
-        return { map_id: m.id, name: m.name, facility_id: m.facility_id, published_at: '2026-11-12T00:00:00Z', revision: m.revision,
-          ...(wants('doc') ? { doc: m.draft } : {}),
-          ...(/doc->floors/.test(select) ? { floors: (m.draft as { floors?: unknown[] }).floors ?? null } : {}),
+        const pub = this.published.get(m.id)!;
+        return { map_id: m.id, name: m.name, facility_id: m.facility_id, published_at: '2026-11-12T00:00:00Z', revision: pub.revision ?? m.revision,
+          ...(wants('doc') ? { doc: pub.doc ?? m.draft } : {}),
+          ...(/doc->floors/.test(select) ? { floors: ((pub.doc ?? m.draft) as { floors?: unknown[] }).floors ?? null } : {}),
           ...Object.fromEntries(Object.entries(c).filter(([k]) => wants(k))) };
       }));
     }
@@ -274,6 +288,14 @@ export class MockSupabase {
     const rpc = path.startsWith('/rest/v1/rpc/') ? path.slice('/rest/v1/rpc/'.length) : null;
     const args = (req.postDataJSON() ?? {}) as Record<string, string>;
     if (rpc === 'is_platform_admin') return json(!!u.admin);
+    if (rpc === 'publish_map' || rpc === 'unpublish_map') {
+      const m = this.maps.find((x) => x.id === String((req.postDataJSON() ?? {}).p_map));
+      if (!m || !this.canManage(u, this.sites.find((s) => s.id === m.facility_id)!)) return json({ code: '42501', message: 'permission denied' }, 403);
+      if (rpc === 'unpublish_map') this.published.delete(m.id);
+      // The published copy is a snapshot: later draft edits don't reach it until the next publish.
+      else this.published.set(m.id, { isPublic: this.published.get(m.id)?.isPublic ?? false, revision: m.revision, doc: structuredClone(m.draft) });
+      return json(null);
+    }
     if (rpc === 'join_site') {
       if (u.admin && this.sites.some((s) => s.code === String(args.p_code ?? '').toUpperCase()))
         return json({ code: '22023', message: 'You’re signed in as a Bergeron Maps admin, so you already have every site. To see what an employee sees, sign in with a different email.' }, 400);
