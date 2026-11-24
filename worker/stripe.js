@@ -15,10 +15,11 @@
 // STRIPE_MONTHLY_PRICE.
 
 import { INBOX, ORIGIN, EMAIL, reply, esc, shell, button } from './shared.js';
+import { STRIPE_VERSION, StripeError } from './stripe-api.js';
+import { findReferrer, readReferralCode, settleReferral } from './referrals.js';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
-// Pinned so a Stripe-side upgrade can't change what these calls return.
-export const STRIPE_VERSION = '2026-11-18.endive';
+export { STRIPE_VERSION };
 // Tags these Checkout pages in the Stripe Dashboard so this flow can be told apart from others.
 const INTEGRATION_ID = 'get-your-map-now-qmwvhtrk';
 // Bigger orders go through a conversation first (the assisted path in the sales plan).
@@ -82,6 +83,20 @@ export async function checkout(request, env, send = fetch) {
     form.set(`metadata[${k}]`, v);
     form.set(`subscription_data[metadata][${k}]`, v);
   }
+  // A referral code typed by the buyer: the customer who owns it gets one month free once this
+  // order is paid (settleReferral in the webhook).
+  if (data.referralCode != null && String(data.referralCode).trim()) {
+    const code = readReferralCode(data.referralCode);
+    let referrer = null;
+    try { referrer = code && (await findReferrer(env, send, code)); } catch (e) {
+      if (!(e instanceof StripeError)) throw e;
+      console.error('Referral lookup failed', e.status, e.message);
+      return reply(502, { success: false, error: 'Payment service failed' });
+    }
+    if (!referrer || referrer.email === order.email) return reply(400, { success: false, error: "That referral code wasn't found" });
+    form.set('metadata[referred_by]', referrer.id);
+    form.set('metadata[referral_code]', code);
+  }
   // The "I agree to the terms" box. Stripe needs a terms page link in its settings first.
   if (env.STRIPE_TERMS === 'required') form.set('consent_collection[terms_of_service]', 'required');
 
@@ -129,6 +144,19 @@ export async function stripeWebhook(request, env, send = fetch, now = Date.now()
 
   const note = describeEvent(event);
   if (!note) return reply(200, { received: true });
+  if (note.paidOrder) {
+    // A failed Stripe call answers 500 before any email goes out, so Stripe retries the whole
+    // event; the referral credit's idempotency key keeps a retry from crediting twice.
+    try {
+      const { code, reward } = await settleReferral(env, send, event.data.object);
+      if (code) note.rows.push(['Their referral code', code]);
+      if (reward) note.rows.push(['Referral reward', `${money(reward)} credit to the customer who referred them`]);
+    } catch (e) {
+      if (!(e instanceof StripeError)) throw e;
+      console.error('Referral step failed', e.status, e.message);
+      return reply(500, { received: false });
+    }
+  }
   if (!env.RESEND_API_KEY) return reply(200, { received: true, emailed: false });
   const res = await send('https://api.resend.com/emails', {
     method: 'POST',
@@ -186,7 +214,7 @@ export function describeEvent(event) {
   const o = event?.data?.object || {};
   const dash = `https://dashboard.stripe.com/${event?.livemode ? '' : 'test/'}`;
   const who = (c = {}) => [c.name, c.email].filter(Boolean).join(', ');
-  const order = (title) => {
+  const order = (title, paidOrder = false) => {
     const m = o.metadata || {};
     return {
       title: `${title}: ${m.company || o.customer_details?.name || 'new customer'}`,
@@ -196,7 +224,10 @@ export function describeEvent(event) {
         ['Phone', o.customer_details?.phone],
         ['Locations', m.locations],
         ['Paid today', o.amount_total != null && money(o.amount_total, o.currency)],
+        ['Referred with code', m.referral_code],
       ],
+      // Paid orders also settle the referral (stripeWebhook).
+      paidOrder,
       link: o.customer ? `${dash}customers/${o.customer}` : `${dash}payments`,
       button: 'Open the customer in Stripe',
     };
@@ -204,9 +235,9 @@ export function describeEvent(event) {
   switch (event?.type) {
     case 'checkout.session.completed':
       // Bank payments (ACH) finish days later: async_payment_succeeded says when the money is in.
-      return o.payment_status === 'unpaid' ? order('Order placed, bank payment pending') : order('New order paid');
+      return o.payment_status === 'unpaid' ? order('Order placed, bank payment pending') : order('New order paid', true);
     case 'checkout.session.async_payment_succeeded':
-      return order('Bank payment cleared, order paid');
+      return order('Bank payment cleared, order paid', true);
     case 'checkout.session.async_payment_failed':
       return order('Bank payment failed');
     case 'invoice.payment_failed':
@@ -216,6 +247,25 @@ export function describeEvent(event) {
         link: `${dash}invoices/${o.id}`,
         button: 'Open the invoice in Stripe',
       };
+    case 'customer.subscription.updated': {
+      // The 10-day grace period: Stripe retries a failed monthly payment (past_due), and when the
+      // last retry fails the subscription becomes unpaid. Only a change of status is news.
+      const was = event.data?.previous_attributes?.status;
+      if (!was || was === o.status) return null;
+      const titles = {
+        past_due: 'Monthly payment overdue, 10-day grace period started',
+        unpaid: 'Grace period over, payment still missing',
+        active: was === 'trialing' ? null : 'Payment received, subscription active again',
+      };
+      const title = titles[o.status];
+      if (!title) return null;
+      return {
+        title: `${title}: ${o.metadata?.company || 'a customer'}`,
+        rows: [['Company', o.metadata?.company], ['Locations', o.metadata?.locations], ['Status', `${was} to ${o.status}`]],
+        link: `${dash}subscriptions/${o.id}`,
+        button: 'Open the subscription in Stripe',
+      };
+    }
     case 'customer.subscription.deleted':
       return {
         title: `Subscription canceled: ${o.metadata?.company || 'a customer'}`,

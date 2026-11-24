@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 // @ts-expect-error plain JS module run by the Cloudflare Worker
+import { newReferralCode, readReferralCode } from '../../worker/referrals.js';
+// @ts-expect-error plain JS module run by the Cloudflare Worker
 import { checkout, checkoutTestPage, stripeWebhook, verifySignature, hmacHex, readOrder, describeEvent, STRIPE_VERSION } from '../../worker/stripe.js';
 
 const env = {
@@ -112,7 +114,7 @@ describe('POST /api/stripe-webhook', () => {
     const send = vi.fn(async () => new Response('{}', { status: 200 }));
     const res = await stripeWebhook(await signed(paid), env, send, NOW);
     expect(res.status).toBe(200);
-    const mail = JSON.parse(String((send.mock.calls[0] as unknown as Call)[1].body));
+    const mail = JSON.parse(String(((send.mock.calls as unknown as Call[]).find((c) => c[0].includes('resend')) as Call)[1].body));
     expect(mail.to).toEqual(['bergeronmaps@gmail.com']);
     expect(mail.subject).toBe('Test: New order paid: Company <b>');
     expect(mail.html).toContain('$7,500.00');
@@ -159,5 +161,74 @@ describe('GET /api/checkout-test', () => {
     expect(res.headers.get('x-robots-tag')).toBe('noindex');
     expect(checkoutTestPage(get, { ...env, STRIPE_SECRET_KEY: 'rk_live_abc' }).status).toBe(404);
     expect(checkoutTestPage(get, {}).status).toBe(404);
+  });
+});
+
+/** A fake Stripe + Resend that answers by URL, and records every call. */
+function fakeServices(answers: Record<string, unknown>) {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const hit = Object.keys(answers).find((k) => url.includes(k) && (!k.startsWith('POST ') || init?.method === 'POST'));
+    return new Response(JSON.stringify(hit ? answers[hit] : {}), { status: 200 });
+  });
+}
+
+describe('referrals', () => {
+  it('reads codes the way people type them', () => {
+    expect(readReferralCode(' bm-abc234 ')).toBe('BM-ABC234');
+    expect(readReferralCode('bmabc234')).toBe('BM-ABC234');
+    expect(readReferralCode('BM-ABC1O0')).toBe('');
+    expect(newReferralCode()).toMatch(/^BM-[A-HJ-NP-Z2-9]{6}$/);
+  });
+  it('a valid code marks the order as referred; an unknown or own code is refused', async () => {
+    const send = fakeServices({ 'customers/search': { data: [{ id: 'cus_ref', email: 'ref@example.com' }] }, 'checkout/sessions': { url: 'https://checkout.stripe.com/x' } });
+    const res = await checkout(post({ ...buyer, referralCode: 'bm-abc234' }), env, send);
+    expect(res.status).toBe(200);
+    const create = send.mock.calls.find((c) => String(c[0]).includes('checkout/sessions')) as unknown as Call;
+    const form = new URLSearchParams(String(create[1].body));
+    expect(form.get('metadata[referred_by]')).toBe('cus_ref');
+    expect(form.get('metadata[referral_code]')).toBe('BM-ABC234');
+    const none = fakeServices({ 'customers/search': { data: [] } });
+    expect((await checkout(post({ ...buyer, referralCode: 'BM-ABC234' }), env, none)).status).toBe(400);
+    const own = fakeServices({ 'customers/search': { data: [{ id: 'cus_me', email: 'pat@example.com' }] } });
+    expect((await checkout(post({ ...buyer, referralCode: 'BM-ABC234' }), env, own)).status).toBe(400);
+    expect((await checkout(post({ ...buyer, referralCode: 'nonsense' }), env, fakeServices({}))).status).toBe(400);
+  });
+  it('a paid referred order gives the buyer a code and credits the referrer one month, once', async () => {
+    const referred = { ...paid, data: { object: { ...paid.data.object, id: 'cs_9', metadata: { company: 'Company', referred_by: 'cus_ref', referral_code: 'BM-ABC234' } } } };
+    const send = fakeServices({
+      'customers/cus_1': { id: 'cus_1', metadata: {} },
+      'subscriptions?customer=cus_ref': { data: [{ items: { data: [{ quantity: 2, price: { unit_amount: 50000, recurring: { interval: 'month' } } }] } }] },
+    });
+    const res = await stripeWebhook(await signed(referred), env, send, NOW);
+    expect(res.status).toBe(200);
+    const calls = send.mock.calls as unknown as Call[];
+    const setCode = calls.find(([u, i]) => u.endsWith('/customers/cus_1') && i.method === 'POST');
+    expect(new URLSearchParams(String(setCode?.[1].body)).get('metadata[referral_code]')).toMatch(/^BM-/);
+    const credit = calls.find(([u]) => u.includes('/customers/cus_ref/balance_transactions'));
+    expect(new URLSearchParams(String(credit?.[1].body)).get('amount')).toBe('-100000');
+    expect((credit?.[1].headers as Record<string, string>)['idempotency-key']).toBe('referral-cs_9');
+    const mail = JSON.parse(String(calls.find(([u]) => u.includes('resend'))?.[1].body));
+    expect(mail.html).toContain('$1,000.00 credit');
+    expect(mail.html).toContain('Their referral code');
+  });
+  it('keeps an existing code and answers 500 without emailing when Stripe fails', async () => {
+    const keep = fakeServices({ 'customers/cus_1': { id: 'cus_1', metadata: { referral_code: 'BM-KEEP22' } } });
+    await stripeWebhook(await signed(paid), env, keep, NOW);
+    expect((keep.mock.calls as unknown as Call[]).some(([u, i]) => u.endsWith('/customers/cus_1') && i.method === 'POST')).toBe(false);
+    const down = vi.fn(async () => new Response('{"error":{"message":"down"}}', { status: 500 }));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await stripeWebhook(await signed(paid), env, down, NOW)).status).toBe(500);
+    expect((down.mock.calls as unknown as Call[]).some((c) => c[0].includes('resend'))).toBe(false);
+  });
+});
+
+describe('grace period emails', () => {
+  const update = (from: string, to: string) => ({ type: 'customer.subscription.updated', data: { object: { id: 'sub_1', status: to, metadata: { company: 'Company' } }, previous_attributes: { status: from } } });
+  it('names overdue, unpaid and recovered subscriptions, and ignores the rest', () => {
+    expect(describeEvent(update('active', 'past_due'))?.title).toMatch(/grace period started/);
+    expect(describeEvent(update('past_due', 'unpaid'))?.title).toMatch(/^Grace period over/);
+    expect(describeEvent(update('past_due', 'active'))?.title).toMatch(/active again/);
+    expect(describeEvent(update('trialing', 'active'))).toBeNull();
+    expect(describeEvent({ type: 'customer.subscription.updated', data: { object: { status: 'active' } } })).toBeNull();
   });
 });

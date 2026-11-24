@@ -23,6 +23,7 @@ Code: `worker/stripe.js`, tests in `src/cloud/stripe-worker.test.ts`.
    | `checkout.session.async_payment_succeeded` | Bank payment cleared, order paid |
    | `checkout.session.async_payment_failed` | Bank payment failed |
    | `invoice.payment_failed` | A monthly payment failed (Stripe retries it by itself) |
+   | `customer.subscription.updated` | Only when the status changes: overdue (10-day grace period started), grace period over (unpaid), or paid again |
    | `customer.subscription.deleted` | Subscription canceled |
    | `charge.refunded` | Refund issued |
    | `charge.dispute.created` | Card dispute opened, with the respond-by date |
@@ -35,6 +36,22 @@ Not built yet (on purpose, waiting on decisions in the onboarding plan): the rea
 site, opening the customer's Bergeron Maps account automatically after payment, the terms page, sales
 tax, and white-label ($5,000). Until the purchase page exists, `GET /api/checkout-test` is a bare test
 form that only works with a test key and isn't linked from the site.
+
+## Referral codes (1 month free)
+
+Every paid order gets a referral code such as `BM-7KQ2MX`, saved on the Stripe customer
+(metadata `referral_code`) and shown in the order email so it can be passed to the customer.
+When a new buyer enters someone's code, the order is marked `referred_by` that customer, and once
+the new order is paid the referrer gets one month free: a credit equal to one month of their own
+subscription, which Stripe takes off their next invoice. The new buyer pays normal prices. A code
+can't be used on your own email, and a repeated webhook never credits twice (idempotency key per
+Checkout page). Code: `worker/referrals.js`.
+
+## The 10-day grace period
+
+Stripe retries a failed monthly payment by itself. Set the retries to end after 10 days (step 8);
+then the subscription becomes **unpaid**, and the order inbox gets "Grace period over". Until the
+account pause is built, pausing is done by hand from that email.
 
 ## Safety rules in the code
 
@@ -55,10 +72,11 @@ Never paste keys in chat. They go straight from Stripe into Cloudflare.
    - Name **Map setup**, one-off price **$2,500.00 USD**. Save, open the price, copy its ID (`price_…`).
    - Name **Map subscription**, recurring price **$500.00 USD monthly**. Copy its price ID too.
 3. **Restricted key.** Developers → API keys → **Create restricted key**, name it "bergeronmaps.com
-   website". Set **Checkout Sessions: Write**, **Products: Read** and **Prices: Read**; leave everything
-   else at None. Create it and keep the `rk_test_…` value on screen for step 5.
+   website". Set **Checkout Sessions: Write**, **Customers: Write**, **Subscriptions: Read**,
+   **Products: Read** and **Prices: Read**; leave everything else at None. (Customers and
+   Subscriptions are for referral codes and credits.) Create it and keep the `rk_test_…` value on screen for step 5.
 4. **Webhook.** Developers → Webhooks → **Add destination** → your account → choose these events:
-   the eight in the table above. Endpoint URL `https://bergeronmaps.com/api/stripe-webhook`. After saving,
+   the nine in the table above. Endpoint URL `https://bergeronmaps.com/api/stripe-webhook`. After saving,
    reveal the **Signing secret** (`whsec_…`).
 5. **Cloudflare secrets.** Cloudflare → Workers & Pages → **bergeron-maps** → Settings → Variables and
    Secrets → **Add**. Pick type **Secret** for every one (plain text variables are wiped by each deploy):
@@ -73,6 +91,10 @@ Never paste keys in chat. They go straight from Stripe into Cloudflare.
    future date and any CVC. Within a minute bergeronmaps@gmail.com should get "Test: New order paid".
    In Stripe, the customer should show a paid $2,500 per location and a subscription whose trial ends in
    30 days.
+
+8. **Grace period.** Settings → Billing → **Revenue recovery** (Manage failed payments): use a custom
+   retry schedule whose last retry is on day 10, and set "If all retries for a payment fail" to
+   **Mark the subscription as unpaid**. Also turn on the email to customers about failed payments.
 
 ## Before taking real money
 
