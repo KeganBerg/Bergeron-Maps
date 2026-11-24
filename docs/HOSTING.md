@@ -13,7 +13,8 @@ How it works:
   microphone or payment access) and long caching for the app's hashed files.
 - `.github/workflows/cloudflare.yml` deploys `main` on every merge, and gives every pull request its own
   preview address (`pr-<number>-bergeron-maps.<account>.workers.dev`). Until the two secrets below exist it
-  skips itself with a note, so checks stay green.
+  skips itself with a note, so checks stay green. After each deploy, `scripts/check-deploy.sh` checks the
+  live copy: pages answer, unknown pages are 404s, `/app` redirects, and the headers are on.
 
 The address, links, saved sign-ins and maps saved in a browser stay the same, because the site stays on
 bergeronmaps.com.
