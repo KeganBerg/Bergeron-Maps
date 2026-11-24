@@ -42,6 +42,16 @@ describe('POST /api/checkout', () => {
     // The terms box only once the terms page exists.
     expect(form.has('consent_collection[terms_of_service]')).toBe(false);
   });
+  it('ignores stray line breaks in pasted values and explains a product ID by mistake', async () => {
+    const send = stripeOk();
+    await checkout(post(buyer), { ...env, STRIPE_SETUP_PRICE: 'price_setup\n', STRIPE_SECRET_KEY: ' rk_test_abc ' }, send);
+    const [, init] = send.mock.calls[0] as unknown as Call;
+    expect(new URLSearchParams(String(init.body)).get('line_items[0][price]')).toBe('price_setup');
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer rk_test_abc');
+    const res = await checkout(post(buyer), { ...env, STRIPE_SETUP_PRICE: 'prod_123' }, stripeOk());
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/price IDs/);
+  });
   it('asks for agreement to the terms when turned on', async () => {
     const send = stripeOk();
     await checkout(post(buyer), { ...env, STRIPE_TERMS: 'required' }, send);

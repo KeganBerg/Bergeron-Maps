@@ -36,8 +36,13 @@ export async function checkout(request, env, send = fetch) {
   if (request.method !== 'POST') return reply(405, { success: false, error: 'POST only' });
   const origin = request.headers.get('origin') || '';
   if (!ORIGIN.test(origin)) return reply(403, { success: false, error: 'Not allowed' });
-  const key = env.STRIPE_SECRET_KEY;
-  if (!key || !env.STRIPE_SETUP_PRICE || !env.STRIPE_MONTHLY_PRICE) return reply(503, { success: false, error: 'Not set up' });
+  // Trimmed because values pasted into the Cloudflare dashboard can carry a stray line break.
+  const key = (env.STRIPE_SECRET_KEY || '').trim();
+  const setupPrice = (env.STRIPE_SETUP_PRICE || '').trim(), monthlyPrice = (env.STRIPE_MONTHLY_PRICE || '').trim();
+  if (!key || !setupPrice || !monthlyPrice) return reply(503, { success: false, error: 'Not set up' });
+  // A product ID (prod_) is the easy mistake to make in the dashboard; say so plainly.
+  if (!setupPrice.startsWith('price_') || !monthlyPrice.startsWith('price_'))
+    return reply(503, { success: false, error: 'Not set up: STRIPE_SETUP_PRICE and STRIPE_MONTHLY_PRICE must be price IDs (price_...), not product IDs' });
   // Live keys sell for real, so they only work once Kegan turns sales on (CHECKOUT_LIVE=true).
   if (isLiveKey(key) && env.CHECKOUT_LIVE !== 'true') return reply(503, { success: false, error: 'Not open yet' });
 
@@ -51,9 +56,9 @@ export async function checkout(request, env, send = fetch) {
   const back = `${origin}${order.returnPath}`;
   const form = new URLSearchParams({
     mode: 'subscription',
-    'line_items[0][price]': env.STRIPE_SETUP_PRICE,
+    'line_items[0][price]': setupPrice,
     'line_items[0][quantity]': String(order.locations),
-    'line_items[1][price]': env.STRIPE_MONTHLY_PRICE,
+    'line_items[1][price]': monthlyPrice,
     'line_items[1][quantity]': String(order.locations),
     // The monthly price waits 30 days; the one-time setup price is charged today.
     'subscription_data[trial_period_days]': String(MONTHLY_STARTS_AFTER_DAYS),
@@ -112,7 +117,7 @@ export async function stripeWebhook(request, env, send = fetch, now = Date.now()
   if (request.method !== 'POST') return reply(405, { received: false });
   if (!env.STRIPE_WEBHOOK_SECRET) return reply(503, { received: false });
   const raw = await request.text();
-  const signed = await verifySignature(raw, request.headers.get('stripe-signature') || '', env.STRIPE_WEBHOOK_SECRET, now);
+  const signed = await verifySignature(raw, request.headers.get('stripe-signature') || '', env.STRIPE_WEBHOOK_SECRET.trim(), now);
   if (!signed) return reply(400, { received: false });
   let event;
   try { event = JSON.parse(raw); } catch { return reply(400, { received: false }); }
@@ -256,7 +261,7 @@ ${button(esc(link), esc(label))}
  * offers online purchase before it's real (docs/SITE_CLAIMS.md).
  */
 export function checkoutTestPage(request, env) {
-  if (request.method !== 'GET' || !isTestKey(env.STRIPE_SECRET_KEY)) return new Response('Not found', { status: 404 });
+  if (request.method !== 'GET' || !isTestKey((env.STRIPE_SECRET_KEY || '').trim())) return new Response('Not found', { status: 404 });
   const state = new URL(request.url).searchParams.get('checkout');
   const notice = state === 'done'
     ? '<p class="note">Checkout finished. The order email goes to the company inbox within a minute.</p>'
