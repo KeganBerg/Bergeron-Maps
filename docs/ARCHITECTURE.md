@@ -19,7 +19,7 @@
 src/
   model/      Pure map logic, no UI: types, row generation and numbering, snapping,
               alignment, copy/paste, floors, layers, duplicates, search, migrations,
-              walking directions (route), side view
+              walking directions (route.ts + route/), side view
   assets/     Built-in symbol library (original artwork drawn in code)
   storage/    MapRepository interface + IndexedDB implementation, map files
   render/     Konva shapes shared by the editor and the viewer
@@ -82,7 +82,9 @@ Every space has a stable id that survives renumbering, so vehicle-location recor
 These keep the code readable for the next person. `src/codeSize.test.ts` and ESLint enforce the first two; files
   that were already too big are listed in that test and may only shrink.
 
-- **Files stay under 600 lines** (tests and the symbol catalog data excepted). When a file gets close, split
+- **Files stay under 600 lines** (tests and the symbol catalog data excepted). Big features are a
+  small entry file plus a folder or set of files by job, e.g. `model/route.ts` + `model/route/`, or
+  `editor/store.ts` + `objectActions.ts` / `structureActions.ts`. When a file gets close, split
   it by job, not by line count: a component per panel or sheet, a hook per concern, a module per step.
 - **No `any`, no `@ts-ignore`.** Model the type instead.
 - **Logic lives in `src/model/`**, with unit tests, not inside React components. Components show state and
