@@ -158,20 +158,20 @@ export const OFFICES = [
     width: 600, height: 400, layer: 'structure', fill: P.room, stroke: P.wall, strokeWidth: 6, keywords: ['exterior walls', 'building shell', 'perimeter', 'floor plan', 'footprint'],
     draw: outerWalls,
   }),
-  of('interior-wall', 'Interior wall', {
+  of('interior-wall', 'Interior wall', { walk: 'block',
     width: 200, height: 4, layer: 'structure', fill: P.wall, stroke: shade(P.wall, 0.3), strokeWidth: 0, keywords: ['partition', 'drywall', 'divider'],
     draw: (c) => boxRect(c),
   }),
-  of('glass-wall', 'Glass wall', {
+  of('glass-wall', 'Glass wall', { walk: 'block',
     width: 200, height: 4, layer: 'structure', fill: P.glass, stroke: P.glassDark, strokeWidth: 1, keywords: ['glass partition', 'storefront', 'window wall'],
     draw: (c) => `${boxRect(c)}${along(c, 40, (x) => `<rect x="${r2(x - 1)}" y="0" width="2" height="${r2(c.h)}" fill="${P.glassDark}"/>`, 0)}`,
   }),
-  of('window', 'Window', {
+  of('window', 'Window', { walk: 'block',
     width: 40, height: 5, layer: 'structure', fill: P.glass, stroke: P.wall, strokeWidth: 1, keywords: ['glazing', 'pane'],
     draw: (c) => `${boxRect(c)}<path d="M0 ${r2(c.h / 2)} H${r2(c.w)}" stroke="${P.glassDark}" stroke-width="0.6"/>`,
   }),
-  of('door', 'Door', { ...FURN, layer: 'structure', draw: door(false), width: 18, height: 18, fill: M.white, stroke: P.ink, strokeWidth: 0.8, keywords: ['office door', 'swing door', 'entry'] }),
-  of('double-door', 'Double door', { ...FURN, layer: 'structure', draw: door(true), width: 36, height: 18, fill: M.white, stroke: P.ink, strokeWidth: 0.8, keywords: ['double doors', 'main door', 'french doors'] }),
+  of('door', 'Door', { walk: 'opener', entersBuilding: true, ...FURN, layer: 'structure', draw: door(false), width: 18, height: 18, fill: M.white, stroke: P.ink, strokeWidth: 0.8, keywords: ['office door', 'swing door', 'entry'] }),
+  of('double-door', 'Double door', { walk: 'opener', entersBuilding: true, ...FURN, layer: 'structure', draw: door(true), width: 36, height: 18, fill: M.white, stroke: P.ink, strokeWidth: 0.8, keywords: ['double doors', 'main door', 'french doors'] }),
 
   rm('private-office', 'Private office', 'Office', 'briefcase', P.inkSoft, 70, 60, ['manager', 'executive', 'closed office']),
   rm('conference-room', 'Conference room', 'Conference', 'meet', P.info, 120, 80, ['meeting room', 'boardroom']),

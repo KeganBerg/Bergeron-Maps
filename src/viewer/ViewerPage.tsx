@@ -1,80 +1,37 @@
-import Konva from 'konva';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Group, Layer, Rect, Stage } from 'react-konva';
-import { ASSET_BY_KEY } from '../assets/library';
-import { MAX_HITS, searchMap, type SearchHit } from '../model/search';
-import { floorListing } from '../model/listing';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Layer, Stage } from 'react-konva';
+import { searchMap, type SearchHit } from '../model/search';
 import { buildingName, buildingOf, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
-import type { Floor, MapDocument, MapObject } from '../model/types';
-import { BackgroundShape, LayerObjects } from '../render/MapObjects';
-import { PanZoomTracker, wheelView } from '../render/panZoom';
-import { useCulledGroup } from '../render/cull';
+import type { MapDocument, MapObject } from '../model/types';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
-import { layerPicture } from '../render/printPicture';
-import type { Box } from '../model/types';
-import '../render/konvaSetup';
 import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
 import { Icon } from '../ui/icons';
-import { floorVars, MAP_PALETTE } from '../theme';
-import { feet, findRoute, isBig, minutes, placeLabel, startPlaces, type Place, type Route } from '../model/route';
+import { floorVars } from '../theme';
+import { findRoute, isBig, placeLabel, type Route } from '../model/route';
 import { HereMarker, RouteOverlay } from './RouteOverlay';
 import { SideViewSheet } from './SideView';
 import { useLatestPublished } from './useLatestPublished';
-import { cancelIdle, whenIdle } from './idle';
 import { sideView } from '../model/sideView';
+import { shareLink, viewerAnnouncement, atHint, boxOf, describe, fromHint, linkTo, searchSummary, useSettled } from './viewerHelpers';
+import { type Directions, type Goal, type Start, sheetRoom } from './directionsTypes';
+import { FloorList } from './FloorList';
+import { DirectionsSheet } from './DirectionsSheet';
+import { ViewerFloor } from './ViewerFloor';
+import { SearchBox } from './SearchBox';
+import { MapHighlights } from './MapHighlights';
+import { InfoCard } from './InfoCard';
+import { FloorBar } from './FloorBar';
+import { useViewerPanZoom } from './useViewerPanZoom';
+import { useFloorPrint } from './useFloorPrint';
+import { ViewerHeader } from './ViewerHeader';
+import Konva from 'konva';
+import '../render/konvaSetup';
+export { searchSummary } from './viewerHelpers';
 
 const ROADLIKE = /road|lane|drive|walk|sidewalk|path|zone|area|grass|crosswalk/;
 
-interface Goal { floorId: string; objectId: string; x: number; y: number; name: string }
-interface Start extends Place { name: string }
-/** Directions, from asking where you are to the route on the map. */
-type Directions =
-  | { stage: 'pick'; goal: Goal }
-  | { stage: 'tap'; goal: Goal }
-  | { stage: 'busy'; goal: Goal; start: Start }
-  | { stage: 'route'; goal: Goal; start: Start; route: Route }
-  | { stage: 'none'; goal: Goal; start: Start; reason: 'same' | 'none' };
-
-/** Room the directions panel takes at the bottom of the map, so the route isn't hidden under it. */
-const sheetRoom = (h: number) => Math.min(Math.round(h * 0.5), 260);
-
-/** "#/view/abc?from=el_1": a sign's QR code can say where people are standing. */
-function fromHint(): string | null {
-  return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('from');
-}
-
-/** "#/view/abc?at=sp_1": a shared link to one space or place opens on it. */
-function atHint(): string | null {
-  return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('at');
-}
-
-/** A link to this map that opens on one space or place (the published map, never the draft). */
-function linkTo(objectId: string): string {
-  const [route] = window.location.hash.split('?');
-  return `${window.location.origin}${window.location.pathname}${route}?at=${encodeURIComponent(objectId)}`;
-}
-
-const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-
-function describe(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
-  const d = describeObject(o, doc);
-  // The place a sign's QR code says you're standing at.
-  if (o.id === fromHint()) return { title: d.title, detail: ['You are here', d.detail].filter(Boolean).join(' · ') };
-  return d;
-}
-
-function describeObject(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
-  if (o.kind === 'space') return { title: `Space ${o.label || '(no number)'}`, detail: o.accessible ? 'Accessible space' : undefined };
-  if (o.kind === 'text') return { title: o.text };
-  const def = ASSET_BY_KEY[o.assetKey];
-  const to = (o.connectsTo ?? []).map((id) => doc.floors.find((f) => f.id === id)?.name).filter(Boolean);
-  return {
-    title: o.name || o.label || def?.name || 'Object',
-    detail: [def && o.name !== def.name ? def.name : null, to.length ? `Goes to ${to.join(', ')}` : null].filter(Boolean).join(' · ') || undefined,
-  };
-}
 
 /**
  * The employee view: read-only, phone-first, uses exactly the same map data
@@ -141,7 +98,6 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     quietFocus.current = false;
   });
   const boxRef = useRef<HTMLDivElement>(null);
-  const tracker = useRef(new PanZoomTracker());
   /** Where the site map was when someone went inside a building, to come back to. */
   const outside = useRef<{ x: number; y: number; scale: number } | null>(null);
   const viewRef = useRef(view);
@@ -159,108 +115,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Konva redraws its hidden hit map (what a tap lands on) with every drawing of
-  // the picture: about a third of the drawing time on a big floor, and needed by
-  // nothing until the next touch. So the picture comes first and the hit map is
-  // brought up to date a moment later when the phone is idle, or at once when a
-  // finger or mouse comes down (before Konva looks up what it is on). While the
-  // map is dragged or pinched it waits until the gesture ends.
-  const hit = useRef<{ layer: Konva.Layer | null; paused: boolean; stale: boolean; timer: number; idle: number; draw?: () => void }>({ layer: null, paused: false, stale: false, timer: 0, idle: 0 });
-  const mapLayer = useCallback((layer: Konva.Layer | null) => {
-    const h = hit.current;
-    if (h.layer && h.layer !== layer) delete (h.layer as Partial<Konva.Layer>).drawHit;
-    h.layer = layer;
-    if (!layer) {
-      cancelIdle(h.idle);
-      h.draw = undefined;
-      return;
-    }
-    const drawHit = Konva.Layer.prototype.drawHit;
-    h.draw = () => drawHit.call(layer);
-    layer.drawHit = function (this: Konva.Layer, ...args: Parameters<Konva.Layer['drawHit']>) {
-      // Drawing onto some other canvas (a picture of the map) happens right away.
-      if (args[0]) return drawHit.apply(this, args);
-      h.stale = true;
-      if (!h.paused) hitsSoon();
-      return this;
-    };
-  }, []);
-  const flushHits = () => {
-    const h = hit.current;
-    cancelIdle(h.idle);
-    if (h.stale && h.draw) {
-      h.stale = false;
-      h.draw();
-    }
-  };
-  const hitsSoon = () => {
-    const h = hit.current;
-    cancelIdle(h.idle);
-    h.idle = whenIdle(flushHits);
-  };
-  const pauseHits = () => { hit.current.paused = true; };
-  const resumeHits = () => {
-    window.clearTimeout(hit.current.timer);
-    hit.current.paused = false;
-    flushHits();
-  };
-
-  // Drag to pan, pinch to zoom, wheel/trackpad. Native listeners on the canvas box
-  // so every finger is seen (Konva only reports one pointer at a time).
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-    const t = tracker.current;
-    const at = (e: PointerEvent | WheelEvent) => {
-      const r = el.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top };
-    };
-    const set = (v: { x: number; y: number; scale: number }) => {
-      viewRef.current = v;
-      setView(v);
-    };
-    const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || (e.target as HTMLElement).closest('button, .info-card, .dir-sheet')) return;
-      t.down(e.pointerId, at(e), viewRef.current);
-      t.startPan(e.pointerId, viewRef.current);
-      // No pointer capture: it would steal the pointerup from Konva, so mouse clicks on a
-      // space never registered. The window listeners below already follow drags off the map.
-    };
-    const onMove = (e: PointerEvent) => {
-      const v = t.move(e.pointerId, at(e));
-      if (v && t.moved) pauseHits();
-      if (v) set(v);
-    };
-    const onUp = (e: PointerEvent) => {
-      t.up(e.pointerId, viewRef.current);
-      if (t.count === 0) resumeHits();
-    };
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      pauseHits();
-      window.clearTimeout(hit.current.timer);
-      hit.current.timer = window.setTimeout(resumeHits, 150);
-      set(wheelView(viewRef.current, e, at(e), el.clientHeight));
-    };
-    // Capture phase: runs before Konva looks up what the pointer is on.
-    const onDownFirst = () => resumeHits();
-    el.addEventListener('pointerdown', onDownFirst, true);
-    el.addEventListener('pointerdown', onDown);
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => {
-      t.reset();
-      resumeHits();
-      el.removeEventListener('pointerdown', onDownFirst, true);
-      el.removeEventListener('pointerdown', onDown);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-      el.removeEventListener('wheel', onWheel);
-    };
-  }, [doc]);
+  const { mapLayer, moved: mapMoved, layer: mapLayerNode } = useViewerPanZoom({ boxRef, viewRef, setView, doc });
 
   const load = () => {
     setError(null);
@@ -316,33 +171,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
   const floor = doc?.floors.find((f) => f.id === floorId) ?? doc?.floors[0];
 
-  // The browser's own Print (Ctrl+P): the whole floor on the page, with any route or
-  // "You are here" marker, instead of the screen's controls and a map cut off at the
-  // edge. Drawn as the print starts, into a canvas that only shows when printing.
-  const printRef = useRef<HTMLDivElement>(null);
-  const floorRef = useRef(floor);
-  floorRef.current = floor;
-  useEffect(() => {
-    const before = () => {
-      const layer = hit.current.layer, holder = printRef.current, f = floorRef.current;
-      const box = f && floorBounds(f);
-      if (!layer || !holder || !box || box.width <= 0 || box.height <= 0) return;
-      const bg = getComputedStyle(boxRef.current ?? document.body).backgroundColor || '#ffffff';
-      const pic = layerPicture(layer, box, viewRef.current, bg);
-      pic.dataset.testid = 'print-map';
-      holder.querySelector('canvas')?.remove();
-      holder.appendChild(pic);
-      const page = holder.querySelector('style')!;
-      page.textContent = `@page { size: ${pic.width >= pic.height ? 'landscape' : 'portrait'}; margin: 12mm; }`;
-    };
-    const after = () => printRef.current?.querySelector('canvas')?.remove();
-    window.addEventListener('beforeprint', before);
-    window.addEventListener('afterprint', after);
-    return () => {
-      window.removeEventListener('beforeprint', before);
-      window.removeEventListener('afterprint', after);
-    };
-  }, []);
+  const printRef = useFloorPrint({ floor, layer: mapLayerNode, boxRef, viewRef });
 
   const resetView = () => floor && setView(fitViewport(floorBounds(floor), size, 24));
   // Fit when the floor or screen size changes (but not after a search jump).
@@ -414,21 +243,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     setView(next);
   }, [dir?.stage, floorId]);
 
-  const share = async (o: MapObject) => {
-    const url = linkTo(o.id);
-    const title = describe(o, doc!).title;
-    try {
-      // Phones open their own share sheet (Messages, email…); computers copy the link.
-      if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        setShared(true);
-        setTimeout(() => setShared(false), 2500);
-      }
-    } catch {
-      /* closed the share sheet */
-    }
-  };
+  const share = (o: MapObject) => shareLink(linkTo(o.id), describe(o, doc!).title, () => {
+    setShared(true);
+    setTimeout(() => setShared(false), 2500);
+  });
 
   const submitSearch = () => {
     const exact = hits.filter((h) => h.exact);
@@ -511,19 +329,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const here = hereId ? floor.objects.find((o) => o.id === hereId) : undefined;
   const routeFloors = new Set(route ? [...route.legs.map((l) => l.floorId), ...route.steps.map((s) => s.floorId)] : []);
 
-  // Read out by screen readers when it changes: what search found, what's selected, the route.
-  const announcement = sideOpen ? `Side view of ${group.length} floors. Pick a floor to open it.`
-    : dir
-    ? dir.stage === 'pick' ? `Directions to ${dir.goal.name}. Where are you starting from?`
-      : dir.stage === 'tap' ? 'Tap where you are on the map, or choose Cancel to pick from a list.'
-      : dir.stage === 'busy' ? 'Finding the way…'
-      : dir.stage === 'none' ? (dir.reason === 'same' ? 'You’re already there.' : `No way found to ${dir.goal.name} from ${dir.start.name}.`)
-      : `Directions to ${dir.goal.name}: ${feet(dir.route.length)} feet, about ${plural(minutes(dir.route), 'minute')}, ${plural(dir.route.steps.length, 'step')}.`
-    : listOpen ? `List of spaces and places on ${floorTitle(doc, floor)}.`
-    // Typing in the search box while a card is open reads out what the search found, not the card again.
-    : showResults && query.trim() ? searchSaid
-    : info ? [info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(', ')
-    : '';
+  const announcement = viewerAnnouncement({ doc, floor, groupSize: group.length, sideOpen, dir, listOpen,
+    searching: showResults && !!query.trim(), searchSaid, info, tappedFloor });
 
   const goInside = (buildingId: string) => {
     const first = interiorFloors(doc, buildingId)[0];
@@ -611,7 +418,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   };
 
   const onTap = (e: Konva.KonvaEventObject<Event>) => {
-    if (tracker.current.moved) return; // the end of a drag or pinch, not a tap
+    if (mapMoved()) return; // the end of a drag or pinch, not a tap
     const g = e.target.hasName('obj') ? e.target : e.target.findAncestor('.obj');
     const o = g ? floor.objects.find((x) => x.id === g.id()) : undefined;
     if (dir?.stage === 'tap') {
@@ -659,72 +466,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         <style />
         <h1>{doc.name} · {floorTitle(doc, floor)}</h1>
       </div>
-      <header className="viewer-header">
-        {(preview || backTo !== null) && (
-          <button className="icon-btn" aria-label={preview ? 'Back to editor' : 'All maps'} onClick={() => navigate(preview ? `/edit/${doc.id}` : backTo ?? '/')}>
-            <Icon name="back" />
-          </button>
-        )}
-        <div className="titles">
-          <h1 data-testid="viewer-facility">{doc.name}</h1>
-          <span className="muted small">
-            {floorTitle(doc, floor)} · {preview ? 'Draft' : 'Updated'} {ago(doc.publishedAt ?? doc.updatedAt)}
-          </span>
-        </div>
-        <button className={`icon-btn${listOpen ? ' on' : ''}`} aria-label="List of spaces and places" title="List of spaces and places on this floor"
-          aria-expanded={listOpen} data-testid="list-toggle"
-          onClick={() => { moveFocus.current = listOpen ? null : 'list'; setListOpen(!listOpen); if (!listOpen) { setDir(null); setTapped(null); setFocus(null); } }}>
-          <Icon name="rows" />
-        </button>
-        <button className="icon-btn" aria-label="Refresh map" title="Get the latest version" onClick={load}><Icon name="restore" /></button>
-      </header>
+      <ViewerHeader mapName={doc.name} floorName={floorTitle(doc, floor)} updatedAt={doc.publishedAt ?? doc.updatedAt}
+        preview={preview} listOpen={listOpen} onRefresh={load}
+        onBack={preview || backTo !== null ? () => navigate(preview ? `/edit/${doc.id}` : backTo ?? '/') : undefined}
+        onToggleList={() => { moveFocus.current = listOpen ? null : 'list'; setListOpen(!listOpen); if (!listOpen) { setDir(null); setTapped(null); setFocus(null); } }} />
 
-      <form className="viewer-search" role="search" onSubmit={(e) => { e.preventDefault(); submitSearch(); }}>
-        <Icon name="search" size={18} />
-        <input
-          type="search"
-          inputMode="search"
-          placeholder="Find a space, e.g. B16"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setShowResults(true); }}
-          onFocus={() => { if (!quietFocus.current) setShowResults(true); }}
-          aria-label="Find a parking space"
-          aria-controls={showResults && query.trim() ? "viewer-results" : undefined}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowResults(false);
-            else if (e.key === 'ArrowDown' && showResults) {
-              e.preventDefault();
-              e.currentTarget.form?.querySelector<HTMLElement>('.results button')?.focus();
-            }
-          }}
-          data-testid="viewer-search"
-        />
-        {showResults && query.trim() && (
-          <ul className="results" id="viewer-results" aria-label="Search results" data-testid="search-results"
-            onKeyDown={(e) => {
-              // Up and down move through the results; Escape goes back to the search box.
-              const items = [...e.currentTarget.querySelectorAll<HTMLElement>('button')];
-              const at = items.indexOf(document.activeElement as HTMLElement);
-              const input = e.currentTarget.parentElement?.querySelector('input');
-              if (e.key === 'ArrowDown') { e.preventDefault(); items[Math.min(at + 1, items.length - 1)]?.focus(); }
-              else if (e.key === 'ArrowUp') { e.preventDefault(); (at <= 0 ? input : items[at - 1])?.focus(); }
-              else if (e.key === 'Escape') { input?.focus(); setShowResults(false); }
-            }}>
-            {hits.length === 0 ? (
-              <li className="none">No space or landmark called “{query.trim()}” on this map. Check the number and try again.</li>
-            ) : (
-              hits.map((h) => (
-                <li key={`${h.floorId}:${h.object.id}`}>
-                  <button type="button" onClick={() => goTo(h)}>
-                    <strong>{h.title}</strong>
-                    <span className="muted">{h.floorName}</span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        )}
-      </form>
+      <SearchBox query={query} setQuery={setQuery} showResults={showResults} setShowResults={setShowResults}
+        hits={hits} goTo={goTo} submitSearch={submitSearch} quietFocus={quietFocus} />
 
       <div className="viewer-canvas" ref={boxRef} onClick={() => setShowResults(false)}>
         {/* The drawing itself can't be read aloud; search and the panels below say what's selected. */}
@@ -745,50 +493,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         >
           <Layer ref={mapLayer}>
             <ViewerFloor floor={floor} focusedId={focused?.id} />
-            {matches.map((m) => (
-              <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation} listening={false}>
-                <Rect
-                  x={-m.width / 2 - 2 / view.scale}
-                  y={-m.height / 2 - 2 / view.scale}
-                  width={m.width + 4 / view.scale}
-                  height={m.height + 4 / view.scale}
-                  stroke={MAP_PALETTE.ring}
-                  strokeWidth={3 / view.scale}
-                  name="search-match"
-                />
-                <Rect
-                  x={-m.width / 2 - 4 / view.scale}
-                  y={-m.height / 2 - 4 / view.scale}
-                  width={m.width + 8 / view.scale}
-                  height={m.height + 8 / view.scale}
-                  stroke={MAP_PALETTE.ringEdge}
-                  strokeWidth={1.5 / view.scale}
-                />
-              </Group>
-            ))}
-            {focused && (
-              <Group x={focused.x} y={focused.y} rotation={focused.rotation} listening={false}>
-                <Rect
-                  x={-focused.width / 2 - 4.5 / view.scale}
-                  y={-focused.height / 2 - 4.5 / view.scale}
-                  width={focused.width + 9 / view.scale}
-                  height={focused.height + 9 / view.scale}
-                  stroke={MAP_PALETTE.ringEdge}
-                  strokeWidth={2 / view.scale}
-                  cornerRadius={4 / view.scale}
-                />
-                <Rect
-                  x={-focused.width / 2 - 2.5 / view.scale}
-                  y={-focused.height / 2 - 2.5 / view.scale}
-                  width={focused.width + 5 / view.scale}
-                  height={focused.height + 5 / view.scale}
-                  stroke={MAP_PALETTE.ring}
-                  strokeWidth={2.5 / view.scale}
-                  cornerRadius={3 / view.scale}
-                  name="focus-ring"
-                />
-              </Group>
-            )}
+            <MapHighlights matches={matches} focused={focused} view={view} />
             {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
             {here && !route && <HereMarker x={here.x} y={here.y} scale={view.scale} />}
           </Layer>
@@ -829,32 +534,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             onPick={(o, title) => goTo({ floorId: floor.id, floorName: floorTitle(doc, floor), object: o, title, exact: true })}
             onClose={() => { moveFocus.current = 'list-button'; setListOpen(false); }} />
         )}
-        {info && !dir && !listOpen && !sideOpen && (
-          <section className="info-card" aria-label={info.title} tabIndex={-1} data-testid="info-card">
-            <div className="info-head">
-              <strong>{info.title}</strong>
-              <span className="info-meta">
-                {tappedFloor && group.length > 1 && <span className="floor-swatch" aria-hidden="true" />}
-                {[tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(' · ')}
-              </span>
-            </div>
-            <button className="icon-btn info-close" aria-label="Close" onClick={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}><Icon name="close" /></button>
-            <div className="info-actions">
-              {canGoIn && (
-                <button className="btn primary go-inside" onClick={() => goInside(tapped!.id)} data-testid="go-inside">
-                  <Icon name="enter" size={18} /> Go inside
-                </button>
-              )}
-              <button className={`btn directions-btn${canGoIn ? '' : ' primary'}`} onClick={() => startDirections(tapped!)} data-testid="directions">
-                <Icon name="directions" size={18} /> Directions
-              </button>
-              <button className={`btn share-btn${shared ? ' done' : ''}`} aria-label={shared ? 'Link copied' : `Share a link to ${info.title}`}
-                title={shared ? 'Link copied' : 'Share a link to this'} onClick={() => void share(tapped!)} data-testid="share">
-                <Icon name={shared ? 'check' : 'share'} size={20} />
-              </button>
-            </div>
-            {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
-          </section>
+        {info && tapped && !dir && !listOpen && !sideOpen && (
+          <InfoCard title={info.title} detail={info.detail} floorName={tappedFloor ? floorTitle(doc, tappedFloor) : undefined}
+            showSwatch={!!tappedFloor && group.length > 1} canGoIn={canGoIn} shared={shared}
+            onClose={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}
+            onGoInside={() => goInside(tapped.id)}
+            onDirections={() => startDirections(tapped)}
+            onShare={() => void share(tapped)} />
         )}
         {dir?.stage === 'tap' && !sideOpen && (
           <div className="dir-banner dir-sheet" data-testid="dir-tap-banner">
@@ -888,246 +574,22 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
       {/* One floor and nothing to go back out to: the header already names it, so no bar. */}
       {(inside || group.length > 1) && (
-      <nav className="viewer-floors" aria-label="Floors">
-        {inside && (
-          <button className="outside" onClick={goOutside} data-testid="go-outside" title={`Back outside to ${inside.floor.name}`}>
-            <Icon name="back" size={16} /> Outside
-          </button>
-        )}
-        {inside && <span className="viewer-building" data-testid="viewer-building">{buildingName(inside.building)}</span>}
-        {group.length > 1 && (
-          <button className={`side-toggle${sideOpen ? ' on' : ''}`} aria-expanded={sideOpen} data-testid="side-view-toggle"
-            aria-label="Side view of all floors" title="See every floor stacked, side on"
-            onClick={() => {
-              moveFocus.current = sideOpen ? 'side-button' : 'side';
-              setSideOpen(!sideOpen);
-              if (!sideOpen) setListOpen(false);
-            }}>
-            <Icon name="floors" size={18} /> <span>All floors</span>
-          </button>
-        )}
-        {(inside && group.length < 2 ? [] : group).map((f, i) => (
-          <button key={f.id} className={[f.id === floor.id ? 'active' : '', routeFloors.has(f.id) ? 'on-route' : ''].join(' ').trim() || undefined} aria-pressed={f.id === floor.id}
-            style={floorVars(i)}
-            onClick={() => {
-              sayFloor(`${floorTitle(doc, f)} shown${routeFloors.has(f.id) ? ', with the route' : ''}.`);
-              if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
-              setFloorId(f.id);
-              if (!dir) { setTapped(null); setFocus(null); }
-            }} data-testid={`viewer-floor-${f.name}`}>
-            {f.name}
-          </button>
-        ))}
-      </nav>
+        <FloorBar floor={floor} group={group} inside={inside} sideOpen={sideOpen} routeFloors={routeFloors}
+          onOutside={goOutside}
+          onToggleSide={() => {
+            moveFocus.current = sideOpen ? 'side-button' : 'side';
+            setSideOpen(!sideOpen);
+            if (!sideOpen) setListOpen(false);
+          }}
+          onPickFloor={(f) => {
+            sayFloor(`${floorTitle(doc, f)} shown${routeFloors.has(f.id) ? ', with the route' : ''}.`);
+            if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
+            setFloorId(f.id);
+            if (!dir) { setTapped(null); setFocus(null); }
+          }} />
       )}
       <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-announce">{announcement}</p>
       <p className="sr-only" role="status" aria-live="polite" data-testid="viewer-floor-announce">{floorNote}</p>
     </main>
   );
-}
-
-/**
- * The floor's drawn objects. Kept apart so pinching, panning and typing in the
- * search box don't re-check thousands of spaces that haven't changed.
- */
-const ViewerFloor = memo(function ViewerFloor({ floor, focusedId }: { floor: Floor; focusedId?: string }) {
-  const objProps = useCallback((o: MapObject) => ({ highlighted: o.id === focusedId }), [focusedId]);
-  const culled = useCulledGroup(floor.objects);
-  return (
-    <>
-      {floor.layers.map((l) =>
-        !l.visible ? null : (
-          <Group key={l.id} ref={culled}>
-            {floor.background?.layerId === l.id && <BackgroundShape bg={floor.background} listening={false} />}
-            <LayerObjects objects={floor.objects.filter((o) => o.layerId === l.id)} curbs={floor.objects} objProps={objProps} />
-          </Group>
-        ),
-      )}
-    </>
-  );
-});
-
-function boxOf(p: number[]): Box {
-  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
-  for (let i = 0; i < p.length; i += 2) {
-    x1 = Math.min(x1, p[i]); x2 = Math.max(x2, p[i]);
-    y1 = Math.min(y1, p[i + 1]); y2 = Math.max(y2, p[i + 1]);
-  }
-  return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
-}
-
-/** The floor on screen as a list: places first, then every row of spaces. Picking one shows it on the map. */
-function FloorList({ doc, floor, onPick, onClose }: { doc: MapDocument; floor: Floor; onPick: (o: MapObject, title: string) => void; onClose: () => void }) {
-  const groups = useMemo(() => floorListing(doc, floor), [doc, floor]);
-  const count = groups.reduce((n, g) => n + g.items.length, 0);
-  return (
-    <div className="dir-sheet floor-list" role="region" aria-label={`Spaces and places on ${floorTitle(doc, floor)}`} tabIndex={-1} data-testid="floor-list"
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
-      <div className="dir-head">
-        <div>
-          <strong>{floorTitle(doc, floor)}</strong>
-          <span className="muted">{count ? `${count} ${count === 1 ? 'item' : 'items'}. Pick one to see it on the map.` : 'Nothing on this floor is named yet.'}</span>
-        </div>
-        <button className="icon-btn" aria-label="Close list" onClick={onClose} data-testid="list-close"><Icon name="close" /></button>
-      </div>
-      <div className="dir-list">
-        {groups.map((g) => (
-          <section key={g.title} className="list-group">
-            <h2 className="list-group-title">{g.title}</h2>
-            <ul>
-              {g.items.map((i) => (
-                <li key={i.object.id}>
-                  <button className="dir-option" onClick={() => onPick(i.object, i.title)} data-testid="list-item">
-                    <span>{i.title}</span>
-                    {i.detail && <span className="muted">{i.detail}</span>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const STEP_ICON: Record<string, string> = { walk: 'directions', elevator: 'up', stairs: 'up', escalator: 'up', ramp: 'up', walkway: 'forward', inside: 'enter', outside: 'back' };
-
-/** The panel at the bottom of the map: where are you starting, then the steps. */
-function DirectionsSheet(p: {
-  dir: Exclude<Directions, { stage: 'tap' }>;
-  doc: MapDocument;
-  floorId: string;
-  avoidStairs: boolean;
-  onPick: (s: Start) => void;
-  onTapMode: () => void;
-  onChangeStart: () => void;
-  onStep: (floorId: string) => void;
-  onAvoidStairs: (v: boolean) => void;
-  onClose: () => void;
-}) {
-  const { dir, doc } = p;
-  const floorName = (id: string) => {
-    const f = doc.floors.find((x) => x.id === id);
-    return f ? floorTitle(doc, f) : '';
-  };
-  const places = useMemo(() => {
-    const all = startPlaces(doc).filter((s) => s.obj.id !== dir.goal.objectId);
-    // Ways in first, then this floor's elevators and stairs, then everything else; ramps (for cars) last.
-    const rank = (s: (typeof all)[number]) => {
-      const k = s.obj.kind === 'asset' ? s.obj.assetKey : '';
-      const here = s.floor.id === p.floorId ? 0 : 1;
-      if (/entrance|^exit$|ped-exit|checkpoint/.test(k)) return here;
-      if (k.includes('ramp')) return 6 + here;
-      if (/elevator|stair|escalator/.test(k)) return 2 + here * 2;
-      return 3 + here * 2;
-    };
-    return all.map((s, i) => ({ s, i, r: rank(s) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.s);
-  }, [doc, dir.goal.objectId, p.floorId]);
-  const close = <button className="icon-btn" aria-label="Close directions" onClick={p.onClose} data-testid="dir-close"><Icon name="close" /></button>;
-  const multiFloor = doc.floors.length > 1;
-
-  if (dir.stage === 'pick') {
-    return (
-      <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
-        <div className="dir-head">
-          <div>
-            <strong>Directions to {dir.goal.name}</strong>
-            <span className="muted">Where are you starting from?</span>
-          </div>
-          {close}
-        </div>
-        <div className="dir-list">
-          <button className="dir-option primary" onClick={p.onTapMode} data-testid="dir-tap">
-            <Icon name="locate" size={18} /> <span>Tap where you are on the map</span>
-          </button>
-          {places.map((s) => (
-            <button key={s.obj.id} className="dir-option" data-testid="dir-start"
-              onClick={() => p.onPick({ floorId: s.floor.id, objectId: s.obj.id, x: s.obj.x, y: s.obj.y, name: s.name })}>
-              <span>{s.name}</span>
-              {multiFloor && <span className="muted">{floorTitle(doc, s.floor)}</span>}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  if (dir.stage === 'busy') {
-    return (
-      <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
-        <div className="dir-head"><div><strong>To {dir.goal.name}</strong><span className="muted">Finding the way…</span></div>{close}</div>
-      </div>
-    );
-  }
-  if (dir.stage === 'none') {
-    return (
-      <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
-        <div className="dir-head"><div><strong>To {dir.goal.name}</strong></div>{close}</div>
-        <p className="dir-note" data-testid="dir-none">
-          {dir.reason === 'same'
-            ? 'You’re already there.'
-            : `We couldn’t find a way there from ${dir.start.name}${p.avoidStairs ? ' without stairs' : ''}. The map may be missing a door, walkway or floor connection. Ask your manager to check it.`}
-        </p>
-        <div className="dir-actions">
-          <button className="btn" onClick={p.onChangeStart}>Change start</button>
-          {p.avoidStairs && <button className="btn" onClick={() => p.onAvoidStairs(false)}>Allow stairs</button>}
-        </div>
-      </div>
-    );
-  }
-  const { route } = dir;
-  const mins = minutes(route);
-  return (
-    <div className="dir-sheet" role="region" aria-label="Directions" tabIndex={-1} data-testid="directions-sheet">
-      <div className="dir-head">
-        <div>
-          <strong>To {dir.goal.name}</strong>
-          <span className="muted" data-testid="dir-summary">
-            {feet(route.length)} ft · about {mins} min · from {dir.start.name}
-          </span>
-        </div>
-        {close}
-      </div>
-      <ol className="dir-steps">
-        {route.steps.map((s, i) => (
-          <li key={i}>
-            <button className={s.floorId === p.floorId ? 'here' : ''} onClick={() => p.onStep(s.kind === 'walk' ? s.floorId : s.toFloorId ?? s.floorId)} data-testid="route-step">
-              <Icon name={STEP_ICON[s.kind] ?? 'directions'} size={16} />
-              <span>{s.text}</span>
-              {multiFloor && <span className="muted">{s.kind === 'walk' ? `${floorName(s.floorId)} · ${feet(route.legs[s.leg!]?.length ?? 0)} ft` : floorName(s.floorId)}</span>}
-            </button>
-          </li>
-        ))}
-      </ol>
-      {route.squeezed && <p className="dir-note">No walkway is drawn here, so this way goes between parked cars. Take care.</p>}
-      <div className="dir-actions">
-        <button className="btn" onClick={p.onChangeStart} data-testid="dir-change-start">Change start</button>
-        {multiFloor && (
-          <label className="dir-check">
-            <input type="checkbox" checked={p.avoidStairs} onChange={(e) => p.onAvoidStairs(e.target.checked)} data-testid="dir-avoid-stairs" /> Avoid stairs
-          </label>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
-/** What a screen reader hears as the search results change. The list stops at MAX_HITS. */
-export function searchSummary(count: number): string {
-  if (!count) return 'No matches';
-  if (count >= MAX_HITS) return `${MAX_HITS} results shown. Type more to narrow them down.`;
-  return plural(count, 'result');
-}
-
-/** `value`, once it has stayed the same for `ms`. An empty value comes through at once. */
-function useSettled(value: string, ms: number): string {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    if (!value) { setSettled(''); return; }
-    const t = window.setTimeout(() => setSettled(value), ms);
-    return () => window.clearTimeout(t);
-  }, [value, ms]);
-  return settled;
 }
