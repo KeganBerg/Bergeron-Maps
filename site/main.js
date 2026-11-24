@@ -317,7 +317,7 @@
     var said = document.getElementById('hp-live');
     var route = document.getElementById('hr-route'), it = document.getElementById('hp-it'), idt = document.getElementById('hp-id');
     var box = world.getAttribute('data-box').split(' ').map(Number);
-    var lanes = world.getAttribute('data-lanes').split(',').map(Number), mainX = +world.getAttribute('data-main');
+    var lanes = world.getAttribute('data-lanes').split(',').map(Number);
     var entry = items.filter(function (e) { return e.getAttribute('data-find') === 'Entrance'; })[0];
     var whole = [box[0] - 20, box[1] - 20, box[2] + 40, box[3] + 40];
     pmap.setAttribute('viewBox', whole.join(' '));

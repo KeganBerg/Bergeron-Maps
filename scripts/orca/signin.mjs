@@ -1,4 +1,4 @@
-import { open, startOrca, mark, key, keys, finish, sleep } from './lib.mjs';
+import { open, startOrca, mark, key, finish, sleep } from './lib.mjs';
 const page = await open();
 let fail = false;
 await page.route('https://mock.supabase.co/**', (r) => {
