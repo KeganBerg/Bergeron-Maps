@@ -138,24 +138,33 @@ describe('map pictures', () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
-  it('moves pictures already inside maps (admins), one at a time', async () => {
+  it('moves pictures already inside maps (admins), one map at a time, versions in batches', async () => {
     const calls: [string, Record<string, unknown> | undefined][] = [];
+    let swaps = [10, 4, 0];
     const rpc = vi.fn(async (fn: string, args?: Record<string, unknown>) => {
       calls.push([fn, args]);
-      if (fn === 'admin_inline_images') return { data: [{ company_id: CO, hash: sha(PNG), bytes: PNG.length }], error: null };
-      if (fn === 'admin_inline_image') return { data: PNG, error: null };
-      return { data: 3, error: null };
+      if (fn === 'admin_map_inline_images') return { data: args!.p_map === 'm1' ? [{ hash: sha(PNG) }] : [], error: null };
+      if (fn === 'admin_map_inline_image') return { data: PNG, error: null };
+      return { data: swaps.shift(), error: null };
     });
+    const from = () => ({ select: () => ({ order: () => ({ range: async () => ({
+      data: [{ id: 'm1', company_id: CO, name: 'Garage' }, { id: 'm2', company_id: CO, name: 'Lot' }], error: null }) }) }) });
     const { db, files } = fakeDb({ rpc: rpc as unknown as Db['rpc'] });
-    expect(await moveInlineImages(db)).toEqual({ pictures: 1, copies: 3 });
+    (db as unknown as { from: unknown }).from = from;
+    expect(await moveInlineImages(db)).toEqual({ pictures: 1, copies: 14 });
     expect([...files.keys()]).toEqual([`${CO}/${sha(PNG)}.png`]);
-    expect(calls[2]).toEqual(['admin_swap_inline_image', { p_company: CO, p_hash: sha(PNG), p_url: stored(CO, PNG, 'png') }]);
+    const swapCalls = calls.filter(([fn]) => fn === 'admin_swap_map_image');
+    expect(swapCalls).toHaveLength(3);
+    expect(swapCalls[0][1]).toEqual({ p_map: 'm1', p_hash: sha(PNG), p_url: stored(CO, PNG, 'png'), p_src: PNG });
+    expect(calls.filter(([fn]) => fn === 'admin_map_inline_images')).toHaveLength(2);
+    swaps = [];
   });
 
   it('explains when the database step hasn’t been run', async () => {
-    const rpc = async () => ({ data: null, error: { message: 'Could not find the function public.admin_inline_images without parameters in the schema cache' } });
+    const rpc = async () => ({ data: null, error: { message: 'Could not find the function public.admin_map_inline_images(p_map) in the schema cache' } });
     const { db } = fakeDb({ rpc: rpc as unknown as Db['rpc'] });
-    await expect(moveInlineImages(db)).rejects.toThrow(/step 16 SQL/);
+    (db as unknown as { from: unknown }).from = () => ({ select: () => ({ order: () => ({ range: async () => ({ data: [{ id: 'm1', company_id: CO, name: 'G' }], error: null }) }) }) });
+    await expect(moveInlineImages(db)).rejects.toThrow(/step 17 SQL/);
   });
 });
 

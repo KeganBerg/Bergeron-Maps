@@ -193,3 +193,42 @@ describe('moving pictures already inside maps', () => {
     await expect(as(w.lead, 'select * from public.company_map_docs($1)', [w.company])).rejects.toThrow(/permission denied/);
   });
 });
+
+describe('moving pictures one map at a time (step 17)', () => {
+  const swap = (who: string, url: string, src = PNG, h = hash(PNG)) =>
+    as<{ n: number }>(who, 'select public.admin_swap_map_image($1, $2, $3, $4) as n', [w.map, h, url, src]);
+
+  it('lists one map’s pictures, gives each back, and swaps versions at most 10 at a time', async () => {
+    for (let i = 0; i < 12; i++) {
+      await as(w.lead, `insert into map_versions (map_id, reason, label, revision, doc) values ($1, 'manual', 'More', 1, $2)`, [w.map, mapDoc(PNG, JPG)]);
+    }
+    const found = await as<{ hash: string }>(w.staff, 'select * from public.admin_map_inline_images($1)', [w.map]);
+    expect(found.map((r) => r.hash).sort()).toEqual([hash(PNG), hash(JPG)].sort());
+    const [{ src }] = await as<{ src: string }>(w.staff, 'select public.admin_map_inline_image($1, $2) as src', [w.map, hash(JPG)]);
+    expect(src).toBe(JPG);
+
+    const url = urlFor(w.company, PNG, 'png');
+    const rounds: number[] = [];
+    for (;;) {
+      const [{ n }] = await swap(w.staff, url);
+      rounds.push(n);
+      if (n === 0) break;
+    }
+    // draft + published + 10 versions, then the other 5 (3 from setup + 12 added), then nothing left.
+    expect(rounds).toEqual([12, 5, 0]);
+    const left = (await db.query(`select count(*)::int as n from map_versions where map_id = $1 and strpos(doc::text, $2) > 0`, [w.map, PNG])).rows[0].n;
+    expect(left).toBe(0);
+    const found2 = await as<{ hash: string }>(w.staff, 'select * from public.admin_map_inline_images($1)', [w.map]);
+    expect(found2.map((r) => r.hash)).toEqual([hash(JPG)]);
+  });
+
+  it('refuses a picture that doesn’t match its fingerprint or address, and anyone but admins', async () => {
+    await expect(swap(w.staff, urlFor(w.other, PNG, 'png'))).rejects.toThrow(/stored address/);
+    await expect(swap(w.staff, urlFor(w.company, PNG, 'png'), JPG)).rejects.toThrow(/stored address/);
+    await expect(swap(w.staff, urlFor(w.company, SVG, 'png'), SVG, hash(SVG))).rejects.toThrow(/stored address/);
+    await expect(swap(w.lead, urlFor(w.company, PNG, 'png'))).rejects.toThrow(/Only Bergeron Maps admins/);
+    await expect(as(w.lead, 'select * from public.admin_map_inline_images($1)', [w.map])).rejects.toThrow(/Only Bergeron Maps admins/);
+    await expect(as(null, 'select * from public.admin_map_inline_images($1)', [w.map])).rejects.toThrow(/permission denied/);
+  });
+});
+

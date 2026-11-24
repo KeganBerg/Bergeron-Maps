@@ -193,33 +193,52 @@ export async function inlineImages<T extends MapDocument>(doc: T, load = fetchIm
 }
 
 /**
- * Admins (All accounts → Move map pictures to file storage): moves every
+ * Admins (All accounts, Move map pictures to file storage): moves every
  * picture still held inside maps, their published copies and their saved
- * versions into file storage, one picture at a time, and points every copy at
- * the stored file. Safe to run again: pictures already moved are skipped.
+ * versions into file storage, and points every copy at the stored file.
+ * The database stops any request after 8 seconds, so the work goes one map
+ * and one picture at a time, and at most 10 saved versions per request.
+ * Safe to run again: pictures already moved are skipped.
  */
 export async function moveInlineImages(db: Db, onStep?: (text: string) => void): Promise<{ pictures: number; copies: number }> {
   const call = async <T>(fn: string, args?: Record<string, unknown>): Promise<T> => {
     const r = await db.rpc(fn, args);
     if (r.error) {
       if (/function|schema cache/i.test(r.error.message) && r.error.message.includes(fn))
-        throw new Error('Moving pictures needs a database update that hasn’t been run yet. Run the step 16 SQL (map pictures) in Supabase, then try again.');
+        throw new Error('Moving pictures needs a database update that hasn’t been run yet. Run the step 17 SQL (map pictures, one map at a time) in Supabase, then try again.');
       throw new Error(r.error.message);
     }
     return r.data as T;
   };
-  onStep?.('Looking for pictures inside maps');
-  const found = await call<{ company_id: string; hash: string }[]>('admin_inline_images');
-  let copies = 0;
-  for (const [i, p] of found.entries()) {
-    onStep?.(`Moving picture ${i + 1} of ${found.length}`);
-    const src = await call<string | null>('admin_inline_image', { p_company: p.company_id, p_hash: p.hash });
-    if (!src) continue;
-    const url = await storeImage(db, p.company_id, src);
-    if (url === src) throw new Error('File storage isn’t set up yet. Run the step 16 SQL (map pictures) in Supabase, then try again.');
-    copies += await call<number>('admin_swap_inline_image', { p_company: p.company_id, p_hash: p.hash, p_url: url });
+  onStep?.('Listing maps');
+  const maps: { id: string; company_id: string; name: string }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const r = await db.from('maps').select('id, company_id, name').order('id').range(from, from + 999);
+    if (r.error) throw new Error(r.error.message);
+    const page = r.data as unknown as typeof maps;
+    maps.push(...page);
+    if (page.length < 1000) break;
   }
-  return { pictures: found.length, copies };
+  let pictures = 0;
+  let copies = 0;
+  for (const [i, m] of maps.entries()) {
+    onStep?.(`Looking in map ${i + 1} of ${maps.length} (${m.name})`);
+    const found = await call<{ hash: string }[]>('admin_map_inline_images', { p_map: m.id });
+    for (const [j, { hash }] of found.entries()) {
+      onStep?.(`Moving picture ${j + 1} of ${found.length} in map ${i + 1} of ${maps.length} (${m.name})`);
+      const src = await call<string | null>('admin_map_inline_image', { p_map: m.id, p_hash: hash });
+      if (!src) continue;
+      const url = await storeImage(db, m.company_id, src);
+      if (url === src) throw new Error('File storage isn’t set up yet. Run the step 16 SQL (map pictures) in Supabase, then try again.');
+      pictures++;
+      for (let round = 0; round < 1000; round++) {
+        const n = await call<number>('admin_swap_map_image', { p_map: m.id, p_hash: hash, p_url: url, p_src: src });
+        copies += n;
+        if (n === 0) break;
+      }
+    }
+  }
+  return { pictures, copies };
 }
 
 /** Admins: deletes a company's stored pictures (after the company itself is deleted). */
