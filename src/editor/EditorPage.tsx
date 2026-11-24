@@ -15,6 +15,7 @@ import { SignDialog } from './SignDialog';
 import { useEditor } from './store';
 import { useAutosave } from './useAutosave';
 import { clearBackup, readBackup, sameMapContent, type UnsavedBackup } from '../storage/unsavedBackup';
+import { setImageUploader } from './imageStore';
 import { useKeyboard } from './useKeyboard';
 
 export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository }) {
@@ -43,6 +44,11 @@ export function EditorPage({ mapId, repo }: { mapId: string; repo: MapRepository
   const [publishing, setPublishing] = useState(false);
   const revision = useEditor((s) => s.revision);
   const dirty = useEditor((s) => s.editSeq !== s.savedSeq);
+  // Online, pictures added while editing go straight to file storage.
+  useEffect(() => {
+    setImageUploader(repo.storeImage ? (src) => repo.storeImage!(src) : null);
+    return () => setImageUploader(null);
+  }, [repo]);
   useEffect(() => {
     repo.getPublishInfo(mapId).then(setPublished, () => setPublished(null));
   }, [mapId, repo]);

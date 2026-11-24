@@ -6,6 +6,7 @@ import { esc, P, svgDataUrl, svgDoc, withAlpha } from '../assets/style';
 import { MAP_PALETTE } from '../theme';
 import { Icon } from '../ui/icons';
 import { loadBackgroundFile } from './LayersPanel';
+import { keepImage } from './imageStore';
 import { useEditor } from './store';
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -143,11 +144,12 @@ export function AssetLibrary() {
     reader.onload = () => {
       const src = String(reader.result);
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
+        const stored = await keepImage(src);
         const nw = img.naturalWidth || 200;
         const nh = img.naturalHeight || 200;
         const k = Math.min(1, 240 / Math.max(nw, nh));
-        useEditor.getState().addImage(src, viewCenter(), { width: Math.round(nw * k), height: Math.round(nh * k) }, file.name.replace(/\.[^.]+$/, ''));
+        useEditor.getState().addImage(stored, viewCenter(), { width: Math.round(nw * k), height: Math.round(nh * k) }, file.name.replace(/\.[^.]+$/, ''));
       };
       img.onerror = () => useEditor.getState().notify({ tone: 'error', message: 'This image couldn’t be opened. Try a PNG or JPG.' });
       img.src = src;

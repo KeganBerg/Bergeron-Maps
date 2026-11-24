@@ -1,4 +1,6 @@
 import type { Db } from './db';
+import { dataUrlToBlob, fetchImageAsDataUrl, IMAGE_BUCKET, imageSources, rehomeImages, storedImagePath } from './mapImages';
+import type { MapDocument } from '../model/types';
 
 /**
  * Account backups (All accounts → Download backup / Restore from backup).
@@ -36,6 +38,12 @@ export interface BackupMap {
 export interface BackupCompany {
   id: string; name: string; created_at: string; max_sites: number | null; exported_at: string;
   sites: BackupSite[]; people: BackupPerson[]; maps: BackupMap[];
+  /**
+   * Map pictures kept in file storage, by storage path, as data URLs, so a
+   * backup brings them back too. Missing in backups made before pictures moved
+   * to file storage (those held their pictures inside the maps).
+   */
+  images?: Record<string, string>;
 }
 export interface BackupFile {
   format: typeof BACKUP_FORMAT; version: number; exportedAt: string; exportedBy: string; companies: BackupCompany[];
@@ -88,12 +96,47 @@ export async function backupCompany(db: Db, c: OverviewCompany, onStep?: (text: 
     out.push({ ...m, published: p ? { name: p.name, doc: p.doc, revision: p.revision, published_at: p.published_at } : null, versions });
   }
 
+  const images = await backupImages(out, (n, total) => onStep?.(`Reading ${c.name}’s map pictures (${n} of ${total})`));
+
   return {
     id: c.id, name: c.name, created_at: c.created_at, max_sites: c.max_sites ?? null, exported_at: exportedAt,
     sites: withCodes,
     people: c.people.map((p) => ({ email: p.email, role: p.role, facility_ids: p.facility_ids, pending: p.pending })),
     maps: out,
+    ...(Object.keys(images).length ? { images } : {}),
   };
+}
+
+/** Every stored picture the maps, their published copies and their versions use, downloaded once each. */
+export async function backupImages(maps: BackupMap[], onStep?: (n: number, total: number) => void, load = fetchImageAsDataUrl): Promise<Record<string, string>> {
+  const urls = new Map<string, string>();
+  for (const m of maps) {
+    for (const doc of [m.draft, m.published?.doc, ...m.versions.map((v) => v.doc)]) {
+      for (const src of imageSources(doc)) {
+        const path = storedImagePath(src);
+        if (path && !urls.has(path)) urls.set(path, src);
+      }
+    }
+  }
+  const out: Record<string, string> = {};
+  let n = 0;
+  for (const [path, url] of urls) {
+    onStep?.(++n, urls.size);
+    out[path] = await load(url);
+  }
+  return out;
+}
+
+/** Puts a backup's pictures back in file storage (pictures still there are left as they are). */
+export async function restoreImages(db: Db, c: BackupCompany, onStep?: (text: string) => void): Promise<number> {
+  const entries = Object.entries(c.images ?? {});
+  for (const [i, [path, dataUrl]] of entries.entries()) {
+    onStep?.(`Restoring ${c.name}’s map pictures (${i + 1} of ${entries.length})`);
+    const type = /^data:(image\/[a-z]+);base64,/.exec(dataUrl)?.[1];
+    if (!type) continue;
+    await db.storage.upload(IMAGE_BUCKET, path, dataUrlToBlob(dataUrl), type);
+  }
+  return entries.length;
 }
 
 export function serializeBackup(companies: BackupCompany[], exportedBy: string, now = new Date()): string {
@@ -182,8 +225,22 @@ export function versionBatches(versions: BackupVersion[], maxBytes = VERSION_BAT
  * fatal: the company, its people and its maps are already back.
  */
 export async function restoreCompany(db: Db, c: BackupCompany, onStep?: (text: string) => void): Promise<RestoreResult> {
+  // Pictures first: the maps that come back point at them.
+  await restoreImages(db, c, onStep);
   onStep?.(`Restoring ${c.name}`);
-  const core = { ...c, maps: c.maps.map(({ versions: _v, ...m }) => m) };
+  // Maps point at this project's file storage (a backup restored into a new project names the old one).
+  const home = <D>(d: D): D => rehomeImages(db, d as unknown as MapDocument) as unknown as D;
+  c = {
+    ...c,
+    maps: c.maps.map((m) => ({
+      ...m,
+      draft: home(m.draft),
+      published: m.published && { ...m.published, doc: home(m.published.doc) },
+      versions: m.versions.map((v) => ({ ...v, doc: home(v.doc) })),
+    })),
+  };
+  const { images: _i, ...rest } = c;
+  const core = { ...rest, maps: c.maps.map(({ versions: _v, ...m }) => m) };
   const r = await db.rpc('admin_restore_company', { p_backup: core });
   if (r.error) {
     if (/admin_restore_company/.test(r.error.message) && /function|schema cache/i.test(r.error.message)) {

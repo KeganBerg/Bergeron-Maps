@@ -66,6 +66,10 @@ export class MockSupabase {
   versions: { id: string; map_id: string; created_at: string; reason: string; label: string; revision: number; doc: unknown }[] = [];
   /** Companies sent to admin_restore_company, as received. */
   restoredPayloads: Record<string, unknown>[] = [];
+  /** Map pictures in file storage (bucket map-images), by path. */
+  files = new Map<string, { type: string; body: Buffer }>();
+  /** Set to act like a project where the step 15 SQL (the map-images bucket) hasn't been run. */
+  storageMissing = false;
   private users = new Map<string, User>(Object.values(USERS).map((u) => [u.id, u]));
 
   constructor(private page: Page) {}
@@ -130,6 +134,26 @@ export class MockSupabase {
     if (path === '/auth/v1/user') {
       const u = this.who(route);
       return u ? json(userJson(u)) : json({ code: 401, msg: 'invalid JWT' }, 401);
+    }
+
+    // ---- file storage: map pictures. Anyone can load one; only owners, managers and admins of the company add them.
+    const pub = /^\/storage\/v1\/object\/public\/map-images\/(.+)$/.exec(path);
+    if (pub && req.method() === 'GET') {
+      const f = this.files.get(decodeURIComponent(pub[1]));
+      if (!f) return json({ statusCode: '404', error: 'not_found', message: 'Object not found' }, 404);
+      return route.fulfill({ status: 200, contentType: f.type, headers: { 'access-control-allow-origin': '*' }, body: f.body });
+    }
+    const up = /^\/storage\/v1\/object\/map-images\/(.+)$/.exec(path);
+    if (up && req.method() === 'POST') {
+      const who = this.who(route);
+      const name = decodeURIComponent(up[1]);
+      if (this.storageMissing) return json({ statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' }, 400);
+      const company = name.split('/')[0];
+      const may = who && (who.admin || this.memberOf(who).some((m) => m.company_id === company && m.role !== 'employee'));
+      if (!may) return json({ statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' }, 400);
+      if (this.files.has(name)) return json({ statusCode: '409', error: 'Duplicate', message: 'The resource already exists' }, 409);
+      this.files.set(name, { type: req.headers()['content-type'] ?? 'application/octet-stream', body: req.postDataBuffer() ?? Buffer.alloc(0) });
+      return json({ Key: `map-images/${name}` });
     }
 
     // ---- the one thing visitors who aren't signed in can call

@@ -38,13 +38,14 @@ function materialSymbols(): Plugin {
  * Security headers for the built app. GitHub Pages can't send response headers,
  * so the content security policy goes in a <meta> tag. Build only: the dev
  * server injects inline scripts (React refresh) that this policy would block.
- * The app talks only to itself and to Supabase; map images are data: URLs.
+ * The app talks only to itself and to Supabase; map pictures come from Supabase
+ * file storage (older maps hold them inside as data: URLs).
  */
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://*.supabase.co",
   "font-src 'self' data:",
   // Plus the error-tracking host, only when the build reports errors (docs/MONITORING.md).
   ["connect-src 'self' https://*.supabase.co wss://*.supabase.co", sentryOrigin(process.env.VITE_SENTRY_DSN)].filter(Boolean).join(' '),

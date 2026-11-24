@@ -205,7 +205,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 - Drag, resize and rotate on the canvas, background-image editing, and asset favorites have been checked by hand but have no automated test yet.
 - Editor touch support is basic (desktop-first by spec); the viewer is the phone experience.
-- Background images are stored inside the map data. Phase 2 moves them to file storage so maps stay small.
+- Online, background images and imported pictures are kept in Supabase Storage and maps hold only their address (`cloud/mapImages.ts`). In browser-only mode, and in map files and backup files, they are kept inside so those work on their own.
 
 ## Added during Phase 2 (from Kegan's feedback)
 

@@ -30,4 +30,27 @@ describe('createDb', () => {
     expect(rpc.headers.get('Authorization')).toBe('Bearer user-token');
     expect(rpc.headers.get('apikey')).toBe('anon-key');
   });
+
+  it('uploads map pictures to file storage with the person’s token, and counts an existing file as done', async () => {
+    const calls: { url: string; method?: string; headers: Headers }[] = [];
+    let status = 200;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url: String(url), method: init?.method, headers: new Headers(init?.headers) });
+      const body = { 200: '{"Key":"x"}', 409: '{"statusCode":"409","error":"Duplicate","message":"The resource already exists"}' }[status]
+        ?? '{"statusCode":"403","error":"Unauthorized","message":"new row violates row-level security policy"}';
+      return new Response(body, { status });
+    }));
+    const db = createDb('https://abcd.supabase.co', 'anon-key', opts);
+    await db.storage.upload('map-images', 'co/abc.png', new Blob(['x'], { type: 'image/png' }), 'image/png');
+    expect(calls[0].url).toBe('https://abcd.supabase.co/storage/v1/object/map-images/co/abc.png');
+    expect(calls[0].method).toBe('POST');
+    expect(calls[0].headers.get('content-type')).toBe('image/png');
+    expect(calls[0].headers.get('x-upsert')).toBe('false');
+    expect(calls[0].headers.get('Authorization')).toBe('Bearer anon-key');
+    status = 409;
+    await expect(db.storage.upload('map-images', 'co/abc.png', new Blob(['x']), 'image/png')).resolves.toBeUndefined();
+    status = 403;
+    await expect(db.storage.upload('map-images', 'co/abc.png', new Blob(['x']), 'image/png')).rejects.toThrow();
+    expect(db.storage.publicUrl('map-images', 'co/abc.png')).toBe('https://abcd.supabase.co/storage/v1/object/public/map-images/co/abc.png');
+  });
 });

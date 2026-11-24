@@ -1,3 +1,4 @@
+import { swapKnownImages } from '../cloud/mapImages';
 import type { MapDocument } from '../model/types';
 
 /**
@@ -110,6 +111,9 @@ export async function readBackup(id: string): Promise<UnsavedBackup | null> {
  * fields, so this compares by value rather than by JSON text.
  */
 export function sameMapContent(a: MapDocument, b: MapDocument): boolean {
+  // A picture uploaded on save is the same picture as the one held inside the map before.
+  a = swapKnownImages(a);
+  b = swapKnownImages(b);
   const strip = ({ revision: _r, updatedAt: _u, createdAt: _c, ...rest }: MapDocument) => rest;
   return deepEqual(strip(a), strip(b));
 }

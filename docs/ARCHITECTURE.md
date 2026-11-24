@@ -54,7 +54,7 @@ Every space has a stable id that survives renumbering, so vehicle-location recor
 1. Supabase project: tables `companies`, `facilities`, `maps` (draft JSON + revision), `map_versions`, `published_maps`, `memberships(user, company/facility, role)`, `audit_log`.
 2. Row-level security on every table: users only see rows for companies/facilities they belong to; only managers can write, publish, or manage members. Public maps are readable through a separate published-snapshot table with an explicit `is_public` flag, never by guessing ids.
 3. `SupabaseRepository` implements the existing `MapRepository`; the editor code does not change.
-4. Background images move to Supabase Storage with signed URLs scoped by the same policies.
+4. Done 2026-11-24: background images and imported pictures live in Supabase Storage (public `map-images` bucket, `<company id>/<sha256>.<type>`, uploads limited to the company's owners and managers by policy); maps keep only the address. See `src/cloud/mapImages.ts`.
 5. Publish = copy the current draft into `published_maps`; viewers always load the latest published snapshot.
 6. Daily database backups (Supabase), plus version history and trash for user-level recovery.
 
