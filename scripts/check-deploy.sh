@@ -9,10 +9,11 @@ check() { # name, ok?
 }
 status() { curl -s -o /dev/null -w '%{http_code}' --retry 3 --retry-all-errors "$base$1"; }
 
-for path in / /industries/valet/ /accessibility/ /app/; do
+for path in / /industries/valet/ /accessibility/ /app/ /img/email/lockup.png; do
   [ "$(status "$path")" = 200 ] && check "$path answers 200" ok || check "$path answers 200" no
 done
 [ "$(status /no-such-page)" = 404 ] && check "unknown page is a 404" ok || check "unknown page is a 404" no
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'origin: https://example.com' -d '{}' "$base/api/contact")" = 403 ] && check "contact form route runs and refuses other sites" ok || check "contact form route runs and refuses other sites" no
 [ "$(curl -s -o /dev/null -w '%{redirect_url}' "$base/app")" = "$base/app/" ] && check "/app redirects to /app/" ok || check "/app redirects to /app/" no
 
 headers=$(curl -s -D - -o /dev/null "$base/" | tr -d '\r')
