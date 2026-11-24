@@ -8,6 +8,8 @@ The Bergeron Maps logo (`src/assets/brand/`, `public/favicon.svg`) is the compan
 
 **Material Symbols (Google).** The symbol picker (Symbol field on zones, rooms, buildings, pins, custom symbols and custom signs) offers Google's Material Symbols, the set at fonts.google.com/icons, from the npm package `@material-symbols/svg-400` (a dev dependency; the icons are bundled at build time into a separately loaded chunk). License: Apache License 2.0, which allows commercial use, modification, redistribution and use in white-labeled, multi-tenant products; keep the license notice with redistributed copies of the icon files. No attribution is required on the map itself. A chosen symbol's path data is saved inside the map so maps keep drawing it without the set.
 
+**Tutorial videos.** The how-to videos (`scripts/tutorials/`) are screen recordings of this app with demo data. The sample sketch they trace (`scripts/tutorials/assets/sample-lot-sketch.jpg`) is drawn by `make-sketch.py` in that folder. The narration was made with Higgsfield's text-to-speech (`seed_audio` model) on the company's Higgsfield plan; check Higgsfield's terms before reusing the voice elsewhere.
+
 Third-party code libraries are used under their own open-source licenses:
 
 | Library | License |

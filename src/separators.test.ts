@@ -10,7 +10,8 @@ import { describe, expect, it } from 'vitest';
 const walk = (dir: string, ext: RegExp): string[] =>
   readdirSync(dir).flatMap((n) => {
     const p = join(dir, n);
-    if (n === 'node_modules' || n === 'vendor') return [];
+    // scripts/tutorials/out holds the built app the tutorial videos record (git ignores it).
+    if (n === 'node_modules' || n === 'vendor' || p === 'scripts/tutorials/out') return [];
     return statSync(p).isDirectory() ? walk(p, ext) : ext.test(n) ? [p] : [];
   });
 
