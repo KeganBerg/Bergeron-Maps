@@ -18,7 +18,7 @@ test('a wrong email is tied to the field, and a sent link is read out instead of
   // The button that was pressed is gone: focus goes to the message that replaced it.
   const sent = page.getByRole('region', { name: 'Check your email' });
   await expect(sent).toBeFocused();
-  await expect(sent).toHaveAccessibleDescription(/We sent a sign-in link to bob@example.com/);
+  await expect(sent).toHaveAccessibleDescription(/We sent a sign-in link and code to bob@example.com/);
   await page.getByRole('button', { name: 'Use a different email' }).click();
   await expect(field).toBeFocused();
 });
