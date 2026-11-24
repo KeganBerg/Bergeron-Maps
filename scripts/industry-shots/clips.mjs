@@ -8,7 +8,7 @@
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
-import { centre, glide, record, withPointer } from './recorder.mjs';
+import { centre, film, withPointer } from './recorder.mjs';
 import { INDUSTRIES } from '../site-pages.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:5190';
@@ -67,6 +67,12 @@ async function seed(page, name) {
 
 const pause = (page, ms) => page.waitForTimeout(ms);
 
+/** Taps the middle of an element, as a finger would. */
+const tap = async (page, selector) => {
+  const p = await centre(page.locator(selector).first());
+  await page.touchscreen.tap(p.x, p.y);
+};
+
 /** Converts a clip's last frame to the WebP still the page shows first. */
 function still(mp4, width) {
   const png = mp4.replace(/\.mp4$/, '-last.png');
@@ -88,28 +94,28 @@ async function phoneClip(name) {
   });
   await withPointer(ctx, true);
   const page = await ctx.newPage();
+  await page.clock.install();
   const id = await seed(page, name);
   await page.goto(`${BASE}/#/view/${id}`);
   await page.getByTestId('viewer-search').waitFor();
   await pause(page, 1500);
-  const rec = await record(page, { width: 624, height: 1248 });
-  await pause(page, 900);
-  const q = page.getByTestId('viewer-search');
-  await page.tap('[data-testid="viewer-search"]');
-  await pause(page, 300);
-  await q.pressSequentially(find, { delay: 140 });
-  await pause(page, 700);
-  await page.tap('[data-testid="search-results"] li:first-child button');
-  await pause(page, 2000);
-  await page.tap('[data-testid="directions"]');
-  await pause(page, 900);
-  await page.tap(`[data-testid="dir-start"]:has-text("${plan.from}")`);
-  await pause(page, 3800);
+  const cam = await film(page);
+  await cam.hold(900);
+  await tap(page, '[data-testid="viewer-search"]');
+  await cam.hold(300);
+  await cam.type(find, 140);
+  await cam.hold(700);
+  await tap(page, '[data-testid="search-results"] li:first-child button');
+  await cam.hold(2000);
+  await tap(page, '[data-testid="directions"]');
+  await cam.hold(900);
+  await tap(page, `[data-testid="dir-start"]:has-text("${plan.from}")`);
+  await cam.hold(3800);
   if (plan.step) {
-    await page.tap(`[data-testid="directions-sheet"] button:has-text("${plan.step}")`);
-    await pause(page, 3000);
+    await tap(page, `[data-testid="directions-sheet"] button:has-text("${plan.step}")`);
+    await cam.hold(3000);
   }
-  await rec.stop(`${OUT}/${name}-phone.mp4`, { trimStart: 0.2 });
+  await cam.save(`${OUT}/${name}-phone.mp4`, { width: 624, height: 1248 });
   still(`${OUT}/${name}-phone.mp4`, 780);
   await ctx.close();
 }
@@ -129,6 +135,7 @@ async function editorClip(name) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1.25 });
   await withPointer(ctx, false);
   const page = await ctx.newPage();
+  await page.clock.install();
   const id = await seed(page, name);
   await page.goto(`${BASE}/#/edit/${id}`);
   await page.getByTestId('canvas').waitFor();
@@ -146,19 +153,19 @@ async function editorClip(name) {
   await pause(page, 600);
   let at = { x: 760, y: 520 };
   await page.mouse.move(at.x, at.y);
-  const rec = await record(page, { width: 1600, height: 1000 });
-  await pause(page, 900);
+  const cam = await film(page);
+  await cam.hold(900);
   // Find the item in the library and add it.
   const search = page.getByPlaceholder(/Search .* objects/);
-  at = await glide(page, at, await centre(search), 800);
-  await page.mouse.click(at.x, at.y);
-  await search.pressSequentially(plan.lib, { delay: 120 });
-  await pause(page, 600);
+  at = await cam.glide(at, await centre(search), 800);
+  await cam.click();
+  await cam.type(plan.lib, 120);
+  await cam.hold(600);
   const tile = page.getByTestId(`asset-${plan.tile}`);
-  at = await glide(page, at, await centre(tile), 700);
-  await pause(page, 150);
-  await page.mouse.click(at.x, at.y);
-  await pause(page, 700);
+  at = await cam.glide(at, await centre(tile), 700);
+  await cam.hold(150);
+  await cam.click();
+  await cam.hold(700);
   // Drag it from the middle of the view to where it belongs.
   const placed = await page.evaluate(async () => {
     const { useEditor } = await import('/src/editor/store.ts');
@@ -167,20 +174,20 @@ async function editorClip(name) {
     const o = floor.objects.find((x) => x.id === s.selection[0]);
     return [o.x, o.y];
   });
-  const from = await onScreen(page, placed);
-  at = await glide(page, at, from, 700);
+  at = await cam.glide(at, await onScreen(page, placed), 700);
   await page.mouse.down();
-  at = await glide(page, at, await onScreen(page, plan.drop), 1100);
+  await cam.hold(100);
+  at = await cam.glide(at, await onScreen(page, plan.drop), 1100);
   await page.mouse.up();
-  await pause(page, 900);
+  await cam.hold(900);
   // Publish, so the team's phones show it.
   const publish = page.getByTestId('publish');
-  at = await glide(page, at, await centre(publish), 900);
-  await pause(page, 150);
-  await page.mouse.click(at.x, at.y);
-  await page.locator('[data-testid="publish"][data-state="current"]').waitFor();
-  await pause(page, 2200);
-  await rec.stop(`${OUT}/${name}-editor.mp4`, { trimStart: 0.2 });
+  at = await cam.glide(at, await centre(publish), 900);
+  await cam.hold(150);
+  await cam.click();
+  const done = page.locator('[data-testid="publish"][data-state="current"]');
+  await cam.until(async () => (await done.count()) > 0, 2200);
+  await cam.save(`${OUT}/${name}-editor.mp4`, { width: 1600, height: 1000 });
   still(`${OUT}/${name}-editor.mp4`, 2000);
   await ctx.close();
 }
