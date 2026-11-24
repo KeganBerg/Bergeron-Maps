@@ -23,9 +23,12 @@ managers and employees outside the team never get a link. Use a sending service.
 1. Create a Resend account at resend.com with bergeronmaps@gmail.com.
 2. **Domains → Add domain** → `bergeronmaps.com`. Resend shows 3–4 DNS records (a DKIM TXT record named
    `resend._domainkey`, and an MX and SPF TXT record on the `send` subdomain).
-3. In Porkbun → **bergeronmaps.com → DNS**, add each record exactly as Resend shows it. Leave the existing
-   `fwd1/fwd2.porkbun.com` MX records and the `v=spf1 include:_spf.porkbun.com ~all` TXT record alone (they
-   run your email forwarding; Resend's records are on the `send` subdomain, so nothing conflicts).
+3. Add the records in Cloudflare (the domain's DNS moved there from Porkbun on 2026-11-24). If Resend offers
+   **Auto configure** / **Sign in to Cloudflare**, use it. Otherwise: Cloudflare dashboard → **bergeronmaps.com →
+   DNS → Records → Add record**, and copy each record's type, name and value exactly as Resend shows it (for
+   the MX record also its priority). Leave the existing `fwd1/fwd2.porkbun.com` MX records and the
+   `v=spf1 include:_spf.porkbun.com ~all` TXT record alone (they run your email forwarding; Resend's records
+   are on the `send` subdomain, so nothing conflicts).
 4. Back in Resend, press **Verify**. When it says Verified, go to **API Keys → Create API key** (sending access).
 5. Supabase dashboard → **Authentication → Emails → SMTP Settings** → turn on **Enable custom SMTP**:
    - Sender email: `noreply@bergeronmaps.com`, Sender name: `Bergeron Maps`
@@ -34,7 +37,7 @@ managers and employees outside the team never get a link. Use a sending service.
 
 ## 2. Add a DMARC record (recommended)
 
-In Porkbun add a TXT record, host `_dmarc`, value:
+In Cloudflare → **DNS → Records → Add record**: type TXT, name `_dmarc`, content:
 
 ```
 v=DMARC1; p=none; rua=mailto:bergeronmaps@gmail.com
