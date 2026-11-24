@@ -220,7 +220,6 @@
 .hp-res span, .hp-res li.none { color: #5d6b7e; font-size: 13px; }
 .hp-res li.none { padding: 10px; }
 .hp .am-info { opacity: 1; }
-.sep { font-style: normal; margin: 0 .35em; }
 
 .soon { margin-left: 6px; padding: 1px 6px; border: 1px solid rgb(11 11 11 / .3); border-radius: 2px; font: 600 11px var(--font-sans); color: rgb(11 11 11 / .7); vertical-align: 2px; white-space: nowrap; }
 
@@ -278,7 +277,7 @@
 .inc span { color: rgb(255 255 255 / .65); }
 @media (min-width: 1024px) { .inc li { border-bottom: 0; } .inc li + li { padding-left: 20px; border-left: 1px solid rgb(255 255 255 / .15); } }
 .others a { text-decoration: underline; text-underline-offset: 3px; }
-.others a + a::before { content: " · "; display: inline-block; white-space: pre; text-decoration: none; }
+.others { display: inline-flex; flex-wrap: wrap; column-gap: 1.25em; row-gap: 2px; }
 .calc-l { display: grid; gap: 8px; font-size: 14px; color: rgb(11 11 11 / .7); }
 .calc-f { width: 100%; border: 0; border-bottom: 2px solid rgb(11 11 11 / .35); background: transparent; padding: 6px 0; font-size: 24px; font-weight: 700; color: var(--color-ink); outline: none; border-radius: 0; }
 .calc-f:focus { border-color: var(--color-ink); }
@@ -288,3 +287,7 @@
 .hp-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 /* The header stays at the top while scrolling, so in-page links stop below it. */
 html { scroll-padding-top: 72px; }
+/* Buttons and links to a section on the same page (Get your map now, How it works) glide there
+   rather than jumping, so the visitor sees where they went. Visitors who ask for reduced motion
+   still jump straight there. */
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }

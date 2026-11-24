@@ -39,12 +39,12 @@ export function buildingOf(doc: MapDocument, floor: Floor): { building: AssetObj
 /** The name people know a building by. */
 export const buildingName = (b: AssetObject, fallback = 'Building') => b.name?.trim() || b.label?.trim() || fallback;
 
-/** "Service department · Floor 1" for interior floors, just the floor name otherwise. */
+/** "Service department, Floor 1" for interior floors, just the floor name otherwise. */
 export function floorTitle(doc: MapDocument, floor: Floor): string {
   const b = buildingOf(doc, floor);
   if (!b) return floor.name;
   const n = interiorFloors(doc, b.building.id).length;
-  return n > 1 ? `${buildingName(b.building)} · ${floor.name}` : buildingName(b.building);
+  return n > 1 ? `${buildingName(b.building)}, ${floor.name}` : buildingName(b.building);
 }
 
 /** Next free "Floor N" inside one building. */

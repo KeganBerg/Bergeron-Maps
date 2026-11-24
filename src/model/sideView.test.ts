@@ -31,7 +31,7 @@ describe('side view of the floors', () => {
     const m = sideView(doc, doc.floors, { focusId: sp.id });
     expect(m.mark?.level).toBe(2);
     expect(m.mark?.space).toBe(true);
-    expect(m.mark?.text).toContain(`${sp.kind === 'space' ? sp.label : ''} · Floor 3`);
+    expect(m.mark?.text).toContain(`${sp.kind === 'space' ? sp.label : ''}, Floor 3`);
     if (stairs) expect(m.mark?.text).toContain('North stairs');
   });
 

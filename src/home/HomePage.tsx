@@ -209,7 +209,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                       </span>
                       <strong>{m.name}</strong>
                       <span className="map-meta">
-                        {plural(m.floorCount, 'floor')} · {plural(m.spaceCount, 'space')}
+                        {plural(m.floorCount, 'floor')}, {plural(m.spaceCount, 'space')}
                       </span>
                       <span className="map-edited">Edited {when(m.updatedAt)}</span>
                     </button>
@@ -240,7 +240,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                     <span className="kind-tag">Site</span>
                     <h3>{site}</h3>
                     <span className="site-meta" data-testid={`site-meta-${site}`}>
-                      {list.length} of {SITE_MAP_SLOTS} slots used · {live} of {SITE_LIVE_MAPS} published · {plural(spaces, 'space')}
+                      {list.length} of {SITE_MAP_SLOTS} slots used, {live} of {SITE_LIVE_MAPS} published, {plural(spaces, 'space')}
                     </span>
                     <button className="btn small" onClick={() => setCreating({ site })} disabled={full} title={full ? SLOTS_FULL : undefined}
                       data-testid={`add-map-${site}`}>

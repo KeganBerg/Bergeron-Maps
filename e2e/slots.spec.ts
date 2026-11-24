@@ -18,7 +18,7 @@ async function seed(page: import('@playwright/test').Page, site: string, names: 
 test('each site shows 5 save slots and blocks a sixth map and a third published map', async ({ page }) => {
   await seed(page, 'North Garage', ['Level A', 'Level B', 'Level C'], 2);
   const site = page.getByTestId('site-North Garage');
-  await expect(page.getByTestId('site-meta-North Garage')).toContainText('3 of 5 slots used · 2 of 2 published');
+  await expect(page.getByTestId('site-meta-North Garage')).toContainText('3 of 5 slots used, 2 of 2 published');
   await expect(site.getByTestId('slot-North Garage-4')).toContainText('Empty');
   await expect(site.locator('li.map-card-filled')).toHaveCount(3);
 

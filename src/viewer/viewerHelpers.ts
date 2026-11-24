@@ -29,7 +29,7 @@ export const ago = (iso: string) => new Date(iso).toLocaleString(undefined, { mo
 export function describe(o: MapObject, doc: MapDocument): { title: string; detail?: string } {
   const d = describeObject(o, doc);
   // The place a sign's QR code says you're standing at.
-  if (o.id === fromHint()) return { title: d.title, detail: ['You are here', d.detail].filter(Boolean).join(' · ') };
+  if (o.id === fromHint()) return { title: d.title, detail: ['You are here', d.detail].filter(Boolean).join(', ') };
   return d;
 }
 
@@ -40,7 +40,7 @@ function describeObject(o: MapObject, doc: MapDocument): { title: string; detail
   const to = (o.connectsTo ?? []).map((id) => doc.floors.find((f) => f.id === id)?.name).filter(Boolean);
   return {
     title: o.name || o.label || def?.name || 'Object',
-    detail: [def && o.name !== def.name ? def.name : null, to.length ? `Goes to ${to.join(', ')}` : null].filter(Boolean).join(' · ') || undefined,
+    detail: [def && o.name !== def.name ? def.name : null, to.length ? `Goes to ${to.join(', ')}` : null].filter(Boolean).join(', ') || undefined,
   };
 }
 

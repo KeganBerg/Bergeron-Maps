@@ -31,7 +31,7 @@ test('giving an employee a second site adds it instead of replacing their first'
   await page.getByRole('combobox').first().selectOption({ label: 'Employee (view only)' });
   await page.getByRole('combobox').nth(1).selectOption({ label: SITE_B.name });
   await page.getByRole('button', { name: 'Give access' }).click();
-  await expect(page.getByRole('status')).toContainText(`access is now Employee · ${SITE_A.name}, ${SITE_B.name}`);
+  await expect(page.getByRole('status')).toContainText(`access is now Employee, ${SITE_A.name}, ${SITE_B.name}`);
   expect(sb.members.find((m) => m.email === USERS.employee.email)?.facility_ids).toEqual([SITE_A.id, SITE_B.id]);
 });
 
@@ -43,11 +43,11 @@ test('making an employee a site manager elsewhere says what it replaces before c
   await page.getByRole('combobox').nth(1).selectOption({ label: SITE_B.name });
   await page.getByRole('button', { name: 'Give access' }).click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText(`They’re Employee · ${SITE_A.name} now`);
-  await expect(dialog).toContainText(`Site manager · ${SITE_B.name}`);
+  await expect(dialog).toContainText(`They’re Employee, ${SITE_A.name} now`);
+  await expect(dialog).toContainText(`Site manager, ${SITE_B.name}`);
   expect(sb.log.some((l) => l.startsWith('add_member'))).toBe(false);
   await dialog.getByRole('button', { name: 'Change access' }).click();
-  await expect(page.getByRole('status')).toContainText(`access is now Site manager · ${SITE_B.name}`);
+  await expect(page.getByRole('status')).toContainText(`access is now Site manager, ${SITE_B.name}`);
   expect(sb.members.find((m) => m.email === USERS.employee.email)).toMatchObject({ role: 'manager', facility_ids: [SITE_B.id] });
 });
 

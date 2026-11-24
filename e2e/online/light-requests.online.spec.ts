@@ -24,7 +24,7 @@ test('the maps page shows floor and space counts without downloading the maps', 
   const sb = withGarage(page);
   await sb.install(USERS.owner);
   await page.goto('/');
-  await expect(page.getByText('2 floors · 24 spaces')).toBeVisible();
+  await expect(page.getByText('2 floors, 24 spaces')).toBeVisible();
   const reqs = lists(sb, 'maps');
   expect(reqs.length).toBeGreaterThan(0);
   for (const r of reqs) {
@@ -38,7 +38,7 @@ test('on a database without the counting columns, the maps page still shows the 
   sb.countsMissing = true;
   await sb.install(USERS.owner);
   await page.goto('/');
-  await expect(page.getByText('2 floors · 24 spaces')).toBeVisible();
+  await expect(page.getByText('2 floors, 24 spaces')).toBeVisible();
   // Once it knows the database lacks them, it stops asking for the counts.
   const reqs = lists(sb, 'maps');
   const firstFull = reqs.findIndex((r) => r.includes('draft'));

@@ -18,7 +18,7 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, 
 export const INDUSTRIES = [
   {
     slug: 'schools', name: 'School & Education', short: 'Schools', scene: 'school',
-    seo: { title: 'School Campus Map Software · Bergeron Maps', description: 'Interactive campus maps for schools. Every building, room and parking lot, searchable from any phone with nothing to install and kept current by your staff.' },
+    seo: { title: 'School Campus Map Software | Bergeron Maps', description: 'Interactive campus maps for schools. Every building, room and parking lot, searchable from any phone with nothing to install and kept current by your staff.' },
     pitch: 'Campus safety, parking organization and facility visibility.',
     title: 'A campus everyone can find their way around.',
     intro: 'New students, substitute teachers and parents at pickup all need to find something on campus. Give them one clear map of every building, office and lot, kept current by your own staff.',
@@ -46,7 +46,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'dealerships', name: 'Dealerships', short: 'Dealerships', scene: 'dealership',
-    seo: { title: 'Dealership Lot Map Software · Bergeron Maps', description: 'A searchable dealership lot map. Find any spot like U19 from a phone, train porters faster and get customers to their keys sooner.' },
+    seo: { title: 'Dealership Lot Map Software | Bergeron Maps', description: 'A searchable dealership lot map. Find any spot like U19 from a phone, train porters faster and get customers to their keys sooner.' },
     pitch: 'Faster customer-to-key times, less training and more profit.',
     title: 'Get the customer to the keys faster.',
     intro: "Every minute a porter spends walking rows is a minute your customer waits in the showroom, and you're paying for both. A searchable lot map gives that time back.",
@@ -74,7 +74,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'valet', name: 'Valet', short: 'Valet', scene: 'valet',
-    seo: { title: 'Valet Parking Map Software · Bergeron Maps', description: 'Garage and lot maps valet attendants search from their phone. Find any space, get walking directions, and let site managers update the map in minutes.' },
+    seo: { title: 'Valet Parking Map Software | Bergeron Maps', description: 'Garage and lot maps valet attendants search from their phone. Find any space, get walking directions, and let site managers update the map in minutes.' },
     pitch: 'Fewer labor hours, faster training and maps your managers keep current.',
     title: 'Every valet knows the site from the first shift.',
     intro: 'New attendants usually learn a garage by shadowing someone for a few shifts. With a clear map on their phone they can start parking cars sooner, and your site manager can change it whenever the layout does.',
@@ -110,7 +110,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'warehouses', name: 'Warehouses', short: 'Warehouses', scene: 'warehouse',
-    seo: { title: 'Warehouse Location Map Software · Bergeron Maps', description: 'Searchable warehouse maps for every rack, aisle, bay and dock. Pickers find a location like C-07 from a phone, and leads update the layout the same day.' },
+    seo: { title: 'Warehouse Location Map Software | Bergeron Maps', description: 'Searchable warehouse maps for every rack, aisle, bay and dock. Pickers find a location like C-07 from a phone, and leads update the layout the same day.' },
     pitch: 'Faster location identification, less training and smoother operations.',
     title: 'Every rack, aisle and dock, on one map.',
     intro: "Pickers shouldn't have to memorize the building. Put every rack, aisle, dock and staging lane on one map they can search, and keep it current as the layout shifts.",
@@ -138,7 +138,7 @@ export const INDUSTRIES = [
   },
   {
     slug: 'other', name: 'Other Industries', short: 'Other industries', scene: 'office',
-    seo: { title: 'Facility Maps for Hospitals, Hotels and More · Bergeron Maps', description: 'Searchable 2D facility maps for hospitals, hotels, offices, event venues, manufacturing and more. Buildings, floors, rooms and parking on one map.' },
+    seo: { title: 'Facility Maps for Hospitals, Hotels and More | Bergeron Maps', description: 'Searchable 2D facility maps for hospitals, hotels, offices, event venues, manufacturing and more. Buildings, floors, rooms and parking on one map.' },
     pitch: 'If you manage a physical facility, Bergeron Maps can help.',
     title: 'If you manage a physical facility, we can map it.',
     intro: 'We started with parking, but the same tools map buildings, floors, rooms and work areas. If your team ever has to ask "where is that?", it can probably help.',
@@ -418,7 +418,7 @@ const cards = INDUSTRIES.map((i) => `<li><a class="ind-card" href="industries/${
 function accessibilityPage() {
   const p = '../';
   const url = `${SITE}accessibility/`;
-  const title = 'Accessibility · Bergeron Maps';
+  const title = 'Accessibility | Bergeron Maps';
   const desc = 'How Bergeron Maps supports keyboard, screen reader and phone users, what we are still working on, and how to report a problem.';
   const li = (items) => items.map((t) => `<li>${t}</li>`).join('\n            ');
   return `<!doctype html>

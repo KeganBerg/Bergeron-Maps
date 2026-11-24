@@ -25,7 +25,7 @@ export function ViewerHeader({ mapName, floorName, updatedAt, preview, listOpen,
       <div className="titles">
         <h1 data-testid="viewer-facility">{mapName}</h1>
         <span className="muted small">
-          {floorName} · {preview ? 'Draft' : 'Updated'} {ago(updatedAt)}
+          {floorName}, {preview ? 'draft' : 'updated'} {ago(updatedAt)}
         </span>
       </div>
       <button className={`icon-btn${listOpen ? ' on' : ''}`} aria-label="List of spaces and places" title="List of spaces and places on this floor"

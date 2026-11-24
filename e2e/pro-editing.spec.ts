@@ -192,7 +192,7 @@ test.describe('pro editing', () => {
     ]);
     await popup.evaluate(() => (window.print = () => undefined));
     await expect(popup.getByTestId('print-image')).toBeVisible();
-    await expect(popup.locator('h1')).toHaveText('Pro · Floor 1');
+    await expect(popup.locator('h1')).toHaveText('Pro, Floor 1');
   });
 
   test('type a number, a name or a label straight onto the map', async ({ page }) => {
