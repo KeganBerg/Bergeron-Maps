@@ -205,7 +205,7 @@ export async function moveInlineImages(db: Db, onStep?: (text: string) => void):
     const r = await db.rpc(fn, args);
     if (r.error) {
       if (/function|schema cache/i.test(r.error.message) && r.error.message.includes(fn))
-        throw new Error('Moving pictures needs a database update that hasn’t been run yet. Run the step 17 SQL (map pictures, one map at a time) in Supabase, then try again.');
+        throw new Error('Moving pictures needs a database update that hasn’t been run yet. Run the step 18 SQL (map pictures, one map at a time) in Supabase, then try again.');
       throw new Error(r.error.message);
     }
     return r.data as T;

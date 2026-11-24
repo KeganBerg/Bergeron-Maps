@@ -164,7 +164,7 @@ describe('map pictures', () => {
     const rpc = async () => ({ data: null, error: { message: 'Could not find the function public.admin_map_inline_images(p_map) in the schema cache' } });
     const { db } = fakeDb({ rpc: rpc as unknown as Db['rpc'] });
     (db as unknown as { from: unknown }).from = () => ({ select: () => ({ order: () => ({ range: async () => ({ data: [{ id: 'm1', company_id: CO, name: 'G' }], error: null }) }) }) });
-    await expect(moveInlineImages(db)).rejects.toThrow(/step 17 SQL/);
+    await expect(moveInlineImages(db)).rejects.toThrow(/step 18 SQL/);
   });
 });
 

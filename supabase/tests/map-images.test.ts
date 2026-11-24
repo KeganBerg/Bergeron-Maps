@@ -194,7 +194,7 @@ describe('moving pictures already inside maps', () => {
   });
 });
 
-describe('moving pictures one map at a time (step 17)', () => {
+describe('moving pictures one map at a time (step 18)', () => {
   const swap = (who: string, url: string, src = PNG, h = hash(PNG)) =>
     as<{ n: number }>(who, 'select public.admin_swap_map_image($1, $2, $3, $4) as n', [w.map, h, url, src]);
 
