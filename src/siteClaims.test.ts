@@ -23,6 +23,10 @@ const NOT_LIVE: [RegExp, string][] = [
   [/\b\d+% (faster|more|less|fewer|of)|\b\d+x faster|thousands of (customers|sites)/i, 'no made-up statistics'],
 ];
 
+/** The Get Your Map Now purchase page, and the NOT_LIVE rules that are true on it. */
+const BUY_PAGE = join('site', 'get-your-map', 'index.html');
+const PURCHASE_TRUTHS = ['online payment is not live', 'prices are not published on the site yet'];
+
 function pages(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
     const p = join(dir, n);
@@ -53,11 +57,23 @@ describe('site claims', () => {
     const found: string[] = [];
     for (const f of pages('site')) {
       const lines = readable(readFileSync(f, 'utf8')).split('\n');
-      for (const line of lines) for (const [re, why] of NOT_LIVE) {
+      // The purchase page really takes payment (worker/stripe.js), so prices and payment are true
+      // there. Every other claim on it is still checked.
+      const rules = f === BUY_PAGE ? NOT_LIVE.filter(([, why]) => !PURCHASE_TRUTHS.includes(why)) : NOT_LIVE;
+      for (const line of lines) for (const [re, why] of rules) {
         const m = line.match(re);
         if (m) found.push(`${f}: "${m[0]}" (${why})`);
       }
     }
     expect(found).toEqual([]);
+  });
+
+  it('nothing links to the purchase page until sales go live', () => {
+    // Live keys refuse to sell until CHECKOUT_LIVE is set (docs/STRIPE.md). When it is, remove this
+    // test in the same PR that links the page and adds it to the sitemap.
+    const linking = pages('site').filter((f) => f !== BUY_PAGE && /get-your-map/.test(readFileSync(f, 'utf8')));
+    expect(linking).toEqual([]);
+    expect(readFileSync('site/sitemap.xml', 'utf8')).not.toMatch(/get-your-map/);
+    expect(readFileSync(BUY_PAGE, 'utf8')).toMatch(/<meta name="robots" content="noindex"/);
   });
 });
