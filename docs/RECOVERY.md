@@ -28,9 +28,29 @@ costs nothing and means a restore can never leave you worse off than you are now
    - If the project itself is deleted, Supabase deletes its backups too.
 
    Check which plan the project is on: Supabase dashboard → the organization → **Billing**.
+3. **Nightly database backup (free).** `.github/workflows/db-backup.yml` copies the whole database every night
+   at 07:17 UTC: the app's tables (structure and data) and the sign-in accounts. The copy is encrypted with a
+   passphrase and kept for 90 days under **Actions → Nightly database backup → a run → Artifacts**. It holds
+   more than a backup file from the app (the audit log, pending manager requests and sign-ins too), and nobody
+   has to remember to click anything. Restore it with C4.
+
+   **Setup (once, about 5 minutes):**
+   1. Supabase dashboard → the project → **Connect** (top of the page) → **Session pooler** → copy the URI. It
+      looks like `postgresql://postgres.ysebxeokxpnmckwdtimj:[YOUR-PASSWORD]@aws-0-….pooler.supabase.com:5432/postgres`.
+      Put the database password in place of `[YOUR-PASSWORD]`. (Forgot it? Project Settings → Database → **Reset
+      database password**; the app doesn't use it, so resetting is safe.) Use the Session pooler, not the
+      Direct connection: GitHub can't reach the direct one.
+   2. Make up a long passphrase (for example five random words) and save it in your password manager. Without
+      it the backups can't be opened, by anyone, including you.
+   3. github.com/KeganBerg/Bergeron-Maps → **Settings → Secrets and variables → Actions → New repository
+      secret**: `SUPABASE_DB_URL` = the URI from step 1, and `BACKUP_PASSPHRASE` = the passphrase.
+   4. **Actions → Nightly database backup → Run workflow**, and check it goes green.
+
+   GitHub emails the repository owner if a night's backup fails.
 
 ### The routine
 
+- The nightly database backup runs on its own (3 above). Glance at **Actions** once a week to see it's green.
 - Until real customers are on the app: download **all accounts** every Friday.
 - Once a paying customer is on it: move the project to **Pro**, and still download all accounts weekly.
 - Keep at least the last 4 weekly files, in two places (for example your computer and a cloud drive you own).
@@ -99,13 +119,37 @@ This is what the 2026-11-19 drill rehearsed. Budget about an hour.
    - Emails: SMTP settings and email wording, if they had been changed in the old project.
    - Hooks (optional, as before): Custom Access Token → `public.block_password_sign_in`.
 6. **Point the app at the new project.** Project Settings → API: copy the Project URL and the `anon` public key.
-   Put them in `.github/workflows/pages.yml` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) and merge. The site
+   Put them in `.github/workflows/cloudflare.yml` and `.github/workflows/pages.yml` (`VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_ANON_KEY`), and in `.github/workflows/uptime.yml`, and merge. The site
    redeploys in a few minutes. (Claude can do this step.)
 7. **Restore the data.** Open bergeronmaps.com/app, sign in as an admin (this creates your sign-in in the new
    project), All accounts → **Restore from backup…** → the newest all-accounts file → everything ticked → Restore.
 8. **Tell customers.** Everyone signs in again with the same email address and gets their old access back
    automatically. Site links, map links and printed QR signs keep working.
 9. Check it (below).
+
+### C4. Restore from a nightly database backup
+
+Brings back everything as of that night, sign-ins included, so nobody has to be invited again. Claude can do
+these steps with you; they need a computer with PostgreSQL's command-line tools (version 17).
+
+1. **Get the file.** github.com/KeganBerg/Bergeron-Maps → **Actions → Nightly database backup** → the newest
+   green run from before the problem → **Artifacts** → download it, and unzip the download.
+2. **Open it** (asks for the passphrase):
+   `gpg -d bergeron-maps-db-<time>.tar.gpg | tar -xf -` → a `backup/` folder with `public.dump`,
+   `auth-data.dump` and a README.
+3. **Get an empty database with the app's structure.** Into the same project after a bad change: first take a
+   fresh backup of the current state (Run workflow), then empty it the way Claude suggests for that case. Into a
+   new project: do C3 steps 1 to 6.
+4. **Load the data**, with the new project's Session pooler URI in `DB`:
+   ```
+   export PGOPTIONS="-c session_replication_role=replica"
+   pg_restore --data-only --no-owner --no-privileges -d "$DB" backup/auth-data.dump
+   pg_restore --data-only --no-owner --no-privileges -d "$DB" backup/public.dump
+   ```
+   The `PGOPTIONS` line lets the rows load in any order. Skip C3 step 7 (the backup file restore): this
+   already brought everything back.
+5. Check it (below).
 
 ## After any restore
 
