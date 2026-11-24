@@ -1,6 +1,8 @@
-// Records a Playwright page to an MP4, frame by frame, for the industry clips (clips.mjs).
-// Chrome's own screencast sends a frame each time the screen changes; ffmpeg then
-// holds each frame for as long as it was on screen, so the clip runs at real speed.
+// Films a Playwright page to an MP4 for the industry clips (clips.mjs), one frame at a time.
+// The page runs on a paused clock (Playwright's clock: timers, Date and requestAnimationFrame),
+// and CSS animations are paused too. Each frame moves time forward by exactly 1/60 s and then
+// takes a screenshot, so the clip plays as evenly as the browser's own animations, however
+// slow the machine recording it is. Pointer moves happen between frames, a step per frame.
 // A drawn pointer (and a tap mark on phones) is added to the page, because a
 // headless browser shows none and the viewer needs to see where the clicks go.
 import { execFileSync } from 'node:child_process';
@@ -49,49 +51,79 @@ export async function withPointer(ctx, touch) {
   await ctx.addInitScript(POINTER);
 }
 
-/** Starts recording; call stop(path) to write the MP4. */
-export async function record(page, { width, height }) {
-  const cdp = await page.context().newCDPSession(page);
-  const frames = [];
-  cdp.on('Page.screencastFrame', (f) => {
-    frames.push({ data: f.data, t: f.metadata.timestamp });
-    cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
-  });
-  await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1, maxWidth: width, maxHeight: height });
-  const started = Date.now() / 1000;
-  return {
-    async stop(out, { fps = 30, crf = 24, trimStart = 0 } = {}) {
-      const ended = Date.now() / 1000;
-      await cdp.send('Page.stopScreencast');
-      await cdp.detach();
+/** Puts the page on a paused clock and returns a camera that films it frame by frame. */
+export async function film(page, { fps = 60 } = {}) {
+  const step = 1000 / fps;
+  const now = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(now + 50);
+  const shots = [];
+  const cam = {
+    /** Moves time forward one frame and keeps a picture of it. */
+    async frame() {
+      await page.clock.runFor(step);
+      // CSS transitions and animations run on the compositor's own clock; step them by hand.
+      await page.evaluate((ms) => {
+        for (const a of document.getAnimations()) {
+          if (a.bmTime === undefined) {
+            a.bmTime = a.currentTime ?? 0;
+            a.pause();
+          }
+          a.bmTime += ms;
+          a.currentTime = a.bmTime;
+        }
+      }, step);
+      shots.push(await page.screenshot({ type: 'jpeg', quality: 93 }));
+    },
+    /** Films ms of the page as it is. */
+    async hold(ms) {
+      for (let i = 0; i < Math.round(ms / step); i++) await cam.frame();
+    },
+    /** Films until the page shows what test() looks for, then ms more. */
+    async until(test, ms = 0, limit = 600) {
+      for (let i = 0; i < limit && !(await test()); i++) await cam.frame();
+      await cam.hold(ms);
+    },
+    /** Moves the mouse along an eased path, one step per frame, so the pointer glides like a hand. */
+    async glide(from, to, ms = 700) {
+      const n = Math.max(2, Math.round(ms / step));
+      for (let i = 1; i <= n; i++) {
+        const t = i / n;
+        const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        await page.mouse.move(from.x + (to.x - from.x) * e, from.y + (to.y - from.y) * e);
+        await cam.frame();
+      }
+      return to;
+    },
+    /** Types text a key at a time, at a person's pace. */
+    async type(text, ms = 130) {
+      for (const ch of text) {
+        await page.keyboard.type(ch);
+        await cam.hold(ms);
+      }
+    },
+    /** Clicks where the mouse is, with the press showing for a couple of frames. */
+    async click() {
+      await page.mouse.down();
+      await cam.hold(70);
+      await page.mouse.up();
+      await cam.frame();
+    },
+    /** Writes the MP4, and the last frame as a PNG next to it (the still the page shows first). */
+    async save(out, { width, height, crf = 23 }) {
       const dir = out + '.frames';
       rmSync(dir, { recursive: true, force: true });
       mkdirSync(dir, { recursive: true });
-      const keep = frames.filter((f) => f.t >= started + trimStart);
-      // The frame showing when trimStart passed still belongs at the start.
-      const before = frames.filter((f) => f.t < started + trimStart).pop();
-      if (before) keep.unshift({ ...before, t: started + trimStart });
-      let list = '';
-      keep.forEach((f, i) => {
-        const name = `f${String(i).padStart(5, '0')}.png`;
-        writeFileSync(join(dir, name), Buffer.from(f.data, 'base64'));
-        const next = i + 1 < keep.length ? keep[i + 1].t : ended;
-        list += `file '${name}'\nduration ${Math.max(0.001, next - f.t).toFixed(4)}\n`;
-      });
-      list += `file 'f${String(keep.length - 1).padStart(5, '0')}.png'\n`;
-      writeFileSync(join(dir, 'list.txt'), list);
+      shots.forEach((b, i) => writeFileSync(join(dir, `f${String(i).padStart(5, '0')}.jpg`), b));
       execFileSync('ffmpeg', [
         '-y',
         '-loglevel',
         'error',
-        '-f',
-        'concat',
-        '-safe',
-        '0',
+        '-framerate',
+        String(fps),
         '-i',
-        join(dir, 'list.txt'),
+        join(dir, 'f%05d.jpg'),
         '-vf',
-        `fps=${fps},scale=${width}:${height}:flags=lanczos,format=yuv420p`,
+        `scale=${width}:${height}:flags=lanczos,format=yuv420p`,
         '-c:v',
         'libx264',
         '-preset',
@@ -105,35 +137,21 @@ export async function record(page, { width, height }) {
         '-an',
         out,
       ]);
-      // The last frame doubles as the still shown before the clip plays (and when motion is reduced).
       execFileSync('ffmpeg', [
         '-y',
         '-loglevel',
         'error',
-        '-sseof',
-        '-0.1',
         '-i',
-        out,
-        '-frames:v',
-        '1',
+        join(dir, `f${String(shots.length - 1).padStart(5, '0')}.jpg`),
+        '-vf',
+        `scale=${width}:${height}:flags=lanczos`,
         out.replace(/\.mp4$/, '-last.png'),
       ]);
       rmSync(dir, { recursive: true, force: true });
-      return keep.length;
+      return shots.length;
     },
   };
-}
-
-/** Moves the mouse along an eased path, so the pointer glides like a hand would. */
-export async function glide(page, from, to, ms = 700) {
-  const steps = Math.max(8, Math.round(ms / 16));
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    await page.mouse.move(from.x + (to.x - from.x) * e, from.y + (to.y - from.y) * e);
-    await page.waitForTimeout(ms / steps / 2);
-  }
-  return to;
+  return cam;
 }
 
 export const centre = async (loc) => {
