@@ -193,19 +193,21 @@ export async function inlineImages<T extends MapDocument>(doc: T, load = fetchIm
 }
 
 /**
- * Admins (All accounts, Move map pictures to file storage): moves every
- * picture still held inside maps, their published copies and their saved
- * versions into file storage, and points every copy at the stored file.
- * The database stops any request after 8 seconds, so the work goes one map
- * and one picture at a time, and at most 10 saved versions per request.
- * Safe to run again: pictures already moved are skipped.
+ * Admins: moves every picture still held inside saved copies of maps (published
+ * copies and saved versions) into file storage, and points those copies at the
+ * stored file. Runs on its own in the background when an admin opens All
+ * accounts (runPictureMoveOnce), so nobody has to press anything.
+ *
+ * The database stops any request after 8 seconds, so each request reads or
+ * writes one copy only. Working copies are left alone: the app moves their
+ * pictures on the next save, and changing them here would get in the way of
+ * someone editing. Safe to run again: copies already moved are skipped.
  */
 export async function moveInlineImages(db: Db, onStep?: (text: string) => void): Promise<{ pictures: number; copies: number }> {
   const call = async <T>(fn: string, args?: Record<string, unknown>): Promise<T> => {
     const r = await db.rpc(fn, args);
     if (r.error) {
-      if (/function|schema cache/i.test(r.error.message) && r.error.message.includes(fn))
-        throw new Error('Moving pictures needs a database update that hasn’t been run yet. Run the step 18 SQL (map pictures, one map at a time) in Supabase, then try again.');
+      if (/function|schema cache/i.test(r.error.message) && r.error.message.includes(fn)) throw new Error(MOVE_NEEDS_SQL);
       throw new Error(r.error.message);
     }
     return r.data as T;
@@ -219,26 +221,74 @@ export async function moveInlineImages(db: Db, onStep?: (text: string) => void):
     maps.push(...page);
     if (page.length < 1000) break;
   }
+  /** Stored address of each picture already moved, by company and fingerprint. */
+  const stored = new Map<string, Map<string, string>>();
   let pictures = 0;
   let copies = 0;
   for (const [i, m] of maps.entries()) {
-    onStep?.(`Looking in map ${i + 1} of ${maps.length} (${m.name})`);
-    const found = await call<{ hash: string }[]>('admin_map_inline_images', { p_map: m.id });
-    for (const [j, { hash }] of found.entries()) {
-      onStep?.(`Moving picture ${j + 1} of ${found.length} in map ${i + 1} of ${maps.length} (${m.name})`);
-      const src = await call<string | null>('admin_map_inline_image', { p_map: m.id, p_hash: hash });
-      if (!src) continue;
-      const url = await storeImage(db, m.company_id, src);
-      if (url === src) throw new Error('File storage isn’t set up yet. Run the step 16 SQL (map pictures) in Supabase, then try again.');
-      pictures++;
-      for (let round = 0; round < 1000; round++) {
-        const n = await call<number>('admin_swap_map_image', { p_map: m.id, p_hash: hash, p_url: url, p_src: src });
-        copies += n;
-        if (n === 0) break;
+    onStep?.(`Map ${i + 1} of ${maps.length} (${m.name})`);
+    const company = stored.get(m.company_id) ?? new Map<string, string>();
+    stored.set(m.company_id, company);
+    const list = await call<{ kind: string; id: string }[]>('admin_map_copies', { p_map: m.id });
+    for (const copy of list) {
+      const move = () => call<string[]>('admin_move_copy_images', {
+        p_kind: copy.kind, p_id: copy.id, p_hashes: [...company.keys()], p_urls: [...company.values()],
+      });
+      const left = await move();
+      if (!left.length) continue;
+      for (const hash of left) {
+        const src = await call<string | null>('admin_copy_inline_image', { p_kind: copy.kind, p_id: copy.id, p_hash: hash });
+        if (!src) continue;
+        const url = await storeImage(db, m.company_id, src);
+        if (url === src) throw new Error('File storage isn’t set up yet (the step 16 SQL, map pictures).');
+        company.set(hash, url);
+        pictures++;
       }
+      // Hashes the app couldn't match stay inside; the next run tries them again.
+      await move();
+      copies++;
     }
   }
   return { pictures, copies };
+}
+
+export const MOVE_NEEDS_SQL = 'Moving pictures needs the step 20 SQL (map pictures, one saved copy at a time).';
+
+const MOVED_KEY = 'bm-map-pictures-moved';
+let moving: Promise<void> | null = null;
+
+/**
+ * Admins: runs moveInlineImages once per browser, quietly. Once a run finishes
+ * nothing is left to move (new saves already use file storage), so it isn't
+ * repeated. If a run stops partway it starts again on the next visit and skips
+ * what is already done.
+ */
+export function runPictureMoveOnce(db: Db, store: Pick<Storage, 'getItem' | 'setItem'> | null = safeLocalStorage()): Promise<void> {
+  if (moving) return moving;
+  try {
+    if (store?.getItem(MOVED_KEY)) return Promise.resolve();
+  } catch {
+    // Storage blocked: run anyway; it is safe to repeat.
+  }
+  moving = moveInlineImages(db)
+    .then(() => {
+      try {
+        store?.setItem(MOVED_KEY, new Date().toISOString());
+      } catch {
+        // Not remembered: the next visit checks again, which is harmless.
+      }
+    })
+    .catch((e) => console.warn('Map pictures will be moved to file storage on a later visit:', (e as Error).message))
+    .finally(() => { moving = null; });
+  return moving;
+}
+
+function safeLocalStorage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
 }
 
 /** Admins: deletes a company's stored pictures (after the company itself is deleted). */
