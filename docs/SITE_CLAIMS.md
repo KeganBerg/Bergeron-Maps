@@ -24,7 +24,7 @@ Before merging a PR that touches `site/`, `scripts/site-pages.mjs`, `scripts/sit
 - [ ] Numbers are real: library size comes from `ASSETS.length`, site-code length from the
       database, quick-lot questions from `QUICK_LOT_LIMITS`. No invented statistics; the
       calculators use the visitor's own numbers.
-- [ ] Screenshots come from the running app (`scripts/industry-shots/shoot.mjs`,
+- [ ] Screenshots and clips come from the running app (`scripts/industry-shots/clips.mjs`,
       `scripts/og-shots.mjs`), and drawings are generated from app code
       (`scripts/site-demo.ts`). A hand-made picture must say it is an illustration.
 - [ ] The editor demo on the home page still matches the app's top bar and Add panel. It is

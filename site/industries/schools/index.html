@@ -26,6 +26,7 @@
   <link rel="icon" href="../../favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="../../apple-touch-icon.png" />
   <link rel="stylesheet" href="../../styles.css" />
+  <link rel="preload" as="image" href="../../img/industries/school-editor.webp" fetchpriority="high" />
 </head>
 <body>
   <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-sign focus:px-3 focus:py-2 focus:text-ink">Skip to content</a>
@@ -83,17 +84,20 @@
       <div class="wrap pb-20">
         <figure class="relative border border-white/25">
           <div class="grid items-center gap-6 p-3 sm:p-6 lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8 lg:p-8">
-            <img class="shot" src="../../img/industries/school-editor.webp" width="2000" height="1222" fetchpriority="high" alt="The Bergeron Maps editor showing a sample high school" />
-            <img class="shot shot-phone mx-auto w-full max-w-[250px]" src="../../img/industries/school-phone.webp" width="780" height="1560" loading="lazy" alt="The same map on a phone, with F10 found by search" />
+            <video class="shot clip" src="../../img/industries/school-editor.mp4" poster="../../img/industries/school-editor.webp" width="1600" height="1000" muted loop playsinline preload="none" aria-label="Clip of the Bergeron Maps editor: a sample high school, where an item is found in the library, placed on the map and published"></video>
+            <video class="shot shot-phone clip mx-auto w-full max-w-[250px]" src="../../img/industries/school-phone.mp4" poster="../../img/industries/school-phone.webp" width="624" height="1248" muted loop playsinline preload="none" aria-label="Clip of the same map on a phone: a search for F10, which lights up on the map, then walking directions to it"></video>
           </div>
           <figcaption class="titleblock grid grid-cols-2 border-t border-white/25 text-white/70 sm:grid-cols-4">
             <div><span>Project</span>Sample High School</div>
             <div><span>Map</span>Campus</div>
             <div class="hidden sm:block"><span>On this map</span>Visitor, faculty and student parking</div>
-            <div class="hidden sm:block"><span>Phone</span>Searched for F10</div>
+            <div class="hidden sm:block"><span>Phone</span>Directions to F10</div>
           </figcaption>
         </figure>
-        <p class="mt-3 text-sm text-white/60">Screenshots of the real app with a sample site. Not a real client.</p>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p class="text-sm text-white/60">Recorded in the real app with a sample site. Not a real client.</p>
+          <button type="button" class="btn btn-line clip-toggle" hidden>Pause</button>
+        </div>
       </div>
     </section>
 
@@ -170,5 +174,6 @@
   </footer>
 
   <script src="../../nav.js" defer></script>
+  <script src="../../clips.js" defer></script>
 </body>
 </html>
