@@ -12,8 +12,12 @@ describe.each(files)('%s', (f) => {
     expect(html).not.toContain('{{ .ConfirmationURL }}');
   });
   it('includes the code for typing in', () => expect(html).toContain('{{ .Token }}'));
-  it('uses the hosted PNG logo (email apps block SVG) with alt text', () => {
-    expect(html).toMatch(/<img src="https:\/\/bergeronmaps\.com\/img\/email\/logo\.png"[^>]*alt="BM"/);
+  it('uses the hosted PNG logo and wordmark (email apps block SVG) with alt text', () => {
+    expect(html).toMatch(/<img src="https:\/\/bergeronmaps\.com\/img\/email\/lockup\.png"[^>]*alt="Bergeron Maps"/);
+  });
+  it('never types the wordmark or uses a monospace font', () => {
+    expect(html).not.toContain('BERGERON MAPS');
+    expect(html).not.toMatch(/monospace|Courier/i);
   });
   it('has no script, external CSS or web fonts', () => expect(html).not.toMatch(/<script|<link|@import|@font-face/i));
 });

@@ -4,7 +4,7 @@
  * bump, loading dock...) is reused and listed in this category through
  * SCHOOL_SHARED below, so the library keeps one of each.
  */
-import { category, type AssetCategory } from '../defs';
+import { category, walking, type AssetCategory } from '../defs';
 import { along, badge, badgeFor, badgeLayout, building, hLine, lane, laneArrow, raisedShadow, room, signRect, zone } from '../draw';
 import { glyph } from '../glyphs';
 import { boxRect, F, FS, fitText, icon, P, r2, S, shade, text, type DrawFn } from '../style';
@@ -96,12 +96,12 @@ const door = (key: string, name: string, g: string, color: string, keywords: str
   sc(key, name, { draw: doorway(g, color), width: 80, height: 44, layer: 'landmarks', fill: '#cfe3f0', stroke: P.ink, strokeWidth: 1, labelPos: 'below', keywords: ['entrance', 'entry', 'door', ...keywords] });
 
 const ENTRANCES = [
-  door('student-entrance', 'Student entrance', 'backpack', P.info, ['students', 'kids', 'walkers']),
-  door('staff-entrance', 'Faculty/staff entrance', 'staff', P.inkSoft, ['faculty', 'staff', 'teachers', 'employee']),
-  door('visitor-entrance', 'Visitor entrance', 'visitor', P.teal, ['visitors', 'guests', 'sign in', 'front office']),
-  door('bus-entrance', 'Bus entrance', 'bus', '#b07a00', ['bus', 'buses']),
-  door('delivery-entrance', 'Delivery entrance', 'truck', P.orange, ['deliveries', 'receiving', 'service door']),
-  sc('security-checkpoint', 'Security checkpoint', {
+  walking(door('student-entrance', 'Student entrance', 'backpack', P.info, ['students', 'kids', 'walkers']), { walk: 'opener', entersBuilding: true }),
+  walking(door('staff-entrance', 'Faculty/staff entrance', 'staff', P.inkSoft, ['faculty', 'staff', 'teachers', 'employee']), { walk: 'opener', entersBuilding: true }),
+  walking(door('visitor-entrance', 'Visitor entrance', 'visitor', P.teal, ['visitors', 'guests', 'sign in', 'front office']), { walk: 'opener', entersBuilding: true }),
+  walking(door('bus-entrance', 'Bus entrance', 'bus', '#b07a00', ['bus', 'buses']), { walk: 'opener', entersBuilding: true }),
+  walking(door('delivery-entrance', 'Delivery entrance', 'truck', P.orange, ['deliveries', 'receiving', 'service door']), { walk: 'opener', entersBuilding: true }),
+  sc('security-checkpoint', 'Security checkpoint', { walk: 'opener', entersBuilding: true,
     width: 120, height: 50, layer: 'landmarks', fill: '#5a6b80', stroke: P.ink, strokeWidth: 1.2, labelPos: 'below', keywords: ['guard', 'guard shack', 'check in', 'security', 'sro', 'booth'],
     draw: icon(120, 50, (c) => `${raisedShadow(4, 6, 42, 38, 3, 2)}<rect x="4" y="6" width="42" height="38" rx="3" ${FS(c)}/><rect x="8" y="10" width="34" height="30" rx="1.5" fill="#000" fill-opacity="0.1"/><rect x="44" y="14" width="3" height="22" fill="${P.glass}" stroke="${P.glassDark}" stroke-width="0.6"/>${badge('shield', 25, 25, 9, c.fill)}${raisedShadow(52, 19, 12, 12, 2)}<rect x="52" y="19" width="12" height="12" rx="2" fill="${P.safety}" stroke="${P.ink}" stroke-width="1"/><rect x="64" y="22" width="54" height="6" rx="3" fill="#ffffff" stroke="${P.ink}" stroke-width="1"/>${[0, 1, 2].map((i) => `<rect x="${72 + i * 16}" y="22" width="8" height="6" fill="${P.danger}"/>`).join('')}`),
   }),
@@ -151,12 +151,12 @@ const busLoop: DrawFn = (c) => {
 };
 
 const TRANSPORT = [
-  zn('student-dropoff', 'Student drop-off zone', 'backpack', P.info, ['drop off', 'dropoff', 'arrival', 'morning', 'curb']),
-  zn('student-pickup', 'Student pickup zone', 'backpack', P.go, ['pickup', 'pick up', 'dismissal', 'afternoon', 'curb']),
-  zn('bus-loading', 'Bus loading zone', 'bus', '#b07a00', ['bus', 'loading', 'board', 'dismissal'], 300, 80),
-  zn('bus-unloading', 'Bus unloading zone', 'bus', P.orange, ['bus', 'unloading', 'arrival'], 300, 80),
+  walking(zn('student-dropoff', 'Student drop-off zone', 'backpack', P.info, ['drop off', 'dropoff', 'arrival', 'morning', 'curb']), { walk: 'walk' }),
+  walking(zn('student-pickup', 'Student pickup zone', 'backpack', P.go, ['pickup', 'pick up', 'dismissal', 'afternoon', 'curb']), { walk: 'walk' }),
+  walking(zn('bus-loading', 'Bus loading zone', 'bus', '#b07a00', ['bus', 'loading', 'board', 'dismissal'], 300, 80), { walk: 'walk' }),
+  walking(zn('bus-unloading', 'Bus unloading zone', 'bus', P.orange, ['bus', 'unloading', 'arrival'], 300, 80), { walk: 'walk' }),
   zn('bus-staging', 'Bus staging area', 'bus', P.violet, ['bus', 'staging', 'holding', 'queue', 'wait'], 320, 160),
-  sc('bus-loop', 'Bus loop', {
+  sc('bus-loop', 'Bus loop', { walk: 'road',
     layer: 'structure', fill: P.asphalt, stroke: P.asphaltEdge, strokeWidth: 0, width: 900, height: 400, labelColor: '#ffffff',
     keywords: ['bus', 'loop', 'ring road', 'circulation', 'one way', 'bus lane'], draw: busLoop,
   }),
@@ -365,7 +365,7 @@ const ATHLETICS = [
     layer: 'structure', width: 2900, height: 1520, fill: '#b5523b', stroke: '#7d3526', strokeWidth: 1.5, labelPos: 'below',
     keywords: ['track', 'oval', '400m', 'track and field', 'running', 'sports', 'athletics'], draw: track,
   }),
-  sc('swimming-pool', 'Swimming pool', {
+  sc('swimming-pool', 'Swimming pool', { walk: 'block',
     layer: 'structure', width: 375, height: 225, fill: P.water, stroke: P.concreteEdge, strokeWidth: 1.5, labelPos: 'below',
     keywords: ['pool', 'swimming', 'natatorium', 'aquatics', 'lanes'], draw: pool,
   }),
@@ -419,11 +419,11 @@ const PEDESTRIAN = [
     also: ALSO, width: 180, height: 30, layer: 'structure', fill: P.concrete, stroke: P.concreteEdge, strokeWidth: 1.5, connector: true,
     keywords: ['ada ramp', 'wheelchair ramp', 'ramp', 'handrail', 'accessible'], draw: ramp,
   }),
-  pd('courtyard', 'Courtyard', {
+  pd('courtyard', 'Courtyard', { walk: 'walk',
     also: ALSO, width: 300, height: 240, layer: 'structure', fill: '#d9cdb8', stroke: P.concreteEdge, strokeWidth: 2, label: 'Courtyard', labelPos: 'badge',
     keywords: ['quad', 'plaza', 'pavers', 'patio', 'commons'], draw: pavers,
   }),
-  pd('outdoor-seating', 'Outdoor seating area', {
+  pd('outdoor-seating', 'Outdoor seating area', { walk: 'walk',
     also: ALSO, width: 220, height: 150, layer: 'structure', fill: P.concrete, stroke: P.concreteEdge, strokeWidth: 1.5,
     keywords: ['picnic tables', 'lunch tables', 'outdoor dining', 'benches', 'patio', 'seating'], draw: seating,
   }),
@@ -456,7 +456,7 @@ const OTHER = [
     ...SIGN, also: ALSO, fill: P.danger, stroke: P.ink, keywords: ['fire department', 'ambulance', 'knox box', 'emergency', 'access', 'sign'],
     draw: signRect({ bg: P.danger, fg: '#ffffff', lines: ['EMERGENCY', 'ACCESS'], glyph: 'truck' }),
   }),
-  sc('emergency-access-road', 'Emergency access road', {
+  sc('emergency-access-road', 'Emergency access road', { walk: 'road',
     also: ['Roads and traffic'], layer: 'structure', merge: 'road', blend: 6, width: 300, height: 100, fill: P.asphalt, stroke: P.asphaltEdge, strokeWidth: 0, labelColor: '#ffffff',
     keywords: ['fire access road', 'fire apparatus road', 'emergency', 'road', 'ambulance'],
     draw: lane((c) => `${hLine(8, 0, c.w, P.paintRed, 4)}${hLine(c.h - 8, 0, c.w, P.paintRed, 4)}${text(c.w / 2, c.h / 2, Math.min(c.h * 0.2, fitText(c.w * 0.8, 16, 16)), 'EMERGENCY ACCESS', P.paint)}`),
@@ -478,7 +478,7 @@ const OTHER = [
     keywords: ['backup generator', 'standby power', 'genset', 'emergency power', 'utility'],
     draw: icon(64, 40, (c) => `<rect x="1" y="1" width="62" height="38" rx="2" fill="${P.concrete}" stroke="${P.concreteEdge}" stroke-width="1"/>${raisedShadow(6, 6, 52, 28, 2)}<rect x="6" y="6" width="52" height="28" rx="2" ${FS(c)}/>${[0, 1, 2, 3, 4].map((i) => `<path d="M${10 + i * 3} 10v20M${42 + i * 3} 10v20" stroke="${P.ink}" stroke-opacity="0.35" stroke-width="1"/>`).join('')}<circle cx="32" cy="12" r="3" fill="${P.ink}" fill-opacity="0.6"/>${glyph('bolt', 32, 24, 11, P.safety)}`),
   }),
-  od('sewer-access', 'Sewer access', {
+  od('sewer-access', 'Sewer access', { walk: 'ignore',
     also: ALSO, width: 24, height: 24, layer: 'structure', fill: '#5a6068', stroke: P.ink, strokeWidth: 1, labelPos: 'below',
     keywords: ['manhole', 'sewer', 'utility access', 'cleanout', 'lid'],
     draw: icon(24, 24, (c) => `<circle cx="12" cy="12" r="11" ${FS(c)}/><circle cx="12" cy="12" r="8" fill="none" stroke="#1b1f24" stroke-opacity="0.5" stroke-width="0.8"/><path d="M6 9.5h12M5 12h14M6 14.5h12M9.5 6v12M12 5v14M14.5 6v12" stroke="#1b1f24" stroke-opacity="0.45" stroke-width="0.7"/>`),
@@ -497,7 +497,7 @@ const OTHER = [
 ];
 
 export const SCHOOLS = [...BUILDINGS, ...ENTRANCES,
-  sc('access-gate', 'Access-controlled gate', {
+  sc('access-gate', 'Access-controlled gate', { walk: 'opener',
     also: ['Structural objects'], width: 130, height: 46, layer: 'structure', fill: P.steelDark, stroke: P.ink, strokeWidth: 1.2, labelPos: 'below',
     keywords: ['gate', 'card reader', 'keypad', 'sliding gate', 'security', 'controlled access', 'fob'], draw: accessGate,
   }),

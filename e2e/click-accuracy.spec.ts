@@ -86,7 +86,9 @@ async function sweep(page: Page, zoom: string, opts: { touch?: Touch } = {}): Pr
 }
 
 test.describe('click accuracy', () => {
-  test.setTimeout(240_000);
+  // The mouse sweep clicks 300+ points over four views. WebKit on GitHub's shared runners takes
+  // 3 to 4 minutes for it (3.1 min on main, 2026-11-24), so 4 minutes timed it out about half the time.
+  test.setTimeout(480_000);
 
   test('mouse: center and every edge, at three zooms and after panning', async ({ page }) => {
     const scene = await buildScene(page);

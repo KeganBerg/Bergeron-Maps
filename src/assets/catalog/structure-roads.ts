@@ -10,52 +10,52 @@ const s = category('Structural objects');
 const ROOM = { enterable: true, layer: 'structure' as const, fill: P.room, stroke: P.wall, strokeWidth: 3, labelPos: 'badge' as const };
 
 export const STRUCTURE = [
-  s('wall', 'Wall', { draw: (c) => boxRect(c), width: 240, height: 10, layer: 'structure', fill: P.wall, stroke: shade(P.wall, 0.3), strokeWidth: 1, keywords: ['partition', 'barrier'] }),
-  s('partial-wall', 'Partial wall', {
+  s('wall', 'Wall', { walk: 'block', draw: (c) => boxRect(c), width: 240, height: 10, layer: 'structure', fill: P.wall, stroke: shade(P.wall, 0.3), strokeWidth: 1, keywords: ['partition', 'barrier'] }),
+  s('partial-wall', 'Partial wall', { walk: 'block',
     width: 160, height: 10, layer: 'structure', fill: '#9aa1ab', stroke: P.wall, strokeWidth: 1.2, keywords: ['half wall', 'knee wall', 'low wall'],
     draw: (c) => `${boxRect(c)}<path d="${Array.from({ length: Math.ceil(c.w / 8) }, (_, i) => `M${i * 8} ${c.h}l${c.h} ${-c.h}`).join('')}" stroke="${P.wall}" stroke-width="1" clip-path="inset(0)"/>`,
   }),
-  s('column', 'Support column', {
+  s('column', 'Support column', { walk: 'block',
     width: 24, height: 24, layer: 'landmarks', namePrefix: 'Column', fill: '#9a9fa6', stroke: P.ink, strokeWidth: 1.5, keywords: ['column', 'post', 'pier', 'structural'],
     draw: icon(24, 24, (c) => `${raisedShadow(2, 2, 20, 20, 1, 1.2)}<rect x="2" y="2" width="20" height="20" rx="1" ${FS(c)}/><path d="M2 2 22 22M22 2 2 22" stroke="${P.ink}" stroke-opacity="0.35" stroke-width="1"/>`),
   }),
-  s('pillar', 'Pillar', {
+  s('pillar', 'Pillar', { walk: 'block',
     width: 24, height: 24, layer: 'landmarks', fill: '#b9b4aa', stroke: P.ink, strokeWidth: 1.5, keywords: ['round column', 'post'],
     draw: icon(24, 24, (c) => `<circle cx="13" cy="13.5" r="10" fill="${P.shadow}"/><circle cx="12" cy="12" r="10" ${FS(c)}/><circle cx="12" cy="12" r="6" fill="none" stroke="${P.ink}" stroke-opacity="0.25"/>`),
   }),
-  s('support-beam', 'Support beam', {
+  s('support-beam', 'Support beam', { walk: 'ignore',
     width: 240, height: 14, layer: 'structure', fill: '#c9ccd1', fillOpacity: 0.5, stroke: P.wall, strokeWidth: 1.2, keywords: ['overhead', 'girder', 'header'],
     draw: (c) => `<rect x="0" y="0" width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(1.5, 0, c.w, c.stroke, c.sw, '8 4')}${hLine(c.h - 1.5, 0, c.w, c.stroke, c.sw, '8 4')}`,
   }),
-  s('fence', 'Fence', {
+  s('fence', 'Fence', { walk: 'block',
     width: 200, height: 8, layer: 'structure', fill: P.steelDark, stroke: P.steelDark, strokeWidth: 1.5, fillable: false, keywords: ['chain link', 'barrier', 'perimeter'],
     draw: (c) => `${hLine(c.h / 2, 0, c.w, c.stroke, c.sw)}${along(c, 24, (x) => `<circle cx="${r2(x)}" cy="${c.h / 2}" r="${r2(Math.min(c.h / 2, 3))}" fill="${c.stroke}"/>`, 3)}<path d="${Array.from({ length: Math.ceil(c.w / 6) }, (_, i) => `M${i * 6} ${c.h / 2 - 2}l3 4l3 -4`).join('')}" fill="none" stroke="${c.stroke}" stroke-opacity="0.5" stroke-width="0.7"/>`,
   }),
-  s('gate', 'Gate', {
+  s('gate', 'Gate', { walk: 'opener',
     width: 100, height: 50, layer: 'structure', fill: P.steelDark, stroke: P.ink, strokeWidth: 1.5, keywords: ['swing gate', 'entry', 'fence'],
     draw: icon(100, 50, (c) => `<rect x="0" y="43" width="7" height="7" ${FS(c)}/><rect x="93" y="43" width="7" height="7" ${FS(c)}/><path d="M7 46.5 44 18M93 46.5 56 18" stroke="${c.fill}" stroke-width="3.5" stroke-linecap="round"/><path d="M7 46.5 A43 43 0 0 1 48 9M93 46.5 A43 43 0 0 0 52 9" fill="none" stroke="${P.inkSoft}" stroke-width="0.9" stroke-dasharray="3 2"/><path d="M7 46.5H93" stroke="${P.inkSoft}" stroke-width="0.8" stroke-dasharray="2 3"/>`),
   }),
-  s('barrier-arm', 'Security barrier', {
+  s('barrier-arm', 'Security barrier', { walk: 'opener',
     width: 110, height: 20, layer: 'structure', fill: '#ffffff', stroke: P.ink, strokeWidth: 1, keywords: ['boom', 'arm', 'gate arm', 'ticket', 'barrier'],
     draw: icon(110, 20, (c) => `${raisedShadow(1, 2, 18, 16, 2)}<rect x="1" y="2" width="18" height="16" rx="2" fill="#f2b705" stroke="${P.ink}" stroke-width="1"/><circle cx="10" cy="10" r="3" fill="${P.ink}"/><rect x="19" y="7" width="89" height="6" rx="3" ${FS(c)}/>${[0, 1, 2, 3, 4].map((i) => `<rect x="${27 + i * 17}" y="7" width="8" height="6" fill="${P.danger}"/>`).join('')}`),
   }),
-  s('bollard', 'Bollard', {
+  s('bollard', 'Bollard', { walk: 'ignore',
     width: 12, height: 12, layer: 'landmarks', fill: P.safety, stroke: P.ink, strokeWidth: 1.2, keywords: ['post', 'protection', 'pole'],
     draw: icon(12, 12, (c) => `<circle cx="6.8" cy="7" r="5" fill="${P.shadow}"/><circle cx="6" cy="6" r="5" ${FS(c)}/><circle cx="6" cy="6" r="2" fill="#fff" fill-opacity="0.6"/>`),
   }),
-  s('guardrail', 'Guardrail', {
+  s('guardrail', 'Guardrail', { walk: 'block',
     width: 200, height: 10, layer: 'structure', fill: '#c3c9d0', stroke: P.steelDark, strokeWidth: 1, keywords: ['crash barrier', 'rail', 'w-beam'],
     draw: (c) => `${along(c, 30, (x) => `<rect x="${r2(x - 2.5)}" y="${r2(c.h / 2 - 1)}" width="5" height="${r2(c.h / 2 + 1)}" fill="${P.steelDark}"/>`, 4)}<rect x="${c.sw / 2}" y="${r2(c.h * 0.15)}" width="${c.w - c.sw}" height="${r2(c.h * 0.42)}" rx="2" ${FS(c)}/>${hLine(c.h * 0.36, 2, c.w - 2, P.steelDark, 0.6)}`,
   }),
-  s('concrete-divider', 'Concrete divider', {
+  s('concrete-divider', 'Concrete divider', { walk: 'block',
     width: 200, height: 14, layer: 'structure', fill: P.concrete, stroke: P.concreteEdge, strokeWidth: 1.2, keywords: ['jersey barrier', 'median', 'k-rail'],
     draw: (c) => `${boxRect(c, 3)}${hLine(c.h / 2, 3, c.w - 3, P.concreteEdge, 1)}${along(c, 50, (x) => `<path d="M${r2(x)} 0 V${c.h}" stroke="${P.concreteEdge}" stroke-width="1"/>`, 25)}`,
   }),
-  s('parking-stop', 'Parking stop', {
+  s('parking-stop', 'Parking stop', { walk: 'ignore',
     width: 30, height: 7, layer: 'landmarks', fill: '#e8e3d8', stroke: P.concreteEdge, strokeWidth: 1, keywords: ['wheel stop', 'curb stop', 'parking block', 'car stop'],
     draw: (c) => `${boxRect(c, 2)}<rect x="${r2(c.w * 0.18)}" y="${r2(c.h * 0.25)}" width="${r2(c.w * 0.14)}" height="${r2(c.h * 0.5)}" fill="${P.safety}"/><rect x="${r2(c.w * 0.68)}" y="${r2(c.h * 0.25)}" width="${r2(c.w * 0.14)}" height="${r2(c.h * 0.5)}" fill="${P.safety}"/>`,
   }),
-  s('protective-barrier', 'Protective barrier', {
+  s('protective-barrier', 'Protective barrier', { walk: 'block',
     width: 120, height: 12, layer: 'structure', fill: P.safety, stroke: P.ink, strokeWidth: 1, keywords: ['safety barrier', 'hazard', 'striped', 'crash'],
     draw: (c) => {
       const id = `pb${Math.round(c.w)}`;
@@ -69,28 +69,28 @@ export const STRUCTURE = [
   s('utility-room', 'Utility room', { ...ROOM, draw: room('bolt'), width: 140, height: 100, label: 'Utility', keywords: ['electrical', 'meter'] }),
   s('storage-room', 'Storage room', { ...ROOM, draw: room('storage'), width: 140, height: 100, label: 'Storage', keywords: ['closet', 'supply'] }),
   s('mechanical-room', 'Mechanical room', { ...ROOM, draw: room('gear'), width: 140, height: 100, label: 'Mechanical', keywords: ['boiler', 'pump', 'equipment'] }),
-  s('hvac-unit', 'HVAC unit', {
+  s('hvac-unit', 'HVAC unit', { walk: 'block',
     width: 50, height: 50, layer: 'structure', fill: '#c8ced6', stroke: P.ink, strokeWidth: 1.2, keywords: ['air conditioner', 'ac', 'condenser', 'rooftop unit'], labelPos: 'below',
     draw: icon(50, 50, (c) => `${raisedShadow(3, 3, 44, 44, 3, 2)}<rect x="3" y="3" width="44" height="44" rx="3" ${FS(c)}/><circle cx="25" cy="25" r="16" fill="${P.steelDark}" fill-opacity="0.25" stroke="${P.ink}" stroke-width="1"/>${[0, 1, 2, 3, 4, 5].map((i) => `<circle cx="25" cy="25" r="${3 + i * 2.4}" fill="none" stroke="${P.ink}" stroke-opacity="0.35" stroke-width="0.7"/>`).join('')}<circle cx="25" cy="25" r="3" fill="${P.ink}"/>`),
   }),
-  s('garage-door', 'Garage door', {
+  s('garage-door', 'Garage door', { walk: 'opener',
     width: 100, height: 24, layer: 'structure', fill: '#d9dde2', stroke: P.ink, strokeWidth: 1, keywords: ['overhead door', 'bay door', 'sectional'],
     draw: (c) => `<rect x="2" y="${r2(c.h * 0.42)}" width="${c.w - 4}" height="${r2(c.h * 0.55)}" fill="none" stroke="${P.inkSoft}" stroke-width="0.9" stroke-dasharray="4 3"/><rect x="${c.sw / 2}" y="${c.sw / 2}" width="${c.w - c.sw}" height="${r2(c.h * 0.32)}" ${FS(c)}/>${along({ ...c, w: c.w }, 20, (x) => `<path d="M${r2(x)} ${c.sw} V${r2(c.h * 0.32)}" stroke="${P.inkSoft}" stroke-width="0.8"/>`, 10)}`,
   }),
-  s('rollup-door', 'Roll-up service door', {
+  s('rollup-door', 'Roll-up service door', { walk: 'opener',
     width: 100, height: 24, layer: 'structure', fill: '#b9c0c8', stroke: P.ink, strokeWidth: 1, keywords: ['roll up', 'rolling door', 'shutter', 'service door'],
     draw: (c) => `<rect x="${c.sw / 2}" y="${c.sw / 2}" width="${c.w - c.sw}" height="${r2(c.h * 0.32)}" ${FS(c)}/><path d="${Array.from({ length: Math.floor(c.w / 4) }, (_, i) => `M${i * 4 + 2} ${c.sw}V${r2(c.h * 0.32)}`).join('')}" stroke="${P.ink}" stroke-opacity="0.3" stroke-width="0.6"/><rect x="${r2(c.w * 0.04)}" y="${r2(c.h * 0.55)}" width="${r2(c.w * 0.92)}" height="${r2(c.h * 0.3)}" rx="${r2(c.h * 0.15)}" fill="${P.steel}" stroke="${P.inkSoft}" stroke-width="0.8"/>`,
   }),
-  s('loading-dock', 'Loading dock', {
+  s('loading-dock', 'Loading dock', { walk: 'walk',
     width: 140, height: 90, layer: 'structure', fill: P.concrete, stroke: P.concreteEdge, strokeWidth: 1.5, keywords: ['dock', 'bay', 'truck', 'receiving'], label: 'Dock', labelPos: 'center',
     draw: (c) => `${boxRect(c)}<rect x="0" y="${r2(c.h - 8)}" width="${c.w}" height="8" fill="${P.safety}"/><path d="${Array.from({ length: Math.ceil(c.w / 10) }, (_, i) => `M${i * 10} ${c.h}l8 -8`).join('')}" stroke="${P.ink}" stroke-width="3"/><rect x="${r2(c.w * 0.2)}" y="${r2(c.h - 12)}" width="8" height="4" fill="${P.ink}"/><rect x="${r2(c.w * 0.8 - 8)}" y="${r2(c.h - 12)}" width="8" height="4" fill="${P.ink}"/>`,
   }),
-  s('canopy', 'Canopy', {
+  s('canopy', 'Canopy', { walk: 'ignore',
     width: 200, height: 100, layer: 'structure', fill: '#e8e0cf', fillOpacity: 0.6, stroke: '#8a7f6b', strokeWidth: 1.5, keywords: ['awning', 'cover', 'porte cochere', 'roof'],
     label: 'Canopy', labelPos: 'center',
     draw: (c) => `${boxRect(c, 0, `stroke-dasharray="${c.sw * 5} ${c.sw * 3}"`)}${hLine(c.h / 2, 0, c.w, c.stroke, 1)}${[[6, 6], [c.w - 6, 6], [6, c.h - 6], [c.w - 6, c.h - 6]].map(([x, y]) => `<rect x="${x - 3}" y="${y - 3}" width="6" height="6" fill="${P.wall}"/>`).join('')}`,
   }),
-  s('covered-parking', 'Covered parking structure', {
+  s('covered-parking', 'Covered parking structure', { walk: 'ignore',
     width: 270, height: 110, layer: 'structure', fill: '#cfd8e3', fillOpacity: 0.45, stroke: '#5f7189', strokeWidth: 2, keywords: ['carport', 'solar canopy', 'shade structure', 'covered'],
     label: 'Covered parking', labelPos: 'center',
     draw: (c) => `${boxRect(c)}${along(c, 45, (x) => `<path d="M${r2(x)} 0 V${c.h}" stroke="${c.stroke}" stroke-opacity="0.35" stroke-width="1"/>`, 22.5)}${hLine(c.h / 2, 0, c.w, c.stroke, 1)}${along(c, 90, (x) => `<rect x="${r2(x - 3)}" y="${r2(c.h / 2 - 3)}" width="6" height="6" fill="${P.wall}"/>`, 22.5)}`,
@@ -241,15 +241,15 @@ export const ROADS = [
       return `<path d="${body.map((r) => `${poly(r)} Z`).join(' ')}" ${F(c)}/>${roadEdge(body, crossEnds(c, half * 2))}${marks}`;
     },
   }),
-  rd('lane-divider', 'Lane divider', { layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 2, width: 240, height: 12, keywords: ['dashed line', 'lane line', 'skip line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 0, c.w, c.stroke, c.sw, '14 10')}` }),
-  rd('road-centerline', 'Road centerline', { layer: 'structure', fill: P.asphalt, stroke: P.paintYellow, strokeWidth: 1.6, width: 240, height: 12, keywords: ['double yellow', 'center line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2 - c.sw * 1.2, 0, c.w, c.stroke, c.sw)}${hLine(c.h / 2 + c.sw * 1.2, 0, c.w, c.stroke, c.sw)}` }),
-  rd('road-boundary', 'Road boundary', { layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 2.5, width: 240, height: 12, keywords: ['edge line', 'fog line', 'solid line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 0, c.w, c.stroke, c.sw)}` }),
-  rd('speed-bump', 'Speed bump', {
+  rd('lane-divider', 'Lane divider', { walk: 'ignore', layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 2, width: 240, height: 12, keywords: ['dashed line', 'lane line', 'skip line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 0, c.w, c.stroke, c.sw, '14 10')}` }),
+  rd('road-centerline', 'Road centerline', { walk: 'ignore', layer: 'structure', fill: P.asphalt, stroke: P.paintYellow, strokeWidth: 1.6, width: 240, height: 12, keywords: ['double yellow', 'center line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2 - c.sw * 1.2, 0, c.w, c.stroke, c.sw)}${hLine(c.h / 2 + c.sw * 1.2, 0, c.w, c.stroke, c.sw)}` }),
+  rd('road-boundary', 'Road boundary', { walk: 'ignore', layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 2.5, width: 240, height: 12, keywords: ['edge line', 'fog line', 'solid line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 0, c.w, c.stroke, c.sw)}` }),
+  rd('speed-bump', 'Speed bump', { walk: 'ignore',
     layer: 'structure', fill: P.safety, stroke: P.ink, strokeWidth: 1, width: 120, height: 16, keywords: ['speed hump', 'traffic calming'],
     draw: (c) => `${boxRect(c, Math.min(c.w, c.h) / 2)}${along(c, 16, (x) => `<path d="M${r2(x - 3)} ${r2(c.h * 0.2)} L${r2(x + 3)} ${r2(c.h / 2)} L${r2(x - 3)} ${r2(c.h * 0.8)}" fill="none" stroke="${P.ink}" stroke-width="2.4"/>`, 10)}`,
   }),
-  rd('stop-line', 'Stop line', { layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 6, width: 60, height: 14, keywords: ['stop bar', 'limit line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 2, c.w - 2, c.stroke, Math.min(c.sw, c.h))}` }),
-  rd('yield-line', 'Yield line', {
+  rd('stop-line', 'Stop line', { walk: 'ignore', layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 6, width: 60, height: 14, keywords: ['stop bar', 'limit line'], draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${hLine(c.h / 2, 2, c.w - 2, c.stroke, Math.min(c.sw, c.h))}` }),
+  rd('yield-line', 'Yield line', { walk: 'ignore',
     layer: 'structure', fill: P.asphalt, stroke: P.paint, strokeWidth: 0, width: 120, height: 14, keywords: ['sharks teeth', 'give way'],
     draw: (c) => `<rect width="${c.w}" height="${c.h}" ${F(c)}/>${along(c, 14, (x) => `<path d="M${r2(x - 5)} 2 H${r2(x + 5)} L${r2(x)} ${r2(c.h - 2)} Z" fill="${P.paint}"/>`, 7)}`,
   }),
@@ -267,7 +267,7 @@ export const ROADS = [
       return `${cones}<path d="M${r2(c.w * 0.35)} ${r2(c.h * 0.85)} C${r2(c.w * 0.6)} ${r2(c.h * 0.85)} ${r2(c.w * 0.62)} ${r2(c.h * 0.25)} ${r2(c.w * 0.88)} ${r2(c.h * 0.25)}" fill="none" stroke="${P.orange}" stroke-width="4"/><path d="M${r2(c.w * 0.86)} ${r2(c.h * 0.12)} L${r2(c.w * 0.98)} ${r2(c.h * 0.25)} L${r2(c.w * 0.86)} ${r2(c.h * 0.38)} Z" fill="${P.orange}"/>`;
     },
   }),
-  rd('service-drive', 'Service drive', { ...DRIVE, width: 300, height: 60, keywords: ['service lane', 'dealership'], draw: lane((c) => word(c, 'SERVICE') + laneArrow(c.w * 0.85, c.h / 2, 30)) }),
+  rd('service-drive', 'Service drive', { walk: 'road', ...DRIVE, width: 300, height: 60, keywords: ['service lane', 'dealership'], draw: lane((c) => word(c, 'SERVICE') + laneArrow(c.w * 0.85, c.h / 2, 30)) }),
   rd('service-reception-lane', 'Service reception lane', {
     ...DRIVE, width: 300, height: 70, keywords: ['service write up', 'service drive', 'reception', 'dealership'],
     draw: lane((c) => {

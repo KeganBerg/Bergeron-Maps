@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
+import { useMotion, useMotionGroup } from '../ui/motion';
 import { backupCompany, backupCounts, backupFileName, parseBackup, restoreCompany, serializeBackup,
   BACKUP_EXTENSION, type BackupFile, type RestoreResult } from './backup';
 import { moveInlineImages, removeCompanyImages } from './mapImages';
@@ -240,6 +241,9 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
     if (h.kind === 'person') return `${h.company.name} · ${access(h.person, h.company.sites)}${h.person.pending ? ' · hasn’t signed in yet' : ''}`;
     return `${h.company.name} · ${h.site?.name ?? 'a site'} · ${mapState(h.map)} · edited ${when(h.map.updated_at)}`;
   };
+  const motion = useMotion();
+  const searchMotion = useMotion();
+  const lists = useMotionGroup();
   const totals = data && {
     companies: data.length,
     sites: data.reduce((n, c) => n + c.sites.length, 0),
@@ -250,7 +254,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   return (
     <div className="home">
       <AppHeader nav={nav}>{account}</AppHeader>
-      <main className="home-main team admin">
+      <main className="home-main team admin" ref={motion}>
         <div className="page-head"><h2>All accounts</h2></div>
         {totals && (
           <dl className="admin-stats" data-testid="admin-totals">
@@ -263,7 +267,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
         {note && <p className="ok-text" role="status">{note}</p>}
         {working && <p className="muted small" role="status" data-testid="backup-working">{working}…</p>}
 
-        <div className="admin-search">
+        <div className="admin-search" ref={searchMotion}>
           <input type="search" value={filter} onChange={(e) => setFilter(e.target.value)} autoFocus
             placeholder="Search companies, sites, people (email) and maps" aria-label="Search all accounts" data-testid="admin-search" />
           {q && data && (
@@ -337,7 +341,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
         {data?.length === 0 && <p className="muted">No companies yet. Set one up above.</p>}
 
         {shown.map((c) => (
-          <section className="panel-card" key={c.id} data-testid={`admin-company-${c.name}`}>
+          <section className="panel-card" key={c.id} data-testid={`admin-company-${c.name}`} ref={lists(`${c.id}-card`)}>
             <div className="admin-company-head">
               <h3>{c.name}</h3>
               <span className="site-actions">
@@ -367,7 +371,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             {!!c.requests?.length && (
               <>
                 <h4>Manager requests</h4>
-                <ul className="people">
+                <ul className="people" ref={lists(`${c.id}-requests`)}>
                   {c.requests.map((q) => (
                     <li key={q.id}>
                       <span>
@@ -387,7 +391,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             )}
 
             <h4>Sites</h4>
-            <ul className="site-list">
+            <ul className="site-list" ref={lists(`${c.id}-sites`)}>
               {c.sites.map((s) => (
                 <li key={s.id} data-testid={`admin-site-${s.name}`}>
                   <span className="site-name">
@@ -433,7 +437,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
 
             <h4>People</h4>
             {c.people.length === 0 ? <p className="muted small">Nobody yet.</p> : (
-              <ul className="people">
+              <ul className="people" ref={lists(`${c.id}-people`)}>
                 {c.people.map((p) => (
                   <li key={p.email}>
                     <span>

@@ -1,6 +1,6 @@
 import { open, startOrca, mark, key, keys, finish, sleep } from './lib.mjs';
 const page = await open();
-await page.route(/formsubmit\.co/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: 'true' }) }));
+await page.route(/\/api\/contact/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: 'true' }) }));
 await page.goto('about:blank');
 await startOrca('site');
 try {

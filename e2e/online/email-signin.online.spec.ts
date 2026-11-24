@@ -34,7 +34,7 @@ test.describe('sign-in email', () => {
     await page.goto('/');
     await page.getByTestId('signin-email').fill('manager@example.com');
     await page.getByTestId('signin-send').click();
-    await expect(page.getByTestId('signin-sent')).toContainText('check spam');
+    await expect(page.getByTestId('signin-sent')).toContainText('Check spam');
     await page.getByTestId('signin-code').fill('000000');
     await page.getByTestId('signin-code-send').click();
     await expect(page.getByRole('alert')).toContainText('code didn’t work');

@@ -3,17 +3,19 @@ import type Konva from 'konva';
 import { Group, Image as KImage, Line, Rect, Shape, Text } from 'react-konva';
 import { spaceMarks, spaceOutline, spaceSkew } from '../assets/catalog/spaces';
 import { hedgeClumps, hedgeDetail, type Clump } from '../assets/catalog/outdoor-signs';
-import { ASSET_BY_KEY, defaultBlend, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, shapeSourceFor, svgDataUrl, type AssetDef } from '../assets/library';
-import { bandWidth, cleanRings, filletInside, growRings, insetLines, insideRings, linesOutside, unionRings, isShaped, localOutline, maxCorner, partEnds, mergeClusters, subtractRings, toLocal, toWorld, traceRings, type Ring } from '../model/shape';
-import { jointEnds, jointShapes, roadCenterLines, roadExtensions, roadJoints, roadJunctions, STOP_LINE, STOP_TRIM, type RoadEnd, type RoadPiece } from '../model/roads';
-import { curveEnds, curveLine, curvePx } from '../model/curve';
-import { GRASS_TEXTURE, P, svgDoc, withAlpha } from '../assets/style';
+import { ASSET_BY_KEY, isShapeable, mergeKey, isUpsideDown, renderAssetSvg, svgDataUrl } from '../assets/library';
+import { isShaped, localOutline, maxCorner, traceRings, type Ring } from '../model/shape';
+import { STOP_LINE } from '../model/roads';
+import { P, svgDoc, withAlpha } from '../assets/style';
 import type { AssetObject, BackgroundImage, MapObject, SpaceObject, SpaceVariant, TextObject } from '../model/types';
 import { useImage } from './useImage';
 import { fitLabel, LABEL_LINE_HEIGHT } from './fitLabel';
 import { MAP_PALETTE } from '../theme';
 import { SPACE_FILL } from '../model/rows';
 import { labelSpot } from './labelSpot';
+import { MERGE_DECOR, TILE_K, textureTile } from './mergeTextures';
+import { type MergeCluster, type MergedMode, ROAD_EDGE, mergePlan, mergeSourceFor } from './mergePlan';
+export { mergePlan } from './mergePlan';
 
 export const LABEL_FONT = MAP_PALETTE.font;
 
@@ -182,8 +184,7 @@ function movedRoom(obj: AssetObject): { fitW: number; fitH: number } {
  * paint marks, clipped to `markClip` (merged roads: the shared surface and
  * edge lines are painted once by the merged shape).
  */
-type MergedMode = 'ghost' | 'fill' | 'marks';
-
+export 
 const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markShift, highlighted }: ObjProps & { obj: AssetObject; merged?: MergedMode; markClip?: Ring[]; markShift?: number }) {
   const def = ASSET_BY_KEY[obj.assetKey];
   const src = mergeSourceFor(def, obj);
@@ -259,310 +260,6 @@ const AssetShape = memo(function AssetShape({ obj, merged: mode, markClip, markS
     </Group>
   );
 });
-
-type Painter = (c: CanvasRenderingContext2D, size: number) => void;
-const dot = (c: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string, stroke?: string, lw = 0) => {
-  c.beginPath();
-  c.arc(x, y, r, 0, Math.PI * 2);
-  c.fillStyle = fill;
-  c.fill();
-  if (stroke && lw) {
-    c.strokeStyle = stroke;
-    c.lineWidth = lw;
-    c.stroke();
-  }
-};
-const dots = (color: string, r: number): Painter => (c, n) => {
-  for (const [x, y] of [[0.25, 0.3], [0.75, 0.2], [0.3, 0.8], [0.8, 0.7]]) dot(c, x * n, y * n, r, color);
-};
-
-/**
- * World-anchored textures for merged surfaces, matching each asset's own
- * drawing, so the fill runs on continuously across every piece. `tile` is the
- * repeat size in map pixels; painters draw in map pixels.
- */
-const MERGE_TEXTURE: Record<string, { tile: number; paint: Painter }> = {
-  grass: {
-    tile: GRASS_TEXTURE.tile,
-    paint: (c) => {
-      for (const [x, y, r, color, a] of GRASS_TEXTURE.patches) {
-        c.globalAlpha = a;
-        dot(c, x, y, r, color);
-      }
-      c.globalAlpha = 1;
-      c.strokeStyle = GRASS_TEXTURE.blade;
-      c.lineWidth = 0.9;
-      c.lineCap = 'round';
-      c.lineJoin = 'round';
-      c.beginPath();
-      for (const [x, y] of GRASS_TEXTURE.tufts) {
-        c.moveTo(x - 1.6, y - 3.4);
-        c.lineTo(x, y);
-        c.lineTo(x + 1.6, y - 3.4);
-        c.moveTo(x, y);
-        c.lineTo(x, y - 4.4);
-      }
-      c.stroke();
-    },
-  },
-  gravel: { tile: 14, paint: dots('#a39a88', 1.1) },
-  dirt: { tile: 26, paint: dots('#8c6b4a', 1.2) },
-  'rock-bed': { tile: 18, paint: dots('#8f897d', 2.4) },
-  'flower-bed': {
-    tile: 24,
-    paint: (c) => {
-      const colors = ['#e86a8a', '#f2c230', '#f4f4f4', '#b05cc8'];
-      [[6, 6], [18, 6], [10, 18], [22, 18]].forEach(([x, y], i) => dot(c, x, y, 3, colors[i], P.foliageDark, 0.6));
-    },
-  },
-};
-
-/**
- * Things drawn once per piece on top of a merged surface (after the shared
- * fill), so one piece's details are never hidden under another piece's fill.
- * Drawn in the piece's own coordinates.
- */
-const MERGE_DECOR: Record<string, (c: CanvasRenderingContext2D, w: number, h: number) => void> = {
-  // Landscaping bed: a row of shrubs down the middle, as in its own drawing.
-  planter: (c, w, h) => {
-    const along = w >= h;
-    const len = along ? w : h;
-    const r = Math.min(10, (along ? h : w) * 0.3);
-    for (let t = 15; t < len - 5; t += 30) dot(c, along ? t : w / 2, along ? h / 2 : t, r, P.foliage, P.foliageDark, 1);
-  },
-};
-
-const patternTiles = new Map<string, HTMLCanvasElement | null>();
-const TILE_K = 4; // tiles are drawn at 4x and scaled down, so they stay sharp when zoomed
-function textureTile(key: string): HTMLCanvasElement | null {
-  if (patternTiles.has(key)) return patternTiles.get(key)!;
-  const t = MERGE_TEXTURE[key];
-  let tile: HTMLCanvasElement | null = null;
-  if (t && typeof document !== 'undefined') {
-    tile = document.createElement('canvas');
-    tile.width = tile.height = t.tile * TILE_K;
-    const c = tile.getContext('2d');
-    if (c) {
-      c.scale(TILE_K, TILE_K);
-      t.paint(c, t.tile);
-    } else tile = null;
-  }
-  patternTiles.set(key, tile);
-  return tile;
-}
-
-/** Geometry for an object inside a merge: hedges merge as rounded strips. */
-function mergeSourceFor(def: AssetDef | undefined, o: AssetObject) {
-  const src = shapeSourceFor(def, o);
-  if (def && mergeKey(def) === 'hedge') return { ...src, corner: Math.max(0, Math.min(o.width, o.height) / 2 - 1) };
-  return src;
-}
-
-interface MergeCluster {
-  key: string;
-  members: AssetObject[];
-  rings: Ring[];
-  /** Merged roads: the painted edge lines, as open polylines. */
-  lines?: Ring[];
-  /** Merged roads: stop bars at intersections. */
-  stops?: Ring[];
-  /** Merged roads: the double yellow centre lines, each line as an open polyline. */
-  centers?: Ring[];
-}
-
-/** Road pieces painted with a double yellow centre line: the merged road paints it, so it can run on round bends and through junctions. */
-const CENTER_LINE = new Set(['straight-road', 'curved-road']);
-
-/** Paint line along a road's edge: inset from the edge, and its width (as drawn by each road piece). */
-const ROAD_EDGE = { inset: 3.5, width: 2 };
-
-/** World outline of an object (with its curvature and cuts). */
-function worldOutline(o: AssetObject): Ring[] {
-  return localOutline(shapeSourceFor(ASSET_BY_KEY[o.assetKey], o)).map((r) => {
-    const out: Ring = [];
-    for (let i = 0; i < r.length; i += 2) out.push(...toWorld(o, r[i], r[i + 1]));
-    return out;
-  });
-}
-
-const ringsToLocal = (o: AssetObject, rings: Ring[]) =>
-  rings.map((r) => {
-    const out: Ring = [];
-    for (let k = 0; k < r.length; k += 2) out.push(...toLocal(o, r[k], r[k + 1]));
-    return out;
-  });
-
-/** A road piece in world coordinates: outline, open ends (where it continues) and width. */
-function roadPiece(o: AssetObject): RoadPiece {
-  const def = ASSET_BY_KEY[o.assetKey];
-  const w = o.width, h = o.height;
-  const arc = def?.outline === 'arc';
-  // Intersections, roundabouts and turnarounds: roads join at the ends of their arms, which are `band` wide.
-  const parts = def?.outline && !arc ? partEnds(def.outline, w, h, bandWidth({ width: w, height: h, band: o.band ?? def.band })) : null;
-  const t = arc ? bandWidth({ width: w, height: h, band: o.band ?? def.band, curve: o.curve }) : parts ? bandWidth({ width: w, height: h, band: o.band ?? def!.band }) : h;
-  const bent = arc ? curvePx(o, t) : null;
-  const local = bent ? curveEnds(bent, t) : parts ?? [[0, 0, 0, h], [w, 0, w, h]];
-  const body = worldOutline(o);
-  const ends = local.map(([x1, y1, x2, y2]): RoadEnd => {
-    const seg = [...toWorld(o, x1, y1), ...toWorld(o, x2, y2)];
-    const len = Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) || 1;
-    let out: [number, number] = [-(seg[3] - seg[1]) / len, (seg[2] - seg[0]) / len];
-    const mx = (seg[0] + seg[2]) / 2, my = (seg[1] + seg[3]) / 2;
-    if (insideRings(body, mx + out[0], my + out[1])) out = [-out[0], -out[1]];
-    return { seg, out };
-  });
-  const r = (o.rotation * Math.PI) / 180;
-  // Centre line of straight and curved pieces (pieces made of arms have none).
-  let spine: number[] | undefined;
-  if (!parts) {
-    const line = bent ? curveLine(bent) : [0, h / 2, w, h / 2];
-    spine = [];
-    for (let i = 0; i < line.length; i += 2) spine.push(...toWorld(o, line[i], line[i + 1]));
-  }
-  const center = CENTER_LINE.has(o.assetKey) ? spine : undefined;
-  return { body, ends, width: t, axis: arc || parts ? undefined : [Math.cos(r), Math.sin(r)], center, spine };
-}
-
-/** In-line pieces whose centre lines are this close (map px) are lined up with each other. */
-const MARK_ALIGN = 6;
-
-/**
- * Where each road piece may show its own paint marks: its own outline, minus
- * every crossing piece of the same road and every intersection (so centre
- * lines and arrows stop at a junction instead of running across it). Pieces
- * lying in the same direction (a road built from straight pieces end to end)
- * keep their marks, only the first one paints where they overlap, and a
- * piece placed a few pixels off has its marks moved onto the first one's line.
- */
-function roadMarks(members: AssetObject[], pieces: RoadPiece[], junction: Ring[]): { clips: Map<string, Ring[]>; shifts: Map<string, number> } {
-  const straight = (m: AssetObject) => !ASSET_BY_KEY[m.assetKey]?.outline;
-  const inLine = (a: AssetObject, b: AssetObject) => {
-    if (!straight(a) || !straight(b)) return false;
-    const d = (((a.rotation - b.rotation) % 180) + 180) % 180;
-    return d < 3 || d > 177;
-  };
-  // Marks stop just before the stop bars.
-  const stopZone = junction.length ? growRings(junction, STOP_LINE.offset + STOP_LINE.width / 2 + 1) : [];
-  const clips = new Map<string, Ring[]>();
-  const shifts = new Map<string, number>();
-  members.forEach((m, i) => {
-    // In-line pieces: the earlier piece paints the overlap, so the marks are never doubled up.
-    const crossing = members.flatMap((o, j) => (j !== i && (j < i || !inLine(m, o)) ? pieces[j].body : []));
-    clips.set(m.id, ringsToLocal(m, subtractRings(pieces[i].body, [...crossing, ...stopZone])));
-    const a = (m.rotation * Math.PI) / 180;
-    const n = [-Math.sin(a), Math.cos(a)];
-    for (let j = 0; j < i; j++) {
-      const o = members[j];
-      if (!inLine(m, o) || Math.abs(o.height - m.height) > 1) continue;
-      const d = (o.x - m.x) * n[0] + (o.y - m.y) * n[1];
-      if (Math.abs(d) > 0.05 && Math.abs(d) <= MARK_ALIGN) {
-        shifts.set(m.id, d + (shifts.get(o.id) ?? 0));
-        break;
-      }
-      if (Math.abs(d) <= 0.05) break;
-    }
-  });
-  return { clips, shifts };
-}
-
-/**
- * Pieces on one layer that merge: copies of the same ground or planting asset
- * (or any grass piece) that overlap or sit within their blend distance.
- * A piece on its own keeps its normal drawing.
- */
-/**
- * Parking spaces on the floor, grown to cover the road paint beside them: a
- * row of spaces along a road is its edge, so the road's own edge line is left
- * off there instead of running as a second, broken line next to the row.
- */
-function curbRings(curbs: MapObject[]): Ring[] {
-  const rects: Ring[] = curbs.filter((o) => o.kind === 'space').map((o) => [
-    ...toWorld(o, 0, 0), ...toWorld(o, o.width, 0), ...toWorld(o, o.width, o.height), ...toWorld(o, 0, o.height),
-  ]);
-  return rects.length ? growRings(unionRings(rects), CURB_REACH) : [];
-}
-/** How close (map px) road paint may come to a parking row before the row takes over as the edge. */
-const CURB_REACH = ROAD_EDGE.inset + ROAD_EDGE.width + 1.5;
-
-/** Stop bars stop short of the road's edge lines; where a row is the edge instead, they run on to meet it. */
-function stopsToCurb(stops: Ring[], curb: Ring[]): Ring[] {
-  if (!curb.length) return stops;
-  return stops.map(([x1, y1, x2, y2]) => {
-    const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-    const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
-    const reach = STOP_TRIM + 1;
-    const a = insideRings(curb, x1, y1) ? [x1 - ux * reach, y1 - uy * reach] : [x1, y1];
-    const b = insideRings(curb, x2, y2) ? [x2 + ux * reach, y2 + uy * reach] : [x2, y2];
-    return [...a, ...b];
-  });
-}
-
-export function mergePlan(objects: MapObject[], curbs: MapObject[] = []): {
-  leads: Map<string, MergeCluster>;
-  modes: Map<string, MergedMode>;
-  clips: Map<string, Ring[]>;
-  shifts: Map<string, number>;
-} {
-  const byKey = new Map<string, AssetObject[]>();
-  for (const o of objects) {
-    if (o.kind !== 'asset' || o.imageSrc || o.merge === false) continue;
-    const def = ASSET_BY_KEY[o.assetKey];
-    const key = def && mergeKey(def);
-    if (!key) continue;
-    byKey.set(key, [...(byKey.get(key) ?? []), o]);
-  }
-  const leads = new Map<string, MergeCluster>();
-  const modes = new Map<string, MergedMode>();
-  const clips = new Map<string, Ring[]>();
-  const shifts = new Map<string, number>();
-  let curb: Ring[] | null = null;
-  for (const [key, objs] of byKey) {
-    if (objs.length < 2) continue;
-    const road = key === 'road';
-    const pieces = road ? objs.map(roadPiece) : [];
-    const joints = road ? roadJoints(pieces) : [];
-    const joined = jointEnds(joints);
-    const bends = road ? jointShapes(pieces, joints) : null;
-    const extra = road ? roadExtensions(pieces, joined).map((e, i) => [...e, ...bends!.fill[i]]) : [];
-    const clusters = mergeClusters(objs.map((m, i) => {
-      const def = ASSET_BY_KEY[m.assetKey];
-      return { x: m.x, y: m.y, rotation: m.rotation, blend: m.blend ?? defaultBlend(def), extra: extra[i], ...mergeSourceFor(def, m) };
-    }));
-    const mode: MergedMode = road ? 'marks' : MERGE_TEXTURE[key] || MERGE_DECOR[key] || key === 'hedge' ? 'ghost' : 'fill';
-    for (const c of clusters) {
-      if (c.members.length < 2) continue;
-      const members = c.members.map((i) => objs[i]);
-      const cluster: MergeCluster = { key, members, rings: c.rings };
-      if (road) {
-        const ps = c.members.map((i) => pieces[i]);
-        // Joints and joined ends, numbered within this cluster.
-        const at = new Map(c.members.map((m, k) => [m, k]));
-        const js = joints.filter((j) => at.has(j.a) && at.has(j.b)).map((j) => ({ ...j, a: at.get(j.a)!, b: at.get(j.b)! }));
-        const raw = bends!.trim.length ? subtractRings(c.rings, bends!.trim) : c.rings;
-        curb ??= curbRings(curbs);
-        const junctions = roadJunctions(ps, raw, jointEnds(js));
-        
-        // Inside corners of junctions and bends are rounded, like a kerb.
-        const minW = Math.min(...ps.map((p) => p.width));
-        const near = growRings([...junctions.areas, ...js.map((j) => [j.c[0] - minW, j.c[1] - minW, j.c[0] + minW, j.c[1] - minW, j.c[0] + minW, j.c[1] + minW, j.c[0] - minW, j.c[1] + minW])], minW);
-        cluster.rings = filletInside(raw, minW * 0.25, near);
-        cluster.rings = cleanRings(cluster.rings);
-        const inBend = jointEnds(js);
-        const open = ps.flatMap((p, k) => p.ends.filter((_, e) => !inBend.has(`${k}:${e}`)).map((e) => e.seg));
-        cluster.lines = linesOutside(insetLines(cluster.rings, open, ROAD_EDGE.inset), curb);
-        cluster.stops = stopsToCurb(junctions.stops, curb);
-        cluster.centers = roadCenterLines(ps, js, junctions);
-        for (const m of members) if (CENTER_LINE.has(m.assetKey)) modes.set(m.id, 'ghost');
-        const marks = roadMarks(members, ps, junctions.areas);
-        for (const [id, r] of marks.clips) clips.set(id, r);
-        for (const [id, d] of marks.shifts) shifts.set(id, d);
-      }
-      leads.set(members[0].id, cluster);
-      for (const m of members) if (!modes.has(m.id)) modes.set(m.id, mode);
-    }
-  }
-  return { leads, modes, clips, shifts };
-}
 
 const MergedShape = function MergedShape({ cluster }: { cluster: MergeCluster }) {
   const { key, rings } = cluster;

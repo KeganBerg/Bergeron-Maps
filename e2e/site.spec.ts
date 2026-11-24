@@ -20,7 +20,7 @@ test('the hero phone is on screen, searchable, and the spam trap stays hidden', 
 
 test('the contact form sends one request with the visitor details', async ({ page }) => {
   let body = '';
-  await page.route('https://formsubmit.co/**', (r) => {
+  await page.route('**/api/contact', (r) => {
     body = r.request().postData() || '';
     return r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":"true"}' });
   });
@@ -36,7 +36,7 @@ test('the contact form sends one request with the visitor details', async ({ pag
 });
 
 test('a failed send says so and offers the email address', async ({ page }) => {
-  await page.route('https://formsubmit.co/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":"false"}' }));
+  await page.route('**/api/contact', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":"false"}' }));
   await page.goto('/site/index.html#contact');
   await page.fill('[name=name]', 'Test Person');
   await page.fill('[name=email]', 'test@example.com');
@@ -58,7 +58,7 @@ test('the self-running demos stay quiet for screen readers; what a visitor finds
 });
 
 test('the contact form thank-you takes focus as a named region, read once', async ({ page }) => {
-  await page.route('https://formsubmit.co/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":"true"}' }));
+  await page.route('**/api/contact', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":"true"}' }));
   await page.goto('/site/index.html#contact');
   await page.waitForTimeout(3100);
   await page.fill('#contact-form [name=name]', 'Pat');
