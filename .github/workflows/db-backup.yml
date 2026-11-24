@@ -1,0 +1,63 @@
+name: Nightly database backup
+
+# Every night: a full copy of the Supabase database (app tables and sign-in accounts), encrypted,
+# kept 90 days as a workflow artifact. Free on a public repository, so the project can stay on
+# Supabase's Free plan (which keeps no backups of its own). How to restore: docs/RECOVERY.md.
+#
+# Needs two repository secrets: SUPABASE_DB_URL (the Session pooler connection string) and
+# BACKUP_PASSPHRASE. Until both exist it skips itself with a note. GitHub emails the repository
+# owner if a scheduled run fails. Scheduled runs only start from the default branch.
+
+on:
+  schedule:
+    - cron: '17 7 * * *' # 07:17 UTC, about 2 or 3 AM in Florida and Massachusetts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      READY: ${{ secrets.SUPABASE_DB_URL != '' && secrets.BACKUP_PASSPHRASE != '' }}
+    steps:
+      - name: Not set up yet
+        if: env.READY != 'true'
+        run: echo "::notice::Skipped. Add the SUPABASE_DB_URL and BACKUP_PASSPHRASE repository secrets (docs/RECOVERY.md)."
+      - uses: actions/checkout@v4
+        if: env.READY == 'true'
+        with:
+          sparse-checkout: scripts/db-backup.sh
+          sparse-checkout-cone-mode: false
+      # pg_dump must be at least as new as the server, so install the newest client.
+      - name: Install pg_dump 17
+        if: env.READY == 'true'
+        run: |
+          sudo apt-get install -y -qq postgresql-common > /dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+      - name: Back up and encrypt
+        id: backup
+        if: env.READY == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          PG_DUMP: /usr/lib/postgresql/17/bin/pg_dump
+        run: |
+          file=$(scripts/db-backup.sh backup-out)
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "Backup: $file ($(du -h "backup-out/$file" | cut -f1))" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: env.READY == 'true'
+        with:
+          name: ${{ steps.backup.outputs.file }}
+          path: backup-out/${{ steps.backup.outputs.file }}
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: error
