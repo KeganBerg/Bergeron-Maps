@@ -2,7 +2,7 @@ import Konva from 'konva';
 import { useCallback, useEffect, useRef } from 'react';
 import type { MapDocument } from '../model/types';
 import { PanZoomTracker, wheelView } from '../render/panZoom';
-import { cancelIdle, whenIdle } from './viewerHelpers';
+import { cancelIdle, whenIdle } from './idle';
 
 type View = { x: number; y: number; scale: number };
 

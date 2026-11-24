@@ -8,15 +8,6 @@ import { floorTitle } from '../model/interiors';
 import type { Directions } from './directionsTypes';
 import type { Box } from '../model/types';
 
-/** Runs soon, when the browser has nothing else to do (or after half a second at most). */
-export const whenIdle = (fn: () => void): number =>
-  typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 500 }) : window.setTimeout(fn, 100);
-export const cancelIdle = (id: number) => {
-  if (!id) return;
-  if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(id);
-  else window.clearTimeout(id);
-};
-
 /** "#/view/abc?from=el_1": a sign's QR code can say where people are standing. */
 export function fromHint(): string | null {
   return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('from');

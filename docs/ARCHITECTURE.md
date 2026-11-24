@@ -27,7 +27,7 @@ src/
   viewer/     Phone-first, read-only view with search and directions
   home/       Maps list, new map, recently deleted (browser-only and online)
   cloud/      Online mode: Supabase client, SupabaseRepository, sign-in, team, admin pages
-  ui/         Shared UI pieces: dialogs, fields, icons, brand
+  ui/         Shared UI pieces: dialogs, fields, icons, brand, motion (useMotion: admin pages ease in/out)
   errors/     Friendly error messages and optional error reports
 supabase/
   migrations/ The database schema, in order (source of truth)

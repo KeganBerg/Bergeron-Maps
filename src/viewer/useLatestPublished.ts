@@ -1,17 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import type { MapDocument } from '../model/types';
 import type { MapRepository } from '../storage/repository';
 
-/**
- * Keeps the viewer on the latest published map. Calls `load` when a newer
- * version has been published. Off in the editor's preview.
- */
-export function useNewPublishCheck({ mapId, repo, preview, docRef, load }: {
-  mapId: string;
-  repo: MapRepository;
-  preview: boolean;
-  /** The map on screen. */
-  docRef: React.MutableRefObject<(MapDocument & { publishedAt?: string }) | null>;
+/** Moved out of ViewerPage.tsx to keep that file from growing (src/codeSize.test.ts). */
+export function useLatestPublished({ mapId, repo, preview, docRef, load }: {
+  mapId: string; repo: MapRepository; preview: boolean;
+  docRef: MutableRefObject<(MapDocument & { publishedAt?: string }) | null>;
+  /** Downloads the map again and shows it. */
   load: () => void;
 }) {
   const loadRef = useRef(load);

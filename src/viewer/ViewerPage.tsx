@@ -12,6 +12,7 @@ import { floorVars } from '../theme';
 import { findRoute, isBig, placeLabel, type Route } from '../model/route';
 import { HereMarker, RouteOverlay } from './RouteOverlay';
 import { SideViewSheet } from './SideView';
+import { useLatestPublished } from './useLatestPublished';
 import { sideView } from '../model/sideView';
 import { shareLink, viewerAnnouncement, atHint, boxOf, describe, fromHint, linkTo, searchSummary, useSettled } from './viewerHelpers';
 import { type Directions, type Goal, type Start, sheetRoom } from './directionsTypes';
@@ -24,7 +25,6 @@ import { InfoCard } from './InfoCard';
 import { FloorBar } from './FloorBar';
 import { useViewerPanZoom } from './useViewerPanZoom';
 import { useFloorPrint } from './useFloorPrint';
-import { useNewPublishCheck } from './useNewPublishCheck';
 import { ViewerHeader } from './ViewerHeader';
 import Konva from 'konva';
 import '../render/konvaSetup';
@@ -155,7 +155,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     );
   };
   useEffect(load, [mapId, repo]);
-  useNewPublishCheck({ mapId, repo, preview, docRef, load });
+  useLatestPublished({ mapId, repo, preview, docRef, load });
 
   // Measured before the first paint (layout effect), so a big map isn't drawn once at a
   // made-up size and position and then again for real.
