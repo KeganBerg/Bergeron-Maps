@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
-import { backupCompany, backupCounts, backupFileName, parseBackup, restoreCompany, serializeBackup,
-  BACKUP_EXTENSION, type BackupFile, type RestoreResult } from './backup';
+import { backupCompany, backupCounts, backupFileName, findMissing, parseBackup, restoreCompany, restoreMissing, serializeBackup,
+  BACKUP_EXTENSION, type BackupFile, type MissingParts, type RestoreMissingResult, type RestoreResult } from './backup';
 import { friendly, supabase } from './client';
 import { siteLink } from './TeamPage';
 
@@ -103,8 +103,12 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   const [removing, setRemoving] = useState<{ company: AdminCompany; person: AdminPerson } | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [backedUp, setBackedUp] = useState<Set<string>>(new Set());
-  const [restoring, setRestoring] = useState<{ file: BackupFile; fileName: string; picked: Set<string> } | null>(null);
-  const [restored, setRestored] = useState<{ results: RestoreResult[]; failed: { name: string; error: string }[] } | null>(null);
+  const [restoring, setRestoring] = useState<{
+    file: BackupFile; fileName: string; picked: Set<string>;
+    /** For companies that still exist: what the backup has that the database no longer does (null while checking). */
+    missing: Record<string, MissingParts | null>;
+  } | null>(null);
+  const [restored, setRestored] = useState<{ results: RestoreResult[]; partial: RestoreMissingResult[]; failed: { name: string; error: string }[] } | null>(null);
   const restoreInput = useRef<HTMLInputElement>(null);
 
   /** Downloads a backup of the given companies (one file). */
@@ -135,7 +139,20 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
       const file = parseBackup(await f.text());
       if (!file.companies.length) return setError('That backup has no companies in it.');
       const live = new Set((data ?? []).map((c) => c.id));
-      setRestoring({ file, fileName: f.name, picked: new Set(file.companies.filter((c) => !live.has(c.id)).map((c) => c.id)) });
+      const existing = file.companies.filter((c) => live.has(c.id));
+      setRestoring({ file, fileName: f.name, picked: new Set(file.companies.filter((c) => !live.has(c.id)).map((c) => c.id)),
+        missing: Object.fromEntries(existing.map((c) => [c.id, null])) });
+      // Companies still here can get back the maps and sites they lost since the backup.
+      for (const c of existing) {
+        let m: MissingParts;
+        try {
+          m = await findMissing(supabase!, c);
+        } catch {
+          m = { sites: 0, maps: 0, trashed: 0 };
+        }
+        const has = m.sites + m.maps + m.trashed > 0;
+        setRestoring((r) => r && ({ ...r, missing: { ...r.missing, [c.id]: m }, picked: has ? new Set([...r.picked, c.id]) : r.picked }));
+      }
     } catch (e) {
       setError(friendly(e));
     }
@@ -148,16 +165,18 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
     setError(null);
     setNote(null);
     const results: RestoreResult[] = [];
+    const partial: RestoreMissingResult[] = [];
     const failed: { name: string; error: string }[] = [];
     for (const c of chosen) {
       try {
-        results.push(await restoreCompany(supabase!, c, setWorking));
+        if (c.id in restoring.missing) partial.push(await restoreMissing(supabase!, c, setWorking));
+        else results.push(await restoreCompany(supabase!, c, setWorking));
       } catch (e) {
         failed.push({ name: c.name, error: friendly(e) });
       }
     }
     setWorking(null);
-    setRestored({ results, failed });
+    setRestored({ results, partial, failed });
     onCreated();
     await load();
   };
@@ -286,7 +305,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
           <h3>Backups</h3>
           <p className="muted small">
             A backup file holds a company’s sites, links and join codes, who has access, and every map with what employees see and its saved versions.
-            Download one before deleting a company, so it can be brought back if the client returns.
+            Download one before deleting a company, so it can be brought back if the client returns. A backup also brings back a map deleted forever or a site deleted by mistake.
           </p>
           <div className="site-actions backup-actions">
             <button className="btn small" disabled={!!working || !data.length} onClick={() => void download(data)} data-testid="backup-all">
@@ -497,16 +516,24 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
               {restoring.file.companies.map((c) => {
                 const k = backupCounts(c);
                 const exists = live.has(c.id);
+                const miss = restoring.missing[c.id];
+                const missing = miss ? miss.sites + miss.maps + miss.trashed : 0;
                 return (
                   <li key={c.id}>
                     <label>
-                      <input type="checkbox" disabled={exists} checked={restoring.picked.has(c.id)} data-testid={`restore-pick-${c.name}`}
+                      <input type="checkbox" disabled={exists && missing === 0} checked={restoring.picked.has(c.id)} data-testid={`restore-pick-${c.name}`}
                         onChange={(e) => { const picked = new Set(restoring.picked); if (e.target.checked) picked.add(c.id); else picked.delete(c.id); setRestoring({ ...restoring, picked }); }} />
                       <span>
                         <strong>{c.name}</strong>
                         <span className="muted small">
-                          {exists ? 'Still in All accounts, so there’s nothing to restore · ' : ''}
-                          {plural(k.sites, 'site')}, {plural(k.people, 'person', 'people')}, {plural(k.maps, 'map')}
+                          {exists && miss === null && 'Still in All accounts. Checking what it’s missing… '}
+                          {exists && miss && missing === 0 && 'Still in All accounts, and nothing in this backup is missing from it. '}
+                          {exists && miss && missing > 0 && (
+                            <span data-testid={`restore-missing-${c.name}`}>Still in All accounts. Brings back only what it’s missing:{' '}
+                              {[miss.sites && plural(miss.sites, 'site'), miss.maps && plural(miss.maps, 'map'),
+                                miss.trashed && `${miss.trashed} from Recently deleted`].filter(Boolean).join(', ')}. </span>
+                          )}
+                          {exists ? 'The backup has ' : ''}{plural(k.sites, 'site')}, {plural(k.people, 'person', 'people')}, {plural(k.maps, 'map')}
                           {k.trashed ? ` and ${k.trashed} in Recently deleted` : ''}, {plural(k.versions, 'saved version')}
                         </span>
                       </span>
@@ -518,6 +545,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             <p className="muted small">
               Everything comes back as it was in the backup, with the same site links and join codes (unless another site has taken one since).
               People who still have a sign-in get their access back right away; the rest get it when they next sign in.
+              For a company that is still here, only its missing sites and maps come back; nothing it has now is changed.
             </p>
           </Dialog>
         );
@@ -532,6 +560,18 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
                 <p><strong>{r.name}</strong> is back: {plural(r.sites, 'site')}, {plural(r.maps, 'map')} ({r.published} published),
                   {' '}{plural(r.members + r.invited, 'person', 'people')} with access{r.invited ? ` (${r.invited} once they sign in)` : ''},
                   {' '}{plural(r.versions, 'saved version')}.</p>
+                {r.slug_changes.map((x) => (
+                  <p key={x.site} className="muted small">{x.site}’s link was taken by another site, so it is now {siteLink(x.now)}.</p>
+                ))}
+                {r.moved_to_trash > 0 && <p className="muted small">{plural(r.moved_to_trash, 'map')} didn’t fit in its site’s 5 slots and went to Recently deleted.</p>}
+                {r.versionErrors > 0 && <p className="error-text">{plural(r.versionErrors, 'saved version')} couldn’t be restored. The maps themselves are fine.</p>}
+              </div>
+            ))}
+            {restored.partial.map((r) => (
+              <div key={r.name} className="restore-result">
+                <p><strong>{r.name}</strong>: {r.sites + r.maps === 0 ? 'nothing was missing.'
+                  : `${[r.sites && plural(r.sites, 'site'), r.maps && `${plural(r.maps, 'map')} (${r.published} published)`].filter(Boolean).join(' and ')} back`
+                    + `${r.access ? `, access back for ${plural(r.access, 'person', 'people')}` : ''}, ${plural(r.versions, 'saved version')}.`}</p>
                 {r.slug_changes.map((x) => (
                   <p key={x.site} className="muted small">{x.site}’s link was taken by another site, so it is now {siteLink(x.now)}.</p>
                 ))}

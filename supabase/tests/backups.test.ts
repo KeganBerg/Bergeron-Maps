@@ -219,3 +219,86 @@ describe('restoring a deleted company', () => {
     expect((await db.query('select 1 from facilities where id = $1', [w.siteA])).rowCount).toBe(0);
   });
 });
+
+/** Recently deleted → Delete forever, as a manager does it. */
+async function deleteForever(where: string, id: string) {
+  await as(w.lead, `update maps set deleted_at = now() where ${where} = $1 and deleted_at is null`, [id]);
+  await as(w.lead, `delete from maps where ${where} = $1`, [id]);
+  expect((await db.query(`select 1 from maps where ${where} = $1`, [id])).rowCount).toBe(0);
+}
+
+async function restoreMissing(b: unknown) {
+  const core = b as { maps: { id: string; versions: unknown[] }[] };
+  const [{ admin_restore_missing: r }] = await as<{ admin_restore_missing: { map_ids: string[] } & Record<string, unknown> }>(w.staff,
+    'select public.admin_restore_missing($1)', [JSON.stringify({ ...core, maps: core.maps.map(({ versions: _v, ...m }) => m) })]);
+  let versions = 0;
+  for (const m of core.maps.filter((x) => r.map_ids.includes(x.id))) {
+    const [{ admin_restore_versions: n }] = await as<{ admin_restore_versions: number }>(w.staff,
+      'select public.admin_restore_versions($1, $2)', [m.id, JSON.stringify(m.versions)]);
+    versions += n;
+  }
+  return { ...r, versions };
+}
+
+describe('restoring what a company that still exists has lost', () => {
+  it('brings back a map deleted forever, with its link, slot, published version and saved versions, and changes nothing else', async () => {
+    const { live, same } = await addMaps();
+    const b = await backup(w.staff, w.company);
+    const before = (await db.query('select id, slot, md5(draft::text) d from maps where id = $1', [live])).rows[0];
+    // Edits after the backup must survive the restore.
+    await as(w.lead, 'update maps set draft = $2 where id = $1', [same, doc('Lot', 9)]);
+    await deleteForever('id', live);
+    const r = await restoreMissing(b);
+    expect(r).toMatchObject({ sites: 0, maps: 1, published: 1, versions: 2, slug_changes: [] }); // its publish and its manual save
+    expect((await db.query('select id, slot, md5(draft::text) d from maps where id = $1', [live])).rows[0]).toEqual(before);
+    expect((await db.query('select 1 from published_maps where map_id = $1', [live])).rowCount).toBe(1);
+    expect((await db.query(`select draft->>'n' n from maps where id = $1`, [same])).rows[0].n).toBe('9');
+    // Running it again finds nothing missing.
+    expect(await restoreMissing(b)).toMatchObject({ sites: 0, maps: 0, versions: 0 });
+    expect((await db.query(`select 1 from audit_log where action = 'company.restored_missing' and company_id = $1`, [w.company])).rowCount).toBe(1);
+  });
+
+  it('brings back a deleted site with its link, join code, maps, and the people who lost access with it', async () => {
+    await addMaps();
+    const b = await backup(w.staff, w.company);
+    const [site] = (await db.query('select slug, join_code from facilities where id = $1', [w.siteB])).rows;
+    await deleteForever('facility_id', w.siteB);
+    await as(w.staff, 'select public.admin_delete_site($1)', [w.siteB]);
+    // The manager invited only to site B lost the invitation with the site.
+    expect((await db.query('select 1 from invitations where company_id = $1', [w.company])).rowCount).toBe(0);
+    const r = await restoreMissing(b);
+    expect(r).toMatchObject({ sites: 1, maps: 1, published: 1, access: 1 });
+    expect((await db.query('select slug, join_code from facilities where id = $1', [w.siteB])).rows[0]).toEqual(site);
+    expect((await db.query('select role, facility_ids from invitations where company_id = $1', [w.company])).rows)
+      .toEqual([{ role: 'manager', facility_ids: [w.siteB] }]);
+    // The employee of site A still has site A only: nobody gains access the backup didn't give them.
+    expect((await db.query('select facility_ids from memberships where user_id = $1', [w.employee])).rows[0].facility_ids).toEqual([w.siteA]);
+  });
+
+  it('gives a site back to someone still in the company who had it', async () => {
+    const b0 = await backup(w.staff, w.company) as { people: { email: string; facility_ids: string[] | null }[] };
+    // In the backup the employee had both sites.
+    b0.people.find((p) => p.email.startsWith('valet'))!.facility_ids = [w.siteA, w.siteB];
+    await as(w.staff, 'select public.admin_delete_site($1)', [w.siteB]);
+    expect(await restoreMissing(b0)).toMatchObject({ sites: 1, access: 2 });
+    const [m] = (await db.query('select facility_ids from memberships where user_id = $1', [w.employee])).rows;
+    expect([...m.facility_ids].sort()).toEqual([w.siteA, w.siteB].sort());
+  });
+
+  it('puts a map in Recently deleted when its site has no free slot, and only admins can do it', async () => {
+    const { live } = await addMaps();
+    const b = await backup(w.staff, w.company);
+    await deleteForever('id', live);
+    for (let i = 0; i < 5; i++) await as(w.lead, `insert into maps (facility_id, name, draft) values ($1, $2, $3)`, [w.siteA, `New ${i}`, doc('x')]);
+    await expect(as(w.lead, 'select public.admin_restore_missing($1)', [JSON.stringify(b)])).rejects.toThrow(/Only Bergeron Maps admins/);
+    const r = await restoreMissing(b);
+    expect(r).toMatchObject({ maps: 1, moved_to_trash: 1, published: 0 });
+    expect((await db.query('select deleted_at is not null t from maps where id = $1', [live])).rows[0].t).toBe(true);
+  });
+
+  it('refuses a company that is no longer in All accounts', async () => {
+    const b = await backup(w.staff, w.company);
+    await deleteCompany();
+    await expect(restoreMissing(b)).rejects.toThrow(/Restore the whole company instead/);
+  });
+});
