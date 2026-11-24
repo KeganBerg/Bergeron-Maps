@@ -121,13 +121,21 @@ describe('contract setup', () => {
   it('only admins change the limit and addresses, or set up companies', async () => {
     await expect(as(w.lead, 'select public.set_site_limit($1, 50)', [w.company])).rejects.toThrow(/Only Bergeron Maps admins/);
     await expect(as(w.lead, `select public.set_site_address($1, 'Somewhere else')`, [w.siteA])).rejects.toThrow(/contract/);
-    await expect(as(w.lead, `update facilities set address = 'Somewhere else' where id = $1`, [w.siteA])).rejects.toThrow(/contract/);
+    await expect(as(w.lead, `update facilities set address = 'Somewhere else' where id = $1`, [w.siteA])).rejects.toThrow(/set once/);
     await expect(as(w.lead, `select public.add_contract_site($1, 'X', 'Y')`, [w.company])).rejects.toThrow(/Only Bergeron Maps admins/);
     await expect(as(w.lead, `select public.setup_company('X', 'Y')`)).rejects.toThrow(/Only Bergeron Maps admins/);
     // Renaming a site is still fine for the account lead.
     expect(await as(w.lead, `update facilities set name = 'Site A North' where id = $1 returning id`, [w.siteA])).toHaveLength(1);
     await as(w.staff, `select public.set_site_address($1, '101 Main St')`, [w.siteA]);
     expect((await db.query('select address from facilities where id = $1', [w.siteA])).rows[0].address).toBe('101 Main St');
+  });
+
+  it('a site bought online with no address gets one from its account lead, once', async () => {
+    await as(w.staff, `select public.set_site_address($1, null)`, [w.siteA]);
+    await expect(as(w.employee, `update facilities set address = '1 Elm St' where id = $1 returning id`, [w.siteA])).resolves.toHaveLength(0);
+    expect(await as(w.lead, `update facilities set address = '1 Elm St' where id = $1 returning id`, [w.siteA])).toHaveLength(1);
+    await expect(as(w.lead, `update facilities set address = '2 Elm St' where id = $1`, [w.siteA])).rejects.toThrow(/set once/);
+    expect((await db.query('select address from facilities where id = $1', [w.siteA])).rows[0].address).toBe('1 Elm St');
   });
 
   it('the overview shows the limit, addresses and open manager requests', async () => {

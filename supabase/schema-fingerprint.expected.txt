@@ -1,5 +1,5 @@
 scheduled jobs: pg_cron is off
-205 objects, fingerprint 663fea31fdcb
+205 objects, fingerprint f981675ebb0d
 constraint audit_log.audit_log_company_id_fkey 328812a1 
 constraint audit_log.audit_log_pkey 4c6419b3 
 constraint companies.companies_contract_term_months_check 59ee97a4 
@@ -88,7 +88,7 @@ function end_sessions(p_user uuid) d5581d8e
 function facilities_after_delete() ae91e4c2 
 function facilities_before_insert() d5561028 -,anon,authenticated
 function facilities_default_slug() 4944d10b -,anon,authenticated
-function facilities_protect_address() b90186a7 
+function facilities_protect_address() 5f824170 
 function facilities_protect_columns() 62f37e49 -,anon,authenticated
 function facilities_protect_maps() 5e482776 -,authenticated
 function floor_count(m maps) 8dcd2ed4 authenticated

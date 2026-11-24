@@ -79,3 +79,20 @@ begin
   perform public.log_action(m.company_id, 'map.published', m.id::text, jsonb_build_object('name', m.name, 'revision', m.revision));
   return t;
 end $$;
+
+-- Company setup after buying online. A self-serve buyer has no contract for us to copy addresses
+-- from, so the account lead gives each site's address once, on the setup screen. After that it is
+-- locked like a contract address: only Bergeron Maps admins change it, so a paid site can't be
+-- quietly moved to another location.
+create or replace function public.facilities_protect_address()
+returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (tg_op = 'INSERT' and new.address is not null or tg_op = 'UPDATE' and new.address is distinct from old.address)
+     and auth.uid() is not null and not public.is_platform_admin()
+     and not ((tg_op = 'INSERT' or nullif(trim(old.address), '') is null) and public.can_manage_company(new.company_id)) then
+    raise exception 'A site''s address is set once. Ask Bergeron Maps to change it.' using errcode = '42501';
+  end if;
+  new.address := nullif(trim(new.address), '');
+  return new;
+end $$;
