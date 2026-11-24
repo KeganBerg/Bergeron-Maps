@@ -97,7 +97,7 @@ export function DirectionsSheet(p: {
         <div>
           <strong>To {dir.goal.name}</strong>
           <span className="muted" data-testid="dir-summary">
-            {feet(route.length)} ft · about {mins} min · from {dir.start.name}
+            {feet(route.length)} ft, about {mins} min from {dir.start.name}
           </span>
         </div>
         {close}
@@ -108,7 +108,7 @@ export function DirectionsSheet(p: {
             <button className={s.floorId === p.floorId ? 'here' : ''} onClick={() => p.onStep(s.kind === 'walk' ? s.floorId : s.toFloorId ?? s.floorId)} data-testid="route-step">
               <Icon name={STEP_ICON[s.kind] ?? 'directions'} size={16} />
               <span>{s.text}</span>
-              {multiFloor && <span className="muted">{s.kind === 'walk' ? `${floorName(s.floorId)} · ${feet(route.legs[s.leg!]?.length ?? 0)} ft` : floorName(s.floorId)}</span>}
+              {multiFloor && <span className="muted">{s.kind === 'walk' ? `${floorName(s.floorId)}, ${feet(route.legs[s.leg!]?.length ?? 0)} ft` : floorName(s.floorId)}</span>}
             </button>
           </li>
         ))}

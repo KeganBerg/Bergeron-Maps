@@ -29,7 +29,7 @@ test('the side view stacks every floor, marks the space found, and opens a floor
   const names = await sheet.locator('.sv-floor text').allTextContents();
   expect(names).toEqual(['Floor 1', 'Floor 2', 'Floor 3']);
   await expect(sheet.getByRole('button', { name: /Open Floor 3, shown now/ })).toBeVisible();
-  await expect(page.getByTestId('sv-callout')).toHaveText(/^3C9 · Floor 3/);
+  await expect(page.getByTestId('sv-callout')).toHaveText(/^3C9, Floor 3/);
   await expect(page.getByTestId('side-view-key')).toContainText(/Ramp|Stairs|Elevator/);
   // The space card waits behind the side view.
   await expect(page.getByTestId('info-card')).toHaveCount(0);

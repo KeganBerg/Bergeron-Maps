@@ -63,7 +63,7 @@ function describe(m: Member, sites: Site[]): string {
   const where = m.facility_ids === null ? 'all sites'
     : [...known, ...(others ? [`${others} other ${others === 1 ? 'site' : 'sites'}`] : [])].join(', ');
   if (m.role === 'manager' && m.facility_ids === null) return 'Regional manager (all sites)';
-  return `${m.role === 'manager' ? 'Site manager' : 'Employee'} · ${where}`;
+  return `${m.role === 'manager' ? 'Site manager' : 'Employee'}, ${where}`;
 }
 
 /**
@@ -346,8 +346,8 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                   <span>
                     <strong>{q.email}</strong>
                     <span className="muted small">
-                      {sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'} · asked {new Date(q.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                      {q.note ? ` · “${q.note}”` : ''}
+                      {sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'}, asked {new Date(q.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      {q.note ? `: “${q.note}”` : ''}
                     </span>
                   </span>
                   <span className="site-actions">
@@ -389,7 +389,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                 <li key={m.email}>
                   <span>
                     <strong>{m.email}</strong>
-                    <span className="muted small">{describe(m, sites)}{m.pending ? ' · hasn’t signed in yet' : ''}</span>
+                    <span className="muted small">{describe(m, sites)}{m.pending ? ' (hasn’t signed in yet)' : ''}</span>
                   </span>
                   {(canRemove(m) || (full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1)) && (
                     <span className="site-actions">

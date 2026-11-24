@@ -464,7 +464,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       )}
       <div className="print-only viewer-print" ref={printRef} aria-hidden="true">
         <style />
-        <h1>{doc.name} · {floorTitle(doc, floor)}</h1>
+        <h1>{doc.name}, {floorTitle(doc, floor)}</h1>
       </div>
       <ViewerHeader mapName={doc.name} floorName={floorTitle(doc, floor)} updatedAt={doc.publishedAt ?? doc.updatedAt}
         preview={preview} listOpen={listOpen} onRefresh={load}

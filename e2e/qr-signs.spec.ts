@@ -43,7 +43,7 @@ test('a printed sign scans to its floor and spot, at every size', async ({ page 
     await page.getByTestId(`sign-size-${size}`).check();
     const [sign] = await Promise.all([page.waitForEvent('popup'), page.getByTestId('sign-print').click()]);
     await sign.evaluate(() => (window.print = () => undefined));
-    await expect(sign.getByTestId('sign')).toContainText('Elevator 1 · Floor 2');
+    await expect(sign.getByTestId('sign')).toContainText('Elevator 1, Floor 2');
     // On the page at the size it prints at (96 CSS px to the inch).
     const qr = (await sign.getByTestId('sign-qr').boundingBox())!;
     expect(qr.width / 96).toBeCloseTo({ card: 2.5, letter: 4, poster: 6.5 }[size], 1);
@@ -90,7 +90,7 @@ test('printing the viewer prints the whole floor, not the screen', async ({ page
   await page.emulateMedia({ media: 'print' });
   const pic = page.getByTestId('print-map');
   await expect(pic).toBeVisible();
-  await expect(page.locator('.viewer-print h1')).toHaveText('Print Garage · Floor 3');
+  await expect(page.locator('.viewer-print h1')).toHaveText('Print Garage, Floor 3');
   await expect(page.locator('.viewer-header')).toBeHidden();
   await expect(page.getByTestId('reset-view')).toBeHidden();
   const size = await pic.evaluate((c: HTMLCanvasElement) => ({ w: c.width, h: c.height }));

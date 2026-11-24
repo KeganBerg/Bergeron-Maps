@@ -16,7 +16,7 @@ test('directions from the entrance to a space two floors up, step by step', asyn
   await expect(steps.nth(0)).toContainText(/Walk to (Elevator|Stairway) 1/);
   await expect(steps.nth(1)).toContainText(/Take (Elevator|Stairway) 1 up to Floor 3/);
   await expect(steps.nth(2)).toContainText('Walk to Space 3C9');
-  await expect(page.getByTestId('dir-summary')).toContainText(/\d+ ft · about \d+ min · from Entrance/);
+  await expect(page.getByTestId('dir-summary')).toContainText(/\d+ ft, about \d+ min from Entrance/);
   // It opens on the floor you start on, with the line drawn, and every floor on the way is marked.
   await expect(page.getByTestId('viewer-floor-Floor 1')).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => routeLines(page)).toBe(1);

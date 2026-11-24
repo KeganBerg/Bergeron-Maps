@@ -97,7 +97,7 @@ export function RestoreFromBackup({ live, working, setWorking, setError, setNote
               </button>
             </>}>
             <p className="muted small">
-              {restoring.fileName} · made {when(restoring.file.exportedAt)}{restoring.file.exportedBy ? ` by ${restoring.file.exportedBy}` : ''}
+              {restoring.fileName}, made {when(restoring.file.exportedAt)}{restoring.file.exportedBy ? ` by ${restoring.file.exportedBy}` : ''}
             </p>
             <ul className="restore-list">
               {restoring.file.companies.map((c) => {

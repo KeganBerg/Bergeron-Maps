@@ -64,7 +64,7 @@ export function VersionsDialog({ repo, onClose, onSaveVersion }: {
             <li key={v.id}>
               <div>
                 <strong>{v.label}</strong>
-                <span className="muted">{fmt(v.createdAt)} · on this device</span>
+                <span className="muted">{fmt(v.createdAt)}, on this device</span>
               </div>
               {confirming?.id === v.id ? (
                 <span className="btn-row">

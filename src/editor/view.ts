@@ -119,7 +119,7 @@ export async function printFloor() {
     return;
   }
   const floor = currentFloor(s)!;
-  const title = `${s.doc!.name} · ${floor.name}`;
+  const title = `${s.doc!.name}, ${floor.name}`;
   const landscape = img.width >= img.height;
   w.document.title = title;
   w.document.body.innerHTML = '';
