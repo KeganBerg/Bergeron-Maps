@@ -61,6 +61,8 @@ bergeronmaps.com.
     `bergeronmaps.com`. Then again for `www.bergeronmaps.com`.
 13. **Rules → Redirect Rules → Create rule → template "Redirect from WWW to root"** → Deploy.
 14. Tell Claude. It checks every page, sign-in, saving, publishing and public links on bergeronmaps.com.
+    The two custom domains are also listed under `routes` in `wrangler.jsonc`, so later deploys keep them,
+    and every deploy from `main` runs `scripts/check-deploy.sh` against bergeronmaps.com.
 
 Undo during steps 11 to 14: remove the custom domains from the Worker and add back the GitHub Pages
 records from `docs/DOMAIN.md`.
