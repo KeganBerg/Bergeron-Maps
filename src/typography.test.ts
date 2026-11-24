@@ -51,6 +51,15 @@ describe('typography rule', () => {
     }
   });
 
+  it('gives text room: body line spacing set, nothing cramped below 1.2', () => {
+    expect(appCss).toMatch(/body \{[^}]*line-height: var\(--lh-body\)/);
+    for (const { l, n } of lines(appCss)) {
+      if (/label-handle|inline-label|\.lbl-edit|brand-/.test(l)) continue; // labels on the map, and the logo
+      const m = l.match(/line-height:\s*(\d*\.?\d+)\s*[;}]/);
+      if (m) expect(Number(m[1]), `src/styles.css:${n}`).toBeGreaterThanOrEqual(1.2);
+    }
+  });
+
   it('keeps themes to colour only', () => {
     for (const { l, n } of lines(appCss).filter(({ l }) => l.startsWith(':root[data-theme='))) {
       expect(l, `src/styles.css:${n}`).not.toMatch(/font-(size|weight|family)|letter-spacing|text-transform/);

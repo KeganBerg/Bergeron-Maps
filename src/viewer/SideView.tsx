@@ -149,10 +149,10 @@ export function SideViewSheet({ model, currentId, title, onPick, onClose }: {
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    // clientWidth counts the body's side padding: the drawing gets what's inside it.
+    // clientWidth includes the body's side padding; the drawing fits inside it.
     const measure = () => {
       const cs = getComputedStyle(el);
-      setWidth(Math.floor(el.clientWidth - parseFloat(cs.paddingLeft || '0') - parseFloat(cs.paddingRight || '0')));
+      setWidth(Math.floor(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
     };
     measure();
     const ro = new ResizeObserver(measure);
