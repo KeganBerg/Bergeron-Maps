@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Smoke check of a deployed copy of the site: pages answer, the app loads, unknown pages are
 # real 404s, and the security and caching headers are on. Usage: scripts/check-deploy.sh <base url>
+# Cloudflare can take a few seconds to serve a new version everywhere, so a failed pass waits
+# 20 seconds and tries again, up to 3 passes, before it counts as a failure.
 set -uo pipefail
 base="${1%/}"
 fail=0
@@ -32,4 +34,10 @@ else
 fi
 [ "$(status /_headers)" = 404 ] && check "_headers file is not served" ok || check "_headers file is not served" no
 
+attempt="${CHECK_ATTEMPT:-1}"
+if [ "$fail" = 1 ] && [ "$attempt" -lt 3 ]; then
+  echo "Some checks failed on pass $attempt. Waiting 20 seconds for the new version to reach every server."
+  sleep 20
+  CHECK_ATTEMPT=$((attempt + 1)) exec "$0" "$1"
+fi
 exit $fail
