@@ -24,4 +24,18 @@ describe('separators', () => {
   it.each(files)('%s has no middle dot', (f) => {
     expect(readFileSync(f, 'utf8')).not.toMatch(/·|&middot;|&#183;|\\u00b7/i);
   });
+
+  /**
+   * No em or en dashes, and no arrows, in text people read. Code comments may
+   * keep them (nobody using the app sees those). The directional sign in the
+   * asset library keeps its arrow: it is drawn on the map like a real sign.
+   */
+  const SIGN_ARROW = "text: 'Service Drive →'";
+  const isComment = (line: string) => /^\s*(\/\/|\/\*|\*)/.test(line);
+  it.each(files)('%s has no em dash, en dash or arrow in its text', (f) => {
+    const bad = readFileSync(f, 'utf8').split('\n')
+      .filter((l) => !isComment(l) && !l.includes(SIGN_ARROW))
+      .filter((l) => /—|–|→|&mdash;|&ndash;|&rarr;/.test(l));
+    expect(bad).toEqual([]);
+  });
 });

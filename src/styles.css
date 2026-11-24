@@ -47,7 +47,7 @@
   color-scheme: light;
 }
 
-/* Direction A: "Night shift" — asphalt, painted lines, valet-ticket yellow. */
+/* Direction A: "Night shift": asphalt, painted lines, valet-ticket yellow. */
 :root[data-theme='night'] {
   --bg: #1b1c1f;
   --panel: #232428;
@@ -77,7 +77,7 @@
   color-scheme: dark;
 }
 
-/* Direction B: "Level signage" — garage wayfinding: navy, highway type, color-coded floors. */
+/* Direction B: "Level signage": garage wayfinding: navy, highway type, color-coded floors. */
 :root[data-theme='signage'] {
   --bg: #f4f2ee;
   --panel: #ffffff;

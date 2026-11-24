@@ -257,9 +257,7 @@
 .ind-card b { margin-top: 6px; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
 .ind-pitch { margin-top: 6px; color: rgb(11 11 11 / .7); }
 .ind-more { margin-top: auto; padding-top: 14px; font-weight: 600; }
-.ind-more i { font-style: normal; display: inline-block; transition: transform .15s; }
 .ind-card:hover b, .ind-card:hover .ind-more { text-decoration: underline; text-decoration-color: var(--color-sign); text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.ind-card:hover .ind-more i { transform: translateX(3px); }
 
 /* ===== Platform features ===== */
 .feat { display: grid; border-top: 1px solid rgb(255 255 255 / .25); }

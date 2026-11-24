@@ -411,7 +411,7 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
 
 const cards = INDUSTRIES.map((i) => `<li><a class="ind-card" href="industries/${i.slug}/">
             <img src="img/industries/${i.scene}-phone.webp" width="624" height="1248" loading="lazy" alt="" />
-            <b>${esc(i.name)}</b><span class="ind-pitch">${esc(i.pitch)}</span><span class="ind-more">Learn more <i aria-hidden="true">&rarr;</i></span>
+            <b>${esc(i.name)}</b><span class="ind-pitch">${esc(i.pitch)}</span><span class="ind-more">Learn more</span>
           </a></li>`).join('\n          ');
 
 /** The accessibility statement: what the app supports, what it doesn't yet, and who to tell. */

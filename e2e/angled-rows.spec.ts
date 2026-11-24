@@ -25,7 +25,7 @@ test('a row of angled spaces, picked by angle, with bigger numbers that show in 
   await expect(page.getByTestId('row-lean')).toBeVisible();
   if (shots) await page.screenshot({ path: `${shots}/dialog.png` });
   await page.getByTestId('create-row').click();
-  await expect(page.getByTestId('selected-name')).toHaveText('Row B1–B8');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row B1 to B8');
 
   const spaces = await page.evaluate(async () => {
     const { useEditor, currentFloor } = await import('/src/editor/store.ts');
@@ -39,7 +39,7 @@ test('a row of angled spaces, picked by angle, with bigger numbers that show in 
   // The row's settings show the angle and can switch the lean.
   await expect(page.getByTestId('row-angle')).toHaveValue('45');
   await page.getByTestId('row-lean').selectOption('left');
-  await expect(page.getByTestId('selected-name')).toHaveText('Row B1–B8');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row B1 to B8');
 
   // Bigger numbers for the whole row, then reset.
   const before = (await spaceLabels(page)).find((l) => l.label === 'B3')!.size;

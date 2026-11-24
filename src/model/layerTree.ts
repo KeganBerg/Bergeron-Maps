@@ -8,7 +8,7 @@ export type DropSpot = { key: string; side: 'above' | 'below' | 'into' };
 
 /**
  * The rows of a layer's object list, top of the drawing first (like Figma or
- * Photoshop). Spaces made as a row are grouped under one "Row A1–A20" entry
+ * Photoshop). Spaces made as a row are grouped under one "Row A1 to A20" entry
  * so a layer with thousands of spaces stays short until a row is opened.
  */
 export function layerItems(floor: Floor, layerId: string, openRows: ReadonlySet<string>): TreeItem[] {
@@ -40,7 +40,7 @@ export function layerItems(floor: Floor, layerId: string, openRows: ReadonlySet<
       key: `row:${rowId}`,
       rowId,
       ids: byNumber.map((s) => s.id),
-      title: `Row ${first}–${last}`,
+      title: `Row ${first} to ${last}`,
       top: group[0].id,
       bottom: group[group.length - 1].id,
       depth: 0,

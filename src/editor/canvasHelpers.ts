@@ -13,7 +13,7 @@ export function chipForMany(floor: Floor, objs: MapObject[]): string {
     const spaces = objs as Extract<MapObject, { kind: 'space' }>[];
     const sorted = [...spaces].sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
     const spec = floor.rows[sorted[0].rowId!];
-    if (spec && spaces.length === spec.count) return `Row ${sorted[0].label}–${sorted[sorted.length - 1].label} (${spaces.length} spaces)`;
+    if (spec && spaces.length === spec.count) return `Row ${sorted[0].label} to ${sorted[sorted.length - 1].label} (${spaces.length} spaces)`;
   }
   return `${objs.length} selected`;
 }
