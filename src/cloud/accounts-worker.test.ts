@@ -87,7 +87,7 @@ describe('opening and pausing', () => {
     expect(JSON.parse(String(gen[1].body))).toEqual({ type: 'magiclink', email: 'pat@example.com' });
   });
   it('someone who never signed in gets an invite link, and with no link the button opens sign-in', async () => {
-    const invite = vi.fn(async (url: string, init?: RequestInit) => {
+    const invite = vi.fn(async (_url: string, init?: RequestInit) => {
       const type = JSON.parse(String(init?.body)).type;
       return new Response(JSON.stringify(type === 'invite' ? { properties: { hashed_token: 'inv9' } } : { msg: 'User not found' }), { status: type === 'invite' ? 200 : 404 });
     });
