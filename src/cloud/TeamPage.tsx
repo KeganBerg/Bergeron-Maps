@@ -20,6 +20,23 @@ const ACCESS_LABEL: Record<Access, string> = {
 };
 
 /** Built from the current address, so links follow the app to any domain it's served from. */
+/** Asks the site's Worker to email someone just given access. True only when the email went out. */
+async function sendAccessEmail(company: string, email: string): Promise<boolean> {
+  try {
+    const { data } = await supabase!.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return false;
+    const r = await fetch('/api/access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ company, email }),
+    });
+    return r.ok && (await r.json().catch(() => ({})))?.success === true;
+  } catch {
+    return false;
+  }
+}
+
 export const siteLink = (slug: string) => `${window.location.origin}${window.location.pathname}#/${slug}`;
 const cleanSlug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
 /** Link names the app itself uses (…/#/team, …/#/locations), so a site can't have them. Same list as the database. */
@@ -148,6 +165,12 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
     setInvite({ note: msg, text: `You can now ${verb} ${where} on Bergeron Maps.\n\nOpen ${href} and sign in with ${who}. We’ll email you a sign-in link and code, so there’s no password to set.` });
     setEmail('');
     await load();
+    // Email them too (worker/index.js, /api/access). If that isn't available, the copy button stays the way to tell them.
+    if (!changed && await sendAccessEmail(company, who)) {
+      const sent = `${msg.replace(/ Send them the site link\.$/, '')} We’ve emailed them where to go and how to sign in.`;
+      setNote(sent);
+      setInvite((i) => (i ? { ...i, note: sent } : i));
+    }
   };
 
   const add = async () => {
