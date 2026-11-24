@@ -27,7 +27,9 @@ done
 app=$(curl -s "$base/app/")
 asset=$(grep -o 'assets/index-[^"]*\.js' <<<"$app" | head -n1)
 if [ -n "$asset" ]; then
-  curl -s -D - -o /dev/null "$base/app/$asset" | tr -d '\r' | grep -qi '^cache-control: public, max-age=31536000, immutable' \
+  # Read all the headers before matching: grep -q stops early, and with pipefail the cut-off
+  # tr would fail the check even when the header is right.
+  grep -i '^cache-control: public, max-age=31536000, immutable' <<<"$(curl -s -D - -o /dev/null "$base/app/$asset" | tr -d '\r')" >/dev/null \
     && check "app files cached for a year" ok || check "app files cached for a year" no
 else
   check "app page links its script" no
