@@ -112,6 +112,7 @@ export function basePolygon(kind: OutlineKind, w: number, h: number, band = Math
     case 'roundabout':
     case 'bulb':
       // Several parts: localOutline joins them (partRings); this is their bounding box.
+      // falls through
     default:
       return [0, 0, w, 0, w, h, 0, h];
   }

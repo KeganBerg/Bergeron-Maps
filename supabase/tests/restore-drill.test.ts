@@ -155,7 +155,7 @@ async function snapshot(db: pg.Client) {
 describe('restore drill: the whole Supabase project is lost', () => {
   let before: Awaited<ReturnType<typeof snapshot>>;
   let fileText = '';
-  let results: RestoreResult[] = [];
+  const results: RestoreResult[] = [];
   let timings: { backupMs: number; restoreMs: number; fileMb: number };
 
   it('builds a realistic old project', async () => {

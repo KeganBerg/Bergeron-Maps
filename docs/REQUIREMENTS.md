@@ -6,17 +6,17 @@ Every requirement from the product specification (the "Master Development Prompt
 
 **Test locations:** `unit:` = Vitest file under `src/`, `e2e:` = Playwright test under `e2e/`, `manual:` = checked by hand only.
 
-Last updated: 2026-10-30 (Phase 1).
+Last updated: 2026-11-24. Rows marked Tested are covered by automated tests that run in CI on every change.
 
 ## Summary
 
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Core mapping platform | Implemented and tested (see notes for partial items) |
-| 2 | Accounts, permissions, publishing, mobile | In progress. Done: database schema with row-level security (27 tests), draft vs published, maps grouped by site, quick lot builder. Next: sign-in, members and join codes UI, online saving (needs a Supabase project) |
+| 2 | Accounts, permissions, publishing, mobile | Implemented and tested: emailed sign-in, companies and sites, roles, join codes, online saving with conflict checks, publishing, public links, admin pages, backups |
 | 3 | Refinement and expansion | Not started, except small items noted below |
 
-**Phase 1 storage limitation:** maps are stored in the browser (IndexedDB) on one device. That is enough to build and test the editor, autosave, versions, trash and conflict detection, but it is **not** a backup, it is not shared between devices, and it gives no access control. Phase 2 replaces it with the server behind the same `MapRepository` interface.
+**Storage:** signed-in users save to Supabase (`src/cloud/supabaseRepository.ts`). "Try it without an account" keeps maps in the browser (IndexedDB), which is not a backup and is not shared between devices. Both sit behind the same `MapRepository` interface.
 
 ## Part 3: Map creation and editing
 
@@ -119,9 +119,9 @@ Last updated: 2026-10-30 (Phase 1).
 |---|---|---|---|---|
 | 13.1 | Autosave with Saving / Saved / Save failed / conflict status; never silently discard work | `editor/useAutosave.ts` (debounced save, retry, local backup copy on failure, recovery prompt) | e2e: reload test; unit: indexedDbRepository.test | Tested. "Offline" state is not shown because Phase 1 storage is local and works offline |
 | 13.2 | Manual save; warn before leaving with unsaved work | Save button and Ctrl/⌘+S; `beforeunload` guard | e2e (save) | Tested |
-| 13.3 | Version history: review, timestamps, restore without destroying newer work, who changed | `VersionsDialog.tsx`; current state saved before every restore; automatic recovery points every 10 minutes | unit: indexedDbRepository.test; e2e: version test | Tested. "Who made the change" needs accounts (Phase 2) |
+| 13.3 | Version history: review, timestamps, restore without destroying newer work, who changed | `VersionsDialog.tsx`; current state saved before every restore; automatic recovery points every 10 minutes | unit: indexedDbRepository.test; e2e: version test | Tested. Online versions record who saved them (`map_versions.created_by`) |
 | 13.4 | Recently deleted with retention; confirm destructive actions | 30-day trash on the maps page | unit: indexedDbRepository.test; e2e: reload/trash test | Tested |
-| 13.5 | Reliable, protected backups | — | — | Not started (Phase 2, needs the server; browser storage is not a backup) |
+| 13.5 | Reliable, protected backups | Nightly encrypted database backup (`.github/workflows/db-backup.yml`), per-company backup and restore on All accounts (`src/cloud/backup.ts`); runbook in `docs/RECOVERY.md` | db: backups.test, restore-drill.test; e2e: backups.online.spec | Tested |
 
 ## Part 14: Publishing and live updates
 
@@ -135,7 +135,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 15.1–15.5 | Individual accounts, dashboard of authorized maps, manager access controls, companies/facilities separation, public/private maps | Not started (Phase 2). The maps page is a single-user list for now |
+| 15.1–15.5 | Individual accounts, dashboard of authorized maps, manager access controls, companies/facilities separation, public/private maps | Tested. Emailed sign-in, memberships by email, site links, roles (see "White-label roles" below), row-level security on every table (`supabase/tests/rls.test.ts`, `white-label.test.ts`, `accounts-audit.test.ts`; e2e: access.online.spec) |
 
 ## Part 16: Mobile viewer
 
@@ -146,7 +146,7 @@ Last updated: 2026-10-30 (Phase 1).
 | 16.3 | Same data for desktop and mobile | Viewer reads the same `MapDocument` | e2e | Tested |
 | 16.4 | Walking directions: from an entrance, elevator, stairs, a "you are here" link (`?from=<object id>`) or a tapped spot to the selected space or place, across floors and into building interiors; steps per floor; step-free option | `model/route.ts` (cost grid per floor: walkways cheapest, aisles and open ground next, grass costly; spaces, walls, buildings blocked; doors, entrances and connectors open them; A* / Dijkstra; floors joined by connectors' "Connects to" floors, older maps by neighbouring floors), `viewer/RouteOverlay.tsx`, Directions panel in `viewer/ViewerPage.tsx`. Editors steer routes with walkway/sidewalk/footpath assets, doors and connector floors; nothing new to draw | unit: route.test (incl. 12 floors x 2,080 spaces in under a second); e2e: directions.spec (Chrome, Safari, Firefox), directions.mobile.spec | Tested |
 | 16.4a | Side view of every floor ("All floors" in the viewer's floor bar): floors stacked in their colors, ramps, stairs and elevators where they really are (from "Connects to"), parked stretches, the found space with its floor and nearest named stairs or elevator, the route across floors; tap a floor to open it. Basements (B1, P-1, Lower level…) go under the ground line; no button on one-floor maps. The website's "Every floor. One search." drawing is rendered by the same component | `model/sideView.ts`, `viewer/SideView.tsx`, `scripts/site-demo.ts` | unit: sideView.test; e2e: side-view.spec, side-view.mobile.spec | Tested |
-| 16-auth | Access to authorized maps only | — | — | Not started (Phase 2) |
+| 16-auth | Access to authorized maps only | Row-level security; employees see only published maps of their sites; public links only for maps marked public | db: rls.test; e2e: access.online.spec, public-viewer.online.spec | Tested |
 
 ## Part 17: Vehicle-location readiness
 
@@ -158,7 +158,7 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Implementation | Test | Status |
 |---|---|---|---|---|
-| 18 | Detect conflicting edits, keep recoverable versions, tell the user, clear resolution | Revision check on every save; autosave pauses; "Keep mine" / "Use the other version", the loser is saved to version history | unit: indexedDbRepository.test; e2e: conflict test (two windows) | Tested for two windows on one device. Cross-device protection arrives with the server (Phase 2) using the same revision check |
+| 18 | Detect conflicting edits, keep recoverable versions, tell the user, clear resolution | Revision check on every save; autosave pauses; "Keep mine" / "Use the other version", the loser is saved to version history | unit: indexedDbRepository.test; e2e: conflict test (two windows) | Tested, across devices too: online saves are `update … where revision = base` (db: concurrency.test; e2e: save-stress.online.spec) |
 
 ## Part 19: Exporting and sharing
 
@@ -182,13 +182,13 @@ Last updated: 2026-10-30 (Phase 1).
 
 | ID | Requirement | Status |
 |---|---|---|
-| 22 | This matrix; automated tests of key workflows; re-run after changes | In progress: 82 unit tests, 13 browser tests and 27 database security tests run in CI on every push. Publishing, permissions, revoked access, exporting and company separation tests arrive with those features |
+| 22 | This matrix; automated tests of key workflows; re-run after changes | Done: about 285 unit tests, 190 browser tests (each in Chrome, Safari and Firefox) and 105 database tests run in CI on every push |
 
 ## Part 23: Usability testing
 
 | ID | Requirement | Status |
 |---|---|---|
-| 23.5 | Test with people who have no mapping experience | Not started. Needs real managers and valet staff; recommended once Phase 2 makes sharing possible |
+| 23.5 | Test with people who have no mapping experience | Not started. Needs real managers and valet staff |
 
 ## Asset library redesign (Kegan, 2026-11-01)
 
@@ -201,11 +201,11 @@ Last updated: 2026-10-30 (Phase 1).
 | A5 | Icons and arrows keep their aspect ratio; labels fit or wrap | Done (`icon()` in `style.ts`, `render/fitLabel.ts`) |
 | A6 | Standard Bergeron Maps logo in the app | Done: favicon, home header, editor home button |
 
-## Known gaps in Phase 1 (to keep honest)
+## Known gaps (to keep honest)
 
 - Drag, resize and rotate on the canvas, background-image editing, and asset favorites have been checked by hand but have no automated test yet.
 - Editor touch support is basic (desktop-first by spec); the viewer is the phone experience.
-- Background images are stored inside the map data. Phase 2 moves them to file storage so maps stay small.
+- Background images are stored inside the map data, which makes big maps slow to save. Moving them to file storage is planned.
 
 ## Added during Phase 2 (from Kegan's feedback)
 

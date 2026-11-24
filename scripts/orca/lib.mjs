@@ -14,13 +14,13 @@ export async function open(viewport) {
   return await ctx.newPage();
 }
 export async function startOrca(name) {
-  log = `out/orca-${name}.log`; try { fs.unlinkSync(log) } catch {}
+  log = `out/orca-${name}.log`; try { fs.unlinkSync(log) } catch { /* no old log */ }
   orca = spawn('/usr/bin/python3.12', ['/usr/bin/orca', '--replace', '--debug-file', log], { stdio: 'ignore', env: process.env });
   await sleep(6000);
   focusWin();
   await sleep(800);
 }
-export function focusWin() { try { execSync('xdotool search --onlyvisible --class "chrom" | tail -1 | xargs -I{} xdotool windowactivate --sync {} windowfocus {}', { stdio: 'ignore' }); } catch {} }
+export function focusWin() { try { execSync('xdotool search --onlyvisible --class "chrom" | tail -1 | xargs -I{} xdotool windowactivate --sync {} windowfocus {}', { stdio: 'ignore' }); } catch { /* no browser window yet */ } }
 export function mark(label) { marks.push([Date.now(), label]); }
 export async function key(k, wait = 900) { execSync(`xdotool key --clearmodifiers ${k}`); await sleep(wait); }
 export async function keys(list, wait = 900) { for (const k of list) await key(k, wait); }
@@ -33,7 +33,7 @@ export async function finish(outFile) {
     const m = l.match(/^(\d+):(\d+):(\d+\.\d+) - SPEECH OUTPUT: '(.*?)'( \{|\s*$)/); if (!m) return null;
     const d = new Date(); d.setHours(+m[1], +m[2], 0, 0); return [d.getTime() + parseFloat(m[3]) * 1000, m[4]];
   }).filter(Boolean);
-  let out = ''; let mi = -1;
+  let out = '';
   const all = [...marks.map(([t, l]) => [t, l, 'M']), ...lines.map(([t, s]) => [t, s, 'S'])].sort((a, b) => a[0] - b[0]);
   for (const [, s, k] of all) out += k === 'M' ? `\n### ${s}\n` : `  > ${s}\n`;
   fs.writeFileSync(outFile, out); console.log(out);

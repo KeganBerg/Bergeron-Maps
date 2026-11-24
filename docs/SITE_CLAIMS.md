@@ -48,7 +48,7 @@ Where each claim is backed in the app. Update this when the site or the app chan
 | Answer four questions and the builder lays out rows, lanes and ramps | New map > Build it for me (`src/model/quickLot.ts`: floors, rows, spaces per row, accessible spaces) |
 | Give access by email address, or a six-character site code | Team page > Give access (`add_member`), site join code (`get_join_code`, Join site needs 6 characters). The app sends no access email; it shows a message to paste. |
 | Edits stay in draft until you publish | Editor Publish and Preview, viewer shows the published version |
-| Employees see the update when they open or refresh | Viewer loads the latest published map on open and on Refresh |
+| Employees see the update within a minute, without reloading | Viewer checks the publish time every minute and when the page is shown again, and loads the new version (`src/viewer/ViewerPage.tsx`); the public link reloads when someone comes back after 5 minutes |
 | Search lights a space up on the right floor | `src/model/search.ts`, viewer search |
 | Walking directions from an entrance, stairs, elevator or valet stand; Avoid stairs | `src/model/route.ts` (`startPlaces`), viewer Directions |
 | Every floor has its own color; All floors side view | `src/theme.ts` floor colors, `src/viewer/SideView.tsx` (PR #89); the site drawing is rendered by the same component |
