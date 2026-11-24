@@ -5,8 +5,12 @@ Code: `worker/stripe.js`, tests in `src/cloud/stripe-worker.test.ts`.
 
 ## What happens
 
-1. The buyer fills in company, name, email and number of locations (1 to 20; more goes through a
-   conversation). The page posts that to `POST /api/checkout`.
+1. On the purchase page, `/get-your-map/` (`site/get-your-map/`), the buyer picks the number of
+   locations (1 to 20; more goes through a conversation with Alex) and a 6 or 12 month term (same
+   price), then fills in company, name and email. The page posts that to `POST /api/checkout` with
+   `term` and `returnPath: '/get-your-map/'`, and Stripe sends the buyer back there with
+   `?checkout=done` or `?checkout=canceled`. The page isn't linked from the site, is `noindex` and
+   isn't in the sitemap until sales go live (`src/siteClaims.test.ts` checks this).
 2. The Worker starts a Stripe Checkout page in subscription mode with two lines, both times the number
    of locations:
    - **Map setup**, one-time, $2,500: charged today.
@@ -32,8 +36,11 @@ Code: `worker/stripe.js`, tests in `src/cloud/stripe-worker.test.ts`.
    Monthly renewals, retries of failed cards and receipts are Stripe Billing's job; nothing in our code
    runs them. Stripe's Customer portal lets customers change their card or cancel.
 
-Not built yet (on purpose, waiting on decisions in the onboarding plan): the real purchase page on the
-site, opening the customer's Bergeron Maps account automatically after payment, the terms page, sales
+Each order records `term_months` (6 or 12) and `assisted_setup` (`yes` for 5 or more locations: the
+team helps build the first maps) in the Checkout and subscription metadata, and the order email shows
+both. Stripe bills monthly either way; the term is for the agreement.
+
+Not built yet (on purpose, waiting on decisions in the onboarding plan): opening the customer's Bergeron Maps account automatically after payment, the terms page, sales
 tax, and white-label ($5,000). Until the purchase page exists, `GET /api/checkout-test` is a bare test
 form that only works with a test key and isn't linked from the site.
 
@@ -101,7 +108,8 @@ Never paste keys in chat. They go straight from Stripe into Cloudflare.
 - A terms page on the site, then the `STRIPE_TERMS` secret set to `required` and the terms link added in
   Stripe → Settings → Business → Public details.
 - Sales tax: decide with an accountant. Stripe Tax costs extra per transaction, so it stays off until then.
-- The purchase page from the onboarding plan, linked from the site only once it works end to end.
+- Link the purchase page from the site (the "Get your map now" buttons) and add it to the sitemap only
+  once it works end to end in live mode, and remove the "nothing links to the purchase page" test then.
 - Live mode: repeat steps 2 to 5 outside the sandbox with live values, then set `CHECKOUT_LIVE` to `true`.
 - Large or custom deals: send a Stripe invoice from the Dashboard (Invoicing), no code needed.
 

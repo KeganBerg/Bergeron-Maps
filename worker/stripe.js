@@ -1,6 +1,6 @@
 // Get Your Map Now payments through Stripe Checkout. Setup and steps: docs/STRIPE.md.
 //
-//   POST /api/checkout        {company, name, email, locations}: starts a Stripe Checkout page
+//   POST /api/checkout        {company, name, email, locations, term}: starts a Stripe Checkout page
 //                             and answers {url} to send the buyer to. One subscription with the
 //                             setup fee charged today and the monthly fee starting 30 days later,
 //                             both times the number of locations.
@@ -26,6 +26,11 @@ const INTEGRATION_ID = 'get-your-map-now-qmwvhtrk';
 export const MAX_LOCATIONS = 20;
 // Kegan's rule: the monthly fee starts 30 days after the setup payment.
 export const MONTHLY_STARTS_AFTER_DAYS = 30;
+// Contract terms (Alex, 2026-11-24): 6 or 12 months at the same monthly price. Recorded on the
+// order for the agreement; Stripe bills monthly either way.
+export const TERMS = [6, 12];
+// First-time orders this size get assisted setup: the team helps build the first maps.
+export const ASSISTED_FROM_LOCATIONS = 5;
 // How old a signed webhook may be before it's refused as a replay (Stripe's own default).
 const SIGNATURE_TOLERANCE_SECONDS = 300;
 
@@ -69,7 +74,7 @@ export async function checkout(request, env, send = fetch) {
     billing_address_collection: 'required',
     'phone_number_collection[enabled]': 'true',
     'tax_id_collection[enabled]': 'true',
-    'custom_text[submit][message]': `You pay the setup fee today. The monthly fee starts ${MONTHLY_STARTS_AFTER_DAYS} days from today.`,
+    'custom_text[submit][message]': `${order.term}-month term. Today you pay the one-time setup fee, which is non-refundable. The monthly fee starts ${MONTHLY_STARTS_AFTER_DAYS} days from today.`,
     success_url: `${back}?checkout=done&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${back}?checkout=canceled`,
     integration_identifier: INTEGRATION_ID,
@@ -78,7 +83,11 @@ export async function checkout(request, env, send = fetch) {
     'managed_payments[enabled]': 'false',
   });
   // The same facts on the Checkout page and on the subscription, so either can be traced back.
-  const facts = { company: order.company, contact_name: order.name, locations: String(order.locations), source: 'get-your-map-now' };
+  const facts = {
+    company: order.company, contact_name: order.name, locations: String(order.locations),
+    term_months: String(order.term), assisted_setup: order.locations >= ASSISTED_FROM_LOCATIONS ? 'yes' : 'no',
+    source: 'get-your-map-now',
+  };
   for (const [k, v] of Object.entries(facts)) {
     form.set(`metadata[${k}]`, v);
     form.set(`subscription_data[metadata][${k}]`, v);
@@ -126,10 +135,12 @@ export function readOrder(data) {
   if (!EMAIL.test(email)) return 'A valid email is needed';
   if (!Number.isInteger(locations) || locations < 1) return 'Choose how many locations';
   if (locations > MAX_LOCATIONS) return `For more than ${MAX_LOCATIONS} locations, contact us`;
+  const term = data.term == null || data.term === '' ? 12 : Number(data.term);
+  if (!TERMS.includes(term)) return 'Choose a 6 or 12 month term';
   // Only a page on this same site, so the redirect can't be pointed somewhere else.
-  const path = String(data.returnPath || '/api/checkout-test');
-  const returnPath = /^\/[a-z0-9/_-]*$/i.test(path) && !path.startsWith('//') ? path : '/api/checkout-test';
-  return { company, name, email, locations, returnPath };
+  const path = String(data.returnPath || '/get-your-map/');
+  const returnPath = /^\/[a-z0-9/_-]*$/i.test(path) && !path.startsWith('//') ? path : '/get-your-map/';
+  return { company, name, email, locations, term, returnPath };
 }
 
 /** POST /api/stripe-webhook. Answers 200 once handled, so Stripe stops retrying. */
@@ -223,6 +234,8 @@ export function describeEvent(event) {
         ['Contact', who(o.customer_details) || m.contact_name],
         ['Phone', o.customer_details?.phone],
         ['Locations', m.locations],
+        ['Term', m.term_months && `${m.term_months} months`],
+        ['Assisted setup', m.assisted_setup === 'yes' && 'Yes, help build their first maps'],
         ['Paid today', o.amount_total != null && money(o.amount_total, o.currency)],
         ['Referred with code', m.referral_code],
       ],

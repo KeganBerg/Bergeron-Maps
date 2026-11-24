@@ -14,6 +14,10 @@ for launch stays in an HTML comment.
 `src/siteClaims.test.ts` fails the build on the most common slips. It doesn't replace
 reading the copy.
 
+The purchase page (`site/get-your-map/`) really takes payment through Stripe, so prices and
+payment are allowed there and nowhere else. Until sales go live it stays unlinked, `noindex` and
+out of the sitemap, and the test checks that too.
+
 ## Checklist for any change to the site or the app
 
 Before merging a PR that touches `site/`, `scripts/site-pages.mjs`, `scripts/site-demo.ts`,
