@@ -1,5 +1,6 @@
 import type { Db } from './db';
 import { migrateDocument } from '../model/migrate';
+import { storeImage, storeImages } from './mapImages';
 import type { MapDocument } from '../model/types';
 import {
   ConflictError,
@@ -116,6 +117,11 @@ export const resetCountsCheck = () => {
 export class SupabaseRepository implements MapRepository {
   constructor(private readonly db: Db, readonly companyId: string, private readonly onlySite?: string) {}
 
+  /** Puts a picture in the company's file storage and gives back its address (cloud/mapImages.ts). */
+  storeImage(src: string): Promise<string> {
+    return storeImage(this.db, this.companyId, src);
+  }
+
   private async rows(deleted: boolean): Promise<MapRow[]> {
     return (await withCounts((light) => {
       let q = this.db.from('maps').select(light ? LIST_COLUMNS : MAP_COLUMNS).eq('company_id', this.companyId);
@@ -185,6 +191,8 @@ export class SupabaseRepository implements MapRepository {
   async createMap(doc: MapDocument, site?: string, slot?: number): Promise<MapDocument> {
     const facility_id = await this.siteId(site?.trim() || doc.name);
     const id = crypto.randomUUID();
+    // Pictures go to file storage; the map keeps their addresses.
+    doc = await storeImages(this.db, this.companyId, doc);
     // The database picks the slot (the asked-for one if it is free) and refuses a sixth map.
     const draft = { ...doc, id };
     // The new row comes back without its drawing: it is the one just sent.
@@ -195,6 +203,7 @@ export class SupabaseRepository implements MapRepository {
   }
 
   async saveMap(doc: MapDocument, baseRevision: number): Promise<MapDocument> {
+    doc = await storeImages(this.db, this.companyId, doc);
     // The revision check happens in the database: the update matches nothing if
     // someone else saved first, and the trigger bumps the revision on success.
     // Only the new revision and times come back, not the whole drawing just sent (autosave runs
@@ -266,6 +275,7 @@ export class SupabaseRepository implements MapRepository {
   }
 
   async saveVersion(doc: MapDocument, reason: VersionReason, label?: string): Promise<VersionMeta> {
+    doc = await storeImages(this.db, this.companyId, doc);
     const row = check(
       await this.db
         .from('map_versions')

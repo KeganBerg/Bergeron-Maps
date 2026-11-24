@@ -119,6 +119,12 @@ export interface MapRepository {
   saveVersion(doc: MapDocument, reason: VersionReason, label?: string): Promise<VersionMeta>;
   listVersions(mapId: string): Promise<VersionMeta[]>;
   getVersion(versionId: string): Promise<MapDocument | null>;
+  /**
+   * Online only: puts a picture (a data URL) in file storage and gives back
+   * its address, so the map carries a short link instead of the picture.
+   * Without it, pictures stay inside the map (this browser's storage).
+   */
+  storeImage?(src: string): Promise<string>;
 }
 
 /** Floors that aren't the inside of a building. */

@@ -1,5 +1,5 @@
 scheduled jobs: pg_cron is off
-176 objects, fingerprint 2d153276b886
+183 objects, fingerprint 47f8fdcfc3d5
 constraint audit_log.audit_log_company_id_fkey 328812a1 
 constraint audit_log.audit_log_pkey 4c6419b3 
 constraint companies.companies_created_by_fkey 1ceab562 
@@ -56,17 +56,22 @@ function add_contract_site(p_company uuid, p_name text, p_address text) 495ba539
 function add_member(p_company uuid, p_email text, p_role member_role, p_facility_ids uuid[]) 85ef52fc authenticated
 function admin_delete_company(p_company uuid, p_confirm_name text) 60978569 authenticated
 function admin_delete_site(p_facility uuid) c031eb77 authenticated
+function admin_inline_image(p_company uuid, p_hash text) f70c40f2 authenticated
+function admin_inline_images() c5acab17 authenticated
 function admin_overview() c371f0b5 authenticated
 function admin_restore_company(p_backup jsonb) 63d24888 authenticated
 function admin_restore_missing(p_backup jsonb) de43e7d6 authenticated
 function admin_restore_versions(p_map uuid, p_versions jsonb) 604d6c93 authenticated
+function admin_swap_inline_image(p_company uuid, p_hash text, p_url text) ba8c25d4 authenticated
 function block_password_sign_in(event jsonb) e86d37de 
+function can_add_map_image(p_folder text) d9c988f8 authenticated
 function can_edit_facility(p_facility uuid) 72653af5 authenticated
 function can_manage_company(p_company uuid) bb6a90ea authenticated
 function can_view_facility(p_facility uuid) ad724639 authenticated
 function can_view_facility_row(p_company uuid, p_facility uuid) e5257ed6 authenticated
 function cancel_invitation(p_company uuid, p_email text) b0eb697f authenticated
 function claim_invitations_for(p_user uuid, p_email text) f36caeb9 
+function company_map_docs(p_company uuid) 02b1aa4a 
 function create_company(p_name text, p_facility_name text) 7f795f07 authenticated
 function decide_manager_request(p_request uuid, p_approve boolean) 4fa114b8 authenticated
 function end_sessions(p_user uuid) d5581d8e 
@@ -81,6 +86,7 @@ function floor_count(p published_maps) 3da37e6a authenticated
 function get_join_code(p_facility uuid) 121ce9bd authenticated
 function get_public_map(p_map uuid) 26a35276 anon,authenticated
 function get_public_site(p_slug text) ff64da65 anon,authenticated
+function inline_map_images(p_doc jsonb) 800debb4 
 function is_member(p_company uuid) 1e208447 authenticated
 function is_platform_admin() 4df9982f authenticated
 function join_site(p_code text) 07d5edaf authenticated
@@ -88,6 +94,7 @@ function leave_site(p_facility uuid) 6154918f authenticated
 function level_count(p published_maps) 5462d9f7 authenticated
 function list_members(p_company uuid) 5e7dd678 authenticated
 function log_action(p_company uuid, p_action text, p_target text, p_details jsonb) 146a9da9 
+function map_image_hash(p_src text) 902ad66c 
 function map_is_live(p_map uuid) 9ef6bc22 authenticated
 function maps_after_move() 430a7bda 
 function maps_assign_slot() 144c9d11 

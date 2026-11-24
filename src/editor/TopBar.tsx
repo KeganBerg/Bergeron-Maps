@@ -5,6 +5,7 @@ import { CommitInput, toNumber } from '../ui/fields';
 import { Icon, type IconName } from '../ui/icons';
 import { modLabel } from './useKeyboard';
 import { mapFileName, serializeMapFile } from '../storage/mapFile';
+import { inlineImages } from '../cloud/mapImages';
 import { useEditor, type SaveStatus } from './store';
 import { downloadFloorImage, fitFloor, printFloor, zoomBy } from './view';
 
@@ -66,11 +67,19 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
   }, [downloadMenu]);
   // Offline is said plainly (the reason is otherwise only in the tooltip, which phones never show).
   const info = status === 'failed' && /offline/i.test(error ?? '') ? { text: 'Offline, saves when back', tone: 'error' } : STATUS[status];
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([serializeMapFile(st().doc!)], { type: 'application/json' }));
+  const download = async () => {
+    // Pictures kept in file storage go back inside the file, so it opens anywhere on its own.
+    let doc = st().doc!;
+    try {
+      doc = await inlineImages(doc);
+    } catch {
+      st().notify({ tone: 'error', message: 'A picture in this map couldn’t be downloaded, so the map file wasn’t saved. Check your connection and try again.' });
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([serializeMapFile(doc)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = mapFileName(st().doc!);
+    a.download = mapFileName(doc);
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -139,7 +148,7 @@ export function TopBar({ onSave, onHistory, onPreview, onHome, onPublish, publis
         </button>
         {downloadMenu && (
           <div className="menu download-menu" role="menu" style={downloadMenu}>
-            <button role="menuitem" data-testid="download-file" onClick={() => { setDownloadMenu(null); download(); }}>
+            <button role="menuitem" data-testid="download-file" onClick={() => { setDownloadMenu(null); void download(); }}>
               <span>Map file (backup)</span>
             </button>
             <button role="menuitem" data-testid="download-image" onClick={() => { setDownloadMenu(null); void downloadFloorImage(); }}>

@@ -29,7 +29,7 @@ costs nothing and means a restore can never leave you worse off than you are now
 
    Check which plan the project is on: Supabase dashboard → the organization → **Billing**.
 3. **Nightly database backup (free).** `.github/workflows/db-backup.yml` copies the whole database every night
-   at 07:17 UTC: the app's tables (structure and data) and the sign-in accounts. The copy is encrypted with a
+   at 07:17 UTC: the app's tables (structure and data), the sign-in accounts and the map pictures. The copy is encrypted with a
    passphrase and kept for 90 days under **Actions → Nightly database backup → a run → Artifacts**. It holds
    more than a backup file from the app (the audit log, pending manager requests and sign-ins too), and nobody
    has to remember to click anything. Restore it with C4.
@@ -130,6 +130,7 @@ This is what the 2026-11-19 drill rehearsed. Budget about an hour.
    redeploys in a few minutes. (Claude can do this step.)
 7. **Restore the data.** Open bergeronmaps.com/app, sign in as an admin (this creates your sign-in in the new
    project), All accounts → **Restore from backup…** → the newest all-accounts file → everything ticked → Restore.
+   Map pictures come back too: the file holds them, and they are uploaded to the new project's file storage.
 8. **Tell customers.** Everyone signs in again with the same email address and gets their old access back
    automatically. Site links, map links and printed QR signs keep working.
 9. Check it (below).
@@ -154,8 +155,12 @@ these steps with you; they need a computer with PostgreSQL's command-line tools 
    pg_restore --data-only --no-owner --no-privileges -d "$DB" backup/public.dump
    ```
    The `PGOPTIONS` line lets the rows load in any order. Skip C3 step 7 (the backup file restore): this
-   already brought everything back.
-5. Check it (below).
+   already brought everything back except the map pictures.
+5. **Map pictures.** They are files, not table rows: `backup/map-images/<company id>/<file>`. Into the same
+   project they are usually still there. Into a new project, upload them to a public bucket named `map-images`
+   at the same paths (step 16 SQL creates it), then have Claude point the maps at the new project's address
+   (the maps still name the old one). Claude can do both.
+6. Check it (below).
 
 ## After any restore
 
@@ -163,6 +168,7 @@ these steps with you; they need a computer with PostgreSQL's command-line tools 
 - Open one site link and one public map link from before the problem: both load.
 - Scan or open one QR "you are here" link: it opens on the right floor.
 - Sign in as (or ask) a manager: they see their own sites only, and can edit and publish.
+- A map with a background image or imported picture shows it.
 - The result said "0 saved versions couldn't be restored". If not, run the same restore again: versions already
   back are skipped, so it only adds what's missing.
 
