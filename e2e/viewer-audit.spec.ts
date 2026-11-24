@@ -87,3 +87,26 @@ test('Refresh drops the card of a space the manager removed, and redraws the rou
   await page.getByLabel('Refresh map').click();
   await expect(page.getByTestId('directions-sheet')).toHaveCount(0);
 });
+
+test('a newly published version shows up by itself when someone comes back to the page', async ({ page }) => {
+  const { id } = await garage(page);
+  await page.goto(`/#/view/${id}`);
+  await findSpace(page, '1B5');
+  await page.evaluate(async (mid) => {
+    const { repository } = await import('/src/storage/indexedDbRepository.ts');
+    const d = (await repository.getMap(mid))!;
+    for (const f of d.floors) f.objects = f.objects.filter((o) => !(o.kind === 'space' && o.label === '1B5'));
+    await repository.saveMap(d, d.revision);
+    await repository.publishMap(mid);
+  }, id);
+  // Nothing happens until the page is shown again (no Refresh pressed).
+  await expect(page.getByTestId('info-card')).toContainText('1B5');
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByTestId('info-card')).toHaveCount(0);
+  await expect(page.getByTestId('viewer-floor-announce')).toHaveText('The map was updated to the latest published version.');
+  // Coming back again with nothing new published doesn't reload or announce anything.
+  await page.waitForTimeout(2600);
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('viewer-floor-announce')).toHaveText('');
+});
