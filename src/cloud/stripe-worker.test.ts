@@ -69,7 +69,9 @@ describe('POST /api/checkout', () => {
     const send = stripeOk();
     expect((await checkout(post(buyer, 'https://evil.example'), env, send)).status).toBe(403);
     expect((await checkout(new Request('https://bergeronmaps.com/api/checkout'), env, send)).status).toBe(405);
-    expect((await checkout(post(buyer), { ...env, STRIPE_MONTHLY_PRICE: '' }, send)).status).toBe(503);
+    const empty = await checkout(post(buyer), { ...env, STRIPE_MONTHLY_PRICE: '' }, send);
+    expect(empty.status).toBe(503);
+    expect((await empty.json()).error).toBe('Not set up: STRIPE_MONTHLY_PRICE is empty');
     expect((await checkout(post('nope'), env, send)).status).toBe(400);
     for (const bad of [{ email: 'x' }, { company: '' }, { locations: 0 }, { locations: 2.5 }, { locations: 21 }])
       expect((await checkout(post({ ...buyer, ...bad }), env, send)).status).toBe(400);

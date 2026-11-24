@@ -39,7 +39,9 @@ export async function checkout(request, env, send = fetch) {
   // Trimmed because values pasted into the Cloudflare dashboard can carry a stray line break.
   const key = (env.STRIPE_SECRET_KEY || '').trim();
   const setupPrice = (env.STRIPE_SETUP_PRICE || '').trim(), monthlyPrice = (env.STRIPE_MONTHLY_PRICE || '').trim();
-  if (!key || !setupPrice || !monthlyPrice) return reply(503, { success: false, error: 'Not set up' });
+  const missing = [['STRIPE_SECRET_KEY', key], ['STRIPE_SETUP_PRICE', setupPrice], ['STRIPE_MONTHLY_PRICE', monthlyPrice]].filter(([, v]) => !v).map(([k]) => k);
+  // Names only, never values, so the page can say which setting is empty.
+  if (missing.length) return reply(503, { success: false, error: `Not set up: ${missing.join(', ')} is empty` });
   // A product ID (prod_) is the easy mistake to make in the dashboard; say so plainly.
   if (!setupPrice.startsWith('price_') || !monthlyPrice.startsWith('price_'))
     return reply(503, { success: false, error: 'Not set up: STRIPE_SETUP_PRICE and STRIPE_MONTHLY_PRICE must be price IDs (price_...), not product IDs' });
