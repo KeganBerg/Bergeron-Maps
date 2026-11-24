@@ -1,5 +1,6 @@
 import { BrandMark, BrandWordmark } from '../ui/Brand';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useMotion, useMotionGroup } from '../ui/motion';
 import { newId } from '../model/ids';
 import { MAP_FILE_EXTENSION, MAX_MAP_FILE_BYTES, parseMapFile } from '../storage/mapFile';
 import { SITE_LIVE_MAPS, SITE_MAP_SLOTS, TRASH_RETENTION_DAYS, type MapRepository, type MapSummary } from '../storage/repository';
@@ -70,6 +71,9 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
 }) {
   const [sites, setSites] = useState<string[]>([]);
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
+  const motion = useMotion();
+  const sitesMotion = useMotion();
+  const grids = useMotionGroup();
   const [trash, setTrash] = useState<MapSummary[]>([]);
   const [creating, setCreating] = useState<false | { site?: string; slot?: number }>(false);
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
@@ -162,7 +166,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
     <div className="home">
       <AppHeader nav={nav}>{headerExtra}</AppHeader>
 
-      <main className="home-main">
+      <main className="home-main" ref={motion}>
         {banner && <div className="notice-banner">{banner}</div>}
         {error && <p className="error-text">{error}</p>}
         <div className="page-head">
@@ -188,7 +192,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
             <button className="btn primary" onClick={() => setCreating({})}>Create a map</button>
           </div>
         ) : (
-          <div className="sites" data-testid="map-list">
+          <div className="sites" data-testid="map-list" ref={sitesMotion}>
             {groupBySite(maps, sites).map(([site, list]) => {
               const { slots, extra } = slotLayout(list);
               const full = list.length >= SITE_MAP_SLOTS;
@@ -244,7 +248,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                     </button>
                   </header>
                   {full && <p className="site-note" data-testid={`slots-full-${site}`}>{SLOTS_FULL}</p>}
-                  <ul className="map-grid slot-grid">
+                  <ul className="map-grid slot-grid" ref={grids(site)}>
                     {slots.map((m, i) =>
                       m ? card(m, `Slot ${i + 1}`) : (
                         <li key={`empty-${i}`} className="map-card map-card-empty" data-testid={`slot-${site}-${i + 1}`}>
