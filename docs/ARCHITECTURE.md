@@ -27,6 +27,8 @@ src/
   viewer/     Phone-first, read-only view with search and directions
   home/       Maps list, new map, recently deleted (browser-only and online)
   cloud/      Online mode: Supabase client, SupabaseRepository, sign-in, team, admin pages
+              (All accounts: AdminPage holds the companies list, AdminCompanyPane one company, AdminTools setup/backups/pictures;
+              its search and pane choice are in model/adminAccounts.ts)
   ui/         Shared UI pieces: dialogs, fields, icons, brand, motion (useMotion: admin pages ease in/out)
   errors/     Friendly error messages and optional error reports
 supabase/
@@ -67,6 +69,7 @@ Every space has a stable id that survives renumbering, so vehicle-location recor
 - Map pictures (background images, imported pictures) live in Supabase Storage: public `map-images` bucket, `<company id>/<sha256>.<type>`, uploads limited by policy to the company's owners and managers. Maps keep only the address; map files and backup files carry the pictures inside. See `src/cloud/mapImages.ts`.
 - `SupabaseRepository` implements `MapRepository` against the tables in `supabase/migrations`. Saves are `update … where revision = base`: zero rows means someone else saved first (`ConflictError`). Row-level security enforces company and site separation on every request, so removed people lose access immediately.
 - Public links: a published map marked public opens with no sign-in at `…/app/#/view/<site-link>` (`get_public_site`, `src/cloud/PublicSitePage.tsx`).
+- Page frame: `AppHeader` (`src/home/HomePage.tsx`) draws the top bar across the window and the section links (Maps, Sites & people, All accounts). From 1024px wide they are a side bar and the page scrolls on its own beside it, like the map editor; narrower, they are tabs under the top bar. Pages with no sections (sign-in, public site, My Locations) keep one centred column. All accounts is a list and detail page: the companies list on the left, the chosen company or admin tool on the right, chosen by the link (`#/admin?company=<id>`, `#/admin?tool=backups`); under 900px it shows one pane at a time.
 - Not yet built: live push updates (viewers refresh to get a newer publish), and a scheduled trash purge (`purge_expired_trash` exists; it needs a Supabase cron job).
 
 ## Database changes

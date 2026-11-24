@@ -44,18 +44,25 @@ function publishStatus(m: MapSummary): { text: string; tone: string } {
   return { text: 'Published', tone: 'live' };
 }
 
-/** Top bar: section links on the left, logo in the middle, account on the right. */
+/**
+ * The app's frame: a top bar across the whole window (logo on the left,
+ * account on the right) and, when there are sections, the section links.
+ * Wide screens show them as a side bar beside the page, like the map editor's
+ * panels; narrow screens as tabs under the top bar (styles.css, "App frame").
+ */
 export function AppHeader({ nav, children }: { nav?: ReactNode; children?: ReactNode }) {
   return (
-    <header className={`home-header${nav ? ' has-nav' : ''}`}>
-      {nav && <nav className="header-nav" aria-label="Sections">{nav}</nav>}
-      <button className="brand" onClick={() => navigate('/')} aria-label="Bergeron Maps home">
-        <BrandMark size={36} />
-        <BrandWordmark height={15} />
-        <h1 className="sr-only">Bergeron Maps</h1>
-      </button>
-      <div className="header-actions">{children}</div>
-    </header>
+    <>
+      <header className="home-header">
+        <button className="brand" onClick={() => navigate('/')} aria-label="Bergeron Maps home">
+          <BrandMark size={36} />
+          <BrandWordmark height={15} />
+          <h1 className="sr-only">Bergeron Maps</h1>
+        </button>
+        <div className="header-actions">{children}</div>
+      </header>
+      {nav && <nav className="app-nav" aria-label="Sections">{nav}</nav>}
+    </>
   );
 }
 

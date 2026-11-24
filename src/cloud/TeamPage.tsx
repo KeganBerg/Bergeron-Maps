@@ -289,140 +289,145 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
           <button className="btn small" onClick={() => copy(invite.text, 'Invite message')} data-testid="copy-invite">Copy invite message</button>
         )}
 
-        <section className="panel-card">
-          <h3>Sites</h3>
-          <p className="muted small">
-            Send managers their site link. It only works for emails you’ve added below. Employees join a single site with its code and can only view
-            published maps. A site gets a public link (no sign-in) once one of its live maps is made public on the Maps page.
-          </p>
-          <ul className="site-list" ref={listMotion}>
-            {f && shownSites.length === 0 && <li className="muted small">No site matches “{find.trim()}”.</li>}
-            {shownSites.map((s) => (
-              <li key={s.id} data-testid={`team-site-${s.name}`}>
-                <span className="site-name">
-                  <strong>{s.name}</strong>
-                  {s.address && <span className="muted small">{s.address}</span>}
-                  {editingLink?.id === s.id ? (
-                    <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveLink(); }}>
-                      <span className="muted small">…/#/</span>
-                      <input autoFocus value={editingLink.value} maxLength={50} aria-label="Link name" data-testid="slug-input"
-                        onChange={(e) => setEditingLink({ id: s.id, value: e.target.value })} />
-                      <button className="btn small primary">Save</button>
-                      <button type="button" className="btn small" onClick={() => setEditingLink(null)}>Cancel</button>
-                      <span className="muted small link-warning" data-testid="slug-warning">
-                        Printed QR signs and links already shared with the old name stop working. Print new signs after you change it.
-                      </span>
-                    </form>
-                  ) : (
-                    <span className="muted small site-url">{siteLink(s.slug)}</span>
-                  )}
-                </span>
-                <span className="site-actions">
-                  <button className="btn small" onClick={() => copy(siteLink(s.slug), 'Site link')}>Copy link</button>
-                  {publicSites.has(s.id) && (
-                    <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
-                      title="Opens this site’s public maps without signing in." data-testid={`public-link-${s.name}`}>Copy public link</button>
-                  )}
-                  {full && editingLink?.id !== s.id && (
-                    <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>
-                  )}
-                  {codes[s.id] && (
-                    <>
-                      <span className="code-chip" title="Employee join code">{codes[s.id]}</span>
-                      <button className="btn small" onClick={() => setRotating(s)}>New code</button>
-                    </>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {full && maxSites !== null && (
-            <p className="muted small" data-testid="site-limit">
-              {sites.length} of {maxSites} contracted {maxSites === 1 ? 'site' : 'sites'}.
-              {atLimit && ' To add a site, contact Bergeron Maps to update your contract.'}
-            </p>
-          )}
-          {full && !atLimit && (
-            <form className="inline-form" onSubmit={(e) => { e.preventDefault(); void addSite(); }}>
-              <input value={newSite} onChange={(e) => setNewSite(e.target.value)} placeholder="Site Name" maxLength={120} />
-              <button className="btn" disabled={!newSite.trim()}><Icon name="plus" size={14} /> Add site</button>
-            </form>
-          )}
-        </section>
-
-        {full && requests.length > 0 && (
-          <section className="panel-card requests" data-testid="manager-requests">
-            <h3>Manager requests</h3>
-            <p className="muted small">These people joined a site with its code and asked to manage it. Approve makes them site manager of that site only.</p>
-            <ul className="people" ref={requestMotion}>
-              {requests.map((q) => (
-                <li key={q.id} data-testid={`request-${q.email}`}>
-                  <span>
-                    <strong>{q.email}</strong>
-                    <span className="muted small">
-                      {sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'}, asked {new Date(q.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                      {q.note ? `: “${q.note}”` : ''}
+        <div className="team-cols">
+          <div className="team-col">
+            <section className="panel-card">
+              <h3>Sites</h3>
+              <p className="muted small">
+                Send managers their site link. It only works for emails you’ve added below. Employees join a single site with its code and can only view
+                published maps. A site gets a public link (no sign-in) once one of its live maps is made public on the Maps page.
+              </p>
+              <ul className="site-list" ref={listMotion}>
+                {f && shownSites.length === 0 && <li className="muted small">No site matches “{find.trim()}”.</li>}
+                {shownSites.map((s) => (
+                  <li key={s.id} data-testid={`team-site-${s.name}`}>
+                    <span className="site-name">
+                      <strong>{s.name}</strong>
+                      {s.address && <span className="muted small">{s.address}</span>}
+                      {editingLink?.id === s.id ? (
+                        <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveLink(); }}>
+                          <span className="muted small">…/#/</span>
+                          <input autoFocus value={editingLink.value} maxLength={50} aria-label="Link name" data-testid="slug-input"
+                            onChange={(e) => setEditingLink({ id: s.id, value: e.target.value })} />
+                          <button className="btn small primary">Save</button>
+                          <button type="button" className="btn small" onClick={() => setEditingLink(null)}>Cancel</button>
+                          <span className="muted small link-warning" data-testid="slug-warning">
+                            Printed QR signs and links already shared with the old name stop working. Print new signs after you change it.
+                          </span>
+                        </form>
+                      ) : (
+                        <span className="muted small site-url">{siteLink(s.slug)}</span>
+                      )}
                     </span>
-                  </span>
-                  <span className="site-actions">
-                    <button className="btn small primary" onClick={() => void decide(q, true)} data-testid={`approve-${q.email}`}>Approve</button>
-                    <button className="btn small" onClick={() => void decide(q, false)}>Deny</button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section className="panel-card">
-          <h3>Give someone access</h3>
-          <form className="add-person" ref={accessForm} onSubmit={(e) => { e.preventDefault(); void add(); }}>
-            <label className="stack">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" required /></label>
-            <label className="stack">Access
-              <select value={access} onChange={(e) => setAccess(e.target.value as Access)}>
-                {(Object.keys(ACCESS_LABEL) as Access[]).filter((a) => full || a !== 'regional').map((a) => <option key={a} value={a}>{ACCESS_LABEL[a]}</option>)}
-              </select>
-            </label>
-            {access !== 'regional' && (
-              <label className="stack">Site
-                <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
-                  {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </label>
-            )}
-            <button className="btn primary" disabled={!email.trim() || (access !== 'regional' && !siteId)}>Give access</button>
-          </form>
-        </section>
-
-        <section className="panel-card" ref={peopleCard}>
-          <h3>People</h3>
-          {shownMembers === null ? <p className="muted">Loading…</p> : (
-            <ul className="people" ref={peopleMotion}>
-              {f && shownMembers.length === 0 && <li className="muted small">Nobody matches “{find.trim()}”.</li>}
-              {shownMembers.map((m) => (
-                <li key={m.email}>
-                  <span>
-                    <strong>{m.email}</strong>
-                    <span className="muted small">{describe(m, sites)}{m.pending ? ' (hasn’t signed in yet)' : ''}</span>
-                  </span>
-                  {(canRemove(m) || (full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1)) && (
                     <span className="site-actions">
-                      {full && m.facility_ids !== null && sites.length > 1 && (
-                        <button className="btn small" onClick={() => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' })}
-                          data-testid={`move-${m.email}`}>Move</button>
+                      <button className="btn small" onClick={() => copy(siteLink(s.slug), 'Site link')}>Copy link</button>
+                      {publicSites.has(s.id) && (
+                        <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
+                          title="Opens this site’s public maps without signing in." data-testid={`public-link-${s.name}`}>Copy public link</button>
                       )}
-                      {canRemove(m) && (
-                        <button className="btn small danger-text" onClick={() => setRemoving(m)} data-testid={`remove-${m.email}`}>
-                          {onlyMySites(m) ? 'Remove from my sites' : 'Remove'}
-                        </button>
+                      {full && editingLink?.id !== s.id && (
+                        <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>
+                      )}
+                      {codes[s.id] && (
+                        <>
+                          <span className="code-chip" title="Employee join code">{codes[s.id]}</span>
+                          <button className="btn small" onClick={() => setRotating(s)}>New code</button>
+                        </>
                       )}
                     </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                  </li>
+                ))}
+              </ul>
+              {full && maxSites !== null && (
+                <p className="muted small" data-testid="site-limit">
+                  {sites.length} of {maxSites} contracted {maxSites === 1 ? 'site' : 'sites'}.
+                  {atLimit && ' To add a site, contact Bergeron Maps to update your contract.'}
+                </p>
+              )}
+              {full && !atLimit && (
+                <form className="inline-form" onSubmit={(e) => { e.preventDefault(); void addSite(); }}>
+                  <input value={newSite} onChange={(e) => setNewSite(e.target.value)} placeholder="Site Name" maxLength={120} />
+                  <button className="btn" disabled={!newSite.trim()}><Icon name="plus" size={14} /> Add site</button>
+                </form>
+              )}
+            </section>
+
+            {full && requests.length > 0 && (
+              <section className="panel-card requests" data-testid="manager-requests">
+                <h3>Manager requests</h3>
+                <p className="muted small">These people joined a site with its code and asked to manage it. Approve makes them site manager of that site only.</p>
+                <ul className="people" ref={requestMotion}>
+                  {requests.map((q) => (
+                    <li key={q.id} data-testid={`request-${q.email}`}>
+                      <span>
+                        <strong>{q.email}</strong>
+                        <span className="muted small">
+                          {sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'}, asked {new Date(q.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          {q.note ? `: “${q.note}”` : ''}
+                        </span>
+                      </span>
+                      <span className="site-actions">
+                        <button className="btn small primary" onClick={() => void decide(q, true)} data-testid={`approve-${q.email}`}>Approve</button>
+                        <button className="btn small" onClick={() => void decide(q, false)}>Deny</button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+          <div className="team-col">
+            <section className="panel-card">
+              <h3>Give someone access</h3>
+              <form className="add-person" ref={accessForm} onSubmit={(e) => { e.preventDefault(); void add(); }}>
+                <label className="stack">Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" required /></label>
+                <label className="stack">Access
+                  <select value={access} onChange={(e) => setAccess(e.target.value as Access)}>
+                    {(Object.keys(ACCESS_LABEL) as Access[]).filter((a) => full || a !== 'regional').map((a) => <option key={a} value={a}>{ACCESS_LABEL[a]}</option>)}
+                  </select>
+                </label>
+                {access !== 'regional' && (
+                  <label className="stack">Site
+                    <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
+                      {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </label>
+                )}
+                <button className="btn primary" disabled={!email.trim() || (access !== 'regional' && !siteId)}>Give access</button>
+              </form>
+            </section>
+
+            <section className="panel-card" ref={peopleCard}>
+              <h3>People</h3>
+              {shownMembers === null ? <p className="muted">Loading…</p> : (
+                <ul className="people" ref={peopleMotion}>
+                  {f && shownMembers.length === 0 && <li className="muted small">Nobody matches “{find.trim()}”.</li>}
+                  {shownMembers.map((m) => (
+                    <li key={m.email}>
+                      <span>
+                        <strong>{m.email}</strong>
+                        <span className="muted small">{describe(m, sites)}{m.pending ? ' (hasn’t signed in yet)' : ''}</span>
+                      </span>
+                      {(canRemove(m) || (full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1)) && (
+                        <span className="site-actions">
+                          {full && m.facility_ids !== null && sites.length > 1 && (
+                            <button className="btn small" onClick={() => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' })}
+                              data-testid={`move-${m.email}`}>Move</button>
+                          )}
+                          {canRemove(m) && (
+                            <button className="btn small danger-text" onClick={() => setRemoving(m)} data-testid={`remove-${m.email}`}>
+                              {onlyMySites(m) ? 'Remove from my sites' : 'Remove'}
+                            </button>
+                          )}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </div>
       </main>
       {removing && (
         <ConfirmDialog title={`Remove ${removing.email}?`} confirmLabel="Remove access" danger onCancel={() => setRemoving(null)} onConfirm={() => void remove(removing)}

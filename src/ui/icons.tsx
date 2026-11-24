@@ -60,6 +60,10 @@ const paths: Record<string, string> = {
   toBack: 'M12 4v11M7 10l5 5 5-5M5 20h14',
   directions: 'M12 2.5 21.5 12 12 21.5 2.5 12zM9 15v-3.5h6M12.5 9l2.5 2.5-2.5 2.5',
   enter: 'M13 4h6v16h-6M3 12h11M10 8l4 4-4 4',
+  // Side bar sections: Maps, Sites & people, All accounts.
+  map: 'M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20zM9 4v13.5M15 6.5V20',
+  people: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.5a6.5 6.5 0 0 1 3.5 5.5',
+  accounts: 'M4 21V4h10v17M14 9h6v12M2 21h20M7.5 8h3M7.5 12h3M7.5 16h3M17 13h.01M17 17h.01',
 };
 
 export type IconName = keyof typeof paths;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, EditorPage, preloadAdmin, preloadTeam, TeamPage } from '../lazyPages';
 import { AppHeader, HomePage } from '../home/HomePage';
 import { navigate, useRoute } from '../router';
+import { Icon, type IconName } from '../ui/icons';
 import { ViewerPage } from '../viewer/ViewerPage';
 import { AccountMenu } from './AccountMenu';
 import { supabase } from './client';
@@ -106,14 +107,15 @@ export function OnlineApp() {
   const accountMenu = <AccountMenu email={s.email ?? ''} memberships={s.memberships} current={membership} onSwitch={switchCompany} />;
   const editor = !!membership && canEdit(membership);
   const section = parts[0] === 'admin' ? 'admin' : parts[0] === 'team' ? 'team' : 'maps';
-  const tabs: [string, string, string][] = [
-    ...(membership && editor ? [['maps', '/', 'Maps'], ['team', '/team', 'Sites & people']] as [string, string, string][] : []),
-    ...(s.isAdmin ? [['admin', '/admin', 'All accounts']] as [string, string, string][] : []),
+  const tabs: [string, string, string, IconName][] = [
+    ...(membership && editor ? [['maps', '/', 'Maps', 'map'], ['team', '/team', 'Sites & people', 'people']] as [string, string, string, IconName][] : []),
+    ...(s.isAdmin ? [['admin', '/admin', 'All accounts', 'accounts']] as [string, string, string, IconName][] : []),
   ];
   const nav = tabs.length > 1 ? (
     <>
-      {tabs.map(([key, to, label]) => (
+      {tabs.map(([key, to, label, icon]) => (
         <a key={key} href={`#${to}`} className={`nav-tab${section === key ? ' on' : ''}`} aria-current={section === key ? 'page' : undefined} data-testid={`nav-${key}`}>
+          <Icon name={icon} size={18} className="nav-icon" />
           {label}
           {key === 'team' && requests > 0 && <span className="nav-count" aria-label={`${requests} manager ${requests === 1 ? 'request' : 'requests'} waiting`}>{requests}</span>}
         </a>
