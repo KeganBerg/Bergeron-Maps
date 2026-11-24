@@ -1,6 +1,7 @@
 name: Nightly database backup
 
-# Every night: a full copy of the Supabase database (app tables and sign-in accounts), encrypted,
+# Every night: a full copy of the Supabase database (app tables and sign-in accounts) and the map
+# pictures in file storage, encrypted,
 # kept 90 days as a workflow artifact. Free on a public repository, so the project can stay on
 # Supabase's Free plan (which keeps no backups of its own). How to restore: docs/RECOVERY.md.
 #
@@ -49,6 +50,9 @@ jobs:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
           PG_DUMP: /usr/lib/postgresql/17/bin/pg_dump
+          PSQL: /usr/lib/postgresql/17/bin/psql
+          # Public address of the map pictures bucket (not a secret: every map links to it).
+          PICTURES_URL: https://ysebxeokxpnmckwdtimj.supabase.co/storage/v1/object/public/map-images
         run: |
           file=$(scripts/db-backup.sh backup-out)
           echo "file=$file" >> "$GITHUB_OUTPUT"

@@ -6,6 +6,7 @@ import { CommitInput } from '../ui/fields';
 import { Icon } from '../ui/icons';
 import { layerItems } from '../model/layerTree';
 import { ObjectList, type DropSpot } from './LayerTree';
+import { keepImage } from './imageStore';
 import { currentFloor, useEditor } from './store';
 
 // Which layers and rows are open survives switching sidebar tabs.
@@ -299,7 +300,9 @@ export function loadBackgroundFile(file: File | undefined) {
   reader.onload = () => {
     const src = String(reader.result);
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
+      // Online, the picture goes to file storage first and the map keeps its address.
+      const stored = await keepImage(src);
       const s = st();
       const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
       const width = img.naturalWidth * scale;
@@ -308,7 +311,7 @@ export function loadBackgroundFile(file: File | undefined) {
       const cx = (s.viewSize.width / 2 - v.x) / v.scale;
       const cy = (s.viewSize.height / 2 - v.y) / v.scale;
       const keep = bg ? { x: bg.x, y: bg.y, width: bg.width, height: (bg.width * height) / width, opacity: bg.opacity } : null;
-      s.setBackground({ src, fileName: file.name, ...(keep ?? { x: cx - width / 2, y: cy - height / 2, width, height, opacity: 0.6 }) });
+      s.setBackground({ src: stored, fileName: file.name, ...(keep ?? { x: cx - width / 2, y: cy - height / 2, width, height, opacity: 0.6 }) });
       s.notify({ tone: 'success', message: bg ? 'Background image replaced.' : 'Background image added and locked so it won’t move by accident.' });
     };
     img.onerror = () => st().notify({ tone: 'error', message: 'This image format isn’t supported. Try PNG or JPG.' });

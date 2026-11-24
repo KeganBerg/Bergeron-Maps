@@ -19,6 +19,9 @@ export function useImage(src: string | undefined): HTMLImageElement | undefined 
     if (!img) {
       if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value!);
       img = new Image();
+      // Stored map pictures come from file storage; asking for them with CORS keeps
+      // the canvas exportable (Save as picture / PDF) once they are drawn on it.
+      if (/^https?:/.test(src)) img.crossOrigin = 'anonymous';
       img.src = src;
       cache.set(src, img);
     }
@@ -29,4 +32,16 @@ export function useImage(src: string | undefined): HTMLImageElement | undefined 
   if (!src) return (last.current = undefined);
   if (ready) last.current = cached;
   return last.current;
+}
+
+/**
+ * Shows the picture at `url` from `dataUrl`, a copy already in memory (a
+ * picture just uploaded), so it isn't downloaded straight back.
+ */
+export function primeImage(url: string, dataUrl: string) {
+  if (cache.has(url)) return;
+  if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value!);
+  const img = new Image();
+  img.src = dataUrl;
+  cache.set(url, img);
 }

@@ -4,6 +4,7 @@ import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { useMotion, useMotionGroup } from '../ui/motion';
 import { backupCompany, backupFileName, serializeBackup } from './backup';
 import { RestoreFromBackup } from './RestoreFromBackup';
+import { moveInlineImages, removeCompanyImages } from './mapImages';
 import { friendly, supabase } from './client';
 import { siteLink } from './TeamPage';
 
@@ -118,6 +119,24 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
         : `Backup of all ${companies.length} companies downloaded. Keep the file somewhere safe; Restore from backup brings any of them back.`);
     } catch (e) {
       setError(`The backup couldn’t be made: ${friendly(e)}`);
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  /** One-time move of pictures held inside maps to file storage (cloud/mapImages.ts). */
+  const movePictures = async () => {
+    if (working) return;
+    setError(null);
+    setNote(null);
+    try {
+      const r = await moveInlineImages(supabase!, setWorking);
+      setNote(r.pictures === 0
+        ? 'Every map picture is already in file storage. Nothing to move.'
+        : `Moved ${r.pictures} ${r.pictures === 1 ? 'picture' : 'pictures'} to file storage. ${r.copies} ${r.copies === 1 ? 'map copy now links' : 'map copies (working copies, published maps and saved versions) now link'} to them.`);
+      await load();
+    } catch (e) {
+      setError(`The pictures couldn’t all be moved: ${friendly(e)} Pictures moved so far stay moved; try again to finish.`);
     } finally {
       setWorking(null);
     }
@@ -258,6 +277,19 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             </button>
             <RestoreFromBackup live={new Set(data.map((c) => c.id))} working={!!working} setWorking={setWorking} setError={setError}
               setNote={setNote} onRestored={async () => { onCreated(); await load(); }} />
+          </div>
+        </section>}
+
+        {!q && data && <section className="panel-card" data-testid="map-pictures">
+          <h3>Map pictures</h3>
+          <p className="muted small">
+            Background images and imported pictures are kept in file storage, and maps link to them. Maps saved before that still hold their pictures inside,
+            in every saved version. This moves them out, which makes saves faster and frees database space. Best done while nobody is editing.
+          </p>
+          <div className="site-actions">
+            <button className="btn small" disabled={!!working} onClick={() => void movePictures()} data-testid="move-pictures">
+              Move map pictures to file storage
+            </button>
           </div>
         </section>}
 
@@ -416,7 +448,12 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             <button className="btn" onClick={() => setDeletingCompany(null)}>Cancel</button>
             <button className="btn danger" disabled={confirmName.trim() !== deletingCompany.name} data-testid="delete-company-confirm"
               onClick={() => { const c = deletingCompany; setDeletingCompany(null);
-                void act(() => supabase!.rpc('admin_delete_company', { p_company: c.id, p_confirm_name: confirmName }), `${c.name} deleted.`); }}>
+                void act(async () => {
+                  const r = await supabase!.rpc('admin_delete_company', { p_company: c.id, p_confirm_name: confirmName });
+                  // Its map pictures go too. A backup file keeps its own copy of them.
+                  if (!r.error) await removeCompanyImages(supabase!, c.id).catch(() => {});
+                  return r;
+                }, `${c.name} deleted.`); }}>
               Delete for good
             </button>
           </>}>
