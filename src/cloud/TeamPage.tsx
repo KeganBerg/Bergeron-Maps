@@ -89,6 +89,8 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
   const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
+  // A paid order opens with one site called "First location": the account lead names it here.
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const [maxSites, setMaxSites] = useState<number | null>(null);
   const [requests, setRequests] = useState<ManagerRequest[]>([]);
   const [moving, setMoving] = useState<{ member: Member; from: string; to: string } | null>(null);
@@ -120,6 +122,18 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
     if (!r.data?.length) return setError('Only owners and regional managers can change site links.');
     setEditingLink(null);
     setNote(`Site link changed. The old link no longer works.`);
+    await load();
+  };
+
+  const saveName = async () => {
+    if (!renaming) return;
+    const name = renaming.value.trim();
+    if (!name) return setError('Give the site a name.');
+    const r = await supabase!.from('facilities').update({ name }).eq('id', renaming.id).select('id');
+    if (r.error) return setError(/duplicate key/i.test(r.error.message) ? `There's already a site called “${name}”.` : friendly(r.error));
+    if (!r.data?.length) return setError('Only owners and regional managers can rename sites.');
+    setRenaming(null);
+    setNote(`Site renamed to ${name}. Its link and join code stay the same.`);
     await load();
   };
 
@@ -286,7 +300,14 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
             {shownSites.map((s) => (
               <li key={s.id} data-testid={`team-site-${s.name}`}>
                 <span className="site-name">
-                  <strong>{s.name}</strong>
+                  {renaming?.id === s.id ? (
+                    <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveName(); }}>
+                      <input autoFocus value={renaming.value} maxLength={120} aria-label="Site name" placeholder="Site Name" data-testid="site-name-input"
+                        onChange={(e) => setRenaming({ id: s.id, value: e.target.value })} />
+                      <button className="btn small primary">Save</button>
+                      <button type="button" className="btn small" onClick={() => setRenaming(null)}>Cancel</button>
+                    </form>
+                  ) : <strong>{s.name}</strong>}
                   {s.address && <span className="muted small">{s.address}</span>}
                   {editingLink?.id === s.id ? (
                     <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveLink(); }}>
@@ -308,6 +329,9 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                   {publicSites.has(s.id) && (
                     <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
                       title="Opens this site’s public maps without signing in." data-testid={`public-link-${s.name}`}>Copy public link</button>
+                  )}
+                  {full && renaming?.id !== s.id && (
+                    <button className="btn small" onClick={() => setRenaming({ id: s.id, value: s.name })} data-testid={`rename-${s.name}`}>Rename</button>
                   )}
                   {full && editingLink?.id !== s.id && (
                     <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>

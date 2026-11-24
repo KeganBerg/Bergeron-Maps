@@ -10,6 +10,7 @@ import { friendly } from '../errors/friendly';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { NewMapDialog } from './NewMapDialog';
 import { Icon } from '../ui/icons';
+import { GettingStarted } from './GettingStarted';
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
@@ -66,8 +67,10 @@ const LOCAL_BANNER = 'Browser-only mode: maps are saved in this browser and nobo
  * publish status. `banner` and `headerExtra` let online mode add the company
  * name, team link and account menu.
  */
-export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title = 'Your sites', canAddSite = true }: {
+export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title = 'Your sites', canAddSite = true, gettingStarted = false }: {
   repo: MapRepository; banner?: ReactNode; headerExtra?: ReactNode; nav?: ReactNode; title?: string; canAddSite?: boolean;
+  /** The account lead's first-steps checklist (online, owners only). */
+  gettingStarted?: boolean;
 }) {
   const [sites, setSites] = useState<string[]>([]);
   const [maps, setMaps] = useState<MapSummary[] | null>(null);
@@ -184,6 +187,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
             </div>
           )}
         </div>
+        {gettingStarted && maps !== null && <GettingStarted sites={sites} maps={maps} onBuild={() => setCreating({ site: sites[0] })} />}
         {maps === null ? (
           <p className="muted">Loading…</p>
         ) : maps.length === 0 && sites.length === 0 ? (

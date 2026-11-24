@@ -155,6 +155,7 @@ export function OnlineApp() {
   if (!editor) return locations;
   return (
     <HomePage key={`${membership.companyId}:${siteParam ?? ''}`} repo={repo} nav={nav} headerExtra={accountMenu} banner={null}
-      title={siteParam ? 'Your site' : `${membership.companyName} sites`} canAddSite={canManageCompany(membership) && !siteParam} />
+      title={siteParam ? 'Your site' : `${membership.companyName} sites`} canAddSite={canManageCompany(membership) && !siteParam}
+      gettingStarted={membership.role === 'owner' && !siteParam} />
   );
 }
