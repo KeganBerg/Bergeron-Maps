@@ -70,17 +70,28 @@
   function finish() {
     form.reset();
     if (pick && sel && sel.querySelector('option[value="' + pick.replace(/[^a-z]/g, '') + '"]')) sel.value = pick;
-    form.classList.add('hidden');
-    done.classList.remove('hidden');
     // After the panel is drawn: focus that lands in the same moment it appears isn't read out.
-    setTimeout(function () { done.focus(); }, 60);
+    swap(form, done, function () { done.focus({ preventScroll: true }); });
   }
   document.getElementById('form-again').addEventListener('click', function () {
-    done.classList.add('hidden');
-    form.classList.remove('hidden');
     openedAt = Date.now();
-    form.elements.name.focus();
+    swap(done, form, function () { form.elements.name.focus({ preventScroll: true }); });
   });
+  // Form ↔ thank-you: the section eases to its new height while the new panel fades up, instead of
+  // the page jumping. Instant when the visitor asks for reduced motion.
+  function swap(from, to, then) {
+    var box = form.parentElement;
+    var still = matchMedia('(prefers-reduced-motion: reduce)').matches || !box.animate;
+    var before = box.offsetHeight;
+    from.classList.add('hidden');
+    to.classList.remove('hidden');
+    if (still) return setTimeout(then, 60);
+    var after = box.offsetHeight;
+    box.style.overflow = 'hidden';
+    var grow = box.animate([{ height: before + 'px' }, { height: after + 'px' }], { duration: 420, easing: 'cubic-bezier(.2,.7,.2,1)' });
+    to.animate([{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], { duration: 360, delay: 120, easing: 'ease-out', fill: 'backwards' });
+    grow.onfinish = grow.oncancel = function () { box.style.overflow = ''; then(); };
+  }
 
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var hero = heroMap(reduced);

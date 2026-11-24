@@ -16,6 +16,8 @@
   body { @apply bg-paper font-sans text-ink antialiased; font-size: 17px; }
   ::selection { background: var(--color-sign); color: var(--color-ink); }
   :focus-visible { outline: 3px solid var(--color-sign); outline-offset: 2px; }
+  /* The thank-you panel takes focus so screen readers read it; it isn't a control, so no ring. */
+  #form-done:focus { outline: none; }
 }
 
 @layer components {
