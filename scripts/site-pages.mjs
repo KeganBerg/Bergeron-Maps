@@ -26,7 +26,7 @@ export const INDUSTRIES = [
     why: 'What it changes on campus',
     whySub: 'Fewer lost visitors at the front office, fewer cars in the wrong lot, and a map you can actually keep up to date.',
     points: [
-      ['Parking that sorts itself out', 'Student, faculty, staff and visitor lots each get their own section and numbered spaces. Assigned spots are easy to hand out and easy to check.'],
+      ['Parking that sorts itself out', 'Student, faculty, staff and visitor lots each get their own section and numbered spaces. Reserved and accessible spaces are marked, so everyone can see which spot is which.'],
       ['Every door has a name', "Building A, the nurse's office, room 214, the gym lobby. Label them once and nobody has to guess which entrance is which."],
       ['Directions for visitors', 'A parent or a sub can search for a room and see where it is on their phone. There is no app to download.'],
       ['One map for the whole school', 'When the front office, custodians and coaches point at the same drawing, announcements and work orders get a lot less confusing.'],
@@ -75,7 +75,7 @@ export const INDUSTRIES = [
   {
     slug: 'valet', name: 'Valet', short: 'Valet', scene: 'valet',
     seo: { title: 'Valet Parking Map Software · Bergeron Maps', description: 'Garage and lot maps valet attendants search from their phone. Find any space, get walking directions, and let site managers update the map in minutes.' },
-    pitch: 'Fewer labor hours, faster training and live site management.',
+    pitch: 'Fewer labor hours, faster training and maps your managers keep current.',
     title: 'Every valet knows the site from the first shift.',
     intro: 'New attendants usually learn a garage by shadowing someone for a few shifts. With a clear map on their phone they can start parking cars sooner, and your site manager can change it whenever the layout does.',
     sample: { project: 'Sample Garage', sheet: 'Floor 1 to Floor 3', count: '216 spaces on 3 floors', find: '3C9' },
@@ -92,7 +92,7 @@ export const INDUSTRIES = [
       ['Less wasted labor', 'Less time explaining the layout, less time looking for cars, and fewer moves to fix a bad park.'],
     ],
     roles: [
-      ['Regional managers', 'See and edit every site in their region.'],
+      ['Regional managers', 'See and edit every site in the company.'],
       ['Site managers', 'Edit and publish maps for their own sites only.'],
       ['Valets and attendants', 'View the published map for the site they work at. They join with a six-character site code.'],
       ['Done for you', 'Send us a walkthrough or a sketch and we will build the map.'],
@@ -118,8 +118,8 @@ export const INDUSTRIES = [
     why: 'What changes on the floor',
     whySub: 'Less walking around looking, quicker onboarding, and fewer picks pulled from the wrong bay.',
     points: [
-      ['Locations you can search', 'A picker types C-07 and sees which rack, which aisle and which side.'],
-      ['Less hunting', "Inventory, pallet jacks, the returns cage. If it has a place, it's on the map."],
+      ['Locations you can search', 'A picker types C-07 and sees which rack and which aisle it is in.'],
+      ['Less hunting', "Pallet jacks, the returns cage, the charging station. Give it a place on the map and anyone can find it."],
       ['Faster onboarding', "Temps and new hires get a map instead of a half-hour walkthrough they'll forget by lunch."],
       ['Clear work areas', 'Receiving, staging, shipping and storage are drawn out, so pallets land where they belong.'],
       ['Re-slotting without the confusion', 'When racks move or a zone changes, a lead updates the map and publishes it the same day.'],
@@ -129,7 +129,7 @@ export const INDUSTRIES = [
     incTitle: 'What your warehouse gets.',
     included: [
       ['Search by location', 'Type a bay like C-07 and it lights up.'],
-      ['Automatic bay numbering', 'Draw a rack row and every bay is numbered: A-01, A-02 and on.'],
+      ['Automatic bay numbering', 'Draw a row of bays and every one is numbered: A-01, A-02 and on.'],
       ['Docks and zones', 'Receiving, shipping and staging, drawn as clear zones.'],
       ['One current map', 'Pickers, receiving and leads always see the latest published map.'],
       ['Leads edit, the floor views', 'Only leads and managers can change the layout.'],
@@ -161,7 +161,7 @@ export const INDUSTRIES = [
     included: [
       ['Search anything', 'Rooms, spaces, desks, doors, equipment.'],
       ['Floors and interiors', 'Buildings open up to their own floor plans.'],
-      ['Hundreds of symbols', 'Use the ready-made ones or pick your own icon.'],
+      ['Hundreds of symbols', 'Use the ready-made ones, or put any of thousands of icons on a zone.'],
       ['Publish when ready', 'Your team always sees the latest published map.'],
       ['You choose who edits', 'Everyone else just looks things up.'],
     ],
@@ -335,7 +335,7 @@ function industryPage(ind) {
           </div>
           <figcaption class="titleblock grid grid-cols-2 border-t border-white/25 text-white/70 sm:grid-cols-4">
             <div><span>Project</span>${esc(s.project)}</div>
-            <div><span>Sheet</span>${esc(s.sheet)}</div>
+            <div><span>Map</span>${esc(s.sheet)}</div>
             <div class="hidden sm:block"><span>On this map</span>${esc(s.count)}</div>
             <div class="hidden sm:block"><span>Phone</span>Searched for ${esc(s.find)}</div>
           </figcaption>
