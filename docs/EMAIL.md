@@ -10,9 +10,11 @@ What the app and site send, and the one-time setup that makes those emails arriv
 | Sign-in link and code (first sign-in for an email) | Supabase Auth, **Confirm signup** template | same | Same flow; Supabase picks this template the first time an email signs in. |
 | Contact form lead ("Get your map now") | The site's Worker (`worker/index.js`, `POST /api/contact`) through Resend | Bergeron Maps website &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com; press Reply to answer the visitor. Needs the `RESEND_API_KEY` secret in Cloudflare (section 5). |
 
-Not sent by email (shown in the app only): manager access requests, access given, access removed or moved
-(offboarding and transfers), new account set up. After **Give access**, the Sites and people page offers
-**Copy invite message** to paste into your own email or text.
+| Access given ("You now have access to Site Name") | The site's Worker (`worker/index.js`, `POST /api/access`) through Resend, right after **Give access** on Sites and people | Bergeron Maps &lt;noreply@bergeronmaps.com&gt; | Says where to go (the site link for one site) and how to sign in. The Worker checks the manager's own sign-in and that the person is on their team, and writes the email itself. Uses the same `RESEND_API_KEY` as the form. |
+
+Not sent by email (shown in the app only): manager access requests, access removed or moved (offboarding and
+transfers), changes to someone's existing access, new account set up. **Copy invite message** on Sites and
+people is still there for sending it another way, and is the fallback if the email can't be sent.
 
 ## 1. Send sign-in emails from bergeronmaps.com (required)
 
