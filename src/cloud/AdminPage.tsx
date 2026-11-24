@@ -5,7 +5,7 @@ import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { useMotion, useMotionGroup } from '../ui/motion';
 import { backupCompany, backupFileName, serializeBackup } from './backup';
 import { RestoreFromBackup } from './RestoreFromBackup';
-import { moveInlineImages, removeCompanyImages } from './mapImages';
+import { removeCompanyImages, runPictureMoveOnce } from './mapImages';
 import { friendly, supabase } from './client';
 import { RenameForm } from './rename';
 import { siteLink } from './TeamPage';
@@ -127,23 +127,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
     }
   };
 
-  /** One-time move of pictures held inside maps to file storage (cloud/mapImages.ts). */
-  const movePictures = async () => {
-    if (working) return;
-    setError(null);
-    setNote(null);
-    try {
-      const r = await moveInlineImages(supabase!, setWorking);
-      setNote(r.pictures === 0
-        ? 'Every map picture is already in file storage. Nothing to move.'
-        : `Moved ${r.pictures} ${r.pictures === 1 ? 'picture' : 'pictures'} to file storage. ${r.copies} ${r.copies === 1 ? 'map copy now links' : 'map copies (working copies, published maps and saved versions) now link'} to them.`);
-      await load();
-    } catch (e) {
-      setError(`The pictures couldn’t all be moved: ${friendly(e)} Pictures moved so far stay moved; try again to finish.`);
-    } finally {
-      setWorking(null);
-    }
-  };
 
   /** Runs one change, shows its result, and reloads the overview. */
   const act = async (fn: () => PromiseLike<{ error: unknown }>, ok: string) => {
@@ -174,7 +157,11 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
       .order('updated_at', { ascending: false }).limit(5000);
     if (!m.error) setMaps(m.data as unknown as AdminMap[]);
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    // Pictures in maps saved before file storage existed move out on their own, in the background (cloud/mapImages.ts).
+    void runPictureMoveOnce(supabase!);
+  }, []);
 
   const create = async () => {
     setBusy(true);
@@ -292,18 +279,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
           </div>
         </section>}
 
-        {!q && data && <section className="panel-card" data-testid="map-pictures">
-          <h3>Map pictures</h3>
-          <p className="muted small">
-            Background images and imported pictures are kept in file storage, and maps link to them. Maps saved before that still hold their pictures inside,
-            in every saved version. This moves them out, which makes saves faster and frees database space. Best done while nobody is editing.
-          </p>
-          <div className="site-actions">
-            <button className="btn small" disabled={!!working} onClick={() => void movePictures()} data-testid="move-pictures">
-              Move map pictures to file storage
-            </button>
-          </div>
-        </section>}
 
 
         {data === null && !error && <p className="muted">Loading…</p>}

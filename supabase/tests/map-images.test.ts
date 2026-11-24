@@ -232,3 +232,49 @@ describe('moving pictures one map at a time (step 18)', () => {
   });
 });
 
+
+describe('moving pictures one saved copy at a time (step 20)', () => {
+  const copies = () => as<{ kind: string; id: string }>(w.staff, 'select * from public.admin_map_copies($1)', [w.map]);
+  const move = (who: string, kind: string, id: string, hashes: string[], urls: string[]) =>
+    as<{ left: string[] }>(who, 'select public.admin_move_copy_images($1, $2, $3, $4) as left', [kind, id, hashes, urls]);
+
+  it('lists the published copy and every version, and moves each copy’s pictures without touching the working copy', async () => {
+    const list = await copies();
+    expect(list.map((c) => c.kind)).toEqual(['published', 'version', 'version', 'version']); // publishing adds a version
+    const [{ revision: before }] = (await db.query('select revision from maps where id = $1', [w.map])).rows;
+    const png = urlFor(w.company, PNG, 'png');
+    const jpg = urlFor(w.company, JPG, 'jpg');
+
+    for (const c of list) {
+      const [{ left }] = await move(w.staff, c.kind, c.id, [], []);
+      expect([...left].sort()).toEqual(c.kind === 'published' || left.length === 2 ? [hash(PNG), hash(JPG)].sort() : [hash(PNG)]);
+      const [{ src }] = await as<{ src: string }>(w.staff, 'select public.admin_copy_inline_image($1, $2, $3) as src', [c.kind, c.id, hash(PNG)]);
+      expect(src).toBe(PNG);
+      const [{ left: after }] = await move(w.staff, c.kind, c.id, [hash(PNG), hash(JPG)], [png, jpg]);
+      expect(after).toEqual([]);
+    }
+    const pub = (await db.query('select doc from published_maps where map_id = $1', [w.map])).rows[0].doc;
+    expect(pub.floors[0].background.src).toBe(png);
+    expect(pub.floors[0].objects[0].imageSrc).toBe(jpg);
+    expect(pub.floors[0].objects[1].imageSrc).toBe(SVG);
+    const versions = (await db.query('select doc from map_versions where map_id = $1', [w.map])).rows;
+    expect(versions.every((v) => v.doc.floors[0].background.src === png)).toBe(true);
+    const draft = (await db.query('select draft, revision from maps where id = $1', [w.map])).rows[0];
+    expect(draft.draft.floors[0].background.src).toBe(PNG);
+    expect(draft.revision).toBe(before);
+    // A copy already moved has nothing left.
+    const [{ left: again }] = await move(w.staff, 'published', w.map, [], []);
+    expect(again).toEqual([]);
+  });
+
+  it('refuses an address that isn’t the picture’s stored file, and anyone but admins', async () => {
+    await expect(move(w.staff, 'published', w.map, [hash(PNG)], [urlFor(w.other, PNG, 'png')])).rejects.toThrow(/stored address/);
+    await expect(move(w.staff, 'published', w.map, [hash(PNG)], [urlFor(w.company, JPG, 'png')])).rejects.toThrow(/stored address/);
+    await expect(move(w.staff, 'published', w.map, [hash(PNG)], [])).rejects.toThrow(/one address/);
+    await expect(move(w.lead, 'published', w.map, [], [])).rejects.toThrow(/Only Bergeron Maps admins/);
+    await expect(as(w.lead, 'select * from public.admin_map_copies($1)', [w.map])).rejects.toThrow(/Only Bergeron Maps admins/);
+    await expect(as(w.lead, 'select public.admin_copy_inline_image($1, $2, $3)', ['published', w.map, hash(PNG)])).rejects.toThrow(/Only Bergeron Maps admins/);
+    await expect(as(null, 'select * from public.admin_map_copies($1)', [w.map])).rejects.toThrow(/permission denied/);
+    await expect(as(w.lead, 'select * from public.map_copy_doc($1, $2)', ['published', w.map])).rejects.toThrow(/permission denied/);
+  });
+});

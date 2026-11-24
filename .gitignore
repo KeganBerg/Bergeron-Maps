@@ -10,3 +10,4 @@ loadtest-out
 .prof
 _site
 .wrangler
+scripts/tutorials/out/

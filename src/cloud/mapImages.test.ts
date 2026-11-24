@@ -5,8 +5,8 @@ import { createMap } from '../model/factory';
 import type { AssetObject, MapDocument } from '../model/types';
 import { backupImages, restoreImages, type BackupCompany, type BackupMap } from './backup';
 import {
-  dataUrlToBlob, imageSources, inlineImages, isInlineImage, moveInlineImages, rehomeImages, resetImageCache, storedImagePath,
-  storeImage, storeImages, swapKnownImages,
+  dataUrlToBlob, imageSources, inlineImages, isInlineImage, moveInlineImages, rehomeImages, resetImageCache, runPictureMoveOnce,
+  storedImagePath, storeImage, storeImages, swapKnownImages,
 } from './mapImages';
 import { sameMapContent } from '../storage/unsavedBackup';
 
@@ -138,33 +138,59 @@ describe('map pictures', () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
-  it('moves pictures already inside maps (admins), one map at a time, versions in batches', async () => {
+  it('moves pictures already inside saved copies (admins), one copy per request, uploading each picture once', async () => {
     const calls: [string, Record<string, unknown> | undefined][] = [];
-    let swaps = [10, 4, 0];
+    // Two maps of one company: m1 has a published copy and two versions holding PNG; m2 has one version holding PNG and JPG.
+    const holds: Record<string, string[]> = { p1: [PNG], v1: [PNG], v2: [PNG], v3: [PNG, JPG] };
     const rpc = vi.fn(async (fn: string, args?: Record<string, unknown>) => {
       calls.push([fn, args]);
-      if (fn === 'admin_map_inline_images') return { data: args!.p_map === 'm1' ? [{ hash: sha(PNG) }] : [], error: null };
-      if (fn === 'admin_map_inline_image') return { data: PNG, error: null };
-      return { data: swaps.shift(), error: null };
+      if (fn === 'admin_map_copies') {
+        return { data: args!.p_map === 'm1'
+          ? [{ kind: 'published', id: 'p1' }, { kind: 'version', id: 'v1' }, { kind: 'version', id: 'v2' }]
+          : [{ kind: 'version', id: 'v3' }], error: null };
+      }
+      const id = args!.p_id as string;
+      if (fn === 'admin_copy_inline_image') return { data: holds[id].find((s) => sha(s) === args!.p_hash) ?? null, error: null };
+      const known = args!.p_hashes as string[];
+      holds[id] = holds[id].filter((s) => !known.includes(sha(s)));
+      return { data: holds[id].map(sha), error: null };
     });
     const from = () => ({ select: () => ({ order: () => ({ range: async () => ({
       data: [{ id: 'm1', company_id: CO, name: 'Garage' }, { id: 'm2', company_id: CO, name: 'Lot' }], error: null }) }) }) });
     const { db, files } = fakeDb({ rpc: rpc as unknown as Db['rpc'] });
     (db as unknown as { from: unknown }).from = from;
-    expect(await moveInlineImages(db)).toEqual({ pictures: 1, copies: 14 });
-    expect([...files.keys()]).toEqual([`${CO}/${sha(PNG)}.png`]);
-    const swapCalls = calls.filter(([fn]) => fn === 'admin_swap_map_image');
-    expect(swapCalls).toHaveLength(3);
-    expect(swapCalls[0][1]).toEqual({ p_map: 'm1', p_hash: sha(PNG), p_url: stored(CO, PNG, 'png'), p_src: PNG });
-    expect(calls.filter(([fn]) => fn === 'admin_map_inline_images')).toHaveLength(2);
-    swaps = [];
+    expect(await moveInlineImages(db)).toEqual({ pictures: 2, copies: 2 });
+    expect([...files.keys()].sort()).toEqual([`${CO}/${sha(JPG)}.jpg`, `${CO}/${sha(PNG)}.png`].sort());
+    expect(Object.values(holds).flat()).toEqual([]);
+    // Later copies are swapped with the addresses already known, without fetching the picture again.
+    expect(calls.filter(([fn]) => fn === 'admin_copy_inline_image').map(([, a]) => a!.p_id)).toEqual(['p1', 'v3']);
+    const v1 = calls.find(([fn, a]) => fn === 'admin_move_copy_images' && a!.p_id === 'v1')![1]!;
+    expect(v1).toEqual({ p_kind: 'version', p_id: 'v1', p_hashes: [sha(PNG)], p_urls: [stored(CO, PNG, 'png')] });
   });
 
   it('explains when the database step hasn’t been run', async () => {
-    const rpc = async () => ({ data: null, error: { message: 'Could not find the function public.admin_map_inline_images(p_map) in the schema cache' } });
+    const rpc = async () => ({ data: null, error: { message: 'Could not find the function public.admin_map_copies(p_map) in the schema cache' } });
     const { db } = fakeDb({ rpc: rpc as unknown as Db['rpc'] });
     (db as unknown as { from: unknown }).from = () => ({ select: () => ({ order: () => ({ range: async () => ({ data: [{ id: 'm1', company_id: CO, name: 'G' }], error: null }) }) }) });
-    await expect(moveInlineImages(db)).rejects.toThrow(/step 18 SQL/);
+    await expect(moveInlineImages(db)).rejects.toThrow(/step 20 SQL/);
+  });
+
+  it('runs the move on its own once per browser, and again after a run that stopped', async () => {
+    const values = new Map<string, string>();
+    const store = { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => void values.set(k, v) };
+    let fail = true;
+    const range = vi.fn(async () => (fail ? { data: null, error: { message: 'offline' } } : { data: [], error: null }));
+    const { db } = fakeDb();
+    (db as unknown as { from: unknown }).from = () => ({ select: () => ({ order: () => ({ range }) }) });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await runPictureMoveOnce(db, store);
+    expect(values.size).toBe(0);
+    fail = false;
+    await runPictureMoveOnce(db, store);
+    expect(values.size).toBe(1);
+    await runPictureMoveOnce(db, store);
+    expect(range).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
   });
 });
 
