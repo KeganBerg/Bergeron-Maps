@@ -11,6 +11,7 @@ What the app and site send, and the one-time setup that makes those emails arriv
 | Contact form lead ("Get your map now") | The site's Worker (`worker/index.js`, `POST /api/contact`) through Resend | Bergeron Maps website &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com; press Reply to answer the visitor. Needs the `RESEND_API_KEY` secret in Cloudflare (section 5). |
 
 | Access given ("You now have access to Site Name") | The site's Worker (`worker/index.js`, `POST /api/access`) through Resend, right after **Give access** on Sites and people | Bergeron Maps &lt;noreply@bergeronmaps.com&gt; | Says where to go (the site link for one site) and how to sign in. The Worker checks the manager's own sign-in and that the person is on their team, and writes the email itself. Uses the same `RESEND_API_KEY` as the form. |
+| Order notices to the company ("New order paid: Company", payment failed, canceled, refund, dispute) | The site's Worker (`worker/stripe.js`, `POST /api/stripe-webhook`) on Stripe's signed events | Bergeron Maps orders &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com only, never to customers. Test-mode events start with "Test:". Setup in `docs/STRIPE.md`. |
 
 Not sent by email (shown in the app only): manager access requests, access removed or moved (offboarding and
 transfers), changes to someone's existing access, new account set up. **Copy invite message** on Sites and
