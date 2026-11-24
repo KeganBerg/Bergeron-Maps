@@ -205,3 +205,54 @@ export async function restoreCompany(db: Db, c: BackupCompany, onStep?: (text: s
   }
   return { ...summary, versions, versionErrors };
 }
+
+/** What a backup still has of a company that exists: the sites and maps that are no longer in the database. */
+export interface MissingParts { sites: number; maps: number; trashed: number }
+
+export async function findMissing(db: Db, c: BackupCompany): Promise<MissingParts> {
+  const sites = new Set((check(await db.from('facilities').select('id').eq('company_id', c.id)) as { id: string }[]).map((s) => s.id));
+  const maps = new Set((check(await db.from('maps').select('id').eq('company_id', c.id)) as { id: string }[]).map((m) => m.id));
+  const gone = c.maps.filter((m) => !maps.has(m.id));
+  return {
+    sites: c.sites.filter((s) => !sites.has(s.id)).length,
+    maps: gone.filter((m) => !m.deleted_at).length,
+    trashed: gone.filter((m) => m.deleted_at).length,
+  };
+}
+
+export interface RestoreMissingResult {
+  name: string; sites: number; maps: number; access: number; published: number; moved_to_trash: number;
+  slug_changes: { site: string; was: string; now: string }[];
+  versions: number; versionErrors: number;
+}
+
+/**
+ * Brings back the sites and maps of a company that still exists but lost them
+ * (a map deleted forever, a site deleted), with their saved versions. What is
+ * still there is never changed.
+ */
+export async function restoreMissing(db: Db, c: BackupCompany, onStep?: (text: string) => void): Promise<RestoreMissingResult> {
+  onStep?.(`Restoring what ${c.name} is missing`);
+  const core = { ...c, maps: c.maps.map(({ versions: _v, ...m }) => m) };
+  const r = await db.rpc('admin_restore_missing', { p_backup: core });
+  if (r.error) {
+    if (/admin_restore_missing/.test(r.error.message) && /function|schema cache/i.test(r.error.message)) {
+      throw new Error('Restoring missing maps needs a database update that hasn’t been run yet. Run the step 15 SQL in Supabase, then try again.');
+    }
+    throw new Error(r.error.message);
+  }
+  const { map_ids: ids, ...summary } = r.data as Omit<RestoreMissingResult, 'versions' | 'versionErrors'> & { map_ids: string[] };
+  const back = new Set(ids);
+  let versions = 0;
+  let versionErrors = 0;
+  for (const m of c.maps) {
+    if (!back.has(m.id) || !m.versions.length) continue;
+    onStep?.(`Restoring versions of ${m.name}`);
+    for (const batch of versionBatches(m.versions)) {
+      const v = await db.rpc('admin_restore_versions', { p_map: m.id, p_versions: batch });
+      if (v.error) versionErrors += batch.length;
+      else versions += v.data as number;
+    }
+  }
+  return { ...summary, versions, versionErrors };
+}
