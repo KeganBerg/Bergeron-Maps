@@ -125,7 +125,7 @@ async function viewer(browser, site, id, label, phone, cpu, storage) {
 const browser = await chromium.launch();
 for (const site of sites) {
   // Editor on a desktop, and on a slow laptop (4x CPU).
-  const { r, id } = await editor(browser, site, 'desktop', 1);
+  const { r } = await editor(browser, site, 'desktop', 1);
   results.push(r); console.log(JSON.stringify(r));
   const slow = await editor(browser, site, 'slow-laptop-4x', 4);
   results.push(slow.r); console.log(JSON.stringify(slow.r));

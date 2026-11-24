@@ -57,8 +57,6 @@ async function user(email: string): Promise<string> {
   return r.rows[0].id;
 }
 
-const doc = (name: string) => ({ id: 'local', name, floors: [], schemaVersion: 1 });
-
 let seq = 0;
 let w: {
   staff: string; lead: string; regional: string; siteManager: string; employee: string; outsider: string;

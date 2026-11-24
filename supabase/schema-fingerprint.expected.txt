@@ -1,0 +1,178 @@
+scheduled jobs: pg_cron is off
+176 objects, fingerprint 2d153276b886
+constraint audit_log.audit_log_company_id_fkey 328812a1 
+constraint audit_log.audit_log_pkey 4c6419b3 
+constraint companies.companies_created_by_fkey 1ceab562 
+constraint companies.companies_max_sites_check 80a32ef5 
+constraint companies.companies_name_check f42578d1 
+constraint companies.companies_pkey 4c6419b3 
+constraint facilities.facilities_address_check 12801802 
+constraint facilities.facilities_company_id_fkey 328812a1 
+constraint facilities.facilities_join_code_check 342d5842 
+constraint facilities.facilities_join_code_key fc0bf15b 
+constraint facilities.facilities_name_check f42578d1 
+constraint facilities.facilities_pkey 4c6419b3 
+constraint facilities.facilities_slug_check 7eac2435 
+constraint facilities.facilities_slug_key 68739727 
+constraint invitations.invitations_company_id_email_key dd84de95 
+constraint invitations.invitations_company_id_fkey 328812a1 
+constraint invitations.invitations_email_check cee62410 
+constraint invitations.invitations_invited_by_fkey a69b0a65 
+constraint invitations.invitations_pkey 4c6419b3 
+constraint join_attempts.join_attempts_user_id_fkey 85d8b2f5 
+constraint manager_requests.manager_requests_company_id_fkey 328812a1 
+constraint manager_requests.manager_requests_decided_by_fkey cf31ff66 
+constraint manager_requests.manager_requests_facility_id_fkey 6e5913b4 
+constraint manager_requests.manager_requests_note_check c5356573 
+constraint manager_requests.manager_requests_pkey 4c6419b3 
+constraint manager_requests.manager_requests_status_check aa7f7545 
+constraint manager_requests.manager_requests_user_id_fkey 85d8b2f5 
+constraint map_versions.map_versions_created_by_fkey 1ceab562 
+constraint map_versions.map_versions_doc_size 010631d3 
+constraint map_versions.map_versions_label_check 4f6b97a9 
+constraint map_versions.map_versions_map_id_fkey dba32ac9 
+constraint map_versions.map_versions_pkey 4c6419b3 
+constraint map_versions.map_versions_reason_check 42da3695 
+constraint maps.maps_company_id_fkey 328812a1 
+constraint maps.maps_draft_size d3c638a6 
+constraint maps.maps_facility_id_fkey 6e5913b4 
+constraint maps.maps_name_check f42578d1 
+constraint maps.maps_pkey 4c6419b3 
+constraint maps.maps_slot_check d9aa8a6d 
+constraint maps.maps_updated_by_fkey e0e8dee5 
+constraint memberships.memberships_company_id_fkey 328812a1 
+constraint memberships.memberships_company_id_user_id_key 60e14dc5 
+constraint memberships.memberships_pkey 4c6419b3 
+constraint memberships.memberships_user_id_fkey 85d8b2f5 
+constraint platform_admins.platform_admins_email_check cee62410 
+constraint platform_admins.platform_admins_pkey 3ffed38f 
+constraint published_maps.published_maps_company_id_fkey 328812a1 
+constraint published_maps.published_maps_doc_size 010631d3 
+constraint published_maps.published_maps_facility_id_fkey 6e5913b4 
+constraint published_maps.published_maps_map_id_fkey dba32ac9 
+constraint published_maps.published_maps_pkey d49b11e4 
+constraint published_maps.published_maps_published_by_fkey f9035883 
+function add_contract_site(p_company uuid, p_name text, p_address text) 495ba539 authenticated
+function add_member(p_company uuid, p_email text, p_role member_role, p_facility_ids uuid[]) 85ef52fc authenticated
+function admin_delete_company(p_company uuid, p_confirm_name text) 60978569 authenticated
+function admin_delete_site(p_facility uuid) c031eb77 authenticated
+function admin_overview() c371f0b5 authenticated
+function admin_restore_company(p_backup jsonb) 63d24888 authenticated
+function admin_restore_missing(p_backup jsonb) de43e7d6 authenticated
+function admin_restore_versions(p_map uuid, p_versions jsonb) 604d6c93 authenticated
+function block_password_sign_in(event jsonb) e86d37de 
+function can_edit_facility(p_facility uuid) 72653af5 authenticated
+function can_manage_company(p_company uuid) bb6a90ea authenticated
+function can_view_facility(p_facility uuid) ad724639 authenticated
+function can_view_facility_row(p_company uuid, p_facility uuid) e5257ed6 authenticated
+function cancel_invitation(p_company uuid, p_email text) b0eb697f authenticated
+function claim_invitations_for(p_user uuid, p_email text) f36caeb9 
+function create_company(p_name text, p_facility_name text) 7f795f07 authenticated
+function decide_manager_request(p_request uuid, p_approve boolean) 4fa114b8 authenticated
+function end_sessions(p_user uuid) d5581d8e 
+function facilities_after_delete() ae91e4c2 
+function facilities_before_insert() d5561028 -,anon,authenticated
+function facilities_default_slug() 4944d10b -,anon,authenticated
+function facilities_protect_address() b90186a7 
+function facilities_protect_columns() 62f37e49 -,anon,authenticated
+function facilities_protect_maps() 5e482776 -,authenticated
+function floor_count(m maps) 8dcd2ed4 authenticated
+function floor_count(p published_maps) 3da37e6a authenticated
+function get_join_code(p_facility uuid) 121ce9bd authenticated
+function get_public_map(p_map uuid) 26a35276 anon,authenticated
+function get_public_site(p_slug text) ff64da65 anon,authenticated
+function is_member(p_company uuid) 1e208447 authenticated
+function is_platform_admin() 4df9982f authenticated
+function join_site(p_code text) 07d5edaf authenticated
+function leave_site(p_facility uuid) 6154918f authenticated
+function level_count(p published_maps) 5462d9f7 authenticated
+function list_members(p_company uuid) 5e7dd678 authenticated
+function log_action(p_company uuid, p_action text, p_target text, p_details jsonb) 146a9da9 
+function map_is_live(p_map uuid) 9ef6bc22 authenticated
+function maps_after_move() 430a7bda 
+function maps_assign_slot() 144c9d11 
+function maps_before_write() deafe54c authenticated
+function move_member(p_company uuid, p_email text, p_from uuid, p_to uuid) 4aa0d718 authenticated
+function my_locations() f14a06f2 authenticated
+function my_membership(p_company uuid) bc894708 authenticated
+function new_join_code() 687d78f4 
+function on_auth_user_created() 625185a2 authenticated
+function prune_auto_versions() d14d97a0 
+function publish_map(p_map uuid) 2b2e283d authenticated
+function purge_expired_trash() 01eb4274 
+function remove_member(p_company uuid, p_user uuid) ccfdfee0 authenticated
+function request_manager_access(p_facility uuid, p_note text) 3b15761c authenticated
+function rotate_join_code(p_facility uuid) 92489618 authenticated
+function set_site_address(p_facility uuid, p_address text) 8d0e805b authenticated
+function set_site_limit(p_company uuid, p_max_sites integer) 259d378d authenticated
+function setup_company(p_name text, p_site_name text, p_site_address text, p_lead_email text, p_max_sites integer) 466b4cb9 authenticated
+function site_live_map_count(p_facility uuid, p_except uuid) e252063b 
+function slugify(p text) bd8e2aba authenticated
+function space_count(m maps) 511d47c5 authenticated
+function space_count(p published_maps) 58e8ae71 authenticated
+function unique_slug(p_name text, p_except uuid) 5f0dc198 
+function unpublish_map(p_map uuid) 028034b2 authenticated
+index audit_log_company_id_created_at_idx 1efb4b6d 
+index audit_log_pkey 699c2e83 
+index companies_pkey 5432bdbc 
+index facilities_company_id_idx c4e0b71e 
+index facilities_join_code_key 586b4750 
+index facilities_pkey 074666ca 
+index facilities_slug_key f0730352 
+index invitations_company_id_email_key d112b25e 
+index invitations_pkey 26d1075a 
+index join_attempts_user_id_at_idx 4fa9709c 
+index manager_requests_company c21770ae 
+index manager_requests_one_pending 7e7cd9f8 
+index manager_requests_pkey e8fbe6eb 
+index map_versions_map_id_created_at_idx 1486a6b5 
+index map_versions_pkey 112fbeae 
+index maps_company_id 18252bf5 
+index maps_facility_id_idx a0a2d181 
+index maps_one_map_per_slot 84396189 
+index maps_pkey ba72d99d 
+index memberships_company_id_user_id_key d08ae10f 
+index memberships_pkey 43b28d1f 
+index memberships_user_id_idx 2c6ba2c3 
+index platform_admins_pkey 12df5d77 
+index published_maps_company_id 62565497 
+index published_maps_pkey cb5e3b79 
+policy audit_log.audit_read 1f47789b 
+policy companies.companies_read e117602c 
+policy companies.companies_rename 4084ac9c 
+policy facilities.facilities_delete 1aeb5170 
+policy facilities.facilities_insert 2d0e82e2 
+policy facilities.facilities_read dd90b6f2 
+policy facilities.facilities_update bcaade44 
+policy invitations.invitations_read 1f47789b 
+policy manager_requests.manager_requests_read 416a3418 
+policy map_versions.versions_insert fd806abc 
+policy map_versions.versions_read c3d77c9c 
+policy maps.maps_insert 6cb93f6a 
+policy maps.maps_purge 5883fbaf 
+policy maps.maps_read d25145f8 
+policy maps.maps_update b6cd4fa3 
+policy memberships.memberships_read 416a3418 
+policy published_maps.published_read b6051c97 
+table audit_log 89529d30 true
+table companies aa248d90 true
+table facilities 13a8527c true
+table invitations 2826f599 true
+table join_attempts 55cfaf10 true
+table manager_requests 218eb4f7 true
+table map_versions f6b6cd69 true
+table maps 92fb1e66 true
+table memberships d80c1b71 true
+table platform_admins f26bdfe2 true
+table published_maps 56059395 true
+trigger facilities.facilities_after_delete 287ec6c5 
+trigger facilities.facilities_before_insert 164348e4 
+trigger facilities.facilities_default_slug 56fe5ce5 
+trigger facilities.facilities_protect_address 7b295f66 
+trigger facilities.facilities_protect_columns 02bc51fc 
+trigger facilities.facilities_protect_maps 72d6e8fe 
+trigger map_versions.map_versions_prune_auto 17b1bd9f 
+trigger maps.maps_after_move d7019af1 
+trigger maps.maps_assign_slot a076db46 
+trigger maps.maps_before_write d7e5db2c 
+type member_role 7ab858ee 

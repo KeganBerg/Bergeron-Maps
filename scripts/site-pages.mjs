@@ -404,7 +404,7 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
 `;
 }
 
-const cards = INDUSTRIES.map((i, n) => `<li><a class="ind-card" href="industries/${i.slug}/">
+const cards = INDUSTRIES.map((i) => `<li><a class="ind-card" href="industries/${i.slug}/">
             <img src="img/industries/${i.scene}-phone.webp" width="780" height="1560" loading="lazy" alt="" />
             <b>${esc(i.name)}</b><span class="ind-pitch">${esc(i.pitch)}</span><span class="ind-more">Learn more <i aria-hidden="true">&rarr;</i></span>
           </a></li>`).join('\n          ');

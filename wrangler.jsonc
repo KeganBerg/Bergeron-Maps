@@ -1,14 +1,24 @@
-// Cloudflare deploy for bergeronmaps.com: a Worker that only serves the files in _site/
-// (the marketing site at the root, the app under /app/). Built by scripts/build-deploy.sh and
+// Cloudflare deploy for bergeronmaps.com: a Worker that serves the files in _site/ (the marketing
+// site at the root, the app under /app/) and runs worker/index.js only for /api/* (the contact form). Built by scripts/build-deploy.sh and
 // deployed by .github/workflows/cloudflare.yml. Steps and settings: docs/HOSTING.md.
 {
   "name": "bergeron-maps",
   "compatibility_date": "2026-10-01",
+  "main": "worker/index.js",
   "assets": {
     "directory": "./_site",
+    "binding": "ASSETS",
+    // Only these paths reach worker/index.js; everything else is served as a file directly.
+    "run_worker_first": ["/api/*"],
     // Unknown addresses get the site's own "Page not found" page with a real 404 status.
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
+  },
+  // Public Supabase settings (the same ones the app ships with) for /api/access, which checks the
+  // signed-in manager's own token against them. The Resend key is a secret set in the dashboard.
+  "vars": {
+    "SUPABASE_URL": "https://ysebxeokxpnmckwdtimj.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZWJ4ZW9reHBubWNrd2R0aW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDU3OTEsImV4cCI6MjEwOTEyMTc5MX0._gioylYj_sf6pLy3o6riTL0n9Y-EVsu3VNzpeRXYQkY"
   },
   // The test address (bergeron-maps.<account>.workers.dev) and per-pull-request preview addresses.
   "workers_dev": true,
