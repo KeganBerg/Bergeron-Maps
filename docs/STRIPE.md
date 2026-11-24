@@ -50,7 +50,10 @@ white-label ($5,000).
 - **Opening.** As soon as Checkout finishes (even while a bank payment is still clearing), the Worker
   opens a company named after the order, with one site called "First location", room for as many
   sites as were bought and the contract term on record. The buyer's email becomes the owner (invited,
-  if they have never signed in) and gets a "Your Bergeron Maps account is open" email. A repeated
+  if they have never signed in) and gets a "Your Bergeron Maps account is open" email. Its button
+  is a one-time sign-in link (Supabase's admin `generate_link`, carried on the app's own
+  `?token_hash=…&auto=1` address), so it signs them straight in; it lasts as long as Supabase's email
+  link setting, 1 hour by default, and after that they sign in with their email as usual. A repeated
   webhook never opens a second company: the Stripe customer ID is the key.
 - **Pausing.** A failed bank payment, the end of the grace period (subscription unpaid) or a canceled
   subscription pauses the whole company: nobody in it can open its maps, everyone is signed out, and
