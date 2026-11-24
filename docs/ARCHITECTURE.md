@@ -88,5 +88,5 @@ These keep the code readable for the next person. `src/codeSize.test.ts` and ESL
 - **Logic lives in `src/model/`**, with unit tests, not inside React components. Components show state and
   call model functions.
 - **Facts about a symbol live on the symbol** (`src/assets/catalog/*`), not in lists elsewhere. For example,
-  whether a symbol blocks walking belongs on the symbol, so a new symbol can't be forgotten elsewhere.
+  how walking directions treat a symbol is its `walk` property (and `entersBuilding` for building doors).
 - **Docs change in the same pull request as the code** they describe.

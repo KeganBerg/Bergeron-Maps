@@ -66,6 +66,16 @@ export interface AssetDef {
   /** Ramps, stairs, elevators, walkways can record which floors they reach. */
   connector?: boolean;
   /**
+   * How walking directions (src/model/route.ts) treat this symbol: 'walk' and
+   * 'road' are ways to walk, 'land' is slow ground (grass, trees), 'block'
+   * can't be crossed, 'opener' makes a way through a wall or fence (doors,
+   * gates, crosswalks), 'ignore' is drawn but doesn't change the ground.
+   * Missing: decided from the symbol's category and layer.
+   */
+  walk?: 'walk' | 'road' | 'land' | 'block' | 'opener' | 'ignore';
+  /** A way into a building from outside (directions go in and out of floor plans here). */
+  entersBuilding?: boolean;
+  /**
    * What clicking the tile creates. 'asset' (default) is a drawn object;
    * 'space' a numbered parking space; 'text' a text box; 'background' and
    * 'image' open a file picker; 'soon' is listed but not built yet.
@@ -117,4 +127,9 @@ export function category(cat: AssetCategory) {
     ...o,
     keywords: [...(o.keywords ?? []), ...name.toLowerCase().split(/[\s\-/]+/)],
   });
+}
+
+/** A symbol made by a shared helper, plus how walking directions treat it (see AssetDef.walk). */
+export function walking(def: AssetDef, how: Pick<AssetDef, 'walk' | 'entersBuilding'>): AssetDef {
+  return { ...def, ...how };
 }

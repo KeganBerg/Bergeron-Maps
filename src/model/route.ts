@@ -55,37 +55,13 @@ const LOT_SLOT = 20;
 
 type Role = 'ignore' | 'walk' | 'road' | 'area' | 'land' | 'thing' | 'block' | 'space' | 'opener' | 'room' | 'shell';
 
-const BLOCK = new Set([
-  'wall', 'partial-wall', 'column', 'pillar', 'fence', 'guardrail', 'concrete-divider', 'protective-barrier', 'hvac-unit',
-  'retaining-wall', 'interior-wall', 'glass-wall', 'window', 'hedge', 'planter', 'pond', 'water-feature', 'swimming-pool',
-]);
-const OPENERS = new Set([
-  'door', 'double-door', 'gate', 'barrier-arm', 'garage-door', 'rollup-door', 'access-gate', 'entrance', 'exit',
-  'ped-entrance', 'ped-exit', 'lobby-entrance', 'building-entrance', 'student-entrance', 'staff-entrance',
-  'visitor-entrance', 'bus-entrance', 'delivery-entrance', 'security-checkpoint', 'crosswalk', 'pedestrian-crossing',
-]);
-/** Ways into a building from outside. */
-const ENTRY_KEYS = new Set([
-  'building-entrance', 'lobby-entrance', 'ped-entrance', 'ped-exit', 'entrance', 'student-entrance', 'staff-entrance',
-  'visitor-entrance', 'bus-entrance', 'delivery-entrance', 'security-checkpoint', 'door', 'double-door',
-]);
-const IGNORE = new Set(['support-beam', 'canopy', 'covered-parking', 'bollard', 'parking-stop', 'curb', 'sidewalk-curb', 'drain-grate', 'storm-drain', 'sewer-access', 'speed-bump', 'stop-line', 'yield-line', 'lane-divider', 'road-centerline', 'road-boundary']);
-const LAND = new Set(['grass-area', 'grass-divider', 'grass-divider-corner', 'grass-divider-curve', 'grass-island-half', 'grass-island-round', 'grass-island-quarter', 'flower-bed', 'rock-bed', 'dirt-area', 'gravel-area', 'shrub', 'tree', 'small-tree', 'large-tree']);
-const WALK_AREAS = new Set(['valet-pickup', 'valet-dropoff', 'valet-queue', 'guest-waiting', 'student-dropoff', 'student-pickup', 'bus-loading', 'bus-unloading', 'courtyard', 'outdoor-seating', 'waiting-area', 'loading-dock']);
-const ROAD_KEYS = new Set(['fire-lane', 'keep-clear', 'bus-loop', 'emergency-access-road', 'custom-road', 'service-drive']);
-
 function roleOf(o: MapObject, def: AssetDef | undefined, interior: boolean): Role {
   if (o.kind === 'space') return 'space';
   if (o.kind !== 'asset' || !def) return 'ignore';
   const k = o.assetKey;
   if (def.connector) return 'opener';
-  if (OPENERS.has(k)) return 'opener';
   if (k === 'outer-walls') return 'shell';
-  if (BLOCK.has(k)) return 'block';
-  if (IGNORE.has(k)) return 'ignore';
-  if (LAND.has(k)) return 'land';
-  if (WALK_AREAS.has(k)) return 'walk';
-  if (ROAD_KEYS.has(k)) return 'road';
+  if (def.walk) return def.walk;
   // Dashed zones (a delivery area, a service zone) mark ground, they don't pave it.
   if (def.dashed && def.category !== 'Pedestrian areas') return 'ignore';
   if (def.creates === 'space' || k === 'custom-row') return 'space';
@@ -1085,12 +1061,12 @@ function portals(doc: MapDocument): Portal[] {
       if (!inside) continue;
       const bb = objectBox(b);
       const grow = 30;
-      const doors = site.objects.filter((d) => d.kind === 'asset' && ENTRY_KEYS.has(d.assetKey) && !d.hidden &&
+      const doors = site.objects.filter((d) => d.kind === 'asset' && !!ASSET_BY_KEY[d.assetKey]?.entersBuilding && !d.hidden &&
         d.x > bb.x - grow && d.x < bb.x + bb.width + grow && d.y > bb.y - grow && d.y < bb.y + bb.height + grow);
       const shell = inside.objects.find((o) => o.kind === 'asset' && o.assetKey === 'outer-walls');
       const frame = shell ?? null;
       const ib = frame ? objectBox(frame) : objectBox({ x: 0, y: 0, width: 1, height: 1, rotation: 0 });
-      const innerDoors = inside.objects.filter((d) => d.kind === 'asset' && ENTRY_KEYS.has(d.assetKey) && !d.hidden);
+      const innerDoors = inside.objects.filter((d) => d.kind === 'asset' && !!ASSET_BY_KEY[d.assetKey]?.entersBuilding && !d.hidden);
       const outsideDoors = frame
         ? innerDoors.filter((d) => {
             const [lx, ly] = toLocal(frame, d.x, d.y);
@@ -1535,7 +1511,7 @@ export function startPlaces(doc: MapDocument): { floor: Floor; obj: MapObject; n
       const def = ASSET_BY_KEY[o.assetKey];
       if (!def) continue;
       const k = o.assetKey;
-      const useful = def.connector || OPENERS.has(k) && !['door', 'double-door', 'crosswalk', 'pedestrian-crossing', 'barrier-arm'].includes(k)
+      const useful = def.connector || def.walk === 'opener' && !['door', 'double-door', 'crosswalk', 'pedestrian-crossing', 'barrier-arm'].includes(k)
         || k.startsWith('pin-') || k.startsWith('valet-') || k === 'pay-station' || k === 'info-desk' || k === 'reception-desk';
       if (useful) out.push({ floor: f, obj: o, name: nameOf(o, def.name) });
     }
