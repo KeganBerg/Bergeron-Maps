@@ -8,7 +8,7 @@ What the app and site send, and the one-time setup that makes those emails arriv
 | --- | --- | --- | --- |
 | Sign-in link and code (existing person) | Supabase Auth, **Magic Link** template | Supabase's sender until custom SMTP is set up | The only email the app sends. |
 | Sign-in link and code (first sign-in for an email) | Supabase Auth, **Confirm signup** template | same | Same flow; Supabase picks this template the first time an email signs in. |
-| Contact form lead | FormSubmit (formsubmit.co) | FormSubmit | Goes to bergeronmaps@gmail.com. Needs the one-time **Activate form** click. |
+| Contact form lead ("Get your map now") | The site's Worker (`worker/index.js`, `POST /api/contact`) through Resend | Bergeron Maps website &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com; press Reply to answer the visitor. Needs the `RESEND_API_KEY` secret in Cloudflare (section 5). |
 
 Not sent by email (shown in the app only): manager access requests, access given, access removed or moved
 (offboarding and transfers), new account set up. After **Give access**, the Sites and people page offers
@@ -23,9 +23,12 @@ managers and employees outside the team never get a link. Use a sending service.
 1. Create a Resend account at resend.com with bergeronmaps@gmail.com.
 2. **Domains → Add domain** → `bergeronmaps.com`. Resend shows 3–4 DNS records (a DKIM TXT record named
    `resend._domainkey`, and an MX and SPF TXT record on the `send` subdomain).
-3. In Porkbun → **bergeronmaps.com → DNS**, add each record exactly as Resend shows it. Leave the existing
-   `fwd1/fwd2.porkbun.com` MX records and the `v=spf1 include:_spf.porkbun.com ~all` TXT record alone (they
-   run your email forwarding; Resend's records are on the `send` subdomain, so nothing conflicts).
+3. Add the records in Cloudflare (the domain's DNS moved there from Porkbun on 2026-11-24). If Resend offers
+   **Auto configure** / **Sign in to Cloudflare**, use it. Otherwise: Cloudflare dashboard → **bergeronmaps.com →
+   DNS → Records → Add record**, and copy each record's type, name and value exactly as Resend shows it (for
+   the MX record also its priority). Leave the existing `fwd1/fwd2.porkbun.com` MX records and the
+   `v=spf1 include:_spf.porkbun.com ~all` TXT record alone (they run your email forwarding; Resend's records
+   are on the `send` subdomain, so nothing conflicts).
 4. Back in Resend, press **Verify**. When it says Verified, go to **API Keys → Create API key** (sending access).
 5. Supabase dashboard → **Authentication → Emails → SMTP Settings** → turn on **Enable custom SMTP**:
    - Sender email: `noreply@bergeronmaps.com`, Sender name: `Bergeron Maps`
@@ -34,7 +37,7 @@ managers and employees outside the team never get a link. Use a sending service.
 
 ## 2. Add a DMARC record (recommended)
 
-In Porkbun add a TXT record, host `_dmarc`, value:
+In Cloudflare → **DNS → Records → Add record**: type TXT, name `_dmarc`, content:
 
 ```
 v=DMARC1; p=none; rua=mailto:bergeronmaps@gmail.com
@@ -75,6 +78,15 @@ What the new emails fix:
 
 ## 5. Contact form
 
-FormSubmit sends one **Activate form** email to bergeronmaps@gmail.com the first time the form is used. Until
-someone clicks it, leads are dropped. Send a test from bergeronmaps.com#contact and look for that email (check
-spam too).
+The form on bergeronmaps.com posts to `/api/contact` on our own Worker, which emails the lead through Resend.
+The Resend key is kept only in Cloudflare, once:
+
+1. Resend → **API Keys → Create API key**: name `Website form`, **Sending access**, domain `bergeronmaps.com`.
+   Copy the `re_…` key (it's shown once).
+2. Cloudflare dashboard → **Workers & Pages → bergeron-maps → Settings → Variables and Secrets → Add**:
+   type **Secret**, name `RESEND_API_KEY`, value the key. Press **Deploy**.
+3. Send a test from bergeronmaps.com#contact. It arrives from "Bergeron Maps website" with the visitor as the
+   reply-to address.
+
+Until the secret exists, the form says it didn't go through and shows the email address instead. Deploys keep
+the secret; it never goes in the repository or GitHub.
