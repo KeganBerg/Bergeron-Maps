@@ -20,6 +20,8 @@ export default tseslint.config(
   { files: ['**/*.{ts,tsx}'], rules: { 'no-undef': 'off' } },
   // Scripts run in Node and pass functions into a browser page (Playwright), so they get both.
   { files: ['scripts/**/*.{js,mjs}', '*.js'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
+  // The Cloudflare Worker runs with the web platform's globals (fetch, Request, Response, URL).
+  { files: ['worker/**/*.js'], languageOptions: { globals: globals.serviceworker } },
   { files: ['site/**/*.js'], languageOptions: { globals: { ...globals.browser, gsap: 'readonly' } } },
   {
     rules: {
