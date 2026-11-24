@@ -33,6 +33,7 @@ describe('POST /api/checkout', () => {
     expect(form.get('line_items[1][price]')).toBe('price_monthly');
     expect(form.get('line_items[1][quantity]')).toBe('3');
     expect(form.get('subscription_data[trial_period_days]')).toBe('30');
+    expect(form.get('managed_payments[enabled]')).toBe('false');
     expect(form.get('customer_email')).toBe('pat@example.com');
     expect(form.get('metadata[company]')).toBe('Company');
     expect(form.get('subscription_data[metadata][locations]')).toBe('3');

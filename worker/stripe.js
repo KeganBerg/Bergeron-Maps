@@ -72,6 +72,9 @@ export async function checkout(request, env, send = fetch) {
     success_url: `${back}?checkout=done&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${back}?checkout=canceled`,
     integration_identifier: INTEGRATION_ID,
+    // Managed Payments (Stripe as reseller, for an extra fee) is on by default for new Stripe
+    // accounts and refuses custom_text. Bergeron Maps sells directly, so it stays off.
+    'managed_payments[enabled]': 'false',
   });
   // The same facts on the Checkout page and on the subscription, so either can be traced back.
   const facts = { company: order.company, contact_name: order.name, locations: String(order.locations), source: 'get-your-map-now' };
