@@ -56,11 +56,12 @@ const checks = [
   {
     name: 'Database (Supabase)',
     async run() {
-      // Any visitor may call this; signed out it answers false. A paused or broken database can't.
-      const { res, ms } = await get(`${SUPABASE_URL}/rest/v1/rpc/is_platform_admin`, {
+      // The public-link lookup any visitor may call (signed out). A made-up link answers an
+      // empty list; a paused or broken database can't answer at all.
+      const { res, ms } = await get(`${SUPABASE_URL}/rest/v1/rpc/get_public_site`, {
         method: 'POST',
         headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
-        body: '{}',
+        body: JSON.stringify({ p_slug: 'uptime-check-no-such-site' }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}${res.status === 540 ? ' (project paused)' : ''}`);
       return ms;
