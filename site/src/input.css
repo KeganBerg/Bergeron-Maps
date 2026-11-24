@@ -281,7 +281,7 @@
 .calc-l { display: grid; gap: 8px; font-size: 14px; color: rgb(11 11 11 / .7); }
 .calc-f { width: 100%; border: 0; border-bottom: 2px solid rgb(11 11 11 / .35); background: transparent; padding: 6px 0; font-size: 24px; font-weight: 700; color: var(--color-ink); outline: none; border-radius: 0; }
 .calc-f:focus { border-color: var(--color-ink); }
-.calc-out { margin-top: 6px; font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 700; letter-spacing: -0.02em; }
+.calc-out { margin-top: 6px; font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 
 /* Contact form spam trap: off screen for people, still in the form for bots. */
 .hp-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

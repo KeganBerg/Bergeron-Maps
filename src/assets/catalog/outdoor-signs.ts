@@ -64,14 +64,14 @@ export function hedgeDetail(k: Clump): { cx: number; cy: number; rx: number; ry:
 }
 
 export const OUTDOOR = [
-  od('tree', 'Tree', { draw: canopy(9), width: 56, height: 56, layer: 'landmarks', fill: P.foliage, stroke: P.foliageDark, strokeWidth: 1.2, keywords: ['landscaping', 'green', 'plant', 'shade tree'], labelPos: 'below' }),
-  od('small-tree', 'Small tree', { draw: canopy(7), width: 36, height: 36, layer: 'landmarks', fill: P.foliageLight, stroke: P.foliageDark, strokeWidth: 1, keywords: ['ornamental', 'sapling'], labelPos: 'below' }),
-  od('large-tree', 'Large tree', { draw: canopy(12), width: 90, height: 90, layer: 'landmarks', fill: P.foliageDark, stroke: '#356b2a', strokeWidth: 1.5, keywords: ['oak', 'mature', 'shade'], labelPos: 'below' }),
-  od('shrub', 'Bush', {
+  od('tree', 'Tree', { walk: 'land', draw: canopy(9), width: 56, height: 56, layer: 'landmarks', fill: P.foliage, stroke: P.foliageDark, strokeWidth: 1.2, keywords: ['landscaping', 'green', 'plant', 'shade tree'], labelPos: 'below' }),
+  od('small-tree', 'Small tree', { walk: 'land', draw: canopy(7), width: 36, height: 36, layer: 'landmarks', fill: P.foliageLight, stroke: P.foliageDark, strokeWidth: 1, keywords: ['ornamental', 'sapling'], labelPos: 'below' }),
+  od('large-tree', 'Large tree', { walk: 'land', draw: canopy(12), width: 90, height: 90, layer: 'landmarks', fill: P.foliageDark, stroke: '#356b2a', strokeWidth: 1.5, keywords: ['oak', 'mature', 'shade'], labelPos: 'below' }),
+  od('shrub', 'Bush', { walk: 'land',
     width: 26, height: 26, layer: 'landmarks', fill: '#7cb860', stroke: P.foliageDark, strokeWidth: 1, keywords: ['shrub', 'plant', 'landscaping'], labelPos: 'below',
     draw: icon(26, 26, (c) => `<path d="M13 2.5c3 0 4.5 2 6 3s4 2.5 4 6-1.5 4.5-2.5 6-2.5 5.5-7.5 5.5-6-3-7.5-4.5S2.5 15 2.5 11.5s3-4.5 4.5-6 3-3 6-3Z" transform="translate(1 1.5)" fill="${P.shadow}"/><path d="M13 2.5c3 0 4.5 2 6 3s4 2.5 4 6-1.5 4.5-2.5 6-2.5 5.5-7.5 5.5-6-3-7.5-4.5S2.5 15 2.5 11.5s3-4.5 4.5-6 3-3 6-3Z" ${FS(c)}/><circle cx="10" cy="10" r="3.5" fill="#fff" fill-opacity="0.15"/>`),
   }),
-  od('hedge', 'Hedge', {
+  od('hedge', 'Hedge', { walk: 'block',
     width: 160, height: 22, layer: 'landmarks', fill: '#5f9f45', stroke: P.foliageDark, strokeWidth: 1, keywords: ['hedgerow', 'shrubs', 'screen'],
     draw: (c) => {
       const clumps = hedgeClumps(c.w, c.h);
@@ -83,15 +83,15 @@ export const OUTDOOR = [
       return `<path d="${d}Z" transform="translate(1.5 2)" fill="${P.shadow}"/><path d="${d}Z" ${FS(c)}/>${detail}`;
     },
   }),
-  od('grass-area', 'Grass area', {
+  od('grass-area', 'Grass area', { walk: 'land',
     width: 200, height: 120, layer: 'structure', fill: P.grass, stroke: P.grassEdge, strokeWidth: 1.5, keywords: ['lawn', 'turf', 'green space'], merge: 'grass',
     draw: grassPiece,
   }),
-  od('planter', 'Landscaping bed', {
+  od('planter', 'Landscaping bed', { walk: 'block',
     width: 180, height: 50, layer: 'structure', fill: P.mulch, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['planter', 'mulch', 'garden bed', 'island'],
     draw: (c) => `${boxRect(c, 4)}${along(c, 30, (x) => `<circle cx="${r2(x)}" cy="${r2(c.h / 2)}" r="${r2(Math.min(10, c.h * 0.3))}" fill="${P.foliage}" stroke="${P.foliageDark}" stroke-width="1"/>`)}`,
   }),
-  od('flower-bed', 'Flower bed', {
+  od('flower-bed', 'Flower bed', { walk: 'land',
     width: 160, height: 50, layer: 'structure', fill: '#8a6a4a', stroke: P.concreteEdge, strokeWidth: 3, keywords: ['flowers', 'garden', 'annuals'],
     draw: (c) => {
       const colors = ['#e86a8a', '#f2c230', '#f4f4f4', '#b05cc8'];
@@ -103,47 +103,47 @@ export const OUTDOOR = [
       return `${boxRect(c, 4)}${f}`;
     },
   }),
-  od('rock-bed', 'Rock bed', {
+  od('rock-bed', 'Rock bed', { walk: 'land',
     width: 160, height: 50, layer: 'structure', fill: '#b7b2a7', stroke: P.concreteEdge, strokeWidth: 2, keywords: ['river rock', 'stones', 'xeriscape'],
     draw: (c) => `${boxRect(c, 4)}${speckle(c, '#8f897d', 9, 2.4)}`,
   }),
-  od('drain-grate', 'Drainage grate', {
+  od('drain-grate', 'Drainage grate', { walk: 'ignore',
     width: 24, height: 24, layer: 'structure', fill: '#5a6068', stroke: P.ink, strokeWidth: 1, keywords: ['drain', 'grate', 'catch basin'],
     draw: icon(24, 24, (c) => `<rect x="2" y="2" width="20" height="20" rx="1" ${FS(c)}/>${[0, 1, 2, 3, 4].map((i) => `<rect x="${5 + i * 3.2}" y="5" width="1.6" height="14" fill="#1b1f24"/>`).join('')}`),
   }),
-  od('storm-drain', 'Storm drain', {
+  od('storm-drain', 'Storm drain', { walk: 'ignore',
     width: 44, height: 22, layer: 'structure', fill: P.concrete, stroke: P.ink, strokeWidth: 1, keywords: ['curb inlet', 'drain', 'sewer'],
     draw: icon(44, 22, (c) => `<rect x="1" y="1" width="42" height="12" ${FS(c)}/><rect x="6" y="11" width="32" height="3" fill="#1b1f24"/><rect x="12" y="14" width="20" height="7" fill="#5a6068" stroke="${P.ink}" stroke-width="0.8"/>${[0, 1, 2, 3].map((i) => `<rect x="${14.5 + i * 4.5}" y="15" width="1.6" height="5" fill="#1b1f24"/>`).join('')}`),
   }),
-  od('sidewalk-curb', 'Sidewalk curb', {
+  od('sidewalk-curb', 'Sidewalk curb', { walk: 'ignore',
     width: 240, height: 8, layer: 'structure', fill: '#e9e6df', stroke: P.concreteEdge, strokeWidth: 1, keywords: ['curb', 'edge'],
     draw: (c) => `${boxRect(c)}${along(c, 40, (x) => `<path d="M${r2(x)} 0 V${c.h}" stroke="${P.concreteEdge}" stroke-width="0.6"/>`, 20)}`,
   }),
-  od('curb', 'Raised curb', {
+  od('curb', 'Raised curb', { walk: 'ignore',
     width: 160, height: 20, layer: 'structure', fill: '#e4e0d8', stroke: '#8f897d', strokeWidth: 1.5, keywords: ['curb', 'island', 'median', 'divider'],
     draw: (c) => `<rect x="1.5" y="2" width="${c.w - 1}" height="${c.h - 1}" rx="3" fill="${P.shadow}"/>${boxRect(c, 3)}<rect x="3" y="3" width="${c.w - 6}" height="${c.h - 6}" rx="2" fill="none" stroke="#fff" stroke-opacity="0.6"/>`,
   }),
-  od('grass-divider', 'Grass divider', {
+  od('grass-divider', 'Grass divider', { walk: 'land',
     width: 200, height: 30, layer: 'structure', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'grass strip', 'island', 'planter'], merge: 'grass',
     draw: grassPiece,
   }),
-  od('grass-divider-corner', 'Grass divider corner', {
+  od('grass-divider-corner', 'Grass divider corner', { walk: 'land',
     width: 120, height: 120, layer: 'structure', outline: 'L', band: 30, merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'island', 'corner', 'l shape', 'planter'],
     draw: grassPiece,
   }),
-  od('grass-divider-curve', 'Curved grass divider', {
+  od('grass-divider-curve', 'Curved grass divider', { walk: 'land',
     width: 160, height: 160, layer: 'structure', outline: 'arc', band: 30, merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'island', 'curve', 'bend', 'arc', 'planter'],
     draw: grassPiece,
   }),
-  od('grass-island-half', 'Half-circle grass island', {
+  od('grass-island-half', 'Half-circle grass island', { walk: 'land',
     width: 120, height: 60, layer: 'structure', outline: 'half', merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['median', 'island', 'end cap', 'semicircle', 'round', 'planter'],
     draw: grassPiece,
   }),
-  od('grass-island-round', 'Round grass island', {
+  od('grass-island-round', 'Round grass island', { walk: 'land',
     width: 100, height: 100, layer: 'structure', outline: 'ellipse', merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['island', 'circle', 'roundabout', 'round', 'planter'],
     draw: grassPiece,
   }),
-  od('grass-island-quarter', 'Quarter-round grass island', {
+  od('grass-island-quarter', 'Quarter-round grass island', { walk: 'land',
     width: 100, height: 100, layer: 'structure', outline: 'quarter', merge: 'grass', fill: P.grass, stroke: P.concreteEdge, strokeWidth: 3, keywords: ['island', 'corner', 'quarter circle', 'round', 'planter'],
     draw: grassPiece,
   }),
@@ -155,9 +155,9 @@ export const OUTDOOR = [
     width: 200, height: 120, layer: 'structure', merge: 'asphalt', fill: P.asphalt, stroke: P.asphaltEdge, strokeWidth: 1.5, keywords: ['asphalt', 'blacktop', 'pavement', 'paved', 'tarmac', 'gray', 'grey', 'lot surface'],
     draw: (c) => boxRect(c),
   }),
-  od('dirt-area', 'Dirt area', { width: 160, height: 100, layer: 'structure', merge: 'dirt', fill: '#b9966b', stroke: '#8c6b4a', strokeWidth: 1.2, keywords: ['soil', 'unpaved', 'earth'], draw: (c) => `${boxRect(c, 6)}${speckle(c, '#8c6b4a', 13, 1.2)}` }),
-  od('gravel-area', 'Gravel area', { width: 160, height: 100, layer: 'structure', merge: 'gravel', fill: P.gravel, stroke: '#a89f8c', strokeWidth: 1.2, keywords: ['gravel lot', 'stone', 'unpaved'], draw: (c) => `${boxRect(c, 2)}${speckle(c, '#a39a88', 7, 1.1)}` }),
-  od('retaining-wall', 'Retaining wall', {
+  od('dirt-area', 'Dirt area', { walk: 'land', width: 160, height: 100, layer: 'structure', merge: 'dirt', fill: '#b9966b', stroke: '#8c6b4a', strokeWidth: 1.2, keywords: ['soil', 'unpaved', 'earth'], draw: (c) => `${boxRect(c, 6)}${speckle(c, '#8c6b4a', 13, 1.2)}` }),
+  od('gravel-area', 'Gravel area', { walk: 'land', width: 160, height: 100, layer: 'structure', merge: 'gravel', fill: P.gravel, stroke: '#a89f8c', strokeWidth: 1.2, keywords: ['gravel lot', 'stone', 'unpaved'], draw: (c) => `${boxRect(c, 2)}${speckle(c, '#a39a88', 7, 1.1)}` }),
+  od('retaining-wall', 'Retaining wall', { walk: 'block',
     width: 200, height: 14, layer: 'structure', fill: '#a8a091', stroke: '#6f6758', strokeWidth: 1.2, keywords: ['block wall', 'stone wall', 'terrace'],
     draw: (c) => `${boxRect(c)}${along(c, 18, (x) => `<path d="M${r2(x)} 0 V${r2(c.h / 2)} M${r2(x + 9)} ${r2(c.h / 2)} V${c.h}" stroke="#6f6758" stroke-width="0.8"/>`, 9)}<path d="M0 ${r2(c.h / 2)} H${c.w}" stroke="#6f6758" stroke-width="0.8"/>`,
   }),
@@ -181,11 +181,11 @@ export const OUTDOOR = [
     width: 30, height: 20, layer: 'landmarks', fill: '#a8b0ba', stroke: P.ink, strokeWidth: 1, keywords: ['telecom', 'controller', 'cabinet'], labelPos: 'below',
     draw: icon(30, 20, (c) => `${raisedShadow(2, 2, 26, 16, 1.5)}<rect x="2" y="2" width="26" height="16" rx="1.5" ${FS(c)}/><path d="M15 2 V18" stroke="${P.ink}" stroke-width="0.8"/><path d="M12.5 8v4M17.5 8v4" stroke="${P.ink}" stroke-width="1.2" stroke-linecap="round"/>`),
   }),
-  od('water-feature', 'Water feature', {
+  od('water-feature', 'Water feature', { walk: 'block',
     width: 80, height: 80, layer: 'landmarks', fill: P.water, stroke: '#a49c8c', strokeWidth: 4, keywords: ['fountain', 'basin'], labelPos: 'below',
     draw: icon(80, 80, (c) => `<circle cx="41.5" cy="42" r="36" fill="${P.shadow}"/><circle cx="40" cy="40" r="36" ${FS(c)}/>${[12, 20, 28].map((rr) => `<circle cx="40" cy="40" r="${rr}" fill="none" stroke="#fff" stroke-opacity="0.55" stroke-width="1"/>`).join('')}<circle cx="40" cy="40" r="6" fill="#d8d2c4" stroke="#a49c8c" stroke-width="1.5"/>`),
   }),
-  od('pond', 'Pond', {
+  od('pond', 'Pond', { walk: 'block',
     width: 180, height: 120, layer: 'structure', fill: P.water, stroke: P.waterEdge, strokeWidth: 1.5, keywords: ['lake', 'retention pond', 'water'],
     draw: (c) => {
       const w = c.w, h = c.h;
@@ -271,8 +271,8 @@ export const SIGNS = [
       return `<defs><pattern id="${id}" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="16" fill="${P.ink}"/></pattern></defs>${boxRect(c, 2)}<rect x="${c.sw / 2}" y="${c.sw / 2}" width="${c.w - c.sw}" height="${c.h - c.sw}" rx="2" fill="url(#${id})"/><rect x="${r2(c.w / 2 - tw / 2)}" y="2" width="${r2(tw)}" height="${c.h - 4}" fill="${c.fill}"/>${text(c.w / 2, c.h / 2, Math.min(c.h * 0.55, fitText(tw, t.length, 12)), t, P.ink)}`;
     },
   }),
-  sg('fire-lane', 'Fire lane marking', { layer: 'structure', width: 240, height: 40, fill: '#fde8e6', stroke: P.danger, strokeWidth: 2, keywords: ['fire', 'no parking', 'emergency', 'red curb'], draw: hatched(P.danger, 'FIRE LANE') }),
-  sg('keep-clear', 'Keep-clear marking', { layer: 'structure', width: 160, height: 60, fill: '#fff6d6', stroke: '#b88a00', strokeWidth: 2, keywords: ['do not block', 'keep clear', 'box'], draw: hatched(P.paintYellow, 'KEEP CLEAR', P.ink) }),
+  sg('fire-lane', 'Fire lane marking', { walk: 'road', layer: 'structure', width: 240, height: 40, fill: '#fde8e6', stroke: P.danger, strokeWidth: 2, keywords: ['fire', 'no parking', 'emergency', 'red curb'], draw: hatched(P.danger, 'FIRE LANE') }),
+  sg('keep-clear', 'Keep-clear marking', { walk: 'road', layer: 'structure', width: 160, height: 60, fill: '#fff6d6', stroke: '#b88a00', strokeWidth: 2, keywords: ['do not block', 'keep clear', 'box'], draw: hatched(P.paintYellow, 'KEEP CLEAR', P.ink) }),
   sg('hazard-marking', 'Hazard marking', { layer: 'structure', width: 140, height: 40, fill: P.safety, stroke: P.ink, strokeWidth: 1.5, keywords: ['caution stripes', 'yellow black', 'danger'], draw: hatched(P.ink) }),
   sg('construction-zone', 'Construction-zone marking', {
     layer: 'structure', width: 220, height: 130, fill: P.orange, fillOpacity: 0.16, stroke: P.orange, strokeWidth: 2.5, keywords: ['construction', 'work zone', 'cones'], label: 'Construction', labelPos: 'badge',

@@ -1,0 +1,47 @@
+import { Icon } from '../ui/icons';
+
+/** The card at the bottom of the viewer about the picked space or place: what it is, and Go inside, Directions and Share. */
+export function InfoCard({ title, detail, floorName, showSwatch, canGoIn, shared, onClose, onGoInside, onDirections, onShare }: {
+  title: string;
+  detail?: string;
+  /** The floor it is on, when known. */
+  floorName?: string;
+  /** Show the floor's colour (only when the map has more than one floor). */
+  showSwatch: boolean;
+  /** It is a building with a floor plan inside. */
+  canGoIn: boolean;
+  /** Its link was just copied. */
+  shared: boolean;
+  onClose: () => void;
+  onGoInside: () => void;
+  onDirections: () => void;
+  onShare: () => void;
+}) {
+  return (
+        <section className="info-card" aria-label={title} tabIndex={-1} data-testid="info-card">
+          <div className="info-head">
+            <strong>{title}</strong>
+            <span className="info-meta">
+              {showSwatch && <span className="floor-swatch" aria-hidden="true" />}
+              {[floorName, detail].filter(Boolean).join(', ')}
+            </span>
+          </div>
+          <button className="icon-btn info-close" aria-label="Close" onClick={onClose}><Icon name="close" /></button>
+          <div className="info-actions">
+            {canGoIn && (
+              <button className="btn primary go-inside" onClick={onGoInside} data-testid="go-inside">
+                <Icon name="enter" size={18} /> Go inside
+              </button>
+            )}
+            <button className={`btn directions-btn${canGoIn ? '' : ' primary'}`} onClick={onDirections} data-testid="directions">
+              <Icon name="directions" size={18} /> Directions
+            </button>
+            <button className={`btn share-btn${shared ? ' done' : ''}`} aria-label={shared ? 'Link copied' : `Share a link to ${title}`}
+              title={shared ? 'Link copied' : 'Share a link to this'} onClick={onShare} data-testid="share">
+              <Icon name={shared ? 'check' : 'share'} size={20} />
+            </button>
+          </div>
+          {shared && <span className="share-toast" role="status" data-testid="share-copied">Link copied</span>}
+        </section>
+  );
+}

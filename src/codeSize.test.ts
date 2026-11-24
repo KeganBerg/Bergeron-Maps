@@ -13,15 +13,7 @@ import { describe, expect, it } from 'vitest';
  * its line here. Never add a new file to this list: split it instead.
  */
 const MAX_LINES = 600;
-const OVER_LIMIT: Record<string, number> = {
-  'src/model/shape.ts': 631,
-  'src/model/roads.ts': 737,
-  'src/render/MapObjects.tsx': 805,
-  'src/editor/store.ts': 1065,
-  'src/editor/CanvasStage.tsx': 1079,
-  'src/viewer/ViewerPage.tsx': 1133,
-  'src/model/route.ts': 1544,
-};
+const OVER_LIMIT: Record<string, number> = {};
 
 const exempt = (f: string) => /\.test\.tsx?$/.test(f) || f.startsWith('src/assets/catalog/');
 

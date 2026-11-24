@@ -1,4 +1,4 @@
-import { category } from '../defs';
+import { category, walking } from '../defs';
 import { badge, pin, raisedShadow, vehicle, zone } from '../draw';
 import { glyph } from '../glyphs';
 import { FS, icon, P, r2, S, text } from '../style';
@@ -29,10 +29,10 @@ export const VALET = [
       return `${raisedShadow(3, 3, 34, 24, 2)}<rect x="3" y="3" width="34" height="24" rx="2" ${FS(c)}/><rect x="5.5" y="5.5" width="29" height="19" rx="1" fill="#fff" fill-opacity="0.9"/>${hooks}`;
     }),
   }),
-  area('valet-pickup', 'Vehicle pickup area', 'carIn', P.go, ['pickup', 'return', 'collect']),
-  area('valet-dropoff', 'Vehicle drop-off area', 'car', P.info, ['drop off', 'dropoff', 'arrival']),
+  walking(area('valet-pickup', 'Vehicle pickup area', 'carIn', P.go, ['pickup', 'return', 'collect']), { walk: 'walk' }),
+  walking(area('valet-dropoff', 'Vehicle drop-off area', 'car', P.info, ['drop off', 'dropoff', 'arrival']), { walk: 'walk' }),
   area('valet-staging', 'Vehicle staging area', 'queue', P.violet, ['staging', 'hold', 'ready line']),
-  v('valet-queue', 'Vehicle queue', {
+  v('valet-queue', 'Vehicle queue', { walk: 'walk',
     width: 220, height: 60, layer: 'structure', fill: P.violet, fillOpacity: 0.1, stroke: P.violet, strokeWidth: 2, keywords: ['valet', 'line', 'wait', 'stack'],
     label: 'Queue', labelPos: 'center',
     draw: (c) => {
@@ -55,7 +55,7 @@ export const VALET = [
     width: 50, height: 40, layer: 'landmarks', fill: '#4b5d73', stroke: P.ink, strokeWidth: 1.2, keywords: ['valet', 'manager', 'lead', 'desk'], labelPos: 'below',
     draw: icon(50, 40, (c) => `${raisedShadow(4, 6, 42, 16, 2)}<rect x="4" y="6" width="42" height="16" rx="2" ${FS(c)}/><rect x="8" y="9" width="12" height="8" rx="1" fill="${P.glass}"/><circle cx="25" cy="31" r="6" fill="${P.steel}" stroke="${P.ink}" stroke-width="1"/><path d="M19.5 27.5a6 6 0 0 1 11 0" stroke="${P.ink}" stroke-width="2" fill="none"/>${badge('shield', 38, 14, 5.5, c.fill)}`),
   }),
-  area('guest-waiting', 'Guest waiting area', 'sofa', P.teal, ['guest', 'wait', 'seating']),
+  walking(area('guest-waiting', 'Guest waiting area', 'sofa', P.teal, ['guest', 'wait', 'seating']), { walk: 'walk' }),
   area('event-parking', 'Event parking area', 'ticket', P.orange, ['event', 'overflow'], 260, 160),
   area('vehicle-inspection-area', 'Vehicle inspection area', 'clipboard', P.info, ['damage', 'walkaround', 'check']),
 ];
