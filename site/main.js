@@ -48,8 +48,12 @@
     send.textContent = 'Sending…';
     var industry = sel && sel.value ? sel.options[sel.selectedIndex].text : 'Not given';
     var company = val('company');
+    // FormSubmit can hang for a long time; give up after 20 seconds so the button never spins forever.
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = ctl && setTimeout(function () { ctl.abort(); }, 20000);
     fetch(LEADS, {
       method: 'POST',
+      signal: ctl ? ctl.signal : undefined,
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         _subject: 'New map request: ' + (company || name),
@@ -66,7 +70,7 @@
       })
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return r.ok && String(j.success) === 'true'; }); })
       .then(function (ok) { if (ok) finish(); else failSend(); }, failSend)
-      .then(function () { send.disabled = false; send.textContent = 'Send request'; });
+      .then(function () { clearTimeout(timer); send.disabled = false; send.textContent = 'Send request'; });
   });
   function finish() {
     form.reset();
