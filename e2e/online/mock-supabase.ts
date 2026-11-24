@@ -380,6 +380,26 @@ export class MockSupabase {
       return json({ company: b.id, name: b.name, sites: b.sites.length, members, invited, maps: b.maps.length, published: b.maps.filter((m) => m.published).length,
         moved_to_trash: 0, slug_changes: [] });
     }
+    if (rpc === 'admin_restore_missing') {
+      if (!u.admin) return refuse('Only Bergeron Maps admins can restore from a backup.');
+      const b = (req.postDataJSON() as { p_backup: {
+        id: string; name: string;
+        sites: { id: string; name: string; slug: string; address: string | null; join_code: string | null }[];
+        maps: { id: string; facility_id: string; name: string; draft: Record<string, unknown>; revision: number; slot: number; is_public: boolean; published: unknown }[];
+      } }).p_backup;
+      this.restoredPayloads.push(b as unknown as Record<string, unknown>);
+      const c = this.companies.find((x) => x.id === b.id);
+      if (!c) return json({ code: '22023', message: 'That company isn’t in All accounts. Restore the whole company instead.' }, 400);
+      const sites = b.sites.filter((x) => !this.sites.some((s) => s.id === x.id));
+      for (const x of sites) this.sites.push({ id: x.id, company_id: b.id, name: x.name, slug: x.slug, code: x.join_code ?? 'NEWCDE', address: x.address });
+      const maps = b.maps.filter((m) => !this.maps.some((x) => x.id === m.id));
+      for (const m of maps) {
+        this.maps.push({ id: m.id, company_id: b.id, facility_id: m.facility_id, name: m.name, draft: m.draft, revision: m.revision, slot: m.slot });
+        if (m.published) this.published.set(m.id, { isPublic: m.is_public });
+      }
+      return json({ company: b.id, name: c.name, sites: sites.length, maps: maps.length, map_ids: maps.map((m) => m.id), access: 0,
+        published: maps.filter((m) => m.published).length, moved_to_trash: 0, slug_changes: [] });
+    }
     if (rpc === 'admin_restore_versions') {
       if (!u.admin) return refuse('Only Bergeron Maps admins can restore a company.');
       const a = req.postDataJSON() as { p_map: string; p_versions: { id: string }[] };

@@ -121,7 +121,7 @@ Last updated: 2026-11-24. Rows marked Tested are covered by automated tests that
 | 13.2 | Manual save; warn before leaving with unsaved work | Save button and Ctrl/⌘+S; `beforeunload` guard | e2e (save) | Tested |
 | 13.3 | Version history: review, timestamps, restore without destroying newer work, who changed | `VersionsDialog.tsx`; current state saved before every restore; automatic recovery points every 10 minutes | unit: indexedDbRepository.test; e2e: version test | Tested. Online versions record who saved them (`map_versions.created_by`) |
 | 13.4 | Recently deleted with retention; confirm destructive actions | 30-day trash on the maps page | unit: indexedDbRepository.test; e2e: reload/trash test | Tested |
-| 13.5 | Reliable, protected backups | Nightly encrypted database backup (`.github/workflows/db-backup.yml`), per-company backup and restore on All accounts (`src/cloud/backup.ts`); runbook in `docs/RECOVERY.md` | db: backups.test, restore-drill.test; e2e: backups.online.spec | Tested |
+| 13.5 | Reliable, protected backups | Nightly encrypted database backup (`.github/workflows/db-backup.yml`), per-company backup and restore on All accounts (`src/cloud/backup.ts`, `RestoreFromBackup.tsx`), including bringing back a map deleted forever or a deleted site into a company that still exists; runbook in `docs/RECOVERY.md` | db: backups.test, restore-drill.test; e2e: backups.online.spec | Tested |
 
 ## Part 14: Publishing and live updates
 
@@ -231,6 +231,7 @@ Last updated: 2026-11-24. Rows marked Tested are covered by automated tests that
 | Public link with no sign-in | `get_public_site`; `…/app/#/view/<site-link>`; Make public on a published map |
 | Delete companies, sites (only once empty), people | `admin_delete_company` (type the name), `admin_delete_site`, `remove_member` |
 | Back up and restore whole companies (a deleted client that comes back) | All accounts → Download backup / Restore from backup: `src/cloud/backup.ts` (`.bmbackup.json`), `admin_restore_company` + `admin_restore_versions` (migration 20261112020000); tests `supabase/tests/backups.test.ts`, `e2e/online/backups.online.spec.ts` |
+| Restore a map deleted forever or a deleted site into a company that still exists | Same dialog: `findMissing` + `restoreMissing` in `src/cloud/backup.ts`, `admin_restore_missing` (migration 20261124000000, step 15); same tests |
 | Hear about live problems (operations) | Uptime check every 15 min opens a GitHub issue: `.github/workflows/uptime.yml`, `scripts/uptime-check.mjs`; error reports without personal data: `src/errors/report.ts` (off until `SENTRY_DSN` is set); see `docs/MONITORING.md` |
 
 Still deferred, waiting on Kegan: Stripe setup fee and per-site billing; custom client domains (needs the move to Cloudflare); email alerts for manager requests (needs an email sender).
