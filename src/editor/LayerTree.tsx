@@ -282,7 +282,7 @@ function ObjectRow(props: ListProps & { item: TreeItem; index: number; style: CS
           title={props.openRows.has(it.rowId) ? 'Hide the spaces in this row' : 'Show the spaces in this row'}
           onClick={(e) => { e.stopPropagation(); props.toggleRow(it.rowId); }}
         >
-          <Icon name={props.openRows.has(it.rowId) ? 'down' : 'chevronRight'} size={16} strokeWidth={2.2} />
+          <Icon name="chevronRight" size={14} strokeWidth={2.2} className={`lib-chevron${props.openRows.has(it.rowId) ? ' open' : ''}`} />
         </button>
       ) : (
         <span className="twisty-gap" />

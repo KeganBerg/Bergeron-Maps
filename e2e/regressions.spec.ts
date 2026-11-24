@@ -95,3 +95,21 @@ test('a selected object drags even where another object is drawn over it; a clic
   const s2 = await state();
   expect(s2.selection).not.toEqual([s0.divider.id]);
 });
+
+test('the Add panel: full search hint, one Parking spaces list, a few groups', async ({ page }) => {
+  await newMap(page, 'Add panel');
+  const search = page.getByTestId('asset-search');
+  // The placeholder fits the box (it used to be cut off mid-word).
+  const fits = await search.evaluate((el: HTMLInputElement) => {
+    const c = document.createElement('canvas').getContext('2d')!;
+    c.font = getComputedStyle(el).font;
+    return c.measureText(el.placeholder).width <= el.clientWidth;
+  });
+  expect(fits).toBe(true);
+  const sidebar = page.locator('aside.sidebar');
+  await expect(sidebar.getByText('Parking spaces', { exact: true })).toHaveCount(1);
+  expect(await sidebar.locator('.lib-group').count()).toBeLessThanOrEqual(6);
+  // Sentence case: no uppercase transform on the panel's headings or rows.
+  const upper = await sidebar.locator('h4, summary').evaluateAll((els) => els.filter((e) => getComputedStyle(e).textTransform === 'uppercase').length);
+  expect(upper).toBe(0);
+});

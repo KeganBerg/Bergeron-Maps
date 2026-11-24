@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { spaceMarks, spaceOutline } from '../assets/catalog/spaces';
 import { glyph } from '../assets/glyphs';
-import { ASSET_BY_KEY, ASSET_CATEGORIES, ASSETS, assetPreviewUrl, assetsIn, searchAssets, type AssetCategory, type AssetDef } from '../assets/library';
+import { ASSET_BY_KEY, ASSET_GROUPS, ASSETS, assetPreviewUrl, assetsIn, searchAssets, type AssetCategory, type AssetDef } from '../assets/library';
 import { esc, P, svgDataUrl, svgDoc, withAlpha } from '../assets/style';
 import { MAP_PALETTE } from '../theme';
 import { Icon } from '../ui/icons';
@@ -166,7 +166,9 @@ export function AssetLibrary() {
       <div className="search">
         <Icon name="search" size={16} />
         <input
-          placeholder={`Search ${ASSETS.length} objects (ramp, stairs, tree…)`}
+          placeholder={`Search ${ASSETS.length} objects`}
+          title="Search by name, for example ramp, stairs or tree"
+          aria-label="Search objects"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -196,17 +198,25 @@ export function AssetLibrary() {
               <div className="tiles">{toDefs(recent).slice(0, 6).map(onTile)}</div>
             </section>
           )}
-          {ASSET_CATEGORIES.map((c) => {
-            const items = assetsIn(c);
-            return (
-              <details key={c} className="lib-cat" open={open.includes(c)} onToggle={(e) => toggle(c, (e.target as HTMLDetailsElement).open)}>
-                <summary>
-                  {c} <span className="muted">{items.length}</span>
-                </summary>
-                {open.includes(c) && <div className="tiles">{items.map(onTile)}</div>}
-              </details>
-            );
-          })}
+          {ASSET_GROUPS.map((g) => (
+            <section key={g.name} className="lib-group" aria-label={g.name}>
+              <h4>{g.name}</h4>
+              {g.categories.map((c) => {
+                const items = assetsIn(c);
+                const isOpen = open.includes(c);
+                return (
+                  <details key={c} className="lib-cat" open={isOpen} onToggle={(e) => toggle(c, (e.target as HTMLDetailsElement).open)}>
+                    <summary>
+                      <Icon name="chevronRight" size={14} strokeWidth={2.2} className="lib-chevron" />
+                      <span className="lib-cat-name">{c}</span>
+                      <span className="lib-count" aria-label={`${items.length} objects`}>{items.length}</span>
+                    </summary>
+                    {isOpen && <div className="tiles">{items.map(onTile)}</div>}
+                  </details>
+                );
+              })}
+            </section>
+          ))}
         </>
       )}
     </div>

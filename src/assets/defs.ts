@@ -27,6 +27,19 @@ export const ASSET_CATEGORIES = [
 
 export type AssetCategory = (typeof ASSET_CATEGORIES)[number];
 
+/**
+ * How the Add panel groups the categories: a few top-level groups, ordered by the jobs
+ * people do most (lay out parking, then roads and walkways, then signs and labels).
+ * Every category appears exactly once (checked in library.test.ts).
+ */
+export const ASSET_GROUPS: { name: string; categories: AssetCategory[] }[] = [
+  { name: 'Parking', categories: ['Parking spaces', 'Valet operations', 'Vehicles', 'Garage access'] },
+  { name: 'Roads and walkways', categories: ['Roads and traffic', 'Directional arrows', 'Pedestrian areas'] },
+  { name: 'Signs and labels', categories: ['Signs and safety', 'Text and labels', 'Location markers', 'Zones and boundaries'] },
+  { name: 'Buildings and grounds', categories: ['Structural objects', 'Buildings and departments', 'Service and preparation', 'Offices and interiors', 'Schools and campuses', 'Outdoor environment'] },
+  { name: 'Drawing and imports', categories: ['Drawing elements', 'Background and reference', 'Custom and reusable'] },
+];
+
 export interface TextPreset {
   text: string;
   fontSize: number;

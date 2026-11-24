@@ -58,7 +58,7 @@ export function Sidebar() {
         {tab === 'add' ? (
           <>
             <section className="spaces-tools">
-              <h4>Parking spaces</h4>
+              <h4>Rows of spaces</h4>
               <button
                 className={`btn block primary-soft${tool.type === 'row' ? ' on' : ''}`}
                 onClick={() => st().setTool(tool.type === 'row' ? { type: 'select' } : { type: 'row' })}

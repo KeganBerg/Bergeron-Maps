@@ -19,11 +19,11 @@ import type { AssetObject, LabelLayout } from '../model/types';
 import { cleanLabelLayout } from '../model/labelLayout';
 import { ARROWS, ROADS, STRUCTURE } from './catalog/structure-roads';
 import { VALET, VEHICLES } from './catalog/valet-vehicles';
-import { ASSET_CATEGORIES, type AssetCategory, type AssetDef } from './defs';
+import { ASSET_CATEGORIES, ASSET_GROUPS, type AssetCategory, type AssetDef } from './defs';
 import { svgDataUrl, svgDoc, type DrawCtx } from './style';
 import { curvePx } from '../model/curve';
 
-export { ASSET_CATEGORIES, svgDataUrl };
+export { ASSET_CATEGORIES, ASSET_GROUPS, svgDataUrl };
 export type { AssetCategory, AssetDef };
 
 export const ASSETS: AssetDef[] = [
