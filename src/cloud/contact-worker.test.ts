@@ -23,6 +23,17 @@ describe('POST /api/contact', () => {
     expect(mail.html).toContain('&lt;b&gt;hi&lt;/b&gt;');
     expect(mail.html).not.toContain('<b>hi</b>');
   });
+  it('lays the lead out like the other emails: logo, only the answers given, a Reply button, no middle dots', async () => {
+    const send = ok();
+    await contact(post({ ...form, Company: '', Industry: '', 'Anything else': '' }), env, send);
+    const mail = JSON.parse(String((send.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(mail.subject).toBe('New map request: Pat');
+    expect(mail.html).toContain('lockup.png');
+    expect(mail.html).toContain('href="mailto:pat@example.com?subject=');
+    expect(mail.html).toContain('Reply to Pat');
+    expect(mail.html).not.toMatch(/Not given|Industry|Their note|·|&middot;/);
+    expect(mail.text).not.toContain('Not given');
+  });
   it('accepts the preview and local addresses', async () => {
     for (const o of ['https://pr-7-bergeron-maps.bergeronmaps.workers.dev', 'http://localhost:5173', 'https://www.bergeronmaps.com'])
       expect((await contact(post(form, o), env, ok())).status).toBe(200);

@@ -43,12 +43,11 @@ export async function contact(request, env, send = fetch) {
   if (!env.RESEND_API_KEY) return reply(503, { success: false, error: 'Not set up' });
 
   const company = field('Company');
-  const rows = FIELDS.map((k) => [k, field(k) || 'Not given']);
-  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const html =
-    '<table cellpadding="6" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;border-collapse:collapse">' +
-    rows.map(([k, v]) => `<tr><td style="color:#666;vertical-align:top">${esc(k)}</td><td style="white-space:pre-wrap">${esc(v)}</td></tr>`).join('') +
-    '</table><p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#666">Reply to this email to answer them directly.</p>';
+  const rows = FIELDS.map((k) => [k, field(k)]).filter(([, v]) => v);
+  const html = leadEmail({
+    name, email, company,
+    industry: field('Industry'), sites: field('Number of sites'), note: field('Anything else'), page: field('Page'),
+  });
   const res = await send('https://api.resend.com/emails', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
@@ -56,7 +55,7 @@ export async function contact(request, env, send = fetch) {
       from: FROM,
       to: [INBOX],
       reply_to: email,
-      subject: `New map request: ${(company && company !== 'Not given' ? company : name).replace(/[\r\n]+/g, ' ')}`,
+      subject: `New map request: ${(company || name).replace(/[\r\n]+/g, ' ')}`,
       html,
       text: rows.map(([k, v]) => `${k}: ${v}`).join('\n'),
     }),
@@ -110,9 +109,8 @@ export async function access(request, env, send = fetch) {
   const role = person.role;
   const verb = role === 'employee' ? 'view the maps for' : role === 'owner' || !ids ? 'manage every site in' : 'manage';
   const subject = `You now have access to ${one ? one.name : companyName} on Bergeron Maps`;
-  const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const html = accessEmail({ verb: esc(verb), where: esc(where), link: esc(link), email: esc(email) });
-  const text = `You can now ${verb} ${where} on Bergeron Maps.\n\nOpen ${link} and sign in with ${email}. We'll email you a sign-in link and code, so there's no password to set.\n\nBergeron Maps · bergeronmaps.com`;
+  const text = `You can now ${verb} ${where} on Bergeron Maps.\n\nOpen ${link} and sign in with ${email}. We'll email you a sign-in link and code, so there's no password to set.\n\nBergeron Maps, bergeronmaps.com`;
   const res = await send('https://api.resend.com/emails', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
@@ -122,22 +120,62 @@ export async function access(request, env, send = fetch) {
   return reply(200, { success: true });
 }
 
-/** Same look as the sign-in emails in supabase/email-templates/. */
-function accessEmail({ verb, where, link, email }) {
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const FONT = 'font-family:Arial,Helvetica,sans-serif;';
+
+/** Same frame as the sign-in emails in supabase/email-templates/: logo bar, white card, small footer. */
+const FOOTER = '<a href="https://bergeronmaps.com" style="color:#777777;">bergeronmaps.com</a><br>Questions? Email <a href="mailto:bergeronmaps@gmail.com" style="color:#777777;">bergeronmaps@gmail.com</a>';
+
+function shell(inner, footer = FOOTER) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light only"></head>
 <body style="margin:0;padding:0;background:#f2f2ef;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f2f2ef;"><tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border:1px solid #dcdcd6;">
 <tr><td style="padding:24px 28px;background:#0b0b0b;"><img src="https://bergeronmaps.com/img/email/lockup.png" width="331" height="40" alt="Bergeron Maps" style="display:block;border:0;"></td></tr>
-<tr><td style="padding:28px 28px 8px;font-family:Arial,Helvetica,sans-serif;color:#0b0b0b;">
-<h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;">You've been given access</h1>
-<p style="margin:0 0 20px;font-size:16px;line-height:1.5;color:#333333;">You can now ${verb} <strong>${where}</strong> on Bergeron Maps.</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#0b0b0b" style="background:#0b0b0b;">
-<a href="${link}" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;">Open Bergeron Maps</a>
-</td></tr></table>
-<p style="margin:24px 0 24px;font-size:15px;line-height:1.5;color:#333333;">Sign in with <strong>${email}</strong>. We'll email you a sign-in link and code, so there's no password to set.</p>
+<tr><td style="padding:28px 28px 8px;${FONT}color:#0b0b0b;">
+${inner}
 </td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #e6e6e1;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#777777;">
-Bergeron Maps &middot; <a href="https://bergeronmaps.com" style="color:#777777;">bergeronmaps.com</a> &middot; Questions? <a href="mailto:bergeronmaps@gmail.com" style="color:#777777;">bergeronmaps@gmail.com</a>
+<tr><td style="padding:16px 28px;border-top:1px solid #e6e6e1;${FONT}font-size:12px;line-height:1.5;color:#777777;">
+${footer}
 </td></tr></table></td></tr></table></body></html>`;
+}
+
+const button = (href, label) =>
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#0b0b0b" style="background:#0b0b0b;">
+<a href="${href}" style="display:inline-block;padding:14px 28px;${FONT}font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;">${label}</a>
+</td></tr></table>`;
+
+/**
+ * The website form's lead, for the company inbox. Only the answers the visitor gave are listed;
+ * their note gets its own block; the page it came from sits small at the bottom.
+ */
+export function leadEmail({ name, email, company, industry, sites, note, page }) {
+  const who = company ? `${esc(name)} from <strong>${esc(company)}</strong>` : `<strong>${esc(name)}</strong>`;
+  const facts = [
+    ['Email', `<a href="mailto:${esc(email)}" style="color:#0b0b0b;">${esc(email)}</a>`],
+    ['Company', company && esc(company)],
+    ['Industry', industry && esc(industry)],
+    ['Sites', sites && esc(sites)],
+  ].filter(([, v]) => v);
+  const row = ([k, v]) =>
+    `<tr><td style="padding:10px 16px 10px 0;border-top:1px solid #e6e6e1;font-size:14px;color:#666666;vertical-align:top;white-space:nowrap;width:96px;">${k}</td>` +
+    `<td style="padding:10px 0;border-top:1px solid #e6e6e1;font-size:15px;color:#0b0b0b;">${v}</td></tr>`;
+  const mailto = `mailto:${esc(email)}?subject=${encodeURIComponent('Your Bergeron Maps request')}`;
+  let from = '';
+  try { if (page) from = new URL(page).host; } catch { /* not a link */ }
+  return shell(`<h1 style="margin:0 0 8px;font-size:22px;line-height:1.3;">New map request</h1>
+<p style="margin:0 0 20px;font-size:16px;line-height:1.5;color:#333333;">${who} asked for a map.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border-bottom:1px solid #e6e6e1;">${facts.map(row).join('')}</table>
+${note ? `<p style="margin:0 0 6px;font-size:14px;font-weight:bold;color:#0b0b0b;">Their note</p>
+<p style="margin:0 0 24px;padding:12px 16px;background:#f7f7f4;border-left:3px solid #0b0b0b;font-size:15px;line-height:1.5;color:#333333;white-space:pre-wrap;">${esc(note)}</p>` : ''}
+${button(mailto, `Reply to ${esc(name.split(/\s+/)[0])}`)}
+<p style="margin:16px 0 24px;font-size:13px;line-height:1.5;color:#777777;">Or just hit Reply in your inbox.</p>`,
+  `Sent from the form on ${esc(from || 'bergeronmaps.com')}.`);
+}
+
+function accessEmail({ verb, where, link, email }) {
+  return shell(`<h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;">You've been given access</h1>
+<p style="margin:0 0 20px;font-size:16px;line-height:1.5;color:#333333;">You can now ${verb} <strong>${where}</strong> on Bergeron Maps.</p>
+${button(link, 'Open Bergeron Maps')}
+<p style="margin:24px 0 24px;font-size:15px;line-height:1.5;color:#333333;">Sign in with <strong>${email}</strong>. We'll email you a sign-in link and code, so there's no password to set.</p>`);
 }
