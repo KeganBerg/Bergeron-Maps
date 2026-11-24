@@ -37,3 +37,21 @@ export const button = (href, label) =>
 <a href="${href}" style="display:inline-block;padding:14px 28px;${FONT}font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;">${label}</a>
 </td></tr></table>`;
 
+
+export const para = (html) => `<p style="margin:0 0 16px;font-size:16px;line-height:1.5;">${html}</p>`;
+
+/**
+ * Sends one email to a customer through Resend, from the website address with replies to the
+ * company inbox. A failure is logged, not thrown: the caller's real work already happened, and
+ * retrying it would repeat other emails.
+ */
+export async function sendEmail(env, send, message) {
+  if (!env.RESEND_API_KEY) return false;
+  const res = await send('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ from: FROM, reply_to: INBOX, ...message }),
+  });
+  if (!res.ok) console.error('Customer email failed', res.status);
+  return res.ok;
+}
