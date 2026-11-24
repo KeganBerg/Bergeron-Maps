@@ -14,7 +14,6 @@ import { describe, expect, it } from 'vitest';
  */
 const MAX_LINES = 600;
 const OVER_LIMIT: Record<string, number> = {
-  'src/editor/CanvasStage.tsx': 1079,
   'src/viewer/ViewerPage.tsx': 1138,
 };
 
