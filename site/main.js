@@ -1,8 +1,9 @@
 /* bergeronmaps.com home page: a few purposeful animations (GSAP), nothing else. The header menus are in nav.js. */
 (function () {
   // Contact form → emailed to bergeronmaps@gmail.com through FormSubmit (formsubmit.co), no mail app needed.
+  // The address is FormSubmit's alias for that inbox (from its activation email), so bots can't read the inbox from this file.
   // FormSubmit sends nothing until the inbox owner clicks the one-time activation link it emails on the first request.
-  var LEADS = 'https://formsubmit.co/ajax/bergeronmaps@gmail.com';
+  var LEADS = 'https://formsubmit.co/ajax/9687e6712bcfabfe421759ed9ba285e3';
   var form = document.getElementById('contact-form');
   var err = document.getElementById('form-error');
   var send = document.getElementById('form-send');
