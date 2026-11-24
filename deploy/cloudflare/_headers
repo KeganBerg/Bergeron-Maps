@@ -1,0 +1,15 @@
+# Response headers for bergeronmaps.com on Cloudflare (copied into _site/ by scripts/build-deploy.sh).
+# The pages also keep their own Content-Security-Policy tags; this header only adds frame-ancestors,
+# which a tag in the page can't set, so other sites can't show our pages inside a frame.
+
+/*
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), payment=(), geolocation=(self)
+
+# The app's built files have a content hash in their names, so they never change once published.
+/app/assets/*
+  Cache-Control: public, max-age=31536000, immutable
