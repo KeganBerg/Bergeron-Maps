@@ -242,8 +242,9 @@ describe('My Locations and public site links', () => {
   it('a site link shows only its public, live, published maps, with no sign-in', async () => {
     const [{ id: pub }] = await as<{ id: string }>(w.siteManager, `insert into maps (facility_id, name, draft) values ($1, 'Visitor map', $2) returning id`, [w.siteA, doc('v1')]);
     const [{ id: priv }] = await as<{ id: string }>(w.siteManager, `insert into maps (facility_id, name, draft) values ($1, 'Staff map', $2) returning id`, [w.siteA, doc('staff')]);
+    // One live map per site: the visitor map is live but not public yet, the staff map is public but never published.
     await as(w.siteManager, 'select public.publish_map($1)', [pub]);
-    await as(w.siteManager, 'select public.publish_map($1)', [priv]);
+    await as(w.siteManager, 'update maps set is_public = true where id = $1', [priv]);
     expect(await as(null, 'select * from public.get_public_site($1)', [w.slugA])).toEqual([]);
     await as(w.siteManager, 'update maps set is_public = true, draft = $1 where id = $2', [doc('unpublished draft'), pub]);
     const rows = await as<{ map_id: string; site_name: string; doc: { name: string } }>(null, 'select * from public.get_public_site($1)', [w.slugA.toUpperCase()]);

@@ -157,23 +157,22 @@ describe('publishing', () => {
     expect([slots[m.id], slots[taken.id]]).toEqual([4, 1]);
   });
 
-  it('allows 2 published maps per site; unpublishing frees a place', async () => {
+  it('allows 1 published map per site; unpublishing frees the place', async () => {
     const repo = fresh();
-    const [a, b, c] = [await repo.createMap(createMap('A'), 'Garage'), await repo.createMap(createMap('B'), 'Garage'), await repo.createMap(createMap('C'), 'Garage')];
+    const [a, c] = [await repo.createMap(createMap('A'), 'Garage'), await repo.createMap(createMap('C'), 'Garage')];
     await repo.publishMap(a.id);
-    await repo.publishMap(b.id);
-    await repo.publishMap(b.id); // publishing changes to a live map is always fine
-    await expect(repo.publishMap(c.id)).rejects.toThrow(/already has 2 live maps/);
+    await repo.publishMap(a.id); // publishing changes to a live map is always fine
+    await expect(repo.publishMap(c.id)).rejects.toThrow(/already has 1 live map/);
 
     await repo.unpublishMap(a.id);
     expect(await repo.getPublishedMap(a.id)).toBeNull();
     expect(await repo.getMap(a.id)).not.toBeNull();
     await repo.publishMap(c.id);
 
-    // A deleted live map doesn't count, but can't come back while 2 others are live.
+    // A deleted live map doesn't count, but can't come back while another is live.
     await repo.trashMap(c.id);
     await repo.publishMap(a.id);
-    await expect(repo.restoreMap(c.id)).rejects.toThrow(/already has 2 live maps/);
+    await expect(repo.restoreMap(c.id)).rejects.toThrow(/already has 1 live map/);
   });
 
   it('refuses to keep saving a map that was deleted in another tab', async () => {

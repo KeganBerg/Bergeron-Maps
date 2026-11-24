@@ -330,7 +330,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
           confirmLabel="Unpublish"
           onCancel={() => setUnpublishing(null)}
           onConfirm={async () => { setUnpublishing(null); await act(() => repo.unpublishMap(unpublishing.id)); }}
-          message={<p>Employees will stop seeing this map. It stays in its slot, and you can publish it again any time. Each site can have {SITE_LIVE_MAPS} published maps at once.</p>}
+          message={<p>Employees will stop seeing this map. It stays in its slot, and you can publish it again any time. Each site can have one published map at once.</p>}
         />
       )}
       {sharing && (() => {
