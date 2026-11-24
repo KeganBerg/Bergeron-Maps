@@ -107,7 +107,7 @@ export function PropertiesPanel() {
 
 function rowTitle(floor: Floor, rowId: string) {
   const sp = rowSpaces(floor, rowId);
-  return `Row ${sp[0]?.label ?? ''}–${sp[sp.length - 1]?.label ?? ''}`;
+  return `Row ${sp[0]?.label ?? ''} to ${sp[sp.length - 1]?.label ?? ''}`;
 }
 
 function useFocusOnEdit() {

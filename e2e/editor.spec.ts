@@ -8,13 +8,13 @@ test('manager creates a numbered row, copies and pastes it, renumbers and undoes
   await page.getByTestId('row-prefix').fill('B');
   await expect(page.getByTestId('row-preview')).toContainText('B1, B2, B3, … B20');
   await page.getByTestId('create-row').click();
-  await expect(page.getByTestId('selected-name')).toHaveText('Row B1–B20');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row B1 to B20');
 
   await page.keyboard.press('Control+c');
   await page.keyboard.press('Control+v');
   await expect(page.getByTestId('notice').first()).toContainText('20 pasted spaces use numbers already on this floor');
   await page.getByTestId('notice-action').first().click();
-  await expect(page.getByTestId('selected-name')).toHaveText('Row B21–B40');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row B21 to B40');
 
   // Pasting again from the same copy works without copying again.
   await page.keyboard.press('Control+v');
@@ -23,7 +23,7 @@ test('manager creates a numbered row, copies and pastes it, renumbers and undoes
   await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
   // Undoing the renumber selects the row it changed back, as design tools do.
-  await expect(page.getByTestId('selected-name')).toHaveText('Row B1–B20');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row B1 to B20');
   await page.keyboard.press('Control+Shift+z');
   await waitSaved(page);
   await page.getByRole('button', { name: 'All maps' }).click();
@@ -35,13 +35,13 @@ test('row settings can be changed after creating the row', async ({ page }) => {
   await page.getByTestId('add-row').click();
   await page.getByTestId('row-count').fill('5');
   await page.getByTestId('create-row').click();
-  await expect(page.getByTestId('selected-name')).toHaveText('Row 1–5');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row 1 to 5');
   await page.getByTestId('row-edit-count').fill('8');
   await page.getByTestId('row-edit-count').press('Enter');
   await page.getByTestId('row-edit-prefix').fill('A');
   await page.getByTestId('row-edit-prefix').press('Enter');
   await page.getByTestId('row-reverse').check();
-  await expect(page.getByTestId('selected-name')).toHaveText('Row A8–A1');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row A8 to A1');
 });
 
 test('floors: add, rename, duplicate and switch', async ({ page }) => {
@@ -60,7 +60,7 @@ test('floors: add, rename, duplicate and switch', async ({ page }) => {
   await page.getByTestId('floor-duplicate').click();
   await expect(page.getByTestId('floor-tab-Floor 1 (copy)').getByRole('button', { pressed: true })).toBeVisible();
   await page.keyboard.press('Control+a');
-  await expect(page.getByTestId('selected-name')).toHaveText('Row 1–10');
+  await expect(page.getByTestId('selected-name')).toHaveText('Row 1 to 10');
 
   await page.getByTestId('floor-menu').click();
   await page.getByTestId('floor-delete').click();

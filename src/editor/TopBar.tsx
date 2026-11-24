@@ -13,7 +13,7 @@ const STATUS: Record<SaveStatus, { text: string; tone: string }> = {
   saved: { text: 'Saved', tone: 'ok' },
   unsaved: { text: 'Unsaved changes', tone: 'pending' },
   saving: { text: 'Saving…', tone: 'pending' },
-  failed: { text: 'Save failed — retrying', tone: 'error' },
+  failed: { text: 'Save failed, retrying', tone: 'error' },
   conflict: { text: 'Changed elsewhere', tone: 'error' },
 };
 
