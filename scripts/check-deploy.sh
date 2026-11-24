@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Smoke check of a deployed copy of the site: pages answer, the app loads, unknown pages are
 # real 404s, and the security and caching headers are on. Usage: scripts/check-deploy.sh <base url>
+# Cloudflare can take a few seconds to serve a new version everywhere, so a failed pass waits
+# 20 seconds and tries again, up to 3 passes, before it counts as a failure.
 set -uo pipefail
 base="${1%/}"
 fail=0
@@ -25,11 +27,19 @@ done
 app=$(curl -s "$base/app/")
 asset=$(grep -o 'assets/index-[^"]*\.js' <<<"$app" | head -n1)
 if [ -n "$asset" ]; then
-  curl -s -D - -o /dev/null "$base/app/$asset" | tr -d '\r' | grep -qi '^cache-control: public, max-age=31536000, immutable' \
+  # Read all the headers before matching: grep -q stops early, and with pipefail the cut-off
+  # tr would fail the check even when the header is right.
+  grep -i '^cache-control: public, max-age=31536000, immutable' <<<"$(curl -s -D - -o /dev/null "$base/app/$asset" | tr -d '\r')" >/dev/null \
     && check "app files cached for a year" ok || check "app files cached for a year" no
 else
   check "app page links its script" no
 fi
 [ "$(status /_headers)" = 404 ] && check "_headers file is not served" ok || check "_headers file is not served" no
 
+attempt="${CHECK_ATTEMPT:-1}"
+if [ "$fail" = 1 ] && [ "$attempt" -lt 3 ]; then
+  echo "Some checks failed on pass $attempt. Waiting 20 seconds for the new version to reach every server."
+  sleep 20
+  CHECK_ATTEMPT=$((attempt + 1)) exec "$0" "$1"
+fi
 exit $fail

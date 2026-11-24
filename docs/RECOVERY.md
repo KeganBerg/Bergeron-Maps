@@ -10,7 +10,7 @@ restore drill of 2026-11-19 (see the end of this page).
 | A map was edited badly | The map's **Versions** in the editor | Nothing |
 | A map was deleted in the last 30 days | Site's maps → **Recently deleted** → Restore | Nothing |
 | A whole company was deleted | **All accounts → Restore from backup** (below, A) | Changes since the backup file was made |
-| A map was **deleted forever**, or a site was deleted, but the company still exists | See B | Depends on what backups exist |
+| A map was **deleted forever**, or a site was deleted, but the company still exists | **All accounts → Restore from backup** (below, B) | Changes to that map since the backup |
 | The Supabase project is broken, paused for good, or deleted | See C | Changes since the last backup |
 
 Before you start any restore, download a fresh **Download backup of all accounts** if the app still works. It
@@ -76,15 +76,21 @@ with the same email.
 
 ## B. A map deleted forever, or a site deleted (company still exists)
 
-The app can't restore part of a company that still exists: Restore from backup only brings back deleted
-companies. The options, best first:
+1. **The map is still in Recently deleted** → restore it there (30 days). Nothing else needed.
+2. Otherwise: **All accounts → Restore from backup…**, choose the newest backup file (or nightly backup, see C4)
+   made before the map or site was lost.
+3. The company shows as **Still in All accounts. Brings back only what it's missing: …** with what it lost since
+   the backup, and is ticked. Press **Restore**.
+4. Only what's missing comes back, with the same ids: a deleted site with its link, address and join code, the
+   people who lost access with it, and each map with its slot, what employees saw and its saved versions. Map links
+   and QR signs keep working. Nothing the company has now is changed, so edits made after the backup are kept.
+5. A map that no longer fits in its site's 5 slots goes to Recently deleted; a map that was in Recently deleted
+   in the backup goes back there with at least a day left.
 
-1. **The map is still in Recently deleted** → restore it there (30 days).
-2. **Pro plan, and it happened within 7 days** → a Supabase daily backup brings it back, but it rolls **the whole
-   project** back to that day, so every other change since then is lost. Only worth it for something big.
-3. **A backup file has it** → ask Claude to pull that map out of the backup file as a map file, then use **Import
-   map file** on the site. The map comes back with its content and a new map link (the site link and QR signs
-   stay the same).
+Needs the step 15 SQL (`supabase/migrations/20261124000000_restore_missing.sql`), run once.
+
+If no backup file or nightly backup has it but the project is on Pro and it happened within 7 days, a Supabase
+daily backup brings it back, but that rolls **the whole project** back to that day (C1).
 
 ## C. The whole Supabase project is lost
 
@@ -152,7 +158,7 @@ these steps with you; they need a computer with PostgreSQL's command-line tools 
    already brought everything back except the map pictures.
 5. **Map pictures.** They are files, not table rows: `backup/map-images/<company id>/<file>`. Into the same
    project they are usually still there. Into a new project, upload them to a public bucket named `map-images`
-   at the same paths (step 15 SQL creates it), then have Claude point the maps at the new project's address
+   at the same paths (step 16 SQL creates it), then have Claude point the maps at the new project's address
    (the maps still name the old one). Claude can do both.
 6. Check it (below).
 

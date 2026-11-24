@@ -203,7 +203,7 @@ export async function moveInlineImages(db: Db, onStep?: (text: string) => void):
     const r = await db.rpc(fn, args);
     if (r.error) {
       if (/function|schema cache/i.test(r.error.message) && r.error.message.includes(fn))
-        throw new Error('Moving pictures needs a database update that hasn’t been run yet. Run the step 15 SQL in Supabase, then try again.');
+        throw new Error('Moving pictures needs a database update that hasn’t been run yet. Run the step 16 SQL (map pictures) in Supabase, then try again.');
       throw new Error(r.error.message);
     }
     return r.data as T;
@@ -216,7 +216,7 @@ export async function moveInlineImages(db: Db, onStep?: (text: string) => void):
     const src = await call<string | null>('admin_inline_image', { p_company: p.company_id, p_hash: p.hash });
     if (!src) continue;
     const url = await storeImage(db, p.company_id, src);
-    if (url === src) throw new Error('File storage isn’t set up yet. Run the step 15 SQL in Supabase, then try again.');
+    if (url === src) throw new Error('File storage isn’t set up yet. Run the step 16 SQL (map pictures) in Supabase, then try again.');
     copies += await call<number>('admin_swap_inline_image', { p_company: p.company_id, p_hash: p.hash, p_url: url });
   }
   return { pictures: found.length, copies };

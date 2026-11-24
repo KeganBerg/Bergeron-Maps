@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { useMotion, useMotionGroup } from '../ui/motion';
-import { backupCompany, backupCounts, backupFileName, parseBackup, restoreCompany, serializeBackup,
-  BACKUP_EXTENSION, type BackupFile, type RestoreResult } from './backup';
+import { backupCompany, backupFileName, serializeBackup } from './backup';
+import { RestoreFromBackup } from './RestoreFromBackup';
 import { moveInlineImages, removeCompanyImages } from './mapImages';
 import { friendly, supabase } from './client';
 import { siteLink } from './TeamPage';
@@ -74,8 +74,6 @@ function saveFile(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
 /**
@@ -105,9 +103,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   const [removing, setRemoving] = useState<{ company: AdminCompany; person: AdminPerson } | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [backedUp, setBackedUp] = useState<Set<string>>(new Set());
-  const [restoring, setRestoring] = useState<{ file: BackupFile; fileName: string; picked: Set<string> } | null>(null);
-  const [restored, setRestored] = useState<{ results: RestoreResult[]; failed: { name: string; error: string }[] } | null>(null);
-  const restoreInput = useRef<HTMLInputElement>(null);
 
   /** Downloads a backup of the given companies (one file). */
   const download = async (companies: AdminCompany[]) => {
@@ -145,41 +140,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
     } finally {
       setWorking(null);
     }
-  };
-
-  const pickBackup = async (f: File | undefined) => {
-    if (!f) return;
-    setError(null);
-    setNote(null);
-    try {
-      const file = parseBackup(await f.text());
-      if (!file.companies.length) return setError('That backup has no companies in it.');
-      const live = new Set((data ?? []).map((c) => c.id));
-      setRestoring({ file, fileName: f.name, picked: new Set(file.companies.filter((c) => !live.has(c.id)).map((c) => c.id)) });
-    } catch (e) {
-      setError(friendly(e));
-    }
-  };
-
-  const runRestore = async () => {
-    if (!restoring) return;
-    const chosen = restoring.file.companies.filter((c) => restoring.picked.has(c.id));
-    setRestoring(null);
-    setError(null);
-    setNote(null);
-    const results: RestoreResult[] = [];
-    const failed: { name: string; error: string }[] = [];
-    for (const c of chosen) {
-      try {
-        results.push(await restoreCompany(supabase!, c, setWorking));
-      } catch (e) {
-        failed.push({ name: c.name, error: friendly(e) });
-      }
-    }
-    setWorking(null);
-    setRestored({ results, failed });
-    onCreated();
-    await load();
   };
 
   /** Runs one change, shows its result, and reloads the overview. */
@@ -309,17 +269,14 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
           <h3>Backups</h3>
           <p className="muted small">
             A backup file holds a company’s sites, links and join codes, who has access, and every map with what employees see and its saved versions.
-            Download one before deleting a company, so it can be brought back if the client returns.
+            Download one before deleting a company, so it can be brought back if the client returns. A backup also brings back a map deleted forever or a site deleted by mistake.
           </p>
           <div className="site-actions backup-actions">
             <button className="btn small" disabled={!!working || !data.length} onClick={() => void download(data)} data-testid="backup-all">
               Download backup of all accounts
             </button>
-            <button className="btn small" disabled={!!working} onClick={() => restoreInput.current?.click()} data-testid="restore-backup">
-              Restore from backup…
-            </button>
-            <input ref={restoreInput} type="file" hidden accept={`${BACKUP_EXTENSION},.json,application/json`} data-testid="restore-file"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void pickBackup(f); }} />
+            <RestoreFromBackup live={new Set(data.map((c) => c.id))} working={!!working} setWorking={setWorking} setError={setError}
+              setNote={setNote} onRestored={async () => { onCreated(); await load(); }} />
           </div>
         </section>}
 
@@ -517,73 +474,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
           <label className="stack"><span>Type <strong>{deletingCompany.name}</strong> to confirm</span>
             <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} autoComplete="off" data-testid="delete-company-name" />
           </label>
-        </Dialog>
-      )}
-
-      {restoring && (() => {
-        const live = new Set((data ?? []).map((c) => c.id));
-        const n = restoring.picked.size;
-        return (
-          <Dialog title="Restore from backup" wide onClose={() => setRestoring(null)}
-            footer={<>
-              <button className="btn" onClick={() => setRestoring(null)}>Cancel</button>
-              <button className="btn primary" disabled={n === 0} onClick={() => void runRestore()} data-testid="restore-confirm">
-                {n === 0 ? 'Restore' : `Restore ${plural(n, 'company', 'companies')}`}
-              </button>
-            </>}>
-            <p className="muted small">
-              {restoring.fileName} · made {when(restoring.file.exportedAt)}{restoring.file.exportedBy ? ` by ${restoring.file.exportedBy}` : ''}
-            </p>
-            <ul className="restore-list">
-              {restoring.file.companies.map((c) => {
-                const k = backupCounts(c);
-                const exists = live.has(c.id);
-                return (
-                  <li key={c.id}>
-                    <label>
-                      <input type="checkbox" disabled={exists} checked={restoring.picked.has(c.id)} data-testid={`restore-pick-${c.name}`}
-                        onChange={(e) => { const picked = new Set(restoring.picked); if (e.target.checked) picked.add(c.id); else picked.delete(c.id); setRestoring({ ...restoring, picked }); }} />
-                      <span>
-                        <strong>{c.name}</strong>
-                        <span className="muted small">
-                          {exists ? 'Still in All accounts, so there’s nothing to restore · ' : ''}
-                          {plural(k.sites, 'site')}, {plural(k.people, 'person', 'people')}, {plural(k.maps, 'map')}
-                          {k.trashed ? ` and ${k.trashed} in Recently deleted` : ''}, {plural(k.versions, 'saved version')}
-                        </span>
-                      </span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="muted small">
-              Everything comes back as it was in the backup, with the same site links and join codes (unless another site has taken one since).
-              People who still have a sign-in get their access back right away; the rest get it when they next sign in.
-            </p>
-          </Dialog>
-        );
-      })()}
-
-      {restored && (
-        <Dialog title={restored.failed.length ? 'Restore finished with problems' : 'Restore finished'} onClose={() => setRestored(null)}
-          footer={<button className="btn primary" onClick={() => setRestored(null)}>Done</button>}>
-          <div data-testid="restore-result">
-            {restored.results.map((r) => (
-              <div key={r.name} className="restore-result">
-                <p><strong>{r.name}</strong> is back: {plural(r.sites, 'site')}, {plural(r.maps, 'map')} ({r.published} published),
-                  {' '}{plural(r.members + r.invited, 'person', 'people')} with access{r.invited ? ` (${r.invited} once they sign in)` : ''},
-                  {' '}{plural(r.versions, 'saved version')}.</p>
-                {r.slug_changes.map((x) => (
-                  <p key={x.site} className="muted small">{x.site}’s link was taken by another site, so it is now {siteLink(x.now)}.</p>
-                ))}
-                {r.moved_to_trash > 0 && <p className="muted small">{plural(r.moved_to_trash, 'map')} didn’t fit in its site’s 5 slots and went to Recently deleted.</p>}
-                {r.versionErrors > 0 && <p className="error-text">{plural(r.versionErrors, 'saved version')} couldn’t be restored. The maps themselves are fine.</p>}
-              </div>
-            ))}
-            {restored.failed.map((f) => (
-              <p key={f.name} className="error-text"><strong>{f.name}</strong> wasn’t restored: {f.error}</p>
-            ))}
-          </div>
         </Dialog>
       )}
 

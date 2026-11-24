@@ -1,5 +1,5 @@
 scheduled jobs: pg_cron is off
-182 objects, fingerprint f1dc06c621af
+183 objects, fingerprint 47f8fdcfc3d5
 constraint audit_log.audit_log_company_id_fkey 328812a1 
 constraint audit_log.audit_log_pkey 4c6419b3 
 constraint companies.companies_created_by_fkey 1ceab562 
@@ -60,6 +60,7 @@ function admin_inline_image(p_company uuid, p_hash text) f70c40f2 authenticated
 function admin_inline_images() c5acab17 authenticated
 function admin_overview() c371f0b5 authenticated
 function admin_restore_company(p_backup jsonb) 63d24888 authenticated
+function admin_restore_missing(p_backup jsonb) de43e7d6 authenticated
 function admin_restore_versions(p_map uuid, p_versions jsonb) 604d6c93 authenticated
 function admin_swap_inline_image(p_company uuid, p_hash text, p_url text) ba8c25d4 authenticated
 function block_password_sign_in(event jsonb) e86d37de 

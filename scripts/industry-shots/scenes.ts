@@ -1,7 +1,7 @@
 /**
  * Sample maps for the industry pages on bergeronmaps.com, built from the app's
- * own library and row numbering. scripts/industry-shots/shoot.mjs loads this in
- * the running app, saves each map, and screenshots the real editor and viewer.
+ * own library and row numbering. scripts/industry-shots/clips.mjs loads this in
+ * the running app, saves each map, and records the real editor and viewer.
  * Sample sites only: no client names.
  */
 import { ASSET_BY_KEY } from '../../src/assets/library';
@@ -66,13 +66,13 @@ export function dealership(): MapDocument {
   zone(f, 'inventory-section', 20, 370, 670, 210, 'Used inventory', false);
   row(f, 'U', 14, 40 + W / 2, 380 + D / 2);
   row(f, 'U', 14, 40 + W / 2, 380 + D + D / 2, { start: 15 });
-  text(f, 355, 15, 'NEW INVENTORY', 20);
-  text(f, 355, 355, 'USED INVENTORY', 20);
-  text(f, 1300, 316, 'CUSTOMER PARKING', 18);
-  text(f, 1250, 458, 'SERVICE', 18);
-  text(f, 560, 745, 'OVERFLOW', 18);
+  text(f, 355, 15, 'New inventory', 20);
+  text(f, 355, 355, 'Used inventory', 20);
+  text(f, 1300, 316, 'Customer parking', 18);
+  text(f, 1250, 458, 'Service', 18);
+  text(f, 560, 745, 'Overflow', 18);
   put(f, 'new-inventory-sign', 730, 70, 'New inventory sign');
-  put(f, 'used-inventory-sign', 730, 420, 'Used inventory sign');
+  // The used inventory sign (730, 420) is added in the clip (clips.mjs).
   // Showroom, customer parking and the service drive.
   put(f, 'dealership-building', 1290, 150, 'Showroom', { width: 440, height: 250, label: 'Showroom' });
   zone(f, 'customer-service-zone', 1050, 330, 500, 120, 'Customer parking', false);
@@ -114,6 +114,8 @@ export function warehouse(): MapDocument {
   put(f, 'restroom', 960, 830, 'Restrooms');
   put(f, 'fire-extinguisher', 60, 120, 'Fire extinguisher');
   put(f, 'emergency-exit', -50, 500, 'Emergency exit');
+  put(f, 'staff-entrance', -50, 300, 'Entrance');
+  // The first aid station (60, 300) is added in the clip (clips.mjs).
   return d;
 }
 
@@ -145,11 +147,11 @@ export function school(): MapDocument {
   row(f, 'S', 11, 580 + W / 2, 715 + D + D / 2, { start: 12 });
   put(f, 'student-dropoff', 160, 900, 'Student drop-off', { width: 300, height: 90, label: 'Drop-off' });
   put(f, 'bus-loading', 160, 1080, 'Bus loading', { width: 300, height: 90, label: 'Bus loading' });
-  text(f, 50, 25, 'VISITOR', 18);
-  text(f, 50, 345, 'FACULTY', 18);
-  text(f, 820, 685, 'STUDENT PARKING', 18);
+  text(f, 50, 25, 'Visitor', 18);
+  text(f, 50, 345, 'Faculty', 18);
+  text(f, 820, 685, 'Student parking', 18);
   put(f, 'school-bus', 520, 1080, 'Bus 1', { rotation: 90 });
-  put(f, 'aed', 960, 300, 'AED');
+  // The AED (960, 300) is added in the clip (clips.mjs).
   put(f, 'emergency-access-point', 1450, 520, 'Emergency access');
   return d;
 }
@@ -174,7 +176,7 @@ export function valet(): MapDocument {
     if (i === 0) {
       put(f, 'entrance', -55, 740, 'Entrance', { rotation: 180 });
       put(f, 'valet-booth', 120, 770, 'Valet booth', { label: 'Valet booth' });
-      put(f, 'key-box', 260, 770, 'Key box', { label: 'Key box' });
+      // The key box (260, 770) is added in the clip (clips.mjs).
       put(f, 'valet-pickup', 640, 770, 'Guest pickup', { width: 260, height: 90, label: 'Guest pickup' });
     }
   });

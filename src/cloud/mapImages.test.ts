@@ -155,7 +155,7 @@ describe('map pictures', () => {
   it('explains when the database step hasn’t been run', async () => {
     const rpc = async () => ({ data: null, error: { message: 'Could not find the function public.admin_inline_images without parameters in the schema cache' } });
     const { db } = fakeDb({ rpc: rpc as unknown as Db['rpc'] });
-    await expect(moveInlineImages(db)).rejects.toThrow(/step 15 SQL/);
+    await expect(moveInlineImages(db)).rejects.toThrow(/step 16 SQL/);
   });
 });
 

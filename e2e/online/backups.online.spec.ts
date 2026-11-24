@@ -58,7 +58,7 @@ test('a company is backed up from the delete dialog, deleted, and restored from 
   expect((sb.restoredPayloads[0].maps as Record<string, unknown>[])[0]).not.toHaveProperty('versions');
 });
 
-test('one file backs up every company; a company that still exists cannot be restored over', async ({ page }, info) => {
+test('one file backs up every company; a company that still exists with nothing missing cannot be restored over', async ({ page }, info) => {
   const sb = new MockSupabase(page);
   withMap(sb);
   await sb.install(USERS.admin);
@@ -73,7 +73,7 @@ test('one file backs up every company; a company that still exists cannot be res
   expect(backup.companies.find((c: { id: string }) => c.id === OTHER_COMPANY.id).maps).toEqual([]);
 
   await page.getByTestId('restore-file').setInputFiles(file);
-  await expect(page.getByRole('dialog')).toContainText('Still in All accounts');
+  await expect(page.getByRole('dialog')).toContainText('Still in All accounts, and nothing in this backup is missing from it');
   await expect(page.getByTestId(`restore-pick-${COMPANY.name}`)).toBeDisabled();
   await expect(page.getByTestId('restore-confirm')).toBeDisabled();
 });
@@ -87,4 +87,32 @@ test('a map file or a broken file is refused with a plain message', async ({ pag
   await expect(page.getByRole('alert')).toContainText('single map file');
   await page.getByTestId('restore-file').setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{oops') });
   await expect(page.getByRole('alert')).toContainText('isn’t a Bergeron Maps backup');
+});
+
+test('a map deleted forever comes back from a backup while the company stays as it is', async ({ page }, info) => {
+  const sb = new MockSupabase(page);
+  withMap(sb);
+  await sb.install(USERS.admin);
+  await page.goto('/#/admin');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('backup-all').click()]);
+  const file = info.outputPath('all.bmbackup.json');
+  await download.saveAs(file);
+
+  // The map is deleted forever after the backup.
+  sb.maps = sb.maps.filter((m) => m.id !== MAP_ID);
+  sb.published.delete(MAP_ID);
+  sb.versions = [];
+
+  await page.getByTestId('restore-file').setInputFiles(file);
+  const dialog = page.getByRole('dialog', { name: 'Restore from backup' });
+  await expect(page.getByTestId(`restore-missing-${COMPANY.name}`)).toContainText('Brings back only what it’s missing: 1 map');
+  await expect(page.getByTestId(`restore-pick-${COMPANY.name}`)).toBeChecked();
+  await expect(page.getByTestId(`restore-pick-${OTHER_COMPANY.name}`)).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('restore-missing-pick.png') });
+  await dialog.getByTestId('restore-confirm').click();
+  await expect(page.getByTestId('restore-result')).toContainText(`${COMPANY.name}: 1 map (1 published) back, 1 saved version.`);
+  await page.screenshot({ path: info.outputPath('restore-missing-result.png') });
+  expect(sb.maps.find((m) => m.id === MAP_ID)?.facility_id).toBe(SITE_A.id);
+  expect(sb.versions).toHaveLength(1);
+  expect(sb.companies.filter((c) => c.id === COMPANY.id)).toHaveLength(1);
 });
