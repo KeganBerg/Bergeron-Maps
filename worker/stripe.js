@@ -15,10 +15,11 @@
 // STRIPE_MONTHLY_PRICE.
 
 import { INBOX, ORIGIN, EMAIL, reply, esc, shell, button } from './shared.js';
+import { STRIPE_VERSION, StripeError } from './stripe-api.js';
+import { findReferrer, readReferralCode, settleReferral } from './referrals.js';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
-// Pinned so a Stripe-side upgrade can't change what these calls return.
-export const STRIPE_VERSION = '2026-11-18.endive';
+export { STRIPE_VERSION };
 // Tags these Checkout pages in the Stripe Dashboard so this flow can be told apart from others.
 const INTEGRATION_ID = 'get-your-map-now-qmwvhtrk';
 // Bigger orders go through a conversation first (the assisted path in the sales plan).
@@ -36,8 +37,15 @@ export async function checkout(request, env, send = fetch) {
   if (request.method !== 'POST') return reply(405, { success: false, error: 'POST only' });
   const origin = request.headers.get('origin') || '';
   if (!ORIGIN.test(origin)) return reply(403, { success: false, error: 'Not allowed' });
-  const key = env.STRIPE_SECRET_KEY;
-  if (!key || !env.STRIPE_SETUP_PRICE || !env.STRIPE_MONTHLY_PRICE) return reply(503, { success: false, error: 'Not set up' });
+  // Trimmed because values pasted into the Cloudflare dashboard can carry a stray line break.
+  const key = (env.STRIPE_SECRET_KEY || '').trim();
+  const setupPrice = (env.STRIPE_SETUP_PRICE || '').trim(), monthlyPrice = (env.STRIPE_MONTHLY_PRICE || '').trim();
+  const missing = [['STRIPE_SECRET_KEY', key], ['STRIPE_SETUP_PRICE', setupPrice], ['STRIPE_MONTHLY_PRICE', monthlyPrice]].filter(([, v]) => !v).map(([k]) => k);
+  // Names only, never values, so the page can say which setting is empty.
+  if (missing.length) return reply(503, { success: false, error: `Not set up: ${missing.join(', ')} is empty` });
+  // A product ID (prod_) is the easy mistake to make in the dashboard; say so plainly.
+  if (!setupPrice.startsWith('price_') || !monthlyPrice.startsWith('price_'))
+    return reply(503, { success: false, error: 'Not set up: STRIPE_SETUP_PRICE and STRIPE_MONTHLY_PRICE must be price IDs (price_...), not product IDs' });
   // Live keys sell for real, so they only work once Kegan turns sales on (CHECKOUT_LIVE=true).
   if (isLiveKey(key) && env.CHECKOUT_LIVE !== 'true') return reply(503, { success: false, error: 'Not open yet' });
 
@@ -51,9 +59,9 @@ export async function checkout(request, env, send = fetch) {
   const back = `${origin}${order.returnPath}`;
   const form = new URLSearchParams({
     mode: 'subscription',
-    'line_items[0][price]': env.STRIPE_SETUP_PRICE,
+    'line_items[0][price]': setupPrice,
     'line_items[0][quantity]': String(order.locations),
-    'line_items[1][price]': env.STRIPE_MONTHLY_PRICE,
+    'line_items[1][price]': monthlyPrice,
     'line_items[1][quantity]': String(order.locations),
     // The monthly price waits 30 days; the one-time setup price is charged today.
     'subscription_data[trial_period_days]': String(MONTHLY_STARTS_AFTER_DAYS),
@@ -65,12 +73,29 @@ export async function checkout(request, env, send = fetch) {
     success_url: `${back}?checkout=done&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${back}?checkout=canceled`,
     integration_identifier: INTEGRATION_ID,
+    // Managed Payments (Stripe as reseller, for an extra fee) is on by default for new Stripe
+    // accounts and refuses custom_text. Bergeron Maps sells directly, so it stays off.
+    'managed_payments[enabled]': 'false',
   });
   // The same facts on the Checkout page and on the subscription, so either can be traced back.
   const facts = { company: order.company, contact_name: order.name, locations: String(order.locations), source: 'get-your-map-now' };
   for (const [k, v] of Object.entries(facts)) {
     form.set(`metadata[${k}]`, v);
     form.set(`subscription_data[metadata][${k}]`, v);
+  }
+  // A referral code typed by the buyer: the customer who owns it gets one month free once this
+  // order is paid (settleReferral in the webhook).
+  if (data.referralCode != null && String(data.referralCode).trim()) {
+    const code = readReferralCode(data.referralCode);
+    let referrer = null;
+    try { referrer = code && (await findReferrer(env, send, code)); } catch (e) {
+      if (!(e instanceof StripeError)) throw e;
+      console.error('Referral lookup failed', e.status, e.message);
+      return reply(502, { success: false, error: 'Payment service failed' });
+    }
+    if (!referrer || referrer.email === order.email) return reply(400, { success: false, error: "That referral code wasn't found" });
+    form.set('metadata[referred_by]', referrer.id);
+    form.set('metadata[referral_code]', code);
   }
   // The "I agree to the terms" box. Stripe needs a terms page link in its settings first.
   if (env.STRIPE_TERMS === 'required') form.set('consent_collection[terms_of_service]', 'required');
@@ -83,7 +108,10 @@ export async function checkout(request, env, send = fetch) {
   const session = await res.json().catch(() => null);
   if (!res.ok || !session?.url) {
     console.error('Stripe Checkout failed', res.status, session?.error?.message);
-    return reply(502, { success: false, error: 'Payment service failed' });
+    // With a test key, show Stripe's own reason so setup mistakes are easy to spot. Live
+    // buyers only ever see the plain message.
+    const detail = isTestKey(key) && session?.error?.message ? `: ${String(session.error.message).slice(0, 300)}` : '';
+    return reply(502, { success: false, error: `Payment service failed${detail}` });
   }
   return reply(200, { success: true, url: session.url });
 }
@@ -109,13 +137,26 @@ export async function stripeWebhook(request, env, send = fetch, now = Date.now()
   if (request.method !== 'POST') return reply(405, { received: false });
   if (!env.STRIPE_WEBHOOK_SECRET) return reply(503, { received: false });
   const raw = await request.text();
-  const signed = await verifySignature(raw, request.headers.get('stripe-signature') || '', env.STRIPE_WEBHOOK_SECRET, now);
+  const signed = await verifySignature(raw, request.headers.get('stripe-signature') || '', env.STRIPE_WEBHOOK_SECRET.trim(), now);
   if (!signed) return reply(400, { received: false });
   let event;
   try { event = JSON.parse(raw); } catch { return reply(400, { received: false }); }
 
   const note = describeEvent(event);
   if (!note) return reply(200, { received: true });
+  if (note.paidOrder) {
+    // A failed Stripe call answers 500 before any email goes out, so Stripe retries the whole
+    // event; the referral credit's idempotency key keeps a retry from crediting twice.
+    try {
+      const { code, reward } = await settleReferral(env, send, event.data.object);
+      if (code) note.rows.push(['Their referral code', code]);
+      if (reward) note.rows.push(['Referral reward', `${money(reward)} credit to the customer who referred them`]);
+    } catch (e) {
+      if (!(e instanceof StripeError)) throw e;
+      console.error('Referral step failed', e.status, e.message);
+      return reply(500, { received: false });
+    }
+  }
   if (!env.RESEND_API_KEY) return reply(200, { received: true, emailed: false });
   const res = await send('https://api.resend.com/emails', {
     method: 'POST',
@@ -173,7 +214,7 @@ export function describeEvent(event) {
   const o = event?.data?.object || {};
   const dash = `https://dashboard.stripe.com/${event?.livemode ? '' : 'test/'}`;
   const who = (c = {}) => [c.name, c.email].filter(Boolean).join(', ');
-  const order = (title) => {
+  const order = (title, paidOrder = false) => {
     const m = o.metadata || {};
     return {
       title: `${title}: ${m.company || o.customer_details?.name || 'new customer'}`,
@@ -183,7 +224,10 @@ export function describeEvent(event) {
         ['Phone', o.customer_details?.phone],
         ['Locations', m.locations],
         ['Paid today', o.amount_total != null && money(o.amount_total, o.currency)],
+        ['Referred with code', m.referral_code],
       ],
+      // Paid orders also settle the referral (stripeWebhook).
+      paidOrder,
       link: o.customer ? `${dash}customers/${o.customer}` : `${dash}payments`,
       button: 'Open the customer in Stripe',
     };
@@ -191,9 +235,9 @@ export function describeEvent(event) {
   switch (event?.type) {
     case 'checkout.session.completed':
       // Bank payments (ACH) finish days later: async_payment_succeeded says when the money is in.
-      return o.payment_status === 'unpaid' ? order('Order placed, bank payment pending') : order('New order paid');
+      return o.payment_status === 'unpaid' ? order('Order placed, bank payment pending') : order('New order paid', true);
     case 'checkout.session.async_payment_succeeded':
-      return order('Bank payment cleared, order paid');
+      return order('Bank payment cleared, order paid', true);
     case 'checkout.session.async_payment_failed':
       return order('Bank payment failed');
     case 'invoice.payment_failed':
@@ -203,6 +247,25 @@ export function describeEvent(event) {
         link: `${dash}invoices/${o.id}`,
         button: 'Open the invoice in Stripe',
       };
+    case 'customer.subscription.updated': {
+      // The 10-day grace period: Stripe retries a failed monthly payment (past_due), and when the
+      // last retry fails the subscription becomes unpaid. Only a change of status is news.
+      const was = event.data?.previous_attributes?.status;
+      if (!was || was === o.status) return null;
+      const titles = {
+        past_due: 'Monthly payment overdue, 10-day grace period started',
+        unpaid: 'Grace period over, payment still missing',
+        active: was === 'trialing' ? null : 'Payment received, subscription active again',
+      };
+      const title = titles[o.status];
+      if (!title) return null;
+      return {
+        title: `${title}: ${o.metadata?.company || 'a customer'}`,
+        rows: [['Company', o.metadata?.company], ['Locations', o.metadata?.locations], ['Status', `${was} to ${o.status}`]],
+        link: `${dash}subscriptions/${o.id}`,
+        button: 'Open the subscription in Stripe',
+      };
+    }
     case 'customer.subscription.deleted':
       return {
         title: `Subscription canceled: ${o.metadata?.company || 'a customer'}`,
@@ -253,7 +316,7 @@ ${button(esc(link), esc(label))}
  * offers online purchase before it's real (docs/SITE_CLAIMS.md).
  */
 export function checkoutTestPage(request, env) {
-  if (request.method !== 'GET' || !isTestKey(env.STRIPE_SECRET_KEY)) return new Response('Not found', { status: 404 });
+  if (request.method !== 'GET' || !isTestKey((env.STRIPE_SECRET_KEY || '').trim())) return new Response('Not found', { status: 404 });
   const state = new URL(request.url).searchParams.get('checkout');
   const notice = state === 'done'
     ? '<p class="note">Checkout finished. The order email goes to the company inbox within a minute.</p>'
