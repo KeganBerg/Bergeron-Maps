@@ -27,12 +27,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Regenerate the marketing site's drawings and product demo from the current app code,
-      # so counts and labels on the site never fall behind the app.
-      - run: npm run build:site
-      # The app is built with relative asset paths and served under /app/, so it works both at
-      # keganberg.github.io/Bergeron-Maps/app/ and, once the custom domain is on, bergeronmaps.com/app/.
-      - run: npx vite build --base=./
+      # Same build as the Cloudflare deploy (scripts/build-deploy.sh): the marketing site at the
+      # root and the app under /app/, in _site/. This workflow stays until bergeronmaps.com is
+      # served by Cloudflare (docs/HOSTING.md); then it is removed.
+      - run: scripts/build-deploy.sh
         env:
           # Public project URL and anon key: safe to publish. Row-level security in
           # supabase/migrations decides what each signed-in person can reach.
@@ -42,14 +40,6 @@ jobs:
           # (Settings > Secrets and variables > Actions > Variables). The version is this commit.
           VITE_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           VITE_RELEASE: ${{ github.sha }}
-      # Marketing site (site/) at the root, the app under /app/.
-      - name: Assemble site
-        run: |
-          mkdir -p _site/app
-          cp -r site/. _site/
-          # Build inputs stay in the repo, not on the public site.
-          rm -rf _site/src _site/build-drawings.py
-          cp -r dist/. _site/app/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

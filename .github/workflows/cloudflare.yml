@@ -1,0 +1,64 @@
+name: Deploy to Cloudflare
+
+# main → the live Worker (bergeronmaps.com once the domain is attached; until then the
+# bergeron-maps.<account>.workers.dev test address). Pull requests → a preview address per PR.
+# Skips itself (green, with a note) until the repository has the CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID secrets. Setup: docs/HOSTING.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - name: Cloudflare not set up yet
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::notice::Skipped. Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to deploy (docs/HOSTING.md)."
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_TOKEN == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: env.HAS_TOKEN == 'true'
+        run: npm ci
+      - name: Build site and app
+        if: env.HAS_TOKEN == 'true'
+        run: scripts/build-deploy.sh --cloudflare
+        env:
+          # Public project URL and anon key: safe to publish. Row-level security in
+          # supabase/migrations decides what each signed-in person can reach.
+          VITE_SUPABASE_URL: https://ysebxeokxpnmckwdtimj.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZWJ4ZW9reHBubWNrd2R0aW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDU3OTEsImV4cCI6MjEwOTEyMTc5MX0._gioylYj_sf6pLy3o6riTL0n9Y-EVsu3VNzpeRXYQkY
+          VITE_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          VITE_RELEASE: ${{ github.sha }}
+      - name: Deploy (main)
+        if: env.HAS_TOKEN == 'true' && github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.158.0'
+          command: deploy
+      - name: Preview (pull request)
+        if: env.HAS_TOKEN == 'true' && github.event_name == 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.158.0'
+          command: versions upload --preview-alias pr-${{ github.event.pull_request.number }}

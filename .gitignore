@@ -8,3 +8,5 @@ playwright-report
 scripts/orca/out/
 loadtest-out
 .prof
+_site
+.wrangler

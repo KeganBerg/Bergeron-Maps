@@ -1,5 +1,8 @@
 # Pointing bergeronmaps.com at the site
 
+> The site is moving to Cloudflare: see `docs/HOSTING.md`. This page describes the GitHub Pages setup,
+> which stays in place until that move is finished, and is the way back if the move has to be undone.
+
 The GitHub Pages deployment (`.github/workflows/pages.yml`) publishes:
 
 - the marketing site from `site/` at the root, and

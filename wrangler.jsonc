@@ -1,0 +1,16 @@
+// Cloudflare deploy for bergeronmaps.com: a Worker that only serves the files in _site/
+// (the marketing site at the root, the app under /app/). Built by scripts/build-deploy.sh and
+// deployed by .github/workflows/cloudflare.yml. Steps and settings: docs/HOSTING.md.
+{
+  "name": "bergeron-maps",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./_site",
+    // Unknown addresses get the site's own "Page not found" page with a real 404 status.
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  },
+  // The test address (bergeron-maps.<account>.workers.dev) and per-pull-request preview addresses.
+  "workers_dev": true,
+  "preview_urls": true
+}
