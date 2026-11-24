@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 // @ts-expect-error plain JS module run by the Cloudflare Worker
-import { accountChange, applyAccountChange } from '../../worker/accounts.js';
+import { accountChange, applyAccountChange, signInLink } from '../../worker/accounts.js';
 // @ts-expect-error plain JS module run by the Cloudflare Worker
 import { graceDaysLeft, reminderFor, sendGraceReminders } from '../../worker/grace.js';
 // @ts-expect-error plain JS module run by the Cloudflare Worker
@@ -76,6 +76,27 @@ describe('opening and pausing', () => {
     const again = fakeServices({ provision_paid_account: [{ company_id: 'co_1', created: false }] });
     expect(await applyAccountChange(env, again, accountChange(order))).toBe('Already open');
     expect(emails(again)).toEqual([]);
+  });
+  it('the welcome button signs the owner straight in with a one-time link', async () => {
+    const send = fakeServices({ provision_paid_account: [{ company_id: 'co_1', created: true }], generate_link: { hashed_token: 'abc123' } });
+    await applyAccountChange(env, send, accountChange(order));
+    const [welcome] = emails(send);
+    expect(welcome.html).toContain('https://bergeronmaps.com/app/?token_hash=abc123&amp;type=magiclink&amp;auto=1');
+    const gen = calls(send).find(([u]) => u.includes('generate_link'))!;
+    expect(gen[0]).toBe('https://db.example/auth/v1/admin/generate_link');
+    expect(JSON.parse(String(gen[1].body))).toEqual({ type: 'magiclink', email: 'pat@example.com' });
+  });
+  it('someone who never signed in gets an invite link, and with no link the button opens sign-in', async () => {
+    const invite = vi.fn(async (url: string, init?: RequestInit) => {
+      const type = JSON.parse(String(init?.body)).type;
+      return new Response(JSON.stringify(type === 'invite' ? { properties: { hashed_token: 'inv9' } } : { msg: 'User not found' }), { status: type === 'invite' ? 200 : 404 });
+    });
+    expect(await signInLink(env, invite, 'new@example.com')).toBe('https://bergeronmaps.com/app/?token_hash=inv9&type=invite&auto=1');
+    const down = vi.fn(async () => new Response('{}', { status: 500 }));
+    expect(await signInLink(env, down, 'new@example.com')).toBe('');
+    const send = vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('provision') ? [{ created: true }] : {}), { status: url.includes('generate_link') ? 500 : 200 }));
+    await applyAccountChange(env, send, accountChange(order));
+    expect(emails(send)[0].html).toContain('https://bergeronmaps.com/app/?email=pat%40example.com');
   });
   it('pauses and tells the billing contact, with the link to pay', async () => {
     const send = fakeServices({
