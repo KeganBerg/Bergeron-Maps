@@ -20,7 +20,6 @@ const OVER_LIMIT: Record<string, number> = {
   'src/editor/store.ts': 1065,
   'src/editor/CanvasStage.tsx': 1079,
   'src/viewer/ViewerPage.tsx': 1138,
-  'src/model/route.ts': 1544,
 };
 
 const exempt = (f: string) => /\.test\.tsx?$/.test(f) || f.startsWith('src/assets/catalog/');
