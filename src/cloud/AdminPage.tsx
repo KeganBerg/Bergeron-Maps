@@ -1,3 +1,4 @@
+import { siteReview, type SiteReview } from '../model/siteReview';
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
@@ -368,6 +369,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
                       </span>
                     )}
                     <span className="muted small site-url">{siteLink(s.slug)}</span>
+                    <SiteReviewLine review={siteReview(s, maps)} />
                   </span>
                   <span className="site-actions">
                     <span className="muted small">{s.maps} {s.maps === 1 ? 'map' : 'maps'}, {s.published} published{s.public ? `, ${s.public} public` : ''}</span>
@@ -486,5 +488,16 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
           message={<p>They lose access right away and are signed out on every device. Their sign-in email isn’t deleted. Access to any other company stays, though they’ll have to sign in again.</p>} />
       )}
     </div>
+  );
+}
+
+/** Map names on a site, plus a flag when it might hold a second location (model/siteReview.ts). */
+function SiteReviewLine({ review }: { review: SiteReview }) {
+  if (!review.mapNames.length && !review.flag) return null;
+  return (
+    <span className="small site-review">
+      {review.flag && <strong className="warning-text">{review.flag}. </strong>}
+      {review.mapNames.length > 0 && <span className="muted">Maps: {review.mapNames.join(', ')}</span>}
+    </span>
   );
 }
