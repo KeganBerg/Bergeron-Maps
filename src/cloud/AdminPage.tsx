@@ -9,13 +9,13 @@ import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
 import { useMotion } from '../ui/motion';
 import { AdminCompanyPane } from './AdminCompanyPane';
-import { BackupsPanel, PicturesPanel, SetupCompanyPanel } from './AdminTools';
+import { BackupsPanel, SetupCompanyPanel } from './AdminTools';
 import { backupCompany, backupFileName, serializeBackup } from './backup';
 import { removeCompanyImages } from './mapImages';
 import { friendly, supabase } from './client';
 
 const MAX_HITS = 50;
-const TOOL_LABEL: Record<AdminTool, string> = { setup: 'Set up a company', backups: 'Backups', pictures: 'Map pictures' };
+const TOOL_LABEL: Record<AdminTool, string> = { setup: 'Set up a company', backups: 'Backups' };
 
 /** Saves text as a file in the browser's downloads. */
 function saveFile(name: string, text: string) {
@@ -185,7 +185,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             <nav className="admin-companies admin-tools" aria-label="Admin tools">
               <h3>Tools</h3>
               <ul>
-                {(['backups', 'pictures'] as const).map((t) => (
+                {(['backups'] as const).map((t) => (
                   <li key={t}>
                     <a href={`#/admin?tool=${t}`} className={shownTool === t ? 'on' : undefined} aria-current={shownTool === t ? 'page' : undefined}
                       onClick={clear} data-testid={`admin-tool-${t}`}>
@@ -217,7 +217,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             {data && shownTool === 'backups' && (
               <BackupsPanel {...status} data={data} onDownloadAll={() => void download(data)} onRestored={async () => { onCreated(); await load(); }} />
             )}
-            {data && shownTool === 'pictures' && <PicturesPanel {...status} onMoved={load} />}
           </div>
         </div>
       </main>

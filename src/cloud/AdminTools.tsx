@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { AdminCompany } from '../model/adminAccounts';
 import { friendly, supabase } from './client';
-import { moveInlineImages } from './mapImages';
 import { RestoreFromBackup } from './RestoreFromBackup';
 
 /** What every admin tool may report back to the page: progress, a result and an error. */
@@ -69,41 +68,6 @@ export function BackupsPanel({ data, onDownloadAll, onRestored, ...status }: Too
         </button>
         <RestoreFromBackup live={new Set(data.map((c) => c.id))} working={status.working} setWorking={status.setWorking} setError={status.setError}
           setNote={status.setNote} onRestored={onRestored} />
-      </div>
-    </section>
-  );
-}
-
-/** One-time move of pictures held inside maps to file storage (cloud/mapImages.ts). */
-export function PicturesPanel({ onMoved, working, setWorking, setNote, setError }: ToolStatus & { onMoved: () => Promise<void> }) {
-  const movePictures = async () => {
-    if (working) return;
-    setError(null);
-    setNote(null);
-    try {
-      const r = await moveInlineImages(supabase!, setWorking);
-      setNote(r.pictures === 0
-        ? 'Every map picture is already in file storage. Nothing to move.'
-        : `Moved ${r.pictures} ${r.pictures === 1 ? 'picture' : 'pictures'} to file storage. ${r.copies} ${r.copies === 1 ? 'map copy now links' : 'map copies (working copies, published maps and saved versions) now link'} to them.`);
-      await onMoved();
-    } catch (e) {
-      setError(`The pictures couldn’t all be moved: ${friendly(e)} Pictures moved so far stay moved; try again to finish.`);
-    } finally {
-      setWorking(null);
-    }
-  };
-
-  return (
-    <section className="panel-card" data-testid="map-pictures">
-      <h3>Map pictures</h3>
-      <p className="muted small">
-        Background images and imported pictures are kept in file storage, and maps link to them. Maps saved before that still hold their pictures inside,
-        in every saved version. This moves them out, which makes saves faster and frees database space. Best done while nobody is editing.
-      </p>
-      <div className="site-actions">
-        <button className="btn small" disabled={working} onClick={() => void movePictures()} data-testid="move-pictures">
-          Move map pictures to file storage
-        </button>
       </div>
     </section>
   );

@@ -69,7 +69,7 @@ export function accountTotals(companies: AdminCompany[]) {
 }
 
 /** The admin tools that open in the detail pane instead of a company. */
-export const ADMIN_TOOLS = ['setup', 'backups', 'pictures'] as const;
+export const ADMIN_TOOLS = ['setup', 'backups'] as const;
 export type AdminTool = (typeof ADMIN_TOOLS)[number];
 
 /**
