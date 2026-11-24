@@ -14,6 +14,12 @@
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash"
   },
+  // Public Supabase settings (the same ones the app ships with) for /api/access, which checks the
+  // signed-in manager's own token against them. The Resend key is a secret set in the dashboard.
+  "vars": {
+    "SUPABASE_URL": "https://ysebxeokxpnmckwdtimj.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzZWJ4ZW9reHBubWNrd2R0aW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDU3OTEsImV4cCI6MjEwOTEyMTc5MX0._gioylYj_sf6pLy3o6riTL0n9Y-EVsu3VNzpeRXYQkY"
+  },
   // The test address (bergeron-maps.<account>.workers.dev) and per-pull-request preview addresses.
   "workers_dev": true,
   "preview_urls": true,
