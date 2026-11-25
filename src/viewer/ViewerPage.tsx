@@ -507,6 +507,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               focusId: route && dir ? dir.goal.objectId : tapped?.id,
               focusTitle: route && dir ? dir.goal.name : info?.title,
               route,
+              words: t.words,
             })}
             currentId={floor.id}
             title={inside ? t.sideViewOf(buildingName(inside.building)) : t.sideView}

@@ -1,4 +1,6 @@
 import type { Messages } from './en';
+import { joinWith } from '../model/words';
+import { SUPPORT_EMAIL } from '../support';
 
 /**
  * Spanish. Machine-drafted: a native speaker should review it before it's
@@ -82,6 +84,8 @@ export const es: Messages = {
     wayTo: (way, floor) => (way === 'up' ? `Suba a ${floor}` : way === 'down' ? `Baje a ${floor}` : `Cruce a ${floor}`),
     places: 'Lugares',
     row: (a, b) => `Fila: espacios ${span(a, b)}`,
+    parts: joinWith(', '),
+    list: joinWith(', '),
     otherSpaces: (a, b) => `Otros espacios: ${span(a, b)}`,
   },
   language: 'Idioma',
@@ -200,4 +204,20 @@ export const es: Messages = {
   tryWithoutAccount: 'Probar sin una cuenta',
   enterEmail: 'Escriba su correo del trabajo.',
   enterCode: 'Escriba el código del correo. Tiene 6 dígitos.',
+  emailExample: 'nombre@empresa.com',
+  signInProblem: (p) => {
+    switch (p.kind) {
+      case 'link': return 'Ese enlace de inicio de sesión no funcionó. Puede que haya vencido o que ya se haya usado (algunos sistemas de correo del trabajo abren los enlaces para revisarlos). Escriba su correo para recibir un enlace nuevo, o escriba el código del correo.';
+      case 'badCode': return 'Ese código no funcionó. Compárelo con el correo más reciente (cada correo nuevo reemplaza el código anterior), o pida uno nuevo.';
+      case 'unavailable': return 'Aquí no se puede iniciar sesión.';
+      case 'tooMany': return 'Se enviaron demasiados correos de inicio de sesión. Espere un minuto e intente de nuevo.';
+      case 'wait': return `Se acaba de enviar un correo de inicio de sesión. Espere ${p.seconds} segundos antes de pedir otro.`;
+      case 'sendFailed': return `No pudimos enviar el correo de inicio de sesión en este momento. Intente de nuevo en unos minutos o, si el problema continúa, escriba a ${SUPPORT_EMAIL}.`;
+      case 'noAccount': return 'Este correo todavía no tiene una cuenta. Pídale a su gerente o administrador que lo agregue.';
+      case 'offline': return 'No se puede conectar con el servidor. Revise su conexión e intente de nuevo.';
+      case 'other': return 'Algo salió mal. Revise su conexión e intente de nuevo.';
+      case 'enterEmail': return es.enterEmail;
+      case 'enterCode': return es.enterCode;
+    }
+  },
 };

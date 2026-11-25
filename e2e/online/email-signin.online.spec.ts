@@ -64,4 +64,16 @@ test.describe('sign-in email', () => {
     await page.getByTestId('signin-send').click();
     await expect(page.getByRole('alert')).toContainText('couldn’t send the sign-in email');
   });
+
+  test('a wrong code is explained in the language the person picked', async ({ page }) => {
+    const sb = new MockSupabase(page);
+    await sb.install();
+    await page.goto('/?lang=es');
+    await expect(page.getByTestId('signin-email')).toHaveAttribute('placeholder', 'nombre@empresa.com');
+    await page.getByTestId('signin-email').fill('manager@example.com');
+    await page.getByTestId('signin-send').click();
+    await page.getByTestId('signin-code').fill('000000');
+    await page.getByTestId('signin-code-send').click();
+    await expect(page.getByRole('alert')).toContainText('Ese código no funcionó');
+  });
 });

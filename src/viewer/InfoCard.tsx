@@ -25,7 +25,7 @@ export function InfoCard({ title, detail, floorName, showSwatch, canGoIn, shared
             <strong>{title}</strong>
             <span className="info-meta">
               {showSwatch && <span className="floor-swatch" aria-hidden="true" />}
-              {[floorName, detail].filter(Boolean).join(', ')}
+              {t.words.parts([floorName, detail])}
             </span>
           </div>
           <button className="icon-btn info-close" aria-label={t.close} onClick={onClose}><Icon name="close" /></button>

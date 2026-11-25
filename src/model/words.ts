@@ -8,6 +8,9 @@ import { ASSET_BY_KEY } from '../assets/library';
  * on the map are never translated: only the words around them.
  */
 export type Way = 'up' | 'down' | 'across';
+/** Empty pieces are left out, so callers can write `[a, cond && b]`. */
+export type Piece = string | null | undefined | false;
+export const joinWith = (comma: string) => (items: Piece[]) => items.filter((x): x is string => !!x).join(comma);
 
 export interface MapWords {
   /** "Space B4". */
@@ -35,6 +38,10 @@ export interface MapWords {
   places: string;
   row: (first: string, last: string) => string;
   otherSpaces: (first: string, last: string) => string;
+  /** Joins the pieces of one description: "Floor 3, You are here". */
+  parts: (items: Piece[]) => string;
+  /** Joins names of the same kind: "Floor 2, Floor 3". Chinese uses a different comma for each. */
+  list: (items: Piece[]) => string;
 }
 
 const span = (first: string, last: string) => (first === last ? first : `${first} to ${last}`);
@@ -57,6 +64,8 @@ export const ENGLISH: MapWords = {
   places: 'Places',
   row: (first, last) => `Row: spaces ${span(first, last)}`,
   otherSpaces: (first, last) => `Other spaces: ${span(first, last)}`,
+  parts: joinWith(', '),
+  list: joinWith(', '),
 };
 
 /** A symbol's name in the reader's language, falling back to the catalog's English. */

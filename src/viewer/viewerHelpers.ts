@@ -31,7 +31,7 @@ export const ago = (iso: string, locale?: string) => new Date(iso).toLocaleStrin
 export function describe(o: MapObject, doc: MapDocument, t: Messages): { title: string; detail?: string } {
   const d = describeObject(o, doc, t);
   // The place a sign's QR code says you're standing at.
-  if (o.id === fromHint()) return { title: d.title, detail: [t.youAreHere, d.detail].filter(Boolean).join(', ') };
+  if (o.id === fromHint()) return { title: d.title, detail: t.words.parts([t.youAreHere, d.detail]) };
   return d;
 }
 
@@ -44,7 +44,7 @@ function describeObject(o: MapObject, doc: MapDocument, t: Messages): { title: s
   const to = (o.connectsTo ?? []).map((id) => doc.floors.find((f) => f.id === id)?.name).filter(Boolean);
   return {
     title: o.name || o.label || kind || t.object,
-    detail: [def && o.name !== kind ? kind : null, to.length ? w.goesTo(to.join(', ')) : null].filter(Boolean).join(', ') || undefined,
+    detail: w.parts([def && o.name !== kind && kind, to.length > 0 && w.goesTo(w.list(to))]) || undefined,
   };
 }
 
@@ -113,6 +113,6 @@ export function viewerAnnouncement({ t, doc, floor, groupSize, sideOpen, dir, li
     : listOpen ? t.sayList(floorTitle(doc, floor))
     // Typing in the search box while a card is open reads out what the search found, not the card again.
     : searching ? searchSaid
-    : info ? [info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail].filter(Boolean).join(', ')
+    : info ? t.words.parts([info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail])
     : '';
 }

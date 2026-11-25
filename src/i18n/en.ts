@@ -1,4 +1,6 @@
 import { ENGLISH } from '../model/words';
+import type { SignInProblem } from '../cloud/signInProblem';
+import { SUPPORT_EMAIL } from '../support';
 
 /**
  * Everything the map viewer, public map links and sign-in say, in English.
@@ -139,6 +141,24 @@ export const en = {
   tryWithoutAccount: 'Try it without an account',
   enterEmail: 'Enter your work email address.',
   enterCode: 'Enter the code from the email. It’s 6 digits.',
+  /** The example in the empty email box. */
+  emailExample: 'name@company.com',
+  /** Why signing in didn't work (src/cloud/signInProblem.ts). */
+  signInProblem: (p: SignInProblem): string => {
+    switch (p.kind) {
+      case 'link': return 'That sign-in link didn’t work. It may have expired or already been used (some work email systems open links to scan them). Enter your email for a new link, or type the code from the email instead.';
+      case 'badCode': return 'That code didn’t work. Check it against the newest email (each new email replaces the last code), or send a new one.';
+      case 'unavailable': return 'Sign-in isn’t available here.';
+      case 'tooMany': return 'Too many sign-in emails were sent. Wait a minute and try again.';
+      case 'wait': return `A sign-in email was just sent. Wait ${p.seconds} seconds before asking for another.`;
+      case 'sendFailed': return `We couldn’t send the sign-in email just now. Try again in a few minutes, or contact ${SUPPORT_EMAIL} if it keeps happening.`;
+      case 'noAccount': return 'This email doesn’t have an account yet. Ask your manager or admin to add it.';
+      case 'offline': return 'Can’t reach the server. Check your connection and try again.';
+      case 'enterEmail': return en.enterEmail;
+      case 'enterCode': return en.enterCode;
+      case 'other': return p.message;
+    }
+  },
 };
 
 export type Messages = typeof en;

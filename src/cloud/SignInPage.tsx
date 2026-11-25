@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { useLanguageInfo, useT } from '../i18n/useLanguage';
 import { LanguagePicker } from '../ui/LanguagePicker';
-import { setLocalMode, supabase, clearSignInProblem, takeSignInProblem, pendingEmailLink, finishEmailLink, signInWithCode, sendProblem } from './client';
+import { setLocalMode, supabase, clearSignInProblem, takeSignInProblem, pendingEmailLink, finishEmailLink, signInWithCode } from './client';
+import { sendProblem, type SignInProblem } from './signInProblem';
 
 const RETURN_KEY = 'bm.returnTo';
 
@@ -29,7 +30,8 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
   const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get('email')?.slice(0, 200) ?? '');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(takeSignInProblem);
+  const [problem, setError] = useState<SignInProblem | null>(takeSignInProblem);
+  const error = problem && t.signInProblem(problem);
   // The button that was pressed is gone once the email is sent: move focus to what replaced it, so a
   // screen reader says the email went out instead of going quiet.
   const sentCard = useRef<HTMLDivElement>(null);
@@ -40,7 +42,7 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
   const send = async () => {
     if (!supabase) return;
     const address = email.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) return setError(t.enterEmail);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) return setError({ kind: 'enterEmail' });
     setBusy(true);
     setError(null);
     clearSignInProblem();
@@ -62,10 +64,10 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
   const finish = async () => {
     setBusy(true);
     setError(null);
-    const problem = await finishEmailLink();
+    const failed = await finishEmailLink();
     setBusy(false);
-    if (problem) {
-      setError(problem);
+    if (failed) {
+      setError(failed);
       setLink(pendingEmailLink());
     }
   };
@@ -75,12 +77,12 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
 
   const submitCode = async () => {
     const digits = code.replace(/\s+/g, '');
-    if (!/^\d{6,10}$/.test(digits)) return setError(t.enterCode);
+    if (!/^\d{6,10}$/.test(digits)) return setError({ kind: 'enterCode' });
     setBusy(true);
     setError(null);
-    const problem = await signInWithCode(email.trim().toLowerCase(), digits);
+    const failed = await signInWithCode(email.trim().toLowerCase(), digits);
     setBusy(false);
-    if (problem) setError(problem);
+    if (failed) setError(failed);
   };
 
   if (link) {
@@ -139,7 +141,7 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
               <label className="signin-field">
                 {t.workEmail}
                 <input type="email" autoComplete="email" inputMode="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com" data-testid="signin-email"
+                  placeholder={t.emailExample} data-testid="signin-email"
                   aria-invalid={error ? true : undefined} aria-describedby={error ? 'signin-error' : undefined} />
                 {error && <span className="error-text" role="alert" id="signin-error">{error}</span>}
               </label>

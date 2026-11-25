@@ -10,6 +10,7 @@
  */
 import { connectorKind, isConnector, reaches, type PortalKind, type Route } from './route';
 import type { Floor, MapDocument, MapObject } from './types';
+import { ENGLISH, type MapWords } from './words';
 
 export interface SideFloor {
   id: string;
@@ -77,7 +78,7 @@ export function stackFloors(group: Floor[]): Floor[] {
   return [...below, ...group.filter((f) => !isBasement(f.name))];
 }
 
-export function sideView(doc: MapDocument, group: Floor[], opts: { focusId?: string; focusTitle?: string; route?: Route | null } = {}): SideViewModel {
+export function sideView(doc: MapDocument, group: Floor[], opts: { focusId?: string; focusTitle?: string; route?: Route | null; words?: MapWords } = {}): SideViewModel {
   const stack = stackFloors(group);
   const levelOf = new Map(stack.map((f, i) => [f.id, i]));
 
@@ -159,7 +160,7 @@ export function sideView(doc: MapDocument, group: Floor[], opts: { focusId?: str
       model.mark = {
         level: levelOf.get(f.id)!,
         x: fx(o.x),
-        text: [title, f.name, near].filter(Boolean).join(', '),
+        text: (opts.words ?? ENGLISH).parts([title, f.name, near]),
         space: o.kind === 'space',
       };
     }

@@ -1,4 +1,6 @@
 import type { Messages } from './en';
+import { joinWith } from '../model/words';
+import { SUPPORT_EMAIL } from '../support';
 
 /**
  * Chinese, simplified characters. Machine-drafted: a native speaker should
@@ -97,6 +99,8 @@ export const zh: Messages = {
     wayTo: (way, floor) => (way === 'up' ? z`上行至${floor}` : way === 'down' ? z`下行至${floor}` : z`前往${floor}`),
     places: '地点',
     row: (a, b) => z`车位排：${span(a, b)}`,
+    parts: joinWith('，'),
+    list: joinWith('、'),
     otherSpaces: (a, b) => z`其他车位：${span(a, b)}`,
   },
   language: '语言',
@@ -214,4 +218,20 @@ export const zh: Messages = {
   tryWithoutAccount: '无需账户，直接试用',
   enterEmail: '请输入您的工作邮箱地址。',
   enterCode: '请输入邮件中的验证码（6 位数字）。',
+  emailExample: 'name@company.com',
+  signInProblem: (p) => {
+    switch (p.kind) {
+      case 'link': return '此登录链接无效。链接可能已过期或已被使用（部分工作邮箱系统会打开链接进行扫描）。请输入邮箱获取新链接，或输入邮件中的验证码。';
+      case 'badCode': return '验证码无效。请核对最新一封邮件中的验证码（每封新邮件都会替换之前的验证码），或重新发送。';
+      case 'unavailable': return '此处无法登录。';
+      case 'tooMany': return '登录邮件发送次数过多。请等待一分钟后重试。';
+      case 'wait': return z`登录邮件刚刚已发送。请等待${p.seconds}秒后再重新发送。`;
+      case 'sendFailed': return z`暂时无法发送登录邮件。请几分钟后重试；如果问题仍然存在，请联系${SUPPORT_EMAIL}。`;
+      case 'noAccount': return '此邮箱尚未开通账户。请联系您的经理或管理员添加。';
+      case 'offline': return '无法连接服务器。请检查网络连接后重试。';
+      case 'other': return '出现问题。请检查网络连接后重试。';
+      case 'enterEmail': return zh.enterEmail;
+      case 'enterCode': return zh.enterCode;
+    }
+  },
 };

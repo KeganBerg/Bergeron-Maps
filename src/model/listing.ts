@@ -31,7 +31,7 @@ export function floorListing(doc: MapDocument, floor: Floor, words: MapWords = E
     const kind = symbolName(o.assetKey, words);
     const title = named || kind || words.place;
     const to = (o.connectsTo ?? []).map((id) => doc.floors.find((f) => f.id === id)?.name).filter(Boolean);
-    const detail = [def && kind !== title ? kind : null, to.length ? words.goesTo(to.join(', ')) : null].filter(Boolean).join(', ');
+    const detail = words.parts([def && kind !== title && kind, to.length > 0 && words.goesTo(words.list(to))]);
     places.push({ object: o, title, detail: detail || undefined });
   }
   places.sort((a, b) => byLabel(a.title, b.title));

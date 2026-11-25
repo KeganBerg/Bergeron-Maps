@@ -59,3 +59,13 @@ describe('map words in another language', () => {
     expect(zh.routeSummary(180, 2, 'Entrance')).toBe('180 英尺，从 Entrance 出发约需 2 分钟');
   });
 });
+
+describe('joining pieces of text', () => {
+  it('leaves out empty pieces and uses each language’s comma', async () => {
+    const { zh } = await import('./zh');
+    const { ENGLISH } = await import('../model/words');
+    expect(ENGLISH.parts(['Floor 3', undefined, false, 'Accessible'])).toBe('Floor 3, Accessible');
+    expect(zh.words.parts(['车位 3B5', 'Floor 3'])).toBe('车位 3B5，Floor 3');
+    expect(zh.words.list(['Floor 2', 'Floor 3'])).toBe('Floor 2、Floor 3');
+  });
+});

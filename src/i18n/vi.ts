@@ -1,4 +1,6 @@
 import type { Messages } from './en';
+import { joinWith } from '../model/words';
+import { SUPPORT_EMAIL } from '../support';
 
 /**
  * Vietnamese. Machine-drafted: a native speaker should review it before it's
@@ -82,6 +84,8 @@ export const vi: Messages = {
     wayTo: (way, floor) => `${WAY[way][0].toUpperCase()}${WAY[way].slice(1)} ${floor}`,
     places: 'Địa điểm',
     row: (a, b) => `Hàng: chỗ đậu ${span(a, b)}`,
+    parts: joinWith(', '),
+    list: joinWith(', '),
     otherSpaces: (a, b) => `Các chỗ đậu khác: ${span(a, b)}`,
   },
   language: 'Ngôn ngữ',
@@ -199,4 +203,20 @@ export const vi: Messages = {
   tryWithoutAccount: 'Dùng thử không cần tài khoản',
   enterEmail: 'Hãy nhập địa chỉ email công việc của bạn.',
   enterCode: 'Hãy nhập mã trong email. Mã có 6 chữ số.',
+  emailExample: 'ten@congty.com',
+  signInProblem: (p) => {
+    switch (p.kind) {
+      case 'link': return 'Liên kết đăng nhập này không dùng được. Có thể liên kết đã hết hạn hoặc đã được dùng (một số hệ thống email công việc tự mở liên kết để quét). Hãy nhập email để nhận liên kết mới, hoặc nhập mã trong email.';
+      case 'badCode': return 'Mã này không đúng. Hãy đối chiếu với email mới nhất (mỗi email mới sẽ thay thế mã trước đó), hoặc gửi mã mới.';
+      case 'unavailable': return 'Không thể đăng nhập ở đây.';
+      case 'tooMany': return 'Đã gửi quá nhiều email đăng nhập. Hãy đợi một phút rồi thử lại.';
+      case 'wait': return `Email đăng nhập vừa được gửi. Hãy đợi ${p.seconds} giây trước khi yêu cầu email khác.`;
+      case 'sendFailed': return `Hiện chưa gửi được email đăng nhập. Hãy thử lại sau vài phút, hoặc liên hệ ${SUPPORT_EMAIL} nếu lỗi vẫn tiếp diễn.`;
+      case 'noAccount': return 'Email này chưa có tài khoản. Hãy nhờ quản lý hoặc quản trị viên của bạn thêm email này.';
+      case 'offline': return 'Không kết nối được với máy chủ. Hãy kiểm tra kết nối rồi thử lại.';
+      case 'other': return 'Đã xảy ra lỗi. Hãy kiểm tra kết nối rồi thử lại.';
+      case 'enterEmail': return vi.enterEmail;
+      case 'enterCode': return vi.enterCode;
+    }
+  },
 };
