@@ -36,16 +36,19 @@ export type EmailLinkType = (typeof EMAIL_LINK_TYPES)[number];
  * doesn't spend it, and it works in any browser (no PKCE code to match).
  * Read it once and take it out of the address.
  */
-function takeEmailLinkFromUrl(): { tokenHash: string; type: EmailLinkType } | null {
+function takeEmailLinkFromUrl(): { tokenHash: string; type: EmailLinkType; auto: boolean } | null {
   if (typeof window === 'undefined') return null;
   const u = new URL(window.location.href);
   const tokenHash = u.searchParams.get('token_hash');
   const type = u.searchParams.get('type') as EmailLinkType | null;
   if (!tokenHash) return null;
-  u.searchParams.delete('token_hash');
-  u.searchParams.delete('type');
+  // auto=1: the "account is open" email right after payment (worker/accounts.js), where the
+  // buyer expects to land signed in. If a scanner used the link first, the usual "link didn't
+  // work" message offers a new one.
+  const auto = u.searchParams.get('auto') === '1';
+  for (const k of ['token_hash', 'type', 'auto']) u.searchParams.delete(k);
   window.history.replaceState(null, '', u.toString());
-  return { tokenHash, type: type && EMAIL_LINK_TYPES.includes(type) ? type : 'email' };
+  return { tokenHash, type: type && EMAIL_LINK_TYPES.includes(type) ? type : 'email', auto };
 }
 let emailLink = takeEmailLinkFromUrl();
 

@@ -46,12 +46,18 @@ export function accountChange(event) {
   }
 }
 
-/** Calls a database function as the service role. Throws with the database's message on failure. */
-async function rpc(env, send, name, args) {
+/** Headers that call Supabase as the service role. */
+function serviceHeaders(env) {
   const key = (env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
   const headers = { apikey: key, 'content-type': 'application/json' };
   // Older keys are JWTs and also go in Authorization; the newer sb_secret_ keys go in apikey only.
   if (key.startsWith('eyJ')) headers.authorization = `Bearer ${key}`;
+  return headers;
+}
+
+/** Calls a database function as the service role. Throws with the database's message on failure. */
+async function rpc(env, send, name, args) {
+  const headers = serviceHeaders(env);
   const res = await send(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, { method: 'POST', headers, body: JSON.stringify(args) });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(`Supabase ${name} answered ${res.status}: ${body?.message || ''}`);
@@ -88,17 +94,44 @@ export async function applyAccountChange(env, send, change) {
   return paused ? 'Paused: nobody can open its maps and its public links are off until it pays' : 'Resumed: everyone has their access back';
 }
 
-function welcomeEmail(env, send, o) {
+/**
+ * A one-time link that signs the owner straight in: Supabase makes a sign-in token for the email
+ * (a new person is created through an invite, which also hands them their owner invitation), and
+ * the app's own address carries it (src/cloud/client.ts reads token_hash; auto=1 uses it at once
+ * instead of waiting for "Finish signing in"). It lasts as long as Supabase's email link setting
+ * (1 hour by default). Answers '' when Supabase won't make one; the email then links to sign-in.
+ */
+export async function signInLink(env, send, email) {
+  for (const type of ['magiclink', 'invite']) {
+    try {
+      const res = await send(`${env.SUPABASE_URL}/auth/v1/admin/generate_link`, {
+        method: 'POST', headers: serviceHeaders(env), body: JSON.stringify({ type, email }),
+      });
+      const body = await res.json().catch(() => null);
+      const token = body?.hashed_token || body?.properties?.hashed_token;
+      if (res.ok && token) return `${APP_URL}?token_hash=${encodeURIComponent(token)}&type=${type}&auto=1`;
+    } catch (e) {
+      console.error('Sign-in link failed', type, e.message);
+    }
+  }
+  return '';
+}
+
+async function welcomeEmail(env, send, o) {
+  const link = await signInLink(env, send, o.email);
+  const fallback = `${APP_URL}?email=${encodeURIComponent(o.email)}`;
   const html = shell(`<h1 style="margin:0 0 20px;font-size:22px;line-height:1.3;">Your Bergeron Maps account is open</h1>
 ${para(`Thank you for your order. The account for ${esc(o.company)} is ready, with room for ${o.locations} location${o.locations === 1 ? '' : 's'}.`)}
-${para(`Sign in with this email address (${esc(o.email)}). We email you a sign-in link, so there is no password to remember.`)}
-${button(esc(APP_URL + '?email=' + encodeURIComponent(o.email)), 'Sign in to Bergeron Maps')}
+${para(link
+    ? 'The button below signs you straight in. It works once, within an hour. After that, sign in with this email address and we email you a new link, so there is no password to remember.'
+    : `Sign in with this email address (${esc(o.email)}). We email you a sign-in link, so there is no password to remember.`)}
+${button(esc(link || fallback), 'Sign in to Bergeron Maps')}
 <p style="margin:16px 0 24px;font-size:14px;line-height:1.5;color:#555555;">Your first location is called "First location". Rename it and start your first map, or reply to this email and we'll help.</p>`);
   return sendEmail(env, send, {
     to: [o.email],
     subject: 'Your Bergeron Maps account is open',
     html,
-    text: `Your Bergeron Maps account for ${o.company} is open. Sign in with ${o.email} at ${APP_URL}`,
+    text: `Your Bergeron Maps account for ${o.company} is open. Sign in here: ${link || fallback}`,
   });
 }
 

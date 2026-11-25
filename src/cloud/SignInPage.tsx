@@ -66,6 +66,9 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
     }
   };
 
+  // The welcome email's link signs in at once, without the "Finish signing in" press.
+  useEffect(() => { if (link?.auto) void finish(); }, []);
+
   const submitCode = async () => {
     const digits = code.replace(/\s+/g, '');
     if (!/^\d{6,10}$/.test(digits)) return setError('Enter the code from the email. It’s 6 digits.');

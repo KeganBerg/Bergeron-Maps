@@ -18,6 +18,16 @@ test.describe('sign-in email', () => {
     expect(sb.log.some((l) => l.startsWith('POST /auth/v1/verify'))).toBe(true);
   });
 
+  test('the "account is open" link (auto=1) signs in at once, with no press', async ({ page }) => {
+    const sb = new MockSupabase(page);
+    await sb.install();
+    await page.goto(`/?token_hash=hash-${USERS.siteManager.id}&type=magiclink&auto=1`);
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toHaveCount(0);
+    expect(page.url()).not.toContain('token_hash');
+    expect(page.url()).not.toContain('auto=');
+    expect(sb.log.some((l) => l.startsWith('POST /auth/v1/verify'))).toBe(true);
+  });
+
   test('a used or expired link says so and offers a new email', async ({ page }) => {
     const sb = new MockSupabase(page);
     await sb.install();

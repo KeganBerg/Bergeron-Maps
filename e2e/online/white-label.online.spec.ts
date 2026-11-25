@@ -87,6 +87,7 @@ test('an admin sets up a company from a contract and deletes one by typing its n
   const sb = new MockSupabase(page);
   await sb.install(USERS.admin);
   await page.goto('/#/admin');
+  await page.getByTestId('admin-tool-setup').click();
   await page.getByTestId('setup-name').fill('New Company');
   await page.getByTestId('setup-lead').fill('Lead@Company.example');
   await page.getByTestId('setup-limit').fill('3');
