@@ -1,9 +1,9 @@
 import { createDb, type Db } from './db';
-import { friendly } from '../errors/friendly';
+import { verifyProblem, type SignInProblem } from './signInProblem';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
-const LINK_PROBLEM = 'That sign-in link didn’t work. It may have expired or already been used (some work email systems open links to scan them). Enter your email for a new link, or type the code from the email instead.';
+const LINK_PROBLEM: SignInProblem = { kind: 'link' };
 const AUTH_ERROR_KEYS = ['error', 'error_code', 'error_description'];
 
 /**
@@ -11,7 +11,7 @@ const AUTH_ERROR_KEYS = ['error', 'error_code', 'error_description'];
  * error in the address. Read it once, before anything else looks at the
  * address, and remove it so the hash router doesn't mistake it for a site link.
  */
-function takeLinkErrorFromUrl(): string | null {
+function takeLinkErrorFromUrl(): SignInProblem | null {
   if (typeof window === 'undefined') return null;
   const u = new URL(window.location.href);
   const hash = new URLSearchParams(u.hash.slice(1));
@@ -56,7 +56,7 @@ let emailLink = takeEmailLinkFromUrl();
 export const pendingEmailLink = () => emailLink;
 
 /** Uses the sign-in link from the email. On success the session appears and the app moves on. */
-export async function finishEmailLink(): Promise<string | null> {
+export async function finishEmailLink(): Promise<SignInProblem | null> {
   if (!supabase || !emailLink) return LINK_PROBLEM;
   const { tokenHash, type } = emailLink;
   const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
@@ -64,28 +64,17 @@ export async function finishEmailLink(): Promise<string | null> {
     emailLink = null;
     return null;
   }
-  if (/fetch|network/i.test(error.message)) return friendly(error);
-  emailLink = null;
-  return LINK_PROBLEM;
+  const problem = verifyProblem(error, 'link');
+  // Offline: keep the link so Finish signing in can be pressed again.
+  if (problem.kind !== 'offline') emailLink = null;
+  return problem;
 }
 
 /** The code printed in the sign-in email, typed on the “Check your email” screen. */
-export async function signInWithCode(email: string, code: string): Promise<string | null> {
-  if (!supabase) return 'Sign-in isn’t available here.';
+export async function signInWithCode(email: string, code: string): Promise<SignInProblem | null> {
+  if (!supabase) return { kind: 'unavailable' };
   const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
-  if (!error) return null;
-  if (/fetch|network/i.test(error.message)) return friendly(error);
-  return 'That code didn’t work. Check it against the newest email (each new email replaces the last code), or send a new one.';
-}
-
-/** Messages for the errors Supabase gives when it can't send the sign-in email. */
-export function sendProblem(e: { message?: string } | null): string {
-  const m = e?.message ?? '';
-  if (/rate limit/i.test(m)) return 'Too many sign-in emails were sent. Wait a minute and try again.';
-  if (/only request this after (\d+) seconds/i.test(m)) return `A sign-in email was just sent. Wait ${m.match(/after (\d+) seconds/i)![1]} seconds before asking for another.`;
-  if (/error sending|smtp|mail/i.test(m)) return 'We couldn’t send the sign-in email just now. Try again in a few minutes, or contact support@bergeronmaps.com if it keeps happening.';
-  if (/signups not allowed/i.test(m)) return 'This email doesn’t have an account yet. Ask your manager or admin to add it.';
-  return friendly(e);
+  return error ? verifyProblem(error, 'badCode') : null;
 }
 
 /**
@@ -93,7 +82,7 @@ export function sendProblem(e: { message?: string } | null): string {
  * covers a link opened in another browser: the code in the address can only
  * be used by the browser that asked for it, so it is still there, unused.
  */
-export function takeSignInProblem(): string | null {
+export function takeSignInProblem(): SignInProblem | null {
   const u = new URL(window.location.href);
   if (u.searchParams.has('code')) {
     u.searchParams.delete('code');

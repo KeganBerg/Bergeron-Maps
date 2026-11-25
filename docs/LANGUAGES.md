@@ -17,7 +17,9 @@ attendants, security) read another language first.
   translated. Only the words around them are. A symbol nobody named ("Elevator") is shown in the
   reader's language.
 - The editor, admin pages, emails, the marketing site and Bergeron Maps University are English only
-  for now. Sign-in error messages that come from the server are English too.
+  for now. Sign-in errors are translated too: `src/cloud/signInProblem.ts` turns the server's
+  English error into a reason, and each language says it (`signInProblem`). Only an error that
+  matches no known reason shows the server's English, and only to English readers.
 
 ## Code
 

@@ -1,4 +1,6 @@
 import type { Messages } from './en';
+import { joinWith } from '../model/words';
+import { SUPPORT_EMAIL } from '../support';
 
 /**
  * Tagalog. Machine-drafted: a native speaker should review it before it's
@@ -84,6 +86,8 @@ export const tl: Messages = {
     wayTo: (way, floor) => `${WAY[way][0].toUpperCase()}${WAY[way].slice(1)} sa ${floor}`,
     places: 'Mga lugar',
     row: (a, b) => `Hanay: puwesto ${span(a, b)}`,
+    parts: joinWith(', '),
+    list: joinWith(', '),
     otherSpaces: (a, b) => `Iba pang puwesto: ${span(a, b)}`,
   },
   language: 'Wika',
@@ -201,4 +205,20 @@ export const tl: Messages = {
   tryWithoutAccount: 'Subukan nang walang account',
   enterEmail: 'Ilagay ang iyong email sa trabaho.',
   enterCode: 'Ilagay ang code mula sa email. Ito ay may 6 na numero.',
+  emailExample: 'name@company.com',
+  signInProblem: (p) => {
+    switch (p.kind) {
+      case 'link': return 'Hindi gumana ang link para mag-sign in. Maaaring nag-expire na ito o nagamit na (may mga email system sa trabaho na nagbubukas ng mga link para i-scan ang mga ito). Ilagay ang iyong email para sa bagong link, o i-type na lang ang code mula sa email.';
+      case 'badCode': return 'Hindi gumana ang code na iyan. Ihambing ito sa pinakabagong email (pinapalitan ng bawat bagong email ang naunang code), o magpadala ng bago.';
+      case 'unavailable': return 'Hindi puwedeng mag-sign in dito.';
+      case 'tooMany': return 'Masyadong maraming email para mag-sign in ang naipadala. Maghintay ng isang minuto at subukan ulit.';
+      case 'wait': return `Kapapadala lang ng email para mag-sign in. Maghintay ng ${p.seconds} segundo bago humingi ng isa pa.`;
+      case 'sendFailed': return `Hindi namin maipadala ang email para mag-sign in ngayon. Subukan ulit pagkalipas ng ilang minuto, o makipag-ugnayan sa ${SUPPORT_EMAIL} kung patuloy itong mangyari.`;
+      case 'noAccount': return 'Wala pang account ang email na ito. Pakisabihan ang iyong manager o admin na idagdag ito.';
+      case 'offline': return 'Hindi maabot ang server. Tingnan ang iyong koneksyon at subukan ulit.';
+      case 'other': return 'Nagkaroon ng problema. Tingnan ang iyong koneksyon at subukan ulit.';
+      case 'enterEmail': return tl.enterEmail;
+      case 'enterCode': return tl.enterCode;
+    }
+  },
 };

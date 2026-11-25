@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import type { SignInProblem } from '../cloud/signInProblem';
 import { ASSET_BY_KEY } from '../assets/library';
 import { en, type Messages } from './en';
 import { LANGUAGES, matchLanguage, pickLanguage } from './languages';
 import { MESSAGES } from './useLanguage';
 
 /** Every sentence a language can say, with a marker in each blank so we can check names and numbers come through. */
+const SIGN_IN_PROBLEMS: SignInProblem[] = [
+  ...(['link', 'badCode', 'unavailable', 'tooMany', 'sendFailed', 'noAccount', 'offline', 'enterEmail', 'enterCode'] as const).map((kind) => ({ kind })),
+  { kind: 'wait', seconds: 42 },
+  { kind: 'other', message: 'Server says no' },
+];
+
 function allTexts(t: Messages): { key: string; text: string; args: string[] }[] {
   const out: { key: string; text: string; args: string[] }[] = [];
   const add = (key: string, v: unknown) => {
@@ -20,6 +27,8 @@ function allTexts(t: Messages): { key: string; text: string; args: string[] }[] 
       else if (/^(manyResults|results|listCount|spaceCount|saySideView)$/.test(key)) [1, 7].forEach((n) => call(n));
       else if (key === 'routeSummary') call(120, 2, 'QX2');
       else if (key === 'walkLength') call('QX0', 120);
+      else if (/words\.(parts|list)$/.test(key)) out.push({ key, text: v(['QX0', undefined, 'QX1']), args: ['QX0', 'QX1'] });
+      else if (key === 'signInProblem') SIGN_IN_PROBLEMS.forEach((p) => out.push({ key, text: v(p), args: [] }));
       else if (key === 'sayRoute') { call('QX0', 120, 1, 1); call('QX0', 120, 3, 4); }
       else call(...args);
     } else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) if (k !== 'symbol') add(`${key ? `${key}.` : ''}${k}`, x);

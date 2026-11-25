@@ -97,7 +97,7 @@ export function SideViewDrawing({ model, width, currentId, accent = '#d97706', o
               if (!(mark?.space && mark.level === i && Math.abs(cx + 13 - mx) < 22)) cars.push(cx);
             }
           }
-        const label = [f.name, current ? t.shownNow : '', f.spaces ? t.spaceCount(f.spaces) : ''].filter(Boolean).join(', ');
+        const label = t.words.parts([f.name, current && t.shownNow, f.spaces > 0 && t.spaceCount(f.spaces)]);
         return (
           <g key={f.id} className={`sv-floor${current ? ' current' : ''}`} data-floor={f.id}
             {...(onPick ? { role: 'button', tabIndex: 0, 'aria-label': t.open(label), 'aria-current': current || undefined, onClick: () => onPick(f.id), onKeyDown: key(f.id) } : {})}>
@@ -177,7 +177,7 @@ export function SideViewSheet({ model, currentId, title, onPick, onClose }: {
       </div>
       <p className="side-view-key muted" data-testid="side-view-key">
         {kinds.length
-          ? [...kinds.map((k) => t[k]), model.route ? t.yourRoute : ''].filter(Boolean).join(', ')
+          ? t.words.parts([t.words.list(kinds.map((k) => t[k])), model.route && t.yourRoute])
           : t.noConnections}
       </p>
     </div>
