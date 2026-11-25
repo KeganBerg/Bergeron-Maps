@@ -133,6 +133,8 @@ main .wrap { padding-top: 32px; padding-bottom: 72px; }
 .callout .ic { flex: none; width: 32px; height: 32px; border-radius: 6px; background: var(--sign); color: var(--ink); display: grid; place-items: center; }
 .callout b { display: block; }
 .callout span { color: var(--muted); font-size: var(--fs-sm); }
+.callout a { color: var(--ink); text-decoration: underline; }
+.bmu { margin-top: 24px; }
 
 /* term: two choices side by side */
 .terms { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 420px; }

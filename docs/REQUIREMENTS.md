@@ -215,6 +215,7 @@ Last updated: 2026-11-24. Rows marked Tested are covered by automated tests that
 | K-2 | Organization: maps grouped by site, publish status on every map | `home/HomePage.tsx` | e2e: editor.spec | Implemented |
 | K-3 | Simple, centered layout; Level signage look by default | `styles.css`, `theme.ts` | screenshots | Implemented |
 | K-4 | Phones: dialogs fit the screen (no iOS zoom) | `styles.css` (16px inputs) | manual on iPhone | Implemented |
+| K-5 | Bergeron Maps University: training videos, common questions and support for every location, linked from the app and shown as included on the purchase page | `scripts/site-university.mjs` writes `site/university/`; account menu link in `cloud/AccountMenu.tsx`; purchase page callout | unit: university.test, siteClaims.test | Implemented |
 
 ## White-label roles and site workflow (2026-11-12)
 

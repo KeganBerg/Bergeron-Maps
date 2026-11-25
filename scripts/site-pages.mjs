@@ -2,10 +2,12 @@
 //  - site/index.html: the header and footer between <!--NAV-->…<!--/NAV--> and <!--FOOT-->…<!--/FOOT--> are rewritten.
 //  - site/industries/<slug>/index.html: one page per industry, written from INDUSTRIES below.
 //  - site/404.html: the shared header between <!--NAV-->…<!--/NAV-->.
+//  - site/university/: Bergeron Maps University, the training hub (scripts/site-university.mjs).
 //  - site/sitemap.xml
 // Runs in `npm run build:site`. Clips and stills come from the real app (scripts/industry-shots/clips.mjs).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { hubPage, videoPages } from './site-university.mjs';
 
 const SITE = 'https://bergeronmaps.com/';
 const home = readFileSync('site/index.html', 'utf8');
@@ -220,6 +222,7 @@ function footer(p) {
         <div class="label text-white/60">Company</div>
         <a class="inline-block py-1 hover:text-white" href="${p}#contact">Get your map now</a>
         <a class="inline-block py-1 hover:text-white" href="${p}app/">Sign in</a>
+        <a class="inline-block py-1 hover:text-white" href="${p}university/">Bergeron Maps University</a>
         <a class="inline-block py-1 hover:text-white" href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a>
         <a class="inline-block py-1 hover:text-white" href="${p}.well-known/security.txt">Report a security issue</a>
         <a class="inline-block py-1 hover:text-white" href="${p}accessibility/">Accessibility</a>
@@ -528,7 +531,16 @@ function build() {
   mkdirSync('site/accessibility', { recursive: true });
   writeFileSync('site/accessibility/index.html', accessibilityPage());
 
-  const urls = [SITE, ...INDUSTRIES.map((i) => `${SITE}industries/${i.slug}/`), `${SITE}accessibility/`];
+  const shell = { header, footer, icons: HEAD_ICONS };
+  writeFileSync('site/university/index.html', hubPage(SITE, shell));
+  const lessons = videoPages(SITE, shell);
+  for (const v of lessons) {
+    mkdirSync(`site/university/${v.slug}`, { recursive: true });
+    writeFileSync(`site/university/${v.slug}/index.html`, v.html);
+  }
+
+  const urls = [SITE, ...INDUSTRIES.map((i) => `${SITE}industries/${i.slug}/`), `${SITE}accessibility/`,
+    `${SITE}university/`, ...lessons.map((v) => `${SITE}university/${v.slug}/`)];
   writeFileSync('site/sitemap.xml', [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
