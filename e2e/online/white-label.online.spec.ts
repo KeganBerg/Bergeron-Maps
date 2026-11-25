@@ -45,6 +45,7 @@ test('the account lead moves a site manager to another site', async ({ page }) =
   const sb = new MockSupabase(page);
   await sb.install(USERS.owner);
   await page.goto('/#/team');
+  await page.getByTestId(`more-${USERS.siteManager.email}`).click();
   await page.getByTestId(`move-${USERS.siteManager.email}`).click();
   await page.getByTestId('move-to').selectOption(SITE_B.id);
   await page.getByTestId('move-confirm').click();
@@ -112,9 +113,11 @@ test('a site that still has maps cannot be deleted; the admin is told how to cle
   sb.maps.push({ id: 'a0000000-0000-4000-8000-000000000004', company_id: COMPANY.id, facility_id: SITE_A.id, name: 'Garage', draft: createMap('Garage') as never, revision: 1, slot: 1 });
   await sb.install(USERS.admin);
   await page.goto('/#/admin');
+  await page.getByTestId(`more-site-${SITE_A.name}`).click();
   await page.getByTestId(`delete-site-${SITE_A.name}`).click();
   await expect(page.getByRole('dialog')).toContainText('can’t be deleted while it holds maps');
   await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByTestId(`more-site-${SITE_B.name}`).click();
   await page.getByTestId(`delete-site-${SITE_B.name}`).click();
   await page.getByRole('button', { name: 'Delete site' }).click();
   await expect(page.getByTestId(`admin-site-${SITE_B.name}`)).toHaveCount(0);
@@ -124,6 +127,7 @@ test('an admin removes a person; they are signed out', async ({ page }) => {
   const sb = new MockSupabase(page);
   await sb.install(USERS.admin);
   await page.goto('/#/admin');
+  await page.getByTestId(`more-${COMPANY.name}-${USERS.employee.email}`).click();
   await page.getByTestId(`remove-${COMPANY.name}-${USERS.employee.email}`).click();
   await page.getByRole('button', { name: 'Remove access' }).click();
   await expect(page.getByRole('status')).toContainText(`${USERS.employee.email} removed`);

@@ -67,14 +67,15 @@ test('a site manager sees Remove only where it works, and removing a shared empl
   await sb.install(USERS.siteManager);
   await page.goto('/#/team');
   await expect(page.getByText(USERS.siteManager.email)).toBeVisible();
-  // Not on themselves.
-  await expect(page.getByTestId(`remove-${USERS.siteManager.email}`)).toHaveCount(0);
+  // Not on themselves: their row has no actions at all.
+  await expect(page.getByTestId(`more-${USERS.siteManager.email}`)).toHaveCount(0);
+  await page.getByTestId(`more-${USERS.employee.email}`).click();
   const remove = page.getByTestId(`remove-${USERS.employee.email}`);
   await expect(remove).toHaveText('Remove from my sites');
   await remove.click();
   await expect(page.getByRole('dialog')).toContainText(`They lose access to ${SITE_A.name} right away. They keep their other sites.`);
   await page.getByRole('button', { name: 'Remove access' }).click();
-  await expect(page.getByTestId(`remove-${USERS.employee.email}`)).toHaveCount(0);
+  await expect(page.getByTestId(`person-${USERS.employee.email}`)).toHaveCount(0);
   expect(sb.members.find((m) => m.email === USERS.employee.email)?.facility_ids).toEqual([SITE_B.id]);
   expect(sb.signedOut).toEqual([]);
 });
@@ -86,7 +87,10 @@ test('Copy public link shows only for a site with a public live map', async ({ p
   sb.published.set('a0000000-0000-4000-8000-000000000001', { isPublic: true });
   await sb.install(USERS.owner);
   await page.goto('/#/team');
+  await page.getByTestId(`more-site-${SITE_B.name}`).click();
   await expect(page.getByTestId(`public-link-${SITE_B.name}`)).toBeVisible();
+  await page.getByTestId(`more-site-${SITE_A.name}`).click();
+  await expect(page.getByTestId(`edit-link-${SITE_A.name}`)).toBeVisible();
   await expect(page.getByTestId(`public-link-${SITE_A.name}`)).toHaveCount(0);
 });
 
@@ -94,7 +98,8 @@ test('a site link can’t be renamed to a page of the app', async ({ page }) => 
   const sb = new MockSupabase(page);
   await sb.install(USERS.owner);
   await page.goto('/#/team');
-  await page.getByTestId(`team-site-${SITE_A.name}`).getByRole('button', { name: 'Edit link' }).click();
+  await page.getByTestId(`more-site-${SITE_A.name}`).click();
+  await page.getByTestId(`edit-link-${SITE_A.name}`).click();
   await page.getByTestId('slug-input').fill('Locations');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('alert')).toContainText('“locations” is used by the app itself');

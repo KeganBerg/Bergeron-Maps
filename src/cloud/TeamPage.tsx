@@ -3,6 +3,9 @@ import { AppHeader } from '../home/HomePage';
 import { useRoute } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
+import { MoreMenu } from '../ui/MoreMenu';
+import { Toast } from '../ui/Toast';
+import { PeopleTable } from './PeopleTable';
 import { useMotion } from '../ui/motion';
 import { friendly, supabase } from './client';
 import { publicSiteLink } from './PublicSitePage';
@@ -102,7 +105,6 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const motion = useMotion();
   const listMotion = useMotion();
   const requestMotion = useMotion();
-  const peopleMotion = useMotion();
   const peopleCard = useMotion();
   const accessForm = useMotion();
   const [find, setFind] = useState(() => query.get('q') ?? '');
@@ -112,7 +114,6 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const companyName = newName?.id === company ? newName.name : membership.companyName;
   const f = find.trim().toLowerCase();
   const shownSites = f ? sites.filter((x) => x.name.toLowerCase().includes(f) || x.slug.includes(f) || codes[x.id]?.toLowerCase() === f) : sites;
-  const shownMembers = members && f ? members.filter((m) => m.email.includes(f) || describe(m, sites).toLowerCase().includes(f)) : members;
 
   const saveLink = async () => {
     if (!editingLink) return;
@@ -284,10 +285,13 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
             placeholder="Search sites, people or a join code" aria-label="Search sites and people" data-testid="team-search" />
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
-        {note && <p className="ok-text" role="status">{note}</p>}
-        {note && invite?.note === note && (
-          <button className="btn small" onClick={() => copy(invite.text, 'Invite message')} data-testid="copy-invite">Copy invite message</button>
-        )}
+        {/* After Give access the message to send stays in the page with its Copy button; other results are a passing notice. */}
+        {note && invite?.note === note ? (
+          <div className="ok-text invite-note" role="status">
+            <span>{note}</span>
+            <button className="btn small" onClick={() => copy(invite.text, 'Invite message')} data-testid="copy-invite">Copy invite message</button>
+          </div>
+        ) : <Toast note={note} onClose={() => setNote(null)} />}
 
         <div className="team-cols">
           <div className="team-col">
@@ -320,20 +324,14 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                       )}
                     </span>
                     <span className="site-actions">
+                      {codes[s.id] && <span className="code-chip" title="Employee join code">{codes[s.id]}</span>}
                       <button className="btn small" onClick={() => copy(siteLink(s.slug), 'Site link')}>Copy link</button>
-                      {publicSites.has(s.id) && (
-                        <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
-                          title="Opens this site’s public maps without signing in." data-testid={`public-link-${s.name}`}>Copy public link</button>
-                      )}
-                      {full && editingLink?.id !== s.id && (
-                        <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>
-                      )}
-                      {codes[s.id] && (
-                        <>
-                          <span className="code-chip" title="Employee join code">{codes[s.id]}</span>
-                          <button className="btn small" onClick={() => setRotating(s)}>New code</button>
-                        </>
-                      )}
+                      <MoreMenu label={`More for ${s.name}`} testId={`more-site-${s.name}`} items={[
+                        ...(publicSites.has(s.id) ? [{ label: 'Copy public link', onClick: () => copy(publicSiteLink(s.slug), 'Public link'),
+                          title: 'Opens this site’s public maps without signing in.', testId: `public-link-${s.name}` }] : []),
+                        ...(full && editingLink?.id !== s.id ? [{ label: 'Edit link', onClick: () => setEditingLink({ id: s.id, value: s.slug }), testId: `edit-link-${s.name}` }] : []),
+                        ...(codes[s.id] ? [{ label: 'New join code', onClick: () => setRotating(s), testId: `new-code-${s.name}` }] : []),
+                      ]} />
                     </span>
                   </li>
                 ))}
@@ -396,38 +394,19 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                 <button className="btn primary" disabled={!email.trim() || (access !== 'regional' && !siteId)}>Give access</button>
               </form>
             </section>
-
-            <section className="panel-card" ref={peopleCard}>
-              <h3>People</h3>
-              {shownMembers === null ? <p className="muted">Loading…</p> : (
-                <ul className="people" ref={peopleMotion}>
-                  {f && shownMembers.length === 0 && <li className="muted small">Nobody matches “{find.trim()}”.</li>}
-                  {shownMembers.map((m) => (
-                    <li key={m.email}>
-                      <span>
-                        <strong>{m.email}</strong>
-                        <span className="muted small">{describe(m, sites)}{m.pending ? ' (hasn’t signed in yet)' : ''}</span>
-                      </span>
-                      {(canRemove(m) || (full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1)) && (
-                        <span className="site-actions">
-                          {full && m.facility_ids !== null && sites.length > 1 && (
-                            <button className="btn small" onClick={() => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' })}
-                              data-testid={`move-${m.email}`}>Move</button>
-                          )}
-                          {canRemove(m) && (
-                            <button className="btn small danger-text" onClick={() => setRemoving(m)} data-testid={`remove-${m.email}`}>
-                              {onlyMySites(m) ? 'Remove from my sites' : 'Remove'}
-                            </button>
-                          )}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
           </div>
         </div>
+
+        <section className="panel-card" ref={peopleCard}>
+          <h3>People</h3>
+          <PeopleTable people={members} sites={sites} find={f} actions={(m) => [
+            ...(full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1
+              ? [{ label: 'Move to another site', testId: `move-${m.email}`,
+                onClick: () => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' }) }]
+              : []),
+            ...(canRemove(m) ? [{ label: onlyMySites(m) ? 'Remove from my sites' : 'Remove access', danger: true, testId: `remove-${m.email}`, onClick: () => setRemoving(m) }] : []),
+          ]} />
+        </section>
       </main>
       {removing && (
         <ConfirmDialog title={`Remove ${removing.email}?`} confirmLabel="Remove access" danger onCancel={() => setRemoving(null)} onConfirm={() => void remove(removing)}

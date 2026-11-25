@@ -14,6 +14,7 @@ test('an admin renames a company and a site from All accounts', async ({ page })
   await expect(page.getByTestId('admin-company-Harbor Parking')).toBeVisible();
   expect(sb.companies.find((c) => c.id === COMPANY.id)?.name).toBe('Harbor Parking');
 
+  await page.getByTestId(`more-site-${SITE_A.name}`).click();
   await page.getByTestId(`rename-site-${SITE_A.name}`).click();
   // Two sites in one company can't share a name.
   await page.getByTestId('rename-site-input').fill(SITE_B.name.toUpperCase());

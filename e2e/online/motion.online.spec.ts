@@ -8,7 +8,7 @@ const giveAccess = async (page: import('@playwright/test').Page) => {
   await expect(page.getByText('employee@example.com')).toBeVisible();
   await page.getByPlaceholder('name@company.com').fill('new.person@example.com');
   await page.getByRole('button', { name: 'Give access' }).click();
-  await expect(page.locator('.people li', { hasText: 'new.person@example.com' })).toHaveCount(1);
+  await expect(page.getByTestId('person-new.person@example.com')).toHaveCount(1);
 };
 
 test('a new person row fades in and the removed one fades out where it was', async ({ page }) => {
@@ -27,13 +27,14 @@ test('a new person row fades in and the removed one fades out where it was', asy
   });
   await giveAccess(page);
   const seen = () => page.evaluate(() => (window as unknown as { seen: string[] }).seen);
-  await expect.poll(async () => (await seen()).some((s) => s.startsWith('LI:new.person@example.com'))).toBe(true);
+  await expect.poll(async () => (await seen()).some((s) => s.startsWith('TR:new.person@example.com'))).toBe(true);
 
+  await page.getByTestId('more-employee@example.com').click();
   await page.getByTestId('remove-employee@example.com').click();
   await page.getByRole('button', { name: 'Remove access' }).click();
   // The fading copy is hidden from tests and screen readers, and is gone after the fade.
   await expect(page.getByTestId('remove-employee@example.com')).toHaveCount(0);
-  await expect(page.getByRole('listitem').filter({ hasText: 'employee@example.com' })).toHaveCount(0);
+  await expect(page.getByTestId('person-employee@example.com')).toHaveCount(0);
   await expect(page.locator('[data-motion-exit]')).toHaveCount(0);
 });
 

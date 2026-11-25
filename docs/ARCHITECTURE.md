@@ -29,7 +29,8 @@ src/
   cloud/      Online mode: Supabase client, SupabaseRepository, sign-in, team, admin pages
               (All accounts: AdminPage holds the companies list, AdminCompanyPane one company, AdminTools setup and backups;
               its search and pane choice are in model/adminAccounts.ts)
-  ui/         Shared UI pieces: dialogs, fields, icons, brand, motion (useMotion: admin pages ease in/out)
+  ui/         Shared UI pieces: dialogs, fields, icons, brand, motion (useMotion: admin pages ease in/out),
+              MoreMenu (a row's less-used actions), Toast (result notices that fade out)
   errors/     Friendly error messages and optional error reports
 supabase/
   migrations/ The database schema, in order (source of truth)

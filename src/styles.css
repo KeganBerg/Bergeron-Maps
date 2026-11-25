@@ -206,12 +206,15 @@ input[type='color'] { width: 44px; height: 30px; padding: 2px; border: 1px solid
 .map-add:hover strong { text-decoration: underline; }
 .map-add:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 /* Save slots: every site shows its numbered slots, filled or empty, in one row on desktop. */
-.slot-grid { grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 12px; }
+.slot-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .slot-grid .map-open { padding: 12px 12px 10px; }
 .slot-grid .map-open strong { font-size: var(--fs-lg); }
 .slot-grid .card-actions { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
-.slot-grid .map-add { justify-content: flex-start; padding: 12px; }
-.slot-grid .map-card-empty .map-add strong { margin-top: auto; }
+.slot-grid .map-add { padding: 12px; }
+.slot-grid .map-card-empty .map-add { justify-content: center; align-items: center; text-align: center; min-height: 180px; }
+/* Map picture at the top of each card (home/MapThumb.tsx): the lot's layout at a glance. */
+.map-thumb { height: 120px; margin: -12px -12px 10px; background: var(--hover-2); border-bottom: 1px solid var(--border); display: flex; }
+.map-thumb svg { width: 100%; height: 100%; padding: 8px; box-sizing: border-box; }
 .card-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin-bottom: 6px; }
 .card-top .pub-pill { margin-bottom: 0; }
 .slot-num { font-size: var(--fs-xs); font-weight: var(--fw-bold); color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -221,7 +224,7 @@ input[type='color'] { width: 44px; height: 30px; padding: 2px; border: 1px solid
 .site-note { margin: -6px 0 12px; font-size: var(--fs-md); color: var(--muted); }
 @media (max-width: 600px) {
   .slot-grid .map-card-empty { min-height: 0; }
-  .slot-grid .map-card-empty .map-add strong { margin-top: 2px; }
+  .slot-grid .map-card-empty .map-add { min-height: 72px; }
 }
 .trash-list { list-style: none; padding: 0; margin: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
 .trash-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -974,3 +977,48 @@ h1, h2, h3, h4, .trash-list strong, .site-meta { overflow-wrap: anywhere; }
 .side-view-key { margin: 0; padding: 6px 14px 12px; font-size: var(--fs-md); }
 @media (min-width: 900px) { .dir-sheet.side-view { width: 640px; } }
 @media print { .side-view { display: none; } }
+
+/* "More" menu on list rows (ui/MoreMenu.tsx): a row's less-used actions. */
+.more { position: relative; display: inline-flex; }
+.more-btn { padding: 4px 6px; }
+.more-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; min-width: 190px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); padding: 4px; display: flex; flex-direction: column; }
+.more-menu button { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 4px; cursor: pointer; color: inherit; font: inherit; white-space: nowrap; }
+.more-menu button:hover, .more-menu button:focus-visible { background: var(--hover); outline: none; }
+.more-menu button.danger-text { color: var(--danger); }
+.more-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+
+/* Result notices (ui/Toast.tsx): bottom right on wide screens, across the bottom on phones. */
+.toast { position: fixed; right: 24px; bottom: 24px; z-index: 60; display: flex; align-items: center; gap: 10px; max-width: min(440px, calc(100vw - 32px)); box-sizing: border-box;
+  padding: 10px 10px 10px 14px; background: var(--text); color: var(--panel); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); line-height: var(--lh-body); }
+.toast-icon { flex: none; color: #86efac; }
+.toast-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast-close { flex: none; color: inherit; background: none; border: 0; opacity: 0.75; }
+.toast-close:hover { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: toast-in 180ms ease-out; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+@media (max-width: 600px) { .toast { left: 16px; right: 16px; bottom: 16px; max-width: none; } }
+
+/* Tables (People on Sites and people): filters above, a plain grid of rows, actions at the end. */
+.table-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.table-filters select { min-width: 0; }
+.table-filters .muted { margin-left: auto; }
+.data-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.data-table th { text-align: left; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border-strong); }
+.data-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; overflow-wrap: break-word; }
+.data-table th:first-child, .data-table td:first-child { padding-left: 0; }
+.data-table th:last-child, .data-table td:last-child { padding-right: 0; }
+.data-table tbody tr:hover { background: var(--hover-2); }
+.cell-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.cell-actions { width: 1%; text-align: right; white-space: nowrap; }
+.status-tag { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: #92400e; background: #fef3c7; border-radius: 3px; padding: 1px 6px; }
+/* Narrow: each row stacks; access and sites become small labelled lines. */
+@media (max-width: 600px) {
+  .data-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .data-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .data-table td { border: 0; padding: 0; }
+  .data-table td.cell-person { grid-column: 1; }
+  .data-table td.cell-actions { grid-column: 2; grid-row: 1 / span 3; align-self: center; width: auto; }
+  .data-table td[data-label] { grid-column: 1; font-size: var(--fs-sm); color: var(--muted); }
+  .data-table td[data-label]::before { content: attr(data-label) ': '; }
+}
+.invite-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }

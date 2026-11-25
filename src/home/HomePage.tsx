@@ -9,6 +9,7 @@ import { navigate } from '../router';
 import { friendly } from '../errors/friendly';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { NewMapDialog } from './NewMapDialog';
+import { MapThumb } from './MapThumb';
 import { Icon } from '../ui/icons';
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -203,6 +204,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
             {groupBySite(maps, sites).map(([site, list]) => {
               const { slots, extra } = slotLayout(list);
               const full = list.length >= SITE_MAP_SLOTS;
+              const freeSlot = full ? 0 : slots.findIndex((m) => !m) + 1;
               const live = list.filter((m) => m.publishedAt).length;
               const spaces = list.reduce((n, m) => n + m.spaceCount, 0);
               const card = (m: MapSummary, label: string) => {
@@ -210,6 +212,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                 return (
                   <li key={m.id} className="map-card map-card-filled" data-testid={`slot-${site}-${m.slot ?? 'extra'}`}>
                     <button className="map-open" onClick={() => navigate(`/edit/${m.id}`)} data-testid={`open-${m.name}`}>
+                      <MapThumb repo={repo} id={m.id} revision={m.revision} />
                       <span className="card-top">
                         <span className="slot-num">{label}</span>
                         <span className={`pub-pill ${st.tone}`}>{st.text}</span>
@@ -256,20 +259,17 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
                   </header>
                   {full && <p className="site-note" data-testid={`slots-full-${site}`}>{SLOTS_FULL}</p>}
                   <ul className="map-grid slot-grid" ref={grids(site)}>
-                    {slots.map((m, i) =>
-                      m ? card(m, `Slot ${i + 1}`) : (
-                        <li key={`empty-${i}`} className="map-card map-card-empty" data-testid={`slot-${site}-${i + 1}`}>
-                          <button className="map-add" onClick={() => setCreating({ site, slot: i + 1 })} disabled={full}>
-                            <span className="slot-num">Slot {i + 1}</span>
-                            {list.length === 0 && i === 0 ? (
-                              <><Icon name="plus" size={18} /><strong>Add the first map</strong><span>Build one from a few numbers in about a minute.</span></>
-                            ) : (
-                              <><strong>Empty</strong><span>Add a map here</span></>
-                            )}
-                            <span className="sr-only"> ({site})</span>
-                          </button>
-                        </li>
-                      ),
+                    {slots.map((m, i) => m && card(m, `Slot ${i + 1}`))}
+                    {/* One tile for adding, in the first free slot, instead of a dashed box for every empty slot. */}
+                    {freeSlot > 0 && (
+                      <li className="map-card map-card-empty" data-testid={`slot-${site}-${freeSlot}`}>
+                        <button className="map-add" onClick={() => setCreating({ site, slot: freeSlot })}>
+                          <Icon name="plus" size={18} />
+                          <strong>{list.length === 0 ? 'Add the first map' : 'Add a map'}</strong>
+                          <span>{list.length === 0 ? 'Build one from a few numbers in about a minute.' : `${plural(SITE_MAP_SLOTS - list.length, 'slot')} free`}</span>
+                          <span className="sr-only"> ({site})</span>
+                        </button>
+                      </li>
                     )}
                     {extra.map((m) => card(m, 'No slot'))}
                   </ul>

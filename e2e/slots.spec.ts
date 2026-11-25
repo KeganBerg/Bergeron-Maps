@@ -19,7 +19,9 @@ test('each site shows 5 save slots and blocks a sixth map and a third published 
   await seed(page, 'North Garage', ['Level A', 'Level B', 'Level C'], 2);
   const site = page.getByTestId('site-North Garage');
   await expect(page.getByTestId('site-meta-North Garage')).toContainText('3 of 5 slots used, 2 of 2 published');
-  await expect(site.getByTestId('slot-North Garage-4')).toContainText('Empty');
+  // One tile adds a map in the first free slot, instead of a box for every empty slot.
+  await expect(site.getByTestId('slot-North Garage-4')).toContainText('2 slots free');
+  await expect(site.locator('li.map-card-empty')).toHaveCount(1);
   await expect(site.locator('li.map-card-filled')).toHaveCount(3);
 
   // Publishing a third map is refused with a plain explanation.

@@ -8,6 +8,7 @@ import { navigate, useRoute } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
 import { useMotion } from '../ui/motion';
+import { Toast } from '../ui/Toast';
 import { AdminCompanyPane } from './AdminCompanyPane';
 import { BackupsPanel, SetupCompanyPanel } from './AdminTools';
 import { backupCompany, backupFileName, serializeBackup } from './backup';
@@ -204,7 +205,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
           <div className="admin-detail" ref={detailMotion}>
             <a href="#/admin" className="link back-link admin-back"><Icon name="back" size={16} /> All companies</a>
             {error && <p className="error-text" role="alert">{error}</p>}
-            {note && <p className="ok-text" role="status">{note}</p>}
+            <Toast note={note} onClose={() => setNote(null)} />
             {working && <p className="muted small" role="status" data-testid="backup-working">{working}…</p>}
             {data === null && !error && <p className="muted">Loading…</p>}
             {data && pane?.kind === 'company' && (
