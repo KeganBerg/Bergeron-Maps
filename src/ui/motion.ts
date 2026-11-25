@@ -9,6 +9,10 @@ import { useCallback, useRef } from 'react';
  * - children that shift because something above them changed slide to their new place;
  * - the container's own height eases to its new size, so whatever sits below it glides too.
  *
+ * What is already there when a page opens doesn't move: the page as a whole fades in once
+ * (`.home-main` in styles.css), so switching pages in the side bar is one calm step instead of
+ * every card and row rising in on its own.
+ *
  * It only uses opacity, transform and a short height change, eased out, the way established SaaS
  * products move. Nothing plays for people who ask their device for less motion, nor where the
  * browser has no Web Animations (tests in jsdom). A container inside another one handles its own
@@ -52,12 +56,12 @@ function layoutOffset(el: HTMLElement): { top: number; left: number } {
 const MARK = 'motion';
 
 export interface MotionOptions {
-  /** Also bring in the children that are there when the container first shows. Default true. */
+  /** Also bring in the children that are there when the container first shows. Default false (see the top of this file). */
   appear?: boolean;
 }
 
 /** Turns on layout motion for one container. See the top of this file. */
-export function attachMotion(container: HTMLElement, { appear = true }: MotionOptions = {}): () => void {
+export function attachMotion(container: HTMLElement, { appear = false }: MotionOptions = {}): () => void {
   if (typeof MutationObserver === 'undefined') return () => {};
   container.dataset[MARK] = '';
   // Leaving children are drawn in place with absolute positioning, so the container holds them.

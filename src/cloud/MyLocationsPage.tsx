@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Toast } from '../ui/Toast';
 import { useMotion } from '../ui/motion';
 import { AppHeader } from '../home/HomePage';
 import { navigate } from '../router';
@@ -127,7 +128,7 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
           </p>
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
-        {note && <p className="ok-text" role="status">{note}</p>}
+        <Toast note={note} onClose={() => setNote(null)} />
         {paused.map((name) => (
           <p key={name} className="error-text" role="status" data-testid="paused-account">
             {name}’s Bergeron Maps service is paused because a payment didn’t go through. Its maps come back as soon as it’s paid.

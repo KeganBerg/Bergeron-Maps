@@ -3,6 +3,9 @@ import { AppHeader } from '../home/HomePage';
 import { useRoute } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
 import { Icon } from '../ui/icons';
+import { MoreMenu } from '../ui/MoreMenu';
+import { Toast } from '../ui/Toast';
+import { PeopleTable } from './PeopleTable';
 import { useMotion } from '../ui/motion';
 import { friendly, supabase } from './client';
 import { publicSiteLink } from './PublicSitePage';
@@ -67,6 +70,10 @@ function describe(m: Member, sites: Site[]): string {
   return `${m.role === 'manager' ? 'Site manager' : 'Employee'}, ${where}`;
 }
 
+/** What the page last showed for a company, so coming back to it draws at once while it reloads. */
+interface TeamData { sites: Site[]; codes: Record<string, string>; members: Member[] | null; maxSites: number | null; requests: ManagerRequest[]; publicSites: Set<string> }
+const lastSeen = new Map<string, TeamData>();
+
 /**
  * Sites and people for one company. Access is given by email to specific
  * sites; each site has a link for its managers and a code for employees.
@@ -78,12 +85,14 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
 }) {
   const company = membership.companyId;
   const full = canManageCompany(membership);
-  const [sites, setSites] = useState<Site[]>([]);
-  const [codes, setCodes] = useState<Record<string, string>>({});
-  const [members, setMembers] = useState<Member[] | null>(null);
+  const seenKey = `${myEmail}:${company}:${membership.role}:${membership.siteIds?.join(',') ?? '*'}`;
+  const [seen] = useState(() => lastSeen.get(seenKey));
+  const [sites, setSites] = useState<Site[]>(seen?.sites ?? []);
+  const [codes, setCodes] = useState<Record<string, string>>(seen?.codes ?? {});
+  const [members, setMembers] = useState<Member[] | null>(seen?.members ?? null);
   const [email, setEmail] = useState('');
   const [access, setAccess] = useState<Access>('site-manager');
-  const [siteId, setSiteId] = useState('');
+  const [siteId, setSiteId] = useState(seen?.sites[0]?.id ?? '');
   const [newSite, setNewSite] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -92,17 +101,16 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
   const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
-  const [maxSites, setMaxSites] = useState<number | null>(null);
-  const [requests, setRequests] = useState<ManagerRequest[]>([]);
+  const [maxSites, setMaxSites] = useState<number | null>(seen?.maxSites ?? null);
+  const [requests, setRequests] = useState<ManagerRequest[]>(seen?.requests ?? []);
   const [moving, setMoving] = useState<{ member: Member; from: string; to: string } | null>(null);
   const [replacing, setReplacing] = useState<{ member: Member; role: Role; ids: string[] | null } | null>(null);
   /** Sites with at least one public, live map: only those have a public link worth sending. */
-  const [publicSites, setPublicSites] = useState<Set<string>>(new Set());
+  const [publicSites, setPublicSites] = useState<Set<string>>(seen?.publicSites ?? new Set());
   const { query } = useRoute();
   const motion = useMotion();
   const listMotion = useMotion();
   const requestMotion = useMotion();
-  const peopleMotion = useMotion();
   const peopleCard = useMotion();
   const accessForm = useMotion();
   const [find, setFind] = useState(() => query.get('q') ?? '');
@@ -113,7 +121,6 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const companyName = newName?.id === company ? newName.name : membership.companyName;
   const f = find.trim().toLowerCase();
   const shownSites = f ? sites.filter((x) => x.name.toLowerCase().includes(f) || x.slug.includes(f) || codes[x.id]?.toLowerCase() === f) : sites;
-  const shownMembers = members && f ? members.filter((m) => m.email.includes(f) || describe(m, sites).toLowerCase().includes(f)) : members;
 
   const saveLink = async () => {
     if (!editingLink) return;
@@ -131,34 +138,41 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
     await load();
   };
 
+  /** Everything the page shows, asked for at once and shown together, so the page fills in one step rather than in waves. */
   const load = async () => {
     const db = supabase!;
     const s = await db.from('facilities').select('id, name, slug, address').eq('company_id', company).order('name');
     if (s.error) return setError(friendly(s.error));
     const list = (s.data ?? []) as Site[];
     const mine = membership.siteIds === null ? list : list.filter((x) => membership.siteIds!.includes(x.id));
-    setSites(mine);
-    setSiteId((cur) => cur || mine[0]?.id || '');
-    const c: Record<string, string> = {};
-    await Promise.all(mine.map(async (x) => {
-      const r = await db.rpc('get_join_code', { p_facility: x.id });
-      if (!r.error) c[x.id] = r.data as string;
-    }));
-    setCodes(c);
-    const pub = await db.from('maps').select('facility_id, is_public, published_maps(map_id)').eq('company_id', company).eq('is_public', true).is('deleted_at', null);
+    const [codeList, pub, contract, pending, m] = await Promise.all([
+      Promise.all(mine.map(async (x) => {
+        const r = await db.rpc('get_join_code', { p_facility: x.id });
+        return [x.id, r.error ? null : r.data as string] as const;
+      })),
+      db.from('maps').select('facility_id, is_public, published_maps(map_id)').eq('company_id', company).eq('is_public', true).is('deleted_at', null),
+      full ? db.from('companies').select('max_sites').eq('id', company).maybeSingle() : null,
+      full ? db.from('manager_requests').select('id, email, facility_id, note, created_at').eq('company_id', company).eq('status', 'pending').order('created_at') : null,
+      db.rpc('list_members', { p_company: company }),
+    ]);
     const pubRows = (pub.data ?? []) as unknown as { facility_id: string; is_public: boolean; published_maps: unknown }[];
-    setPublicSites(new Set(pubRows.filter((r) => r.is_public && r.published_maps).map((r) => r.facility_id)));
-    if (full) {
-      const [c, q] = await Promise.all([
-        db.from('companies').select('max_sites').eq('id', company).maybeSingle(),
-        db.from('manager_requests').select('id, email, facility_id, note, created_at').eq('company_id', company).eq('status', 'pending').order('created_at'),
-      ]);
-      setMaxSites((c.data as { max_sites: number | null } | null)?.max_sites ?? null);
-      setRequests((q.data ?? []) as ManagerRequest[]);
-    }
-    const m = await db.rpc('list_members', { p_company: company });
+    const next: TeamData = {
+      sites: mine,
+      codes: Object.fromEntries(codeList.filter((c): c is readonly [string, string] => c[1] !== null)),
+      publicSites: new Set(pubRows.filter((r) => r.is_public && r.published_maps).map((r) => r.facility_id)),
+      maxSites: (contract?.data as { max_sites: number | null } | null | undefined)?.max_sites ?? null,
+      requests: (pending?.data ?? []) as ManagerRequest[],
+      members: m.error ? members : m.data as Member[],
+    };
+    setSites(next.sites);
+    setSiteId((cur) => cur || mine[0]?.id || '');
+    setCodes(next.codes);
+    setPublicSites(next.publicSites);
+    setMaxSites(next.maxSites);
+    setRequests(next.requests);
     if (m.error) setError(friendly(m.error));
-    else setMembers(m.data as Member[]);
+    else setMembers(next.members);
+    lastSeen.set(seenKey, next);
   };
   useEffect(() => { void load(); }, [company]);
 
@@ -285,10 +299,13 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
             placeholder="Search sites, people or a join code" aria-label="Search sites and people" data-testid="team-search" />
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
-        {note && <p className="ok-text" role="status">{note}</p>}
-        {note && invite?.note === note && (
-          <button className="btn small" onClick={() => copy(invite.text, 'Invite message')} data-testid="copy-invite">Copy invite message</button>
-        )}
+        {/* After Give access the message to send stays in the page with its Copy button; other results are a passing notice. */}
+        {note && invite?.note === note ? (
+          <div className="ok-text invite-note" role="status">
+            <span>{note}</span>
+            <button className="btn small" onClick={() => copy(invite.text, 'Invite message')} data-testid="copy-invite">Copy invite message</button>
+          </div>
+        ) : <Toast note={note} onClose={() => setNote(null)} />}
 
         <div className="team-cols">
           <div className="team-col">
@@ -325,23 +342,15 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                       )}
                     </span>
                     <span className="site-actions">
+                      {codes[s.id] && <span className="code-chip" title="Employee join code">{codes[s.id]}</span>}
                       <button className="btn small" onClick={() => copy(siteLink(s.slug), 'Site link')}>Copy link</button>
-                      {publicSites.has(s.id) && (
-                        <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
-                          title="Opens this site’s public maps without signing in." data-testid={`public-link-${s.name}`}>Copy public link</button>
-                      )}
-                      {full && renamingSite !== s.id && (
-                        <button className="btn small" onClick={() => setRenamingSite(s.id)} data-testid={`rename-${s.name}`}>Rename</button>
-                      )}
-                      {full && editingLink?.id !== s.id && (
-                        <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>
-                      )}
-                      {codes[s.id] && (
-                        <>
-                          <span className="code-chip" title="Employee join code">{codes[s.id]}</span>
-                          <button className="btn small" onClick={() => setRotating(s)}>New code</button>
-                        </>
-                      )}
+                      <MoreMenu label={`More for ${s.name}`} testId={`more-site-${s.name}`} items={[
+                        ...(publicSites.has(s.id) ? [{ label: 'Copy public link', onClick: () => copy(publicSiteLink(s.slug), 'Public link'),
+                          title: 'Opens this site’s public maps without signing in.', testId: `public-link-${s.name}` }] : []),
+                        ...(full && renamingSite !== s.id ? [{ label: 'Rename', onClick: () => setRenamingSite(s.id), testId: `rename-${s.name}` }] : []),
+                        ...(full && editingLink?.id !== s.id ? [{ label: 'Edit link', onClick: () => setEditingLink({ id: s.id, value: s.slug }), testId: `edit-link-${s.name}` }] : []),
+                        ...(codes[s.id] ? [{ label: 'New join code', onClick: () => setRotating(s), testId: `new-code-${s.name}` }] : []),
+                      ]} />
                     </span>
                   </li>
                 ))}
@@ -404,38 +413,19 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                 <button className="btn primary" disabled={!email.trim() || (access !== 'regional' && !siteId)}>Give access</button>
               </form>
             </section>
-
-            <section className="panel-card" ref={peopleCard}>
-              <h3>People</h3>
-              {shownMembers === null ? <p className="muted">Loading…</p> : (
-                <ul className="people" ref={peopleMotion}>
-                  {f && shownMembers.length === 0 && <li className="muted small">Nobody matches “{find.trim()}”.</li>}
-                  {shownMembers.map((m) => (
-                    <li key={m.email}>
-                      <span>
-                        <strong>{m.email}</strong>
-                        <span className="muted small">{describe(m, sites)}{m.pending ? ' (hasn’t signed in yet)' : ''}</span>
-                      </span>
-                      {(canRemove(m) || (full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1)) && (
-                        <span className="site-actions">
-                          {full && m.facility_ids !== null && sites.length > 1 && (
-                            <button className="btn small" onClick={() => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' })}
-                              data-testid={`move-${m.email}`}>Move</button>
-                          )}
-                          {canRemove(m) && (
-                            <button className="btn small danger-text" onClick={() => setRemoving(m)} data-testid={`remove-${m.email}`}>
-                              {onlyMySites(m) ? 'Remove from my sites' : 'Remove'}
-                            </button>
-                          )}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
           </div>
         </div>
+
+        <section className="panel-card" ref={peopleCard}>
+          <h3>People</h3>
+          <PeopleTable people={members} sites={sites} find={f} actions={(m) => [
+            ...(full && m.role !== 'owner' && m.facility_ids !== null && sites.length > 1
+              ? [{ label: 'Move to another site', testId: `move-${m.email}`,
+                onClick: () => setMoving({ member: m, from: m.facility_ids![0], to: sites.find((x) => !m.facility_ids!.includes(x.id))?.id ?? '' }) }]
+              : []),
+            ...(canRemove(m) ? [{ label: onlyMySites(m) ? 'Remove from my sites' : 'Remove access', danger: true, testId: `remove-${m.email}`, onClick: () => setRemoving(m) }] : []),
+          ]} />
+        </section>
       </main>
       {removing && (
         <ConfirmDialog title={`Remove ${removing.email}?`} confirmLabel="Remove access" danger onCancel={() => setRemoving(null)} onConfirm={() => void remove(removing)}
