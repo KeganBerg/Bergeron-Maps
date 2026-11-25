@@ -126,7 +126,7 @@ ${para(link
     ? 'The button below signs you straight in. It works once, within an hour. After that, sign in with this email address and we email you a new link, so there is no password to remember.'
     : `Sign in with this email address (${esc(o.email)}). We email you a sign-in link, so there is no password to remember.`)}
 ${button(esc(link || fallback), 'Sign in to Bergeron Maps')}
-<p style="margin:16px 0 24px;font-size:14px;line-height:1.5;color:#555555;">Your first location is called "First location". Rename it and start your first map, or reply to this email and we'll help.</p>`);
+<p style="margin:16px 0 24px;font-size:14px;line-height:1.5;color:#555555;">Your first location is called "First location". Rename it and start your first map. For help, call <a href="tel:+18025783856" style="color:#0b0b0b;">(802) 578-3856</a> or reply to this email.</p>`);
   return sendEmail(env, send, {
     to: [o.email],
     subject: 'Your Bergeron Maps account is open',

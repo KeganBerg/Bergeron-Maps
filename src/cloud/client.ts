@@ -83,7 +83,7 @@ export function sendProblem(e: { message?: string } | null): string {
   const m = e?.message ?? '';
   if (/rate limit/i.test(m)) return 'Too many sign-in emails were sent. Wait a minute and try again.';
   if (/only request this after (\d+) seconds/i.test(m)) return `A sign-in email was just sent. Wait ${m.match(/after (\d+) seconds/i)![1]} seconds before asking for another.`;
-  if (/error sending|smtp|mail/i.test(m)) return 'We couldn’t send the sign-in email just now. Try again in a few minutes, or contact bergeronmaps@gmail.com if it keeps happening.';
+  if (/error sending|smtp|mail/i.test(m)) return 'We couldn’t send the sign-in email just now. Try again in a few minutes, or contact support@bergeronmaps.com if it keeps happening.';
   if (/signups not allowed/i.test(m)) return 'This email doesn’t have an account yet. Ask your manager or admin to add it.';
   return friendly(e);
 }

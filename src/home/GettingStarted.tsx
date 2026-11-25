@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { gettingStartedSteps, showGettingStarted } from '../model/gettingStarted';
 import { navigate } from '../router';
+import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_TEL } from '../support';
 import { Icon } from '../ui/icons';
 
 const HIDDEN_KEY = 'bm-getting-started-hidden';
@@ -39,8 +40,7 @@ export function GettingStarted({ sites, maps, onBuild }: {
         ))}
       </ol>
       <p className="muted small gs-help">
-        Need a hand? Email <a href="mailto:bergeronmaps@gmail.com?subject=Help%20setting%20up%20Bergeron%20Maps">bergeronmaps@gmail.com</a> and
-        we&apos;ll walk you through it, or set up a call.
+        Need a hand? Call <a href={`tel:${SUPPORT_TEL}`}>{SUPPORT_PHONE}</a> or email <a href={`mailto:${SUPPORT_EMAIL}?subject=Help%20setting%20up%20Bergeron%20Maps`}>{SUPPORT_EMAIL}</a> and we&apos;ll walk you through it.
       </p>
     </section>
   );

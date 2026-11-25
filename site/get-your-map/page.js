@@ -147,7 +147,7 @@
         }),
       }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (out) {
         $('t-send').disabled = false;
-        if (!out.success) return fail($('t-err'), "That didn't send. Please email bergeronmaps@gmail.com instead.");
+        if (!out.success) return fail($('t-err'), "That didn't send. Please call (802) 578-3856 or email sales@bergeronmaps.com instead.");
         $('t-to').textContent = email; $('talk-form').hidden = true; $('talk-done').hidden = false; $('talk-done').focus();
       }, function () { $('t-send').disabled = false; fail($('t-err'), "That didn't send. Check your connection and try again."); });
     });
@@ -173,7 +173,7 @@
           if (out.success && out.url) { show(3); location.href = out.url; return; }
           btn.disabled = false; btn.textContent = 'Continue to secure payment';
           var msg = out.error === 'Not open yet' || out.error === 'Not set up'
-            ? 'Online payment isn’t open yet. Email bergeronmaps@gmail.com and we’ll set up your order.'
+            ? 'Online payment isn’t open yet. Call (802) 578-3856 or email sales@bergeronmaps.com and we’ll set up your order.'
             : (out.error || 'Something went wrong.') + '.';
           fail(err, msg.replace(/\.\.$/, '.'));
         }, function () {

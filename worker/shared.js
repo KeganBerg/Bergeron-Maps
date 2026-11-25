@@ -16,7 +16,7 @@ export const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 export const FONT = 'font-family:Arial,Helvetica,sans-serif;';
 
 /** Same frame as the sign-in emails in supabase/email-templates/: logo bar, white card, small footer. */
-const FOOTER = '<a href="https://bergeronmaps.com" style="color:#777777;">bergeronmaps.com</a><br>Questions? Email <a href="mailto:bergeronmaps@gmail.com" style="color:#777777;">bergeronmaps@gmail.com</a>';
+const FOOTER = '<a href="https://bergeronmaps.com" style="color:#777777;">bergeronmaps.com</a><br>Questions? Email <a href="mailto:support@bergeronmaps.com" style="color:#777777;">support@bergeronmaps.com</a>';
 
 export function shell(inner, footer = FOOTER) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light only"></head>

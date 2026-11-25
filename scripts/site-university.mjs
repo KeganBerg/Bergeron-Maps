@@ -70,7 +70,7 @@ export const FAQ = [
 ];
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const SUPPORT = 'bergeronmaps@gmail.com';
+const SUPPORT = 'support@bergeronmaps.com';
 // The primary support line (Kegan, 2026-11-25). Shown as written; the link dials the US number.
 const PHONE = { shown: '(802) 578-3856', dial: '+18025783856' };
 const file = (slug, ext) => `site/university/videos/${slug}.${ext}`;

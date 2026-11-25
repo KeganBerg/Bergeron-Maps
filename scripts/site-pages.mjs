@@ -223,7 +223,7 @@ function footer(p) {
         <a class="inline-block py-1 hover:text-white" href="${p}#contact">Get your map now</a>
         <a class="inline-block py-1 hover:text-white" href="${p}app/">Sign in</a>
         <a class="inline-block py-1 hover:text-white" href="${p}university/">Bergeron Maps University</a>
-        <a class="inline-block py-1 hover:text-white" href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a>
+        <a class="inline-block py-1 hover:text-white" href="mailto:support@bergeronmaps.com">support@bergeronmaps.com</a>
         <a class="inline-block py-1 hover:text-white" href="${p}.well-known/security.txt">Report a security issue</a>
         <a class="inline-block py-1 hover:text-white" href="${p}accessibility/">Accessibility</a>
       </nav>
@@ -357,7 +357,7 @@ function industryPage(ind) {
           <h2 class="h2">${esc(ind.why)}</h2>
           <p class="mt-6 text-lg text-ink/70">${esc(ind.whySub)}</p>
           ${ind.note ? `<p class="mt-6 border-l-2 border-sign pl-4 text-ink/70">${esc(ind.note)}</p>` : ''}
-          ${ind.unique ? `<div class="mt-10 flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:bergeronmaps@gmail.com" class="btn border border-ink/40 hover:border-ink">Contact us</a></div>` : ''}
+          ${ind.unique ? `<div class="mt-10 flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:sales@bergeronmaps.com" class="btn border border-ink/40 hover:border-ink">Contact us</a></div>` : ''}
         </div>
         <dl class="divide-y divide-ink/15 border-y border-ink/15 lg:col-span-6 lg:col-start-7">
           ${pts}
@@ -396,7 +396,7 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
           <p class="mt-6 max-w-xl text-lg">${esc(ind.cta)}</p>
         </div>
         <div class="flex flex-col justify-end gap-4 lg:col-span-4 lg:col-start-9">
-          <div class="flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:bergeronmaps@gmail.com" class="btn border border-ink/50 hover:border-ink">Contact us</a></div>
+          <div class="flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:sales@bergeronmaps.com" class="btn border border-ink/50 hover:border-ink">Contact us</a></div>
           <p class="text-sm text-ink/70">Other industries: <span class="others">${others}</span></p>
         </div>
       </div>
@@ -490,7 +490,7 @@ function accessibilityPage() {
             ])}
           </ul>
           <h2 class="h2 mt-14">Tell us about a problem</h2>
-          <p class="mt-6 text-lg text-ink/80">If something on a map or this site doesn&rsquo;t work for you, email <a class="underline" href="mailto:bergeronmaps@gmail.com?subject=Accessibility">bergeronmaps@gmail.com</a> with the page and what happened, and we&rsquo;ll work on a fix.</p>
+          <p class="mt-6 text-lg text-ink/80">If something on a map or this site doesn&rsquo;t work for you, email <a class="underline" href="mailto:support@bergeronmaps.com?subject=Accessibility">support@bergeronmaps.com</a> with the page and what happened, and we&rsquo;ll work on a fix.</p>
           <p class="mt-6 text-ink/60">Last reviewed November 2026, against WCAG 2.1 AA, with automated checks in every color theme and by hand with a keyboard.</p>
         </div>
       </div>

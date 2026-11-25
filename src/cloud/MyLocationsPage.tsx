@@ -132,7 +132,7 @@ export function MyLocationsPage({ email, account, nav, accessKey = '', onChanged
         {paused.map((name) => (
           <p key={name} className="error-text" role="status" data-testid="paused-account">
             {name}’s Bergeron Maps service is paused because a payment didn’t go through. Its maps come back as soon as it’s paid.
-            Questions? Email <a href="mailto:bergeronmaps@gmail.com">bergeronmaps@gmail.com</a>.
+            Questions? Email <a href="mailto:support@bergeronmaps.com">support@bergeronmaps.com</a>.
           </p>
         ))}
 
