@@ -21,7 +21,7 @@ Live: the marketing site is <https://bergeronmaps.com> and the app is <https://b
 | `supabase/migrations/` | The database: tables, row-level security and functions, in order. The source of truth for the schema. |
 | `supabase/tests/` | Database tests (permissions, concurrency, backups) run against a real Postgres. |
 | `e2e/` | Playwright browser tests (Chrome, Safari, Firefox; desktop and phone). `e2e/online/` runs the online app against a mock Supabase. |
-| `site/` | The marketing site (plain HTML, Tailwind). Built by `npm run build:site`. |
+| `site/` | The marketing site (plain HTML, Tailwind). Built by `npm run build:site`. Includes Bergeron Maps University (`site/university/`), the training hub with the tutorial videos, common questions and how to get help. |
 | `scripts/` | Build, deploy, screenshot, load-test and uptime scripts, and the tutorial videos (`scripts/tutorials/`). |
 | `docs/` | Architecture, runbooks and rules (see below). |
 

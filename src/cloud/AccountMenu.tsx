@@ -62,6 +62,12 @@ export function AccountMenu({ email, memberships = [], current, onSwitch }: {
             <strong>My Locations</strong>
             <span className="muted small">Every site you belong to. Join another site with its code.</span>
           </button>
+          {/* The training hub is a page of the marketing site (scripts/site-university.mjs), so it
+              opens in a new tab and the map someone is working on stays open here. */}
+          <a role="menuitem" className="menu-item-2" href="/university/" target="_blank" rel="noopener" onClick={() => setOpen(false)} data-testid="menu-university">
+            <strong>Bergeron Maps University</strong>
+            <span className="muted small">Training videos, common questions and help.</span>
+          </a>
           <button role="menuitem" onClick={() => void signOutHere()} data-testid="sign-out">
             Sign out
           </button>
