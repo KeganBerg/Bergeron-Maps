@@ -678,7 +678,7 @@ button.brand { background: none; border: 0; padding: 0; color: inherit; cursor: 
 .account { position: relative; }
 /* "Company" over the name, so the header button can't be mistaken for a site. */
 .account-btn { display: inline-flex; align-items: center; gap: 10px; padding-top: 6px; padding-bottom: 6px; text-align: left; }
-.account-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; line-height: 1.15; }
+.account-text { display: flex; flex-direction: column; gap: 0; min-width: 0; line-height: 1.2; }
 .account-kind { font-size: var(--fs-xs); font-weight: var(--fw-semibold); opacity: 0.7; }
 .account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-caret { flex: none; opacity: 0.8; }
