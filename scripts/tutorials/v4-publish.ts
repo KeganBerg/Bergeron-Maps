@@ -9,9 +9,11 @@ export const video: Video = {
   setup: (server) => addGarage(server, false),
   beats: [
     {
+      cue: 'The title card has just faded to the Maps page. Nothing moves yet.',
       say: 'In this video you’ll check your map the way your team will see it, then publish it so they can use it.',
     },
     {
+      cue: 'The pointer moves to Main garage and clicks it.',
       say: 'Open your map from the Maps page.',
       do: async (s) => {
         await s.pause(800);
@@ -20,13 +22,15 @@ export const video: Video = {
       },
     },
     {
-      say: 'Everything you do in the editor saves as a draft. Your team doesn’t see it until you publish. The Publish button shows where things stand.',
+      cue: 'The editor has opened. The pointer moves to the yellow Publish button.',
+      say: 'Everything you do in the editor saves as a draft. Your team doesn’t see it until you publish. The Publish button shows if your changes are published.',
       do: async (s) => {
         await s.pause(2500);
         await s.moveTo(s.page.getByTestId('publish'), 1000);
       },
     },
     {
+      cue: 'The pointer goes to Preview and clicks it.',
       say: 'First, choose Preview. This is exactly what your employees will see.',
       do: async (s) => {
         await s.click(s.page.getByTestId('preview'), 1000);
@@ -34,8 +38,9 @@ export const video: Video = {
       },
     },
     {
-      say: 'Try it the way they would. Search for a space, like 1 B 5, and the map shows where it is.',
-      caption: 'Try it the way they would. Search for a space, like 1B5, and the map shows where it is.',
+      cue: 'The employee view is open. The pointer goes to the search box and types 1B5.',
+      say: 'Try it like they would. Search for a space, like 1 B 5, and the map shows where it is.',
+      caption: 'Try it like they would. Search for a space, like 1B5, and the map shows where it is.',
       do: async (s) => {
         await s.pause(1500);
         await s.type(s.page.getByTestId('viewer-search'), '1B5', 250);
@@ -44,6 +49,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'Space 1B5 is shown. The pointer goes to the Floor 2 tab.',
       say: 'Check the other floors with the tabs at the bottom.',
       do: async (s) => {
         await s.pause(500);
@@ -51,6 +57,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to Back to editing in the yellow bar.',
       say: 'If something needs fixing, choose Back to editing.',
       do: async (s) => {
         await s.click(
@@ -63,6 +70,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The editor is back. The pointer goes to Publish and clicks it.',
       say: 'When it looks right, choose Publish. Your team now sees this version.',
       do: async (s) => {
         await s.pause(1200);
@@ -71,6 +79,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The green Published note shows. The pointer double-clicks a space at the top right.',
       say: 'If you change the map later, the button says Publish changes. Your team keeps seeing the last published version until you publish again.',
       do: async (s) => {
         await s.pause(2000);
@@ -86,6 +95,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The space now says Visitor. The pointer clicks Publish changes.',
       say: 'Choose Publish changes when you’re ready.',
       do: async (s) => {
         await s.click(s.page.getByTestId('publish'), 700);
@@ -93,6 +103,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to All maps. The Maps page opens.',
       say: 'Back on the Maps page, the map shows as published.',
       do: async (s) => {
         await s.click(s.page.getByRole('button', { name: 'All maps' }), 900);
@@ -102,7 +113,8 @@ export const video: Video = {
       },
     },
     {
-      say: 'Each site holds up to five maps, and two of them can be published at a time. For example, your everyday layout and an event layout.',
+      cue: 'The pointer moves to the slots line next to Sample Garage. Last line.',
+      say: 'Each site holds up to five maps, and one of them can be published at a time. You can keep the others as spare layouts, for example for an event.',
       do: async (s) => {
         await s.moveTo(s.page.getByText(/of 5 slots used/).first(), 1000);
       },
