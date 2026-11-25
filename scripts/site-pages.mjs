@@ -357,7 +357,7 @@ function industryPage(ind) {
           <h2 class="h2">${esc(ind.why)}</h2>
           <p class="mt-6 text-lg text-ink/70">${esc(ind.whySub)}</p>
           ${ind.note ? `<p class="mt-6 border-l-2 border-sign pl-4 text-ink/70">${esc(ind.note)}</p>` : ''}
-          ${ind.unique ? `<div class="mt-10 flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:support@bergeronmaps.com" class="btn border border-ink/40 hover:border-ink">Contact us</a></div>` : ''}
+          ${ind.unique ? `<div class="mt-10 flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:sales@bergeronmaps.com" class="btn border border-ink/40 hover:border-ink">Contact us</a></div>` : ''}
         </div>
         <dl class="divide-y divide-ink/15 border-y border-ink/15 lg:col-span-6 lg:col-start-7">
           ${pts}
@@ -396,7 +396,7 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
           <p class="mt-6 max-w-xl text-lg">${esc(ind.cta)}</p>
         </div>
         <div class="flex flex-col justify-end gap-4 lg:col-span-4 lg:col-start-9">
-          <div class="flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:support@bergeronmaps.com" class="btn border border-ink/50 hover:border-ink">Contact us</a></div>
+          <div class="flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:sales@bergeronmaps.com" class="btn border border-ink/50 hover:border-ink">Contact us</a></div>
           <p class="text-sm text-ink/70">Other industries: <span class="others">${others}</span></p>
         </div>
       </div>

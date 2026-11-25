@@ -25,9 +25,9 @@
   function failSend() {
     err.innerHTML = '';
     var a = document.createElement('a');
-    a.href = 'mailto:support@bergeronmaps.com';
+    a.href = 'mailto:sales@bergeronmaps.com';
     a.className = 'underline underline-offset-4';
-    a.textContent = 'support@bergeronmaps.com';
+    a.textContent = 'sales@bergeronmaps.com';
     err.append("Your request didn't go through. Please try again in a minute, or email us at ", a, '.');
     err.classList.remove('hidden');
   }
