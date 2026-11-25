@@ -21,7 +21,8 @@ export function takeReturnRoute(): string | null {
  * admin or manager added.
  */
 export function SignInPage({ siteLink }: { siteLink: boolean }) {
-  const [email, setEmail] = useState('');
+  // The purchase page sends new buyers here with ?email=, so the address they paid with is filled in.
+  const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get('email')?.slice(0, 200) ?? '');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(takeSignInProblem);

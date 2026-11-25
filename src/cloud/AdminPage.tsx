@@ -208,7 +208,7 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
             {working && <p className="muted small" role="status" data-testid="backup-working">{working}…</p>}
             {data === null && !error && <p className="muted">Loading…</p>}
             {data && pane?.kind === 'company' && (
-              <AdminCompanyPane key={pane.company.id} company={pane.company} email={email} working={!!working} act={act}
+              <AdminCompanyPane key={pane.company.id} company={pane.company} maps={maps} email={email} working={!!working} act={act}
                 onRenamed={(was, name) => void renamed(was, name)} onOpen={onOpen} onDownload={() => void download([pane.company])}
                 onDeleteSite={(site) => setDeletingSite({ company: pane.company, site })}
                 onDeleteCompany={() => { setConfirmName(''); setDeletingCompany(pane.company); }}

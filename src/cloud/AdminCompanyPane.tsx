@@ -4,6 +4,7 @@ import { useMotionGroup } from '../ui/motion';
 import { supabase } from './client';
 import { RenameForm } from './rename';
 import { siteLink } from './TeamPage';
+import { siteReview, type ReviewMap, type SiteReview } from '../model/siteReview';
 
 export const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
@@ -12,8 +13,10 @@ export const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateStr
  * and people, with the admin's actions on each. Changes go through `act`,
  * which shows the result and reloads the page's data.
  */
-export function AdminCompanyPane({ company: c, email, working, act, onRenamed, onOpen, onDownload, onDeleteSite, onDeleteCompany, onRemovePerson }: {
+export function AdminCompanyPane({ company: c, maps, email, working, act, onRenamed, onOpen, onDownload, onDeleteSite, onDeleteCompany, onRemovePerson }: {
   company: AdminCompany;
+  /** Every company's maps, for the map names and flags under each site (model/siteReview.ts). */
+  maps: ReviewMap[];
   /** The signed-in admin, who can't remove themselves. */
   email: string;
   /** True while a backup or picture move runs; backup buttons wait for it. */
@@ -119,6 +122,7 @@ export function AdminCompanyPane({ company: c, email, working, act, onRenamed, o
                     </span>
                   )}
                   <span className="muted small site-url">{siteLink(s.slug)}</span>
+                  <SiteReviewLine review={siteReview(s, maps)} />
                 </span>
                 <span className="site-actions">
                   <span className="muted small">{s.maps} {s.maps === 1 ? 'map' : 'maps'}, {s.published} published{s.public ? `, ${s.public} public` : ''}</span>
@@ -171,5 +175,16 @@ export function AdminCompanyPane({ company: c, email, working, act, onRenamed, o
         <button className="btn small danger-text" onClick={onDeleteCompany} data-testid={`delete-company-${c.name}`}>Delete company</button>
       </div>
     </section>
+  );
+}
+
+/** Map names on a site, plus a flag when it might hold a second location (model/siteReview.ts). */
+function SiteReviewLine({ review }: { review: SiteReview }) {
+  if (!review.mapNames.length && !review.flag) return null;
+  return (
+    <span className="small site-review">
+      {review.flag && <strong className="warning-text">{review.flag}. </strong>}
+      {review.mapNames.length > 0 && <span className="muted">Maps: {review.mapNames.join(', ')}</span>}
+    </span>
   );
 }

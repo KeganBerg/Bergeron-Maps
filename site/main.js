@@ -56,11 +56,11 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         Name: name,
-        Company: company || 'Not given',
+        Company: company,
         'Work email': email,
         Industry: industry,
         'Number of sites': val('sites'),
-        'Anything else': val('message') || '(nothing)',
+        'Anything else': val('message'),
         Page: location.href
       })
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return r.ok && String(j.success) === 'true'; }); })

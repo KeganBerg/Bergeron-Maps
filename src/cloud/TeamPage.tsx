@@ -107,6 +107,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const accessForm = useMotion();
   const [find, setFind] = useState(() => query.get('q') ?? '');
   const [renamingCompany, setRenamingCompany] = useState(false);
+  const [renamingSite, setRenamingSite] = useState<string | null>(null);
   /** The new company name, shown until the reloaded access carries it. */
   const [newName, setNewName] = useState<{ id: string; name: string } | null>(null);
   const companyName = newName?.id === company ? newName.name : membership.companyName;
@@ -302,7 +303,11 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                 {shownSites.map((s) => (
                   <li key={s.id} data-testid={`team-site-${s.name}`}>
                     <span className="site-name">
-                      <strong>{s.name}</strong>
+                      {renamingSite === s.id ? (
+                        <RenameForm kind="site" id={s.id} current={s.name} others={sites.filter((x) => x.id !== s.id).map((x) => x.name)}
+                          onCancel={() => setRenamingSite(null)}
+                          onDone={(name) => { setRenamingSite(null); setNote(`Site renamed to ${name}. Its link and join code stay the same.`); void load(); }} />
+                      ) : <strong>{s.name}</strong>}
                       {s.address && <span className="muted small">{s.address}</span>}
                       {editingLink?.id === s.id ? (
                         <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveLink(); }}>
@@ -324,6 +329,9 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                       {publicSites.has(s.id) && (
                         <button className="btn small" onClick={() => copy(publicSiteLink(s.slug), 'Public link')}
                           title="Opens this site’s public maps without signing in." data-testid={`public-link-${s.name}`}>Copy public link</button>
+                      )}
+                      {full && renamingSite !== s.id && (
+                        <button className="btn small" onClick={() => setRenamingSite(s.id)} data-testid={`rename-${s.name}`}>Rename</button>
                       )}
                       {full && editingLink?.id !== s.id && (
                         <button className="btn small" onClick={() => setEditingLink({ id: s.id, value: s.slug })}>Edit link</button>

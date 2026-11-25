@@ -10,7 +10,8 @@ async function seed(page: Page, floors: number, names?: string[]) {
     const { repository } = await import('/src/storage/indexedDbRepository.ts');
     const doc = createQuickLot('Side Garage', { floors, rows: 2, spacesPerRow: 8, accessible: 0 });
     if (names) doc.floors.forEach((f, i) => { f.name = names[i] ?? f.name; });
-    await repository.createMap(doc);
+    // Its own site each time: a site has only one live map.
+    await repository.createMap(doc, `Side Garage ${floors}`);
     await repository.publishMap(doc.id);
     return doc.id;
   }, { floors, names });
