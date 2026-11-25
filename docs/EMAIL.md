@@ -8,7 +8,8 @@ What the app and site send, and the one-time setup that makes those emails arriv
 | --- | --- | --- | --- |
 | Sign-in link and code (existing person) | Supabase Auth, **Magic Link** template | Supabase's sender until custom SMTP is set up | The only email the app sends. |
 | Sign-in link and code (first sign-in for an email) | Supabase Auth, **Confirm signup** template | same | Same flow; Supabase picks this template the first time an email signs in. |
-| Contact form lead ("Get your map now") | The site's Worker (`worker/index.js`, `POST /api/contact`) through Resend | Bergeron Maps website &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com; press Reply to answer the visitor. Needs the `RESEND_API_KEY` secret in Cloudflare (section 5). |
+| Talk to Alex lead (purchase page) | The site's Worker (`worker/index.js`, `POST /api/contact`) through Resend | Bergeron Maps website &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com; press Reply to answer the visitor. Needs the `RESEND_API_KEY` secret in Cloudflare (section 5). |
+| Quote ("Request a quote" on the purchase page) | `worker/quote.js`, `POST /api/quote`, through Resend | Bergeron Maps website &lt;noreply@bergeronmaps.com&gt; | The quote goes to the customer (replies come to bergeronmaps@gmail.com) and a copy to bergeronmaps@gmail.com with the customer as reply-to. Only numbers checked by the Worker go in the customer's email. |
 
 | Access given ("You now have access to Site Name") | The site's Worker (`worker/index.js`, `POST /api/access`) through Resend, right after **Give access** on Sites and people | Bergeron Maps &lt;noreply@bergeronmaps.com&gt; | Says where to go (the site link for one site) and how to sign in. The Worker checks the manager's own sign-in and that the person is on their team, and writes the email itself. Uses the same `RESEND_API_KEY` as the form. |
 | Order notices to the company ("New order paid: Company", payment failed, canceled, refund, dispute) | The site's Worker (`worker/stripe.js`, `POST /api/stripe-webhook`) on Stripe's signed events | Bergeron Maps orders &lt;noreply@bergeronmaps.com&gt; | Goes to bergeronmaps@gmail.com only, never to customers. Test-mode events start with "Test:". Setup in `docs/STRIPE.md`. |
@@ -80,17 +81,17 @@ What the new emails fix:
 3. In Gmail open the email → **⋮ → Show original**: SPF, DKIM and DMARC should all say **PASS**.
 4. Press **Sign in** in one email, and type the code from the other. Both should sign you in.
 
-## 5. Contact form
+## 5. Website emails (quote and Talk to Alex)
 
-The form on bergeronmaps.com posts to `/api/contact` on our own Worker, which emails the lead through Resend.
+The purchase page posts quotes to `/api/quote` and Talk to Alex to `/api/contact` on our own Worker, which emails them through Resend.
 The Resend key is kept only in Cloudflare, once:
 
 1. Resend → **API Keys → Create API key**: name `Website form`, **Sending access**, domain `bergeronmaps.com`.
    Copy the `re_…` key (it's shown once).
 2. Cloudflare dashboard → **Workers & Pages → bergeron-maps → Settings → Variables and Secrets → Add**:
    type **Secret**, name `RESEND_API_KEY`, value the key. Press **Deploy**.
-3. Send a test from bergeronmaps.com#contact. It arrives from "Bergeron Maps website" with the visitor as the
-   reply-to address.
+3. Send a test with Request a quote on bergeronmaps.com/get-your-map/. The quote arrives at the address you typed, and a
+   copy arrives at the inbox from "Bergeron Maps website" with that address as the reply-to.
 
 Until the secret exists, the form says it didn't go through and shows the email address instead. Deploys keep
 the secret; it never goes in the repository or GitHub.

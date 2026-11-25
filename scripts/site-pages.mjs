@@ -193,7 +193,7 @@ function header(p, current) {
       </nav>
       <div class="ml-auto flex items-center gap-3 sm:gap-5 lg:ml-0">
         <a href="${p}app/" class="hidden whitespace-nowrap text-[15px] text-white/70 hover:text-white sm:inline">Sign in</a>
-        <a href="${p}#contact" class="btn btn-sign whitespace-nowrap !px-3 text-[14px] sm:!px-5 sm:text-[15px]" data-cta>Get your map now</a>
+        <a href="${p}get-your-map/" class="btn btn-sign whitespace-nowrap !px-3 text-[14px] sm:!px-5 sm:text-[15px]" data-cta>Get your map now</a>
         <button type="button" class="nav-burger lg:hidden" aria-expanded="false" aria-controls="mnav" aria-label="Menu"><span></span><span></span><span></span></button>
       </div>
     </div>
@@ -220,7 +220,7 @@ function footer(p) {
       </nav>
       <nav class="flex flex-col gap-2 md:col-span-3 md:col-start-10" aria-label="Footer">
         <div class="label text-white/60">Company</div>
-        <a class="inline-block py-1 hover:text-white" href="${p}#contact">Get your map now</a>
+        <a class="inline-block py-1 hover:text-white" href="${p}get-your-map/">Get your map now</a>
         <a class="inline-block py-1 hover:text-white" href="${p}app/">Sign in</a>
         <a class="inline-block py-1 hover:text-white" href="${p}university/">Bergeron Maps University</a>
         <a class="inline-block py-1 hover:text-white" href="mailto:support@bergeronmaps.com">support@bergeronmaps.com</a>
@@ -277,7 +277,8 @@ function breadcrumbs(ind, url) {
 function industryPage(ind) {
   const p = '../../';
   const url = `${SITE}industries/${ind.slug}/`;
-  const ask = `${p}?industry=${ind.slug}#contact`;
+  const ask = `${p}get-your-map/?site=${ind.scene}`;
+  const quote = `${ask}&quote=1`;
   const pts = ind.points.map(([t, d]) => `<div class="grid gap-2 py-5 sm:grid-cols-3"><dt class="font-semibold">${esc(t)}</dt><dd class="text-ink/70 sm:col-span-2">${esc(d)}</dd></div>`).join('\n          ');
   const others = INDUSTRIES.filter((i) => i !== ind).map((i) => `<a href="${p}industries/${i.slug}/">${esc(i.name)}</a>`).join('');
   const s = ind.sample;
@@ -357,7 +358,7 @@ function industryPage(ind) {
           <h2 class="h2">${esc(ind.why)}</h2>
           <p class="mt-6 text-lg text-ink/70">${esc(ind.whySub)}</p>
           ${ind.note ? `<p class="mt-6 border-l-2 border-sign pl-4 text-ink/70">${esc(ind.note)}</p>` : ''}
-          ${ind.unique ? `<div class="mt-10 flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:sales@bergeronmaps.com" class="btn border border-ink/40 hover:border-ink">Contact us</a></div>` : ''}
+          ${ind.unique ? `<div class="mt-10 flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="${quote}" class="btn border border-ink/40 hover:border-ink">Request a quote</a></div>` : ''}
         </div>
         <dl class="divide-y divide-ink/15 border-y border-ink/15 lg:col-span-6 lg:col-start-7">
           ${pts}
@@ -396,7 +397,7 @@ ${ind.calc ? calcBlock(ind.calc) : ''}${ind.roles ? `
           <p class="mt-6 max-w-xl text-lg">${esc(ind.cta)}</p>
         </div>
         <div class="flex flex-col justify-end gap-4 lg:col-span-4 lg:col-start-9">
-          <div class="flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="mailto:sales@bergeronmaps.com" class="btn border border-ink/50 hover:border-ink">Contact us</a></div>
+          <div class="flex flex-wrap gap-3"><a href="${ask}" class="btn btn-ink">Get your map now</a><a href="${quote}" class="btn border border-ink/50 hover:border-ink">Request a quote</a></div>
           <p class="text-sm text-ink/70">Other industries: <span class="others">${others}</span></p>
         </div>
       </div>
@@ -539,7 +540,7 @@ function build() {
     writeFileSync(`site/university/${v.slug}/index.html`, v.html);
   }
 
-  const urls = [SITE, ...INDUSTRIES.map((i) => `${SITE}industries/${i.slug}/`), `${SITE}accessibility/`,
+  const urls = [SITE, `${SITE}get-your-map/`, ...INDUSTRIES.map((i) => `${SITE}industries/${i.slug}/`), `${SITE}accessibility/`,
     `${SITE}university/`, ...lessons.map((v) => `${SITE}university/${v.slug}/`)];
   writeFileSync('site/sitemap.xml', [
     '<?xml version="1.0" encoding="UTF-8"?>',

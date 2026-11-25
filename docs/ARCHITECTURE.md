@@ -9,7 +9,7 @@
 | Editor state | Zustand + Immer | Small, predictable; whole-document snapshots make undo/redo simple and reliable |
 | Browser-only storage | Browser IndexedDB | Used when there is no account ("Try it without an account") and in most tests |
 | Backend | Supabase: Postgres, Auth, row-level security | Authorization enforced in the database, not the UI; free plan today |
-| Hosting | Cloudflare Workers (static files, plus `/api/*` routes in `worker/`: contact form, access email, Stripe Checkout and its webhook, which open and pause paid accounts, and a daily cron for grace-period reminders, all in `docs/STRIPE.md`) | See `docs/HOSTING.md` |
+| Hosting | Cloudflare Workers (static files, plus `/api/*` routes in `worker/`: Talk to Alex lead, emailed quotes, access email, Stripe Checkout and its webhook, which open and pause paid accounts, and a daily cron for grace-period reminders, all in `docs/STRIPE.md`) | See `docs/HOSTING.md` |
 | Tests | Vitest (unit), Playwright (browser, desktop + phone), Vitest against real Postgres (database) | |
 | Code style | TypeScript strict mode, ESLint, Prettier | Run in CI; see "Code size and structure" below |
 

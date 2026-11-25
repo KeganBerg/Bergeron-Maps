@@ -66,20 +66,6 @@
   function quoteLink() {
     return location.origin + '/get-your-map/?n=' + state.n + '&term=' + state.term + '&site=' + state.kind;
   }
-  function quoteText() {
-    return [
-      'Bergeron Maps quote',
-      '',
-      label() + ': ' + money(SETUP * state.n) + ' (one-time setup fee, non-refundable)',
-      'Due today: ' + money(SETUP * state.n),
-      'Then ' + money(MONTHLY * state.n) + ' a month from ' + monthlyStarts + ', on a ' + state.term + '-month term',
-      state.n >= ASSISTED_FROM ? 'Assisted setup included: we help build your first maps.' : '',
-      '',
-      'Open this order, ready to pay:',
-      quoteLink(),
-    ].filter(function (l, i, a) { return l !== '' || a[i - 1] !== ''; }).join('\n');
-  }
-
   function fail(el, msg) { el.textContent = msg; el.hidden = false; }
 
   function start() {
@@ -96,7 +82,7 @@
     all('input[name=term]').forEach(function (r) { r.onchange = function () { if (r.checked) { state.term = r.value; render(); } }; });
     all('#biz .tile').forEach(function (b) { b.onclick = function () { state.kind = b.getAttribute('data-kind'); render(); }; });
 
-    // Email this quote: opens the buyer's own email app with the quote filled in, or copies the link.
+    // Email this quote: we email it to the buyer and copy our team in, or the buyer copies the link.
     function openQuote(open) {
       $('quote-box').hidden = !open; $('quote').hidden = open;
       $('quote').setAttribute('aria-expanded', String(open));
@@ -107,14 +93,23 @@
       $('quote-form').hidden = true; $('quote-done').hidden = false; $('quote-done').focus();
     }
     $('quote').onclick = function () { openQuote(true); };
+    if (q.get('quote') === '1') openQuote(true);
     $('q-cancel').onclick = function () { openQuote(false); };
     $('quote-form').addEventListener('submit', function (e) {
       e.preventDefault();
-      var to = $('q-em').value.trim();
+      var to = $('q-em').value.trim(), btn = $('q-send');
       if (!EMAIL.test(to)) { $('q-em').setAttribute('aria-invalid', 'true'); return fail($('q-err'), 'Enter an email address, like name@company.com.'); }
       $('q-em').removeAttribute('aria-invalid');
-      location.href = 'mailto:' + encodeURIComponent(to).replace(/%40/g, '@') + '?subject=' + encodeURIComponent('Your Bergeron Maps quote') + '&body=' + encodeURIComponent(quoteText());
-      quoteDone('Quote ready to send', 'Your email app opened with the quote to ' + to + '. Press Send there. The link inside keeps these choices.');
+      $('q-err').hidden = true; btn.disabled = true; btn.textContent = 'Sending…';
+      // POST /api/quote (worker/quote.js) emails the quote to this address and a copy to our inbox.
+      fetch('/api/quote', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: to, name: $('q-nm').value.trim(), locations: state.n, term: Number(state.term), site: state.kind, _honey: $('q-hp').value }),
+      }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (out) {
+        btn.disabled = false; btn.textContent = 'Email the quote';
+        if (!out.success) return fail($('q-err'), "That didn't send. Please call (802) 578-3856 or email sales@bergeronmaps.com instead.");
+        quoteDone('Quote sent', 'We emailed the quote to ' + to + ' and sent a copy to our team. The link inside reopens this order.');
+      }, function () { btn.disabled = false; btn.textContent = 'Email the quote'; fail($('q-err'), "That didn't send. Check your connection and try again."); });
     });
     $('q-copy').onclick = function () {
       var link = quoteLink();

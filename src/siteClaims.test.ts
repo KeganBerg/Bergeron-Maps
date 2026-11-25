@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
  * If one of these becomes true in the app, remove its line here in the same PR.
  */
 const NOT_LIVE: [RegExp, string][] = [
-  [/\bstripe\b|checkout|credit card|pay online|subscribe now|free trial/i, 'online payment is not live'],
+  [/subscribe now|free trial/i, 'there is no free trial or one-click subscription'],
   [/\$\s?[1-9]/, 'prices are not published on the site yet'],
   [/white[- ]label|your own (domain|subdomain)|maps\.[a-z]+\.com|custom domain/i, 'white-label branding and subdomains are not live'],
   [/\binvit(e|es|ation)\b[^.]{0,40}\bemail\b|email[^.]{0,20}\binvit/i, 'the app sends no invitation emails; access is given by email address'],
@@ -25,7 +25,7 @@ const NOT_LIVE: [RegExp, string][] = [
 
 /** The Get Your Map Now purchase page, and the NOT_LIVE rules that are true on it. */
 const BUY_PAGE = join('site', 'get-your-map', 'index.html');
-const PURCHASE_TRUTHS = ['online payment is not live', 'prices are not published on the site yet'];
+const PURCHASE_TRUTHS = ['prices are not published on the site yet'];
 
 function pages(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -48,7 +48,7 @@ export function readable(html: string): string {
 
 describe('site claims', () => {
   it('finds a not-live claim in a sample', () => {
-    const t = readable('<p>Pay online with Stripe</p><!-- <p>White-label</p> -->');
+    const t = readable('<p>Start your free trial</p><!-- <p>White-label</p> -->');
     expect(NOT_LIVE.some(([re]) => re.test(t))).toBe(true);
     expect(/white/i.test(readable('<!-- White-label -->'))).toBe(false);
   });
@@ -57,7 +57,7 @@ describe('site claims', () => {
     const found: string[] = [];
     for (const f of pages('site')) {
       const lines = readable(readFileSync(f, 'utf8')).split('\n');
-      // The purchase page really takes payment (worker/stripe.js), so prices and payment are true
+      // The purchase page really takes payment (worker/stripe.js), so prices are true
       // there. Every other claim on it is still checked.
       const rules = f === BUY_PAGE ? NOT_LIVE.filter(([, why]) => !PURCHASE_TRUTHS.includes(why)) : NOT_LIVE;
       for (const line of lines) for (const [re, why] of rules) {
@@ -66,14 +66,5 @@ describe('site claims', () => {
       }
     }
     expect(found).toEqual([]);
-  });
-
-  it('nothing links to the purchase page until sales go live', () => {
-    // Live keys refuse to sell until CHECKOUT_LIVE is set (docs/STRIPE.md). When it is, remove this
-    // test in the same PR that links the page and adds it to the sitemap.
-    const linking = pages('site').filter((f) => f !== BUY_PAGE && /get-your-map/.test(readFileSync(f, 'utf8')));
-    expect(linking).toEqual([]);
-    expect(readFileSync('site/sitemap.xml', 'utf8')).not.toMatch(/get-your-map/);
-    expect(readFileSync(BUY_PAGE, 'utf8')).toMatch(/<meta name="robots" content="noindex"/);
   });
 });

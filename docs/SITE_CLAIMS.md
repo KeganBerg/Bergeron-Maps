@@ -7,16 +7,15 @@ screenshots, drawings and animations, alt text, titles, meta descriptions, link 
 
 When a claim isn't true yet, either build it (if it's small and clearly valuable) or reword
 or remove the claim. Bigger gaps go to Kegan as a build-or-cut choice. Planned work that
-isn't live (online payment, white-label subdomains, invitation and notification emails,
+isn't live (white-label subdomains, invitation and notification emails,
 self-serve sign-up, "Use my location") must not be implied. A finished section that waits
 for launch stays in an HTML comment.
 
 `src/siteClaims.test.ts` fails the build on the most common slips. It doesn't replace
 reading the copy.
 
-The purchase page (`site/get-your-map/`) really takes payment through Stripe, so prices and
-payment are allowed there and nowhere else. Until sales go live it stays unlinked, `noindex` and
-out of the sitemap, and the test checks that too.
+The purchase page (`site/get-your-map/`) really takes payment through Stripe, and every
+"Get your map now" button links to it. Prices are allowed there and nowhere else.
 
 ## Checklist for any change to the site or the app
 
@@ -33,7 +32,7 @@ Before merging a PR that touches `site/`, `scripts/site-pages.mjs`, `scripts/sit
       (`scripts/site-demo.ts`). A hand-made picture must say it is an illustration.
 - [ ] The editor demo on the home page still matches the app's top bar and Add panel. It is
       a copy built from the app's symbols, so re-check it after any editor UI change.
-- [ ] Nothing implies payment, white-label domains, emails the app doesn't send, live
+- [ ] Nothing implies white-label domains, emails the app doesn't send, live
       tracking, GPS, occupancy, offline use or an API.
 - [ ] Meta descriptions, og/twitter text and og images say the same true things as the page.
 - [ ] Sample sites are labelled as samples, with no client names.
