@@ -5,9 +5,9 @@
 // With --durations it only measures the narration (out/<id>/durations.json), which
 // record.rec.ts reads to keep each step on screen as long as its line lasts.
 import { chromium, type Browser } from 'playwright';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Video } from './studio';
 import { VIDEOS } from './videos';
@@ -18,6 +18,7 @@ const FINAL = process.env.FINAL || join(OUT, 'final');
 const BRAND = join(HERE, '../../src/assets/brand');
 const TOTAL = 5;
 const CARD_SECONDS = 3.5;
+const PACE = 1.08;
 const FONT = 'Inter';
 
 const run = (args: string[]) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...args]);
@@ -36,10 +37,50 @@ interface Cue {
   text: string;
 }
 
+/**
+ * Each generated line, with the silence the voice service leaves at both ends cut off and a short fade
+ * so it starts and stops cleanly. Left in, that silence plus the pause between steps made a dead gap
+ * after every line that sounded like the audio had dropped out.
+ */
+function trimmedVoice(id: string, i: number) {
+  const name = `${String(i).padStart(2, '0')}.wav`;
+  const out = join(OUT, id, 'voice-trimmed', name);
+  mkdirSync(dirname(out), { recursive: true });
+  const trimEnd = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04';
+  const fade = 'afade=t=in:d=0.03';
+  // A little quicker than the voice service reads, but still easy to follow for people whose
+  // first language isn't English (atempo keeps the pitch).
+  const pace = `atempo=${PACE}`;
+  run([
+    '-i',
+    join(OUT, id, 'voice', name),
+    '-af',
+    `${trimEnd},${fade},areverse,${trimEnd},${fade},areverse,${pace}`,
+    out,
+  ]);
+  return out;
+}
+
+/** Measures the mixed voice's loudness (ffmpeg prints the report on stderr, after its log). */
+function measure(voices: string[], delays: string[], mixed: string, target: string) {
+  // The measuring run has no screen input, so each voice is one input earlier than in the real run.
+  const shifted = delays.map((d) => d.replace(/^\[(\d+):a\]/, (_, n: string) => `[${Number(n) - 1}:a]`));
+  const args = [
+    ...voices.flatMap((v) => ['-i', v]),
+    '-filter_complex',
+    `${shifted.join(';')};${mixed},loudnorm=${target}:print_format=json`,
+    '-f',
+    'null',
+    '-',
+  ];
+  const log = spawnSync('ffmpeg', ['-hide_banner', ...args]).stderr.toString();
+  return log.slice(log.lastIndexOf('{'));
+}
+
 /** How long each line of narration lasts, written for record.rec.ts to time the screen to. */
 function writeDurations(id: string) {
   const lines = JSON.parse(readFileSync(join(OUT, id, 'lines.json'), 'utf8')) as Line[];
-  const durations = lines.map((_, i) => seconds(join(OUT, id, 'voice', `${String(i).padStart(2, '0')}.wav`)));
+  const durations = lines.map((_, i) => seconds(trimmedVoice(id, i)));
   writeFileSync(join(OUT, id, 'durations.json'), JSON.stringify(durations));
   return durations;
 }
@@ -174,12 +215,17 @@ async function build(browser: Browser, video: Video) {
 
   // The screen with its captions and voice.
   writeFileSync(join(dir, 'captions.ass'), ass(cues(lines, starts, durations, 0)));
-  const voices = lines.map((_, i) => join(dir, 'voice', `${String(i).padStart(2, '0')}.wav`));
+  const voices = lines.map((_, i) => join(dir, 'voice-trimmed', `${String(i).padStart(2, '0')}.wav`));
   const delays = voices.map(
     (_, i) =>
       `[${i + 1}:a]aresample=48000,aformat=channel_layouts=stereo,adelay=${Math.round(starts[i] * 1000)}:all=1[a${i}]`,
   );
-  const mix = `${voices.map((_, i) => `[a${i}]`).join('')}amix=inputs=${voices.length}:normalize=0:dropout_transition=0,loudnorm=I=-16:TP=-1.5:LRA=11[voice]`;
+  const mixed = `${voices.map((_, i) => `[a${i}]`).join('')}amix=inputs=${voices.length}:normalize=0:dropout_transition=0`;
+  // Loudness in two passes: measure, then apply one fixed gain. A single-pass loudnorm turns the
+  // volume up during every pause and the next line comes in too loud, a pumping that sounds like buffering.
+  const target = 'I=-16:TP=-1.5:LRA=11';
+  const measured = JSON.parse(measure(voices, delays, mixed, target));
+  const mix = `${mixed},loudnorm=${target}:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:offset=${measured.target_offset}:linear=true[voice]`;
   run([
     '-i',
     join(dir, 'screen.mp4'),

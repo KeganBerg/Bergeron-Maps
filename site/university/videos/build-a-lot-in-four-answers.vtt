@@ -1,125 +1,121 @@
 WEBVTT
 
 1
-00:00:04.102 --> 00:00:09.332
-In this video you’ll build a full parking map by answering four numbers, then tidy
+00:00:04.101 --> 00:00:08.588
+In this video you’ll build a parking map by entering four numbers.
 
 2
-00:00:09.332 --> 00:00:10.927
-it up to match your site.
+00:00:08.588 --> 00:00:11.375
+Then you’ll change it to match your site.
 
 3
-00:00:11.377 --> 00:00:17.687
+00:00:11.830 --> 00:00:17.681
 On the Maps page, find your site and choose Add the first map.
 
 4
-00:00:17.687 --> 00:00:22.877
+00:00:17.681 --> 00:00:22.495
 If the site already has a map, use Add map instead.
 
 5
-00:00:23.328 --> 00:00:28.382
+00:00:22.945 --> 00:00:27.077
 Give the map a name your team will recognize, like Main garage.
 
 6
-00:00:28.834 --> 00:00:32.852
-Build it for me is already picked.
+00:00:27.527 --> 00:00:31.167
+Build it for me is already selected.
 
 7
-00:00:32.852 --> 00:00:35.334
-Now the four answers.
+00:00:31.167 --> 00:00:33.897
+Now enter the four numbers.
 
 8
-00:00:35.785 --> 00:00:39.685
+00:00:34.348 --> 00:00:37.847
 Floors. Use one for a surface lot.
 
 9
-00:00:39.685 --> 00:00:41.865
+00:00:37.847 --> 00:00:39.803
 Our garage has two.
 
 10
-00:00:42.317 --> 00:00:48.581
+00:00:40.254 --> 00:00:45.830
 Rows per floor. Rows are lettered A, B, C, and so on.
 
 11
-00:00:48.581 --> 00:00:50.117
+00:00:45.830 --> 00:00:47.198
 We have four.
 
 12
-00:00:50.568 --> 00:00:57.250
+00:00:47.648 --> 00:00:51.967
 Spaces per row. They’re numbered one, two, three.
 
 13
-00:00:57.250 --> 00:00:59.568
-We’ll say twelve.
+00:00:51.967 --> 00:00:53.289
+We have twelve.
 
 14
-00:01:00.019 --> 00:01:06.519
+00:00:53.741 --> 00:00:58.203
 And accessible spaces. They go at the start of row A.
 
 15
-00:01:06.971 --> 00:01:09.496
+00:00:58.654 --> 00:01:00.868
 The preview updates as you type.
 
 16
-00:01:09.496 --> 00:01:13.914
+00:01:00.868 --> 00:01:04.741
 Lanes, the entrance, ramps and stairs are added for you.
 
 17
-00:01:13.914 --> 00:01:17.780
+00:01:04.741 --> 00:01:08.131
 Check each floor with the tabs under the preview.
 
 18
-00:01:18.230 --> 00:01:22.516
+00:01:08.583 --> 00:01:12.376
 The button says how many spaces you’ll get.
 
 19
-00:01:22.516 --> 00:01:24.310
+00:01:12.376 --> 00:01:13.963
 Choose Create map.
 
 20
-00:01:24.762 --> 00:01:27.205
+00:01:14.416 --> 00:01:16.625
 Here’s your map in the editor.
 
 21
-00:01:27.205 --> 00:01:33.476
+00:01:16.625 --> 00:01:22.294
 Each space number starts with the floor, then the row letter, then the space.
 
 22
-00:01:33.476 --> 00:01:35.023
+00:01:22.294 --> 00:01:23.693
 So this one is 1A1.
 
 23
-00:01:35.477 --> 00:01:38.389
-Now tidy it up to match your site.
+00:01:24.147 --> 00:01:26.715
+Now change the map to match your site.
 
 24
-00:01:38.389 --> 00:01:42.416
+00:01:26.715 --> 00:01:29.890
 Click a row, and its settings open on the left.
 
 25
-00:01:42.416 --> 00:01:45.414
-Say this row really has ten spaces.
+00:01:29.890 --> 00:01:33.201
+If this row has ten spaces, change Spaces to ten.
 
 26
-00:01:45.414 --> 00:01:47.213
-Change Spaces to ten.
-
-27
-00:01:47.666 --> 00:01:51.798
+00:01:33.654 --> 00:01:37.481
 To change one space, double-click it.
 
-28
-00:01:51.798 --> 00:01:56.266
+27
+00:01:37.481 --> 00:01:41.619
 Here we make space 1D6 a reserved space.
 
-29
-00:01:56.718 --> 00:02:02.018
+28
+00:01:42.072 --> 00:01:46.944
 Switch floors with the tabs at the bottom.
 
-30
-00:02:02.469 --> 00:02:06.205
+29
+00:01:47.395 --> 00:01:51.020
 Everything saves as you go. You’ll see Saved at the top.
 
-31
-00:02:06.205 --> 00:02:11.541
-Your team won’t see any of this until you publish, which is two videos from now.
+30
+00:01:51.020 --> 00:01:54.257
+Your team won’t see any of this until you publish.

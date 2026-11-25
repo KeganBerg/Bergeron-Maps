@@ -8,9 +8,11 @@ export const video: Video = {
   setup: (server) => addGarage(server, true),
   beats: [
     {
+      cue: 'The title card has just faded to the Maps page. Nothing moves yet.',
       say: 'In this video you’ll get your team onto the map. Employees join with a site code. Managers get access by email.',
     },
     {
+      cue: 'The pointer moves to Sites and people and clicks it.',
       say: 'Open Sites and people.',
       caption: 'Open Sites & people.',
       do: async (s) => {
@@ -25,6 +27,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The Sites and people page is open. The pointer moves to the code K7M2QX.',
       say: 'Every site has a six-character code, like this one for Sample Garage. Give it to your employees. They sign in, type the code, and they can view that site’s published maps. They can’t change anything.',
       do: async (s) => {
         await s.pause(1500);
@@ -32,20 +35,23 @@ export const video: Video = {
       },
     },
     {
-      say: 'If a code gets passed around too widely, choose New code. The old one stops working, and people who already joined keep their access.',
+      cue: 'The pointer moves to New code.',
+      say: 'If too many people have the code, choose New code. The old code stops working. People who already joined keep their access.',
       do: async (s) => {
         await s.pause(1500);
         await s.moveTo(s.page.getByRole('button', { name: 'New code' }).first(), 900);
       },
     },
     {
+      cue: 'The pointer goes to the Email box and the address starts typing.',
       say: 'For managers, use Give someone access. Type their work email.',
       do: async (s) => {
         await s.type(s.page.getByPlaceholder('name@company.com'), 'night.manager@company.com', 70);
       },
     },
     {
-      say: 'Pick their access. A site manager can edit and publish maps at their own site. A regional manager covers every site. An employee can only view.',
+      cue: 'The pointer moves to the Access drop-down.',
+      say: 'Pick their access. A site manager can edit and publish maps at their own site. A regional manager can edit and publish maps at every site. An employee can only view.',
       do: async (s) => {
         await s.moveTo(s.page.getByRole('combobox').first(), 900);
         await s.pause(1500);
@@ -53,6 +59,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer moves to the Site drop-down, then Give access.',
       say: 'Pick the site, and choose Give access.',
       do: async (s) => {
         await s.moveTo(s.page.getByRole('combobox').nth(1), 800);
@@ -62,13 +69,15 @@ export const video: Video = {
       },
     },
     {
-      say: 'The app doesn’t email them for you. Choose Copy invite message and send it yourself. It has the link and tells them how to sign in.',
+      cue: 'The green note shows. The pointer clicks Copy invite message.',
+      say: 'The app does not send them an email. Choose Copy invite message and send it to them yourself. It has the link and the sign-in steps.',
       do: async (s) => {
         await s.pause(1000);
         await s.click(s.page.getByTestId('copy-invite'), 900);
       },
     },
     {
+      cue: 'The pointer moves down to People, then to Remove.',
       say: 'Everyone with access is listed under People. If someone leaves, choose Remove. They lose access right away.',
       do: async (s) => {
         const people = s.page.getByRole('heading', { name: 'People', exact: true });
@@ -79,6 +88,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to the account menu at the top right and signs out.',
       say: 'Here’s what joining looks like for a new employee. After they sign in, they type the code under Join a site, and choose Join site.',
       do: async (s) => {
         // Become the new employee: sign out, then sign in with their email.
@@ -97,7 +107,8 @@ export const video: Video = {
       },
     },
     {
-      say: 'Sample Garage now shows up with its published map. They open it, search for a space, and get directions.',
+      cue: 'The site code has been joined. The pointer goes to Main garage.',
+      say: 'Sample Garage now shows up with its published map. They open it, search for a space, and choose Directions to see the way there.',
       do: async (s) => {
         await s.page.getByTestId('view-Main garage').waitFor();
         await s.pause(1500);
@@ -114,6 +125,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The directions panel is open. Last line before the end card.',
       say: 'That’s it. Your map is built, published, and your team is on it.',
     },
   ],
