@@ -1,4 +1,5 @@
 import type { Messages } from './en';
+import { SYMBOLS } from './symbols/tl';
 import { joinWith } from '../model/words';
 import { SUPPORT_EMAIL } from '../support';
 
@@ -7,63 +8,6 @@ import { SUPPORT_EMAIL } from '../support';
  * promised to customers (see docs/LANGUAGES.md). Everyday Filipino keeps some
  * English words (elevator, escalator, valet), as people say them at work.
  */
-const SYMBOLS: Record<string, string> = {
-  'valet-booth': 'Booth ng valet',
-  'valet-podium': 'Podium ng valet',
-  'valet-pickup': 'Kuhanan ng sasakyan',
-  'valet-dropoff': 'Hatiran ng sasakyan',
-  'valet-staging': 'Hintayan ng sasakyan',
-  'valet-queue': 'Pila ng sasakyan',
-  gate: 'Gate',
-  'garage-door': 'Pinto ng garahe',
-  'rollup-door': 'Roll-up na pinto ng serbisyo',
-  ramp: 'Rampa ng garahe',
-  'ramp-up': 'Rampang paakyat',
-  'ramp-down': 'Rampang pababa',
-  walkway: 'Daanan ng tao',
-  'ped-entrance': 'Pasukan ng tao',
-  'ped-exit': 'Labasan ng tao',
-  'lobby-entrance': 'Pasukan ng lobby',
-  'building-entrance': 'Pasukan ng gusali',
-  'pedestrian-bridge': 'Tulay ng tao',
-  stairs: 'Hagdan',
-  stairwell: 'Hagdanan',
-  elevator: 'Elevator',
-  'elevator-bank': 'Mga elevator',
-  escalator: 'Escalator',
-  'elevator-lobby': 'Lobby ng elevator',
-  'vehicle-ramp': 'Rampa ng sasakyan',
-  'level-up': 'Palatandaan paakyat sa susunod na palapag',
-  'level-down': 'Palatandaan pababa sa susunod na palapag',
-  'floor-connection': 'Daan sa ibang palapag',
-  entrance: 'Pasukan ng garahe',
-  exit: 'Labasan ng garahe',
-  'reception-desk': 'Reception',
-  'pay-station': 'Bilihan ng tiket',
-  'info-desk': 'Information desk',
-  'student-entrance': 'Pasukan ng mga estudyante',
-  'staff-entrance': 'Pasukan ng mga guro at kawani',
-  'visitor-entrance': 'Pasukan ng mga bisita',
-  'bus-entrance': 'Pasukan ng bus',
-  'delivery-entrance': 'Pasukan ng delivery',
-  'security-checkpoint': 'Security checkpoint',
-  'access-gate': 'Gate na may kontrol sa pagpasok',
-  'accessible-ramp': 'Rampa para sa may kapansanan',
-  'valet-zone': 'Lugar ng valet',
-  'pin-general': 'Lokasyon',
-  'pin-guest-pickup': 'Sunduan ng bisita',
-  'pin-dropoff': 'Hatiran ng sasakyan',
-  'pin-meeting': 'Tagpuan',
-  'pin-emergency-meeting': 'Tagpuan sa emergency',
-  'pin-key-pickup': 'Kuhanan ng susi',
-  'pin-key-return': 'Balikan ng susi',
-  'pin-temporary': 'Pansamantalang marka',
-  'pin-important': 'Mahalagang lugar',
-  'pin-warning': 'Babala',
-  'pin-custom': 'Marka',
-  'pin-number': 'Markang may numero',
-  'pin-letter': 'Markang may titik',
-};
 
 const WAY = { up: 'paakyat', down: 'pababa', across: 'patawid' };
 const span = (a: string, b: string) => (a === b ? a : `${a} hanggang ${b}`);

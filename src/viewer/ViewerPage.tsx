@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Layer, Stage } from 'react-konva';
 import { searchMap, type SearchHit } from '../model/search';
-import { buildingName, buildingOf, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
+import { buildingOf, buildingTitle, floorGroup, floorTitle, interiorFloors } from '../model/interiors';
 import { InteriorMarkers } from '../render/InteriorMarkers';
 import type { MapDocument, MapObject } from '../model/types';
 import { clampScale, fitViewport, floorBounds } from '../render/viewport';
@@ -458,9 +458,9 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       )}
       <div className="print-only viewer-print" ref={printRef} aria-hidden="true">
         <style />
-        <h1>{doc.name}, {floorTitle(doc, floor)}</h1>
+        <h1>{doc.name}, {floorTitle(doc, floor, t.words)}</h1>
       </div>
-      <ViewerHeader mapName={doc.name} floorName={floorTitle(doc, floor)} updatedAt={doc.publishedAt ?? doc.updatedAt}
+      <ViewerHeader mapName={doc.name} floorName={floorTitle(doc, floor, t.words)} updatedAt={doc.publishedAt ?? doc.updatedAt}
         preview={preview} listOpen={listOpen} onRefresh={load}
         onBack={preview || backTo !== null ? () => navigate(preview ? `/edit/${doc.id}` : backTo ?? '/') : undefined}
         onToggleList={() => { moveFocus.current = listOpen ? null : 'list'; setListOpen(!listOpen); if (!listOpen) { setDir(null); setTapped(null); setFocus(null); } }} />
@@ -470,7 +470,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
       <div className="viewer-canvas" ref={boxRef} onClick={() => setShowResults(false)}>
         {/* The drawing itself can't be read aloud; search and the panels below say what's selected. */}
-        <div role="img" aria-label={t.mapOf(floorTitle(doc, floor))}>
+        <div role="img" aria-label={t.mapOf(floorTitle(doc, floor, t.words))}>
         <Stage
           visible={measured}
           width={size.width}
@@ -510,10 +510,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               words: t.words,
             })}
             currentId={floor.id}
-            title={inside ? t.sideViewOf(buildingName(inside.building)) : t.sideView}
+            title={inside ? t.sideViewOf(buildingTitle(inside.building, t.words)) : t.sideView}
             onPick={(fid) => {
               const f = doc.floors.find((x) => x.id === fid);
-              if (f) sayFloor(t.floorShown(floorTitle(doc, f)));
+              if (f) sayFloor(t.floorShown(floorTitle(doc, f, t.words)));
               moveFocus.current = route ? 'sheet' : tapped ? 'card' : 'side-button';
               setSideOpen(false);
               if (route) return showFloorOfRoute(route, fid);
@@ -526,11 +526,11 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         )}
         {listOpen && !dir && !sideOpen && (
           <FloorList doc={doc} floor={floor}
-            onPick={(o, title) => goTo({ floorId: floor.id, floorName: floorTitle(doc, floor), object: o, title, exact: true })}
+            onPick={(o, title) => goTo({ floorId: floor.id, floorName: floorTitle(doc, floor, t.words), object: o, title, exact: true })}
             onClose={() => { moveFocus.current = 'list-button'; setListOpen(false); }} />
         )}
         {info && tapped && !dir && !listOpen && !sideOpen && (
-          <InfoCard title={info.title} detail={info.detail} floorName={tappedFloor ? floorTitle(doc, tappedFloor) : undefined}
+          <InfoCard title={info.title} detail={info.detail} floorName={tappedFloor ? floorTitle(doc, tappedFloor, t.words) : undefined}
             showSwatch={!!tappedFloor && group.length > 1} canGoIn={canGoIn} shared={shared}
             onClose={() => { moveFocus.current = 'search'; setTapped(null); setFocus(null); }}
             onGoInside={() => goInside(tapped.id)}
@@ -555,7 +555,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             onStep={(fid) => {
               if (!route) return;
               const f = doc.floors.find((x) => x.id === fid);
-              if (f && fid !== floor.id) sayFloor(t.floorShown(floorTitle(doc, f)));
+              if (f && fid !== floor.id) sayFloor(t.floorShown(floorTitle(doc, f, t.words)));
               showFloorOfRoute(route, fid);
             }}
             onAvoidStairs={(v) => {
@@ -577,7 +577,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             if (!sideOpen) setListOpen(false);
           }}
           onPickFloor={(f) => {
-            sayFloor((routeFloors.has(f.id) ? t.floorShownWithRoute : t.floorShown)(floorTitle(doc, f)));
+            sayFloor((routeFloors.has(f.id) ? t.floorShownWithRoute : t.floorShown)(floorTitle(doc, f, t.words)));
             if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
             setFloorId(f.id);
             if (!dir) { setTapped(null); setFocus(null); }

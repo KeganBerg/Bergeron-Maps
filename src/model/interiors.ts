@@ -1,6 +1,7 @@
 import { createFloor } from './factory';
 import { newId } from './ids';
 import type { AssetObject, Floor, MapDocument } from './types';
+import { ENGLISH, symbolName, type MapWords } from './words';
 
 /**
  * Building interiors. A building or room on the site map can have its own
@@ -39,12 +40,16 @@ export function buildingOf(doc: MapDocument, floor: Floor): { building: AssetObj
 /** The name people know a building by. */
 export const buildingName = (b: AssetObject, fallback = 'Building') => b.name?.trim() || b.label?.trim() || fallback;
 
+/** A building's name for people reading the map: an unnamed one is called by its kind, in their language. */
+export const buildingTitle = (b: AssetObject, words: MapWords = ENGLISH) => buildingName(b, symbolName(b.assetKey, words) ?? words.place);
+
 /** "Service department, Floor 1" for interior floors, just the floor name otherwise. */
-export function floorTitle(doc: MapDocument, floor: Floor): string {
+export function floorTitle(doc: MapDocument, floor: Floor, words: MapWords = ENGLISH): string {
   const b = buildingOf(doc, floor);
   if (!b) return floor.name;
   const n = interiorFloors(doc, b.building.id).length;
-  return n > 1 ? `${buildingName(b.building)}, ${floor.name}` : buildingName(b.building);
+  const name = buildingTitle(b.building, words);
+  return n > 1 ? words.parts([name, floor.name]) : name;
 }
 
 /** Next free "Floor N" inside one building. */

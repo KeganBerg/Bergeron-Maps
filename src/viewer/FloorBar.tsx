@@ -1,5 +1,5 @@
 import type { AssetObject, Floor } from '../model/types';
-import { buildingName } from '../model/interiors';
+import { buildingTitle } from '../model/interiors';
 import { floorVars } from '../theme';
 import { Icon } from '../ui/icons';
 import { useT } from '../i18n/useLanguage';
@@ -29,7 +29,7 @@ export function FloorBar({ floor, group, inside, sideOpen, routeFloors, onOutsid
               <Icon name="back" size={16} /> {t.outside}
             </button>
           )}
-          {inside && <span className="viewer-building" data-testid="viewer-building">{buildingName(inside.building)}</span>}
+          {inside && <span className="viewer-building" data-testid="viewer-building">{buildingTitle(inside.building, t.words)}</span>}
           {group.length > 1 && (
             <button className={`side-toggle${sideOpen ? ' on' : ''}`} aria-expanded={sideOpen} data-testid="side-view-toggle"
               aria-label={t.allFloorsLabel} title={t.allFloorsTitle}

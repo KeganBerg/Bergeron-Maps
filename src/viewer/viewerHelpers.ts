@@ -110,9 +110,9 @@ export function viewerAnnouncement({ t, doc, floor, groupSize, sideOpen, dir, li
       : dir.stage === 'busy' ? t.finding
       : dir.stage === 'none' ? (dir.reason === 'same' ? t.alreadyThere : t.sayNoWay(dir.goal.name, dir.start.name))
       : t.sayRoute(dir.goal.name, feet(dir.route.length), minutes(dir.route), dir.route.steps.length)
-    : listOpen ? t.sayList(floorTitle(doc, floor))
+    : listOpen ? t.sayList(floorTitle(doc, floor, t.words))
     // Typing in the search box while a card is open reads out what the search found, not the card again.
     : searching ? searchSaid
-    : info ? t.words.parts([info.title, tappedFloor && floorTitle(doc, tappedFloor), info.detail])
+    : info ? t.words.parts([info.title, tappedFloor && floorTitle(doc, tappedFloor, t.words), info.detail])
     : '';
 }

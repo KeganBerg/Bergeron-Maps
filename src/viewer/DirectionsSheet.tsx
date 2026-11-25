@@ -25,7 +25,7 @@ export function DirectionsSheet(p: {
   const t = useT();
   const floorName = (id: string) => {
     const f = doc.floors.find((x) => x.id === id);
-    return f ? floorTitle(doc, f) : '';
+    return f ? floorTitle(doc, f, t.words) : '';
   };
   const places = useMemo(() => {
     const all = startPlaces(doc, t.words).filter((s) => s.obj.id !== dir.goal.objectId);
@@ -61,7 +61,7 @@ export function DirectionsSheet(p: {
             <button key={s.obj.id} className="dir-option" data-testid="dir-start"
               onClick={() => p.onPick({ floorId: s.floor.id, objectId: s.obj.id, x: s.obj.x, y: s.obj.y, name: s.name })}>
               <span>{s.name}</span>
-              {multiFloor && <span className="muted">{floorTitle(doc, s.floor)}</span>}
+              {multiFloor && <span className="muted">{floorTitle(doc, s.floor, t.words)}</span>}
             </button>
           ))}
         </div>
