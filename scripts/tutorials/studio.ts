@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createQuickLot } from '../../src/model/quickLot';
 import { MockSupabase, SITE_A, SITE_B, USERS, type User } from '../../e2e/online/mock-supabase';
-import { centre, glide, record, withPointer } from '../industry-shots/recorder.mjs';
+import { centre, glide, record, withPointer } from './recorder.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = join(HERE, '../../site');

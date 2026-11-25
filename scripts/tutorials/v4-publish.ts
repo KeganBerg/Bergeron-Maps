@@ -20,7 +20,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Everything you do in the editor saves as a draft. Your team doesn’t see it until you publish. The Publish button shows where things stand.',
+      say: 'Everything you do in the editor saves as a draft. Your team doesn’t see it until you publish. The Publish button shows if your changes are published.',
       do: async (s) => {
         await s.pause(2500);
         await s.moveTo(s.page.getByTestId('publish'), 1000);
@@ -34,8 +34,8 @@ export const video: Video = {
       },
     },
     {
-      say: 'Try it the way they would. Search for a space, like 1 B 5, and the map shows where it is.',
-      caption: 'Try it the way they would. Search for a space, like 1B5, and the map shows where it is.',
+      say: 'Try it like they would. Search for a space, like 1 B 5, and the map shows where it is.',
+      caption: 'Try it like they would. Search for a space, like 1B5, and the map shows where it is.',
       do: async (s) => {
         await s.pause(1500);
         await s.type(s.page.getByTestId('viewer-search'), '1B5', 250);

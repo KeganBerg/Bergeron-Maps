@@ -12,9 +12,9 @@ async function drawRow(s: Studio, from: [number, number], to: [number, number], 
   await s.pause(500);
   await s.drag(await pictureToScreen(s.page, from), await pictureToScreen(s.page, to), 1600);
   await s.page.getByTestId('row-count').waitFor();
-  await s.pause(1200);
-  await s.type(s.page.getByTestId('row-prefix'), prefix, 250);
-  await s.pause(900);
+  await s.pause(700);
+  await s.type(s.page.getByTestId('row-prefix'), prefix, 150);
+  await s.pause(500);
   await s.click(s.page.getByTestId('create-row'), 800);
 }
 
@@ -25,7 +25,7 @@ export const video: Video = {
   next: 'Publish and preview',
   beats: [
     {
-      say: 'In this video you’ll put a photo of your hand sketch, a site plan, or an aerial photo under your map, then trace over it so the map matches your real site.',
+      say: 'In this video you’ll put a picture of your site under your map. It can be a hand sketch, a site plan, or an aerial photo. Then you’ll trace over it.',
     },
     {
       say: 'Start a new map at your site. This time pick Start blank, then Create blank map.',
@@ -60,7 +60,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Turn the opacity down if the picture is hard to draw over.',
+      say: 'If the picture is hard to draw over, make it lighter with the Opacity slider.',
       do: async (s) => {
         const slider = s.page.getByLabel('Opacity');
         const box = (await slider.boundingBox())!;
@@ -72,7 +72,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Now go back to Add and choose Draw a row of spaces. Drag along the front of a row in your sketch. The app works out how many spaces fit.',
+      say: 'Now go back to Add and choose Draw a row of spaces. Drag along the front of a row in your sketch. The app counts how many spaces fit.',
       do: async (s) => {
         await s.click(s.page.getByText('Add', { exact: true }).first(), 900);
         await s.pause(800);
@@ -83,7 +83,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Check the number of spaces, give the row its letter, and create it.',
+      say: 'Check the number of spaces. Then type the row letter in Prefix, and choose Create.',
       do: async (s) => {
         await s.pause(1000);
         await s.moveTo(s.page.getByTestId('row-count'), 700);
@@ -94,13 +94,13 @@ export const video: Video = {
       },
     },
     {
-      say: 'Do the same for the next row.',
+      say: 'Do the same for the next row. Drag along the front of the row, type its letter, and choose Create.',
       do: async (s) => {
         await drawRow(s, [260, 380], [890, 380], 'B');
       },
     },
     {
-      say: 'Rows can sit at an angle too. Drag along the angled row, and the row turns to match.',
+      say: 'Rows can also be at an angle. Drag along the angled row, and the row turns to match.',
       do: async (s) => {
         await drawRow(s, [1000, 560], [1234, 425], 'C');
       },
@@ -114,7 +114,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Drag its ends to the ends of the lane in your sketch.',
+      say: 'Now drag each end of the curved lane to the ends of the lane in your sketch. You can move them again at any time.',
       do: async (s) => {
         await s.pause(800);
         // Take whichever end of the new piece is nearer each end of the sketched lane.
@@ -130,7 +130,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Then pull the two bend handles until the curve sits on the lane.',
+      say: 'Then drag the two bend handles until the curve follows the lane in your sketch. The map updates as you drag.',
       do: async (s) => {
         await s.pause(600);
         let h = await curveHandles(s.page);

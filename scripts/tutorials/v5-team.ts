@@ -32,7 +32,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'If a code gets passed around too widely, choose New code. The old one stops working, and people who already joined keep their access.',
+      say: 'If too many people have the code, choose New code. The old code stops working. People who already joined keep their access.',
       do: async (s) => {
         await s.pause(1500);
         await s.moveTo(s.page.getByRole('button', { name: 'New code' }).first(), 900);
@@ -45,7 +45,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Pick their access. A site manager can edit and publish maps at their own site. A regional manager covers every site. An employee can only view.',
+      say: 'Pick their access. A site manager can edit and publish maps at their own site. A regional manager can edit and publish maps at every site. An employee can only view.',
       do: async (s) => {
         await s.moveTo(s.page.getByRole('combobox').first(), 900);
         await s.pause(1500);
@@ -62,7 +62,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'The app doesn’t email them for you. Choose Copy invite message and send it yourself. It has the link and tells them how to sign in.',
+      say: 'The app does not send them an email. Choose Copy invite message and send it to them yourself. It has the link and the sign-in steps.',
       do: async (s) => {
         await s.pause(1000);
         await s.click(s.page.getByTestId('copy-invite'), 900);
@@ -97,7 +97,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Sample Garage now shows up with its published map. They open it, search for a space, and get directions.',
+      say: 'Sample Garage now shows up with its published map. They open it, search for a space, and choose Directions to see the way there.',
       do: async (s) => {
         await s.page.getByTestId('view-Main garage').waitFor();
         await s.pause(1500);

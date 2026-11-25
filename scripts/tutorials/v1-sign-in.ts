@@ -50,7 +50,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Here’s our example site, Sample Garage. Each site has five slots for maps, and the line next to its name shows how many are used and published.',
+      say: 'Here is our example site, Sample Garage. Each site can hold five maps. The text next to the name shows how many maps it has, and how many are published.',
       do: async (s) => {
         await s.moveTo(s.page.getByRole('heading', { name: 'Sample Garage' }), 900);
         await s.pause(3500);
@@ -61,7 +61,7 @@ export const video: Video = {
       say: 'If you manage just one site, you’ll see only that site here.',
     },
     {
-      say: 'Sample Garage has no maps yet. Building the first one is the next video.',
+      say: 'Sample Garage has no maps yet, so the next step is to build one.',
       do: async (s) => {
         await s.moveTo(s.page.getByText('Add the first map').first(), 900);
       },

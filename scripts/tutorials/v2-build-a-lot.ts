@@ -12,7 +12,7 @@ export const video: Video = {
   next: 'Trace your sketch or site plan',
   beats: [
     {
-      say: 'In this video you’ll build a full parking map by answering four numbers, then tidy it up to match your site.',
+      say: 'In this video you’ll build a parking map by entering four numbers. Then you’ll change it to match your site.',
     },
     {
       say: 'On the Maps page, find your site and choose Add the first map. If the site already has a map, use Add map instead.',
@@ -29,7 +29,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Build it for me is already picked. Now the four answers.',
+      say: 'Build it for me is already selected. Now enter the four numbers.',
       do: async (s) => {
         await s.moveTo(s.page.getByTestId('mode-quick'), 900);
       },
@@ -49,7 +49,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Spaces per row. They’re numbered one, two, three. We’ll say twelve.',
+      say: 'Spaces per row. They’re numbered one, two, three. We have twelve.',
       do: async (s) => {
         await s.pause(1200);
         await s.type(s.page.getByTestId('quick-spacesPerRow'), '12', 200);
@@ -90,7 +90,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Now tidy it up to match your site. Click a row, and its settings open on the left. Say this row really has ten spaces. Change Spaces to ten.',
+      say: 'Now change the map to match your site. Click a row, and its settings open on the left. If this row has ten spaces, change Spaces to ten.',
       do: async (s) => {
         await s.pause(1800);
         await s.click(ROW_D, 1000);
@@ -118,7 +118,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Everything saves as you go. You’ll see Saved at the top. Your team won’t see any of this until you publish, which is two videos from now.',
+      say: 'Everything saves as you go. You’ll see Saved at the top. Your team won’t see any of this until you publish.',
       do: async (s) => {
         await s.pause(1500);
         await s.moveTo(s.page.getByText('Saved', { exact: true }), 1000);

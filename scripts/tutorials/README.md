@@ -12,6 +12,7 @@ burned in and a title card at each end.
 - `v1-sign-in.ts` to `v5-team.ts`: one video each, written as beats. A beat is what the narrator says
   (`say`), an optional caption when it should read differently (space "1A1" is said "1 A 1"), and what
   happens on screen meanwhile (`do`).
+- `recorder.mjs`: records the page in real time (a screencast) and draws the pointer.
 - `videos.ts`: the list of videos, in order.
 - `record.rec.ts`: the Playwright test that records each video.
 - `narration.ts`: writes `out/<id>/lines.json`, the lines to send to the voice service.
