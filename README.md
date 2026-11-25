@@ -14,6 +14,7 @@ Live: the marketing site is <https://bergeronmaps.com> and the app is <https://b
 | `src/model/` | Pure map logic with no UI: data types, rows and numbering, snapping, floors, search, walking directions. Most bugs and features start here. |
 | `src/editor/` | The desktop map editor: state and undo (`store.ts`), canvas, panels, autosave, keyboard. |
 | `src/viewer/` | The phone-first, read-only map employees and the public see. |
+| `src/i18n/` | The viewer, public links and sign-in in English, Spanish, Chinese, Tagalog and Vietnamese. See [docs/LANGUAGES.md](docs/LANGUAGES.md). |
 | `src/cloud/` | Online mode: Supabase sign-in, saving, accounts and admin pages. |
 | `src/storage/` | The `MapRepository` interface and the browser-only (IndexedDB) version of it. |
 | `src/assets/` | The built-in symbol library (all original artwork, drawn in code). |
@@ -66,7 +67,7 @@ the live Supabase project. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#datab
 - [Requirements matrix](docs/REQUIREMENTS.md): every product requirement, where it lives and how it's tested
 - [Hosting](docs/HOSTING.md), [domain](docs/DOMAIN.md), [monitoring](docs/MONITORING.md), [recovery runbook](docs/RECOVERY.md), [emails](docs/EMAIL.md)
 - [Typography](docs/TYPOGRAPHY.md), [asset style](docs/ASSET_STYLE.md), [asset licenses](docs/ASSET_LICENSES.md), [accessibility](docs/ACCESSIBILITY.md)
-- [Site claims checklist](docs/SITE_CLAIMS.md), [load test](docs/LOAD_TEST.md)
+- [Site claims checklist](docs/SITE_CLAIMS.md), [load test](docs/LOAD_TEST.md), [languages](docs/LANGUAGES.md)
 
 ## Using the editor
 

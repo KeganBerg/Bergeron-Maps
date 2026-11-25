@@ -15,7 +15,8 @@ import { SideViewSheet } from './SideView';
 import { useLatestPublished } from './useLatestPublished';
 import { sideView } from '../model/sideView';
 import { shareLink, viewerAnnouncement, atHint, boxOf, describe, fromHint, linkTo, searchSummary, useSettled } from './viewerHelpers';
-import { type Directions, type Goal, type Start, sheetRoom } from './directionsTypes';
+import { type Directions, type Goal, type Start, redoDirections, sheetRoom } from './directionsTypes';
+import { useLanguageInfo, useT } from '../i18n/useLanguage';
 import { FloorList } from './FloorList';
 import { DirectionsSheet } from './DirectionsSheet';
 import { ViewerFloor } from './ViewerFloor';
@@ -42,8 +43,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   /** Where the back button goes; null hides it (a public link to a site's only map). */
   backTo?: string | null;
 }) {
+  const t = useT();
+  const lang = useLanguageInfo();
+  /** The words of the language picked, for answers that come back later (a load, a refresh). */
+  const tRef = useRef(t);
+  tRef.current = t;
   const [doc, setDoc] = useState<(MapDocument & { publishedAt?: string }) | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<'mapGone' | 'notPublished' | 'loadFailed' | null>(null);
   const [floorId, setFloorId] = useState('');
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [size, setSize] = useState({ width: 360, height: 640 });
@@ -123,9 +129,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     (preview ? repo.getMap(mapId) : repo.getPublishedMap(mapId)).then(
       (loaded) => {
         const d = loaded as (MapDocument & { publishedAt?: string }) | null;
-        if (!d) return setError(preview
-          ? 'This map isn’t available. It may have been deleted.'
-          : 'This map isn’t published yet, or it was removed. Ask your manager to publish it.');
+        if (!d) return setError(preview ? 'mapGone' : 'notPublished');
         setDoc(d);
         setFloorId((cur) => (d.floors.some((f) => f.id === cur) ? cur : d.floors[0].id));
         // A refresh brings the manager's latest changes: what's selected follows them, and
@@ -133,28 +137,18 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         const prev = docRef.current;
         docRef.current = d;
         if (!prev || (prev.publishedAt ?? prev.updatedAt) === (d.publishedAt ?? d.updatedAt)) return;
-        sayFloor('The map was updated to the latest published version.');
-        const find = (fid: string, id?: string) => (id ? d.floors.find((f) => f.id === fid)?.objects.find((o) => o.id === id) : undefined);
-        setTapped((t) => (t ? d.floors.flatMap((f) => f.objects).find((o) => o.id === t.id) ?? null : t));
-        setFocus((f) => (f && find(f.floorId, f.id) ? f : null));
-        setDir((cur) => {
-          if (!cur) return cur;
-          const goal = find(cur.goal.floorId, cur.goal.objectId);
-          if (!goal) return null;
-          const g = { ...cur.goal, x: goal.x, y: goal.y };
-          if (!('start' in cur)) return { ...cur, goal: g };
-          const so = cur.start.objectId ? find(cur.start.floorId, cur.start.objectId) : undefined;
-          if (cur.start.objectId && !so) return { stage: 'pick', goal: g };
-          const start = so ? { ...cur.start, x: so.x, y: so.y } : cur.start;
-          // Worked out again on the new map, so the line never runs through something just drawn.
-          const r = findRoute(d, start, g, { avoidStairs: avoidRef.current });
-          return r.ok ? { stage: 'route', goal: g, start, route: r.route } : { stage: 'none', goal: g, start, reason: r.reason };
-        });
+        sayFloor(tRef.current.mapUpdated);
+        const all = d.floors.flatMap((f) => f.objects);
+        setTapped((x) => (x ? all.find((o) => o.id === x.id) ?? null : x));
+        setFocus((f) => (f && d.floors.find((x) => x.id === f.floorId)?.objects.some((o) => o.id === f.id) ? f : null));
+        setDir((cur) => redoDirections(d, cur, avoidRef.current, tRef.current.words));
       },
-      () => setError('The latest version of this map couldn’t be loaded. Check your connection and try again.'),
+      () => setError('loadFailed'),
     );
   };
   useEffect(load, [mapId, repo]);
+  // Another language picked: the directions on screen are reworded.
+  useEffect(() => { if (docRef.current) setDir((cur) => redoDirections(docRef.current!, cur, avoidRef.current, t.words)); }, [t]);
   useLatestPublished({ mapId, repo, preview, docRef, load });
 
   // Measured before the first paint (layout effect), so a big map isn't drawn once at a
@@ -183,10 +177,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     if (!focus || focus.floorId !== floor.id) resetView();
   }, [fitKey]);
 
-  const hits = useMemo(() => (doc ? searchMap(doc, query) : []), [doc, query]);
+  const hits = useMemo(() => (doc ? searchMap(doc, query, t.words) : []), [doc, query, t]);
   // The result count is read out once typing pauses: said after every letter, the next key press
   // cuts it off, and a screen reader user hears nothing.
-  const searchSaid = useSettled(showResults && query.trim() ? searchSummary(hits.length) : '', 600);
+  const searchSaid = useSettled(showResults && query.trim() ? searchSummary(hits.length, t) : '', 600);
 
   const goTo = (h: SearchHit) => {
     setShowResults(false);
@@ -243,7 +237,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     setView(next);
   }, [dir?.stage, floorId]);
 
-  const share = (o: MapObject) => shareLink(linkTo(o.id), describe(o, doc!).title, () => {
+  const share = (o: MapObject) => shareLink(linkTo(o.id), describe(o, doc!, t).title, () => {
     setShared(true);
     setTimeout(() => setShared(false), 2500);
   });
@@ -280,13 +274,13 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   }, [tappedId]);
   if (error)
     return (
-      <div className="page-message">
-        <p>{error}</p>
-        <button className="btn primary" onClick={load}>Try again</button>
-        {backTo !== null && <button className="btn" onClick={() => navigate(backTo)}>All maps</button>}
+      <div className="page-message" lang={lang.htmlLang}>
+        <p>{t[error]}</p>
+        <button className="btn primary" onClick={load}>{t.tryAgain}</button>
+        {backTo !== null && <button className="btn" onClick={() => navigate(backTo)}>{t.allMaps}</button>}
       </div>
     );
-  if (!doc || !floor) return <div className="page-message"><p>Loading map…</p></div>;
+  if (!doc || !floor) return <div className="page-message" lang={lang.htmlLang}><p>{t.loadingMap}</p></div>;
 
   const keepInView = (o: MapObject) => {
     // Room the info card takes at the bottom of the map, so a tapped space never hides under it.
@@ -318,7 +312,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const matches = showResults && query.trim()
     ? hits.filter((h) => h.floorId === floor.id && h.object.id !== focused?.id).map((h) => h.object)
     : [];
-  const info = tapped ? describe(tapped, doc) : null;
+  const info = tapped ? describe(tapped, doc, t) : null;
   const tappedFloor = tapped && doc.floors.find((f) => f.objects.some((o) => o.id === tapped.id));
   const inside = buildingOf(doc, floor);
   const group = floorGroup(doc, floor);
@@ -329,7 +323,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const here = hereId ? floor.objects.find((o) => o.id === hereId) : undefined;
   const routeFloors = new Set(route ? [...route.legs.map((l) => l.floorId), ...route.steps.map((s) => s.floorId)] : []);
 
-  const announcement = viewerAnnouncement({ doc, floor, groupSize: group.length, sideOpen, dir, listOpen,
+  const announcement = viewerAnnouncement({ t, doc, floor, groupSize: group.length, sideOpen, dir, listOpen,
     searching: showResults && !!query.trim(), searchSaid, info, tappedFloor });
 
   const goInside = (buildingId: string) => {
@@ -382,7 +376,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
     setFocus({ id: goal.objectId, floorId: goal.floorId });
     // Let the "Finding the way" panel paint before the search runs.
     setTimeout(() => {
-      const r = findRoute(doc, start, goal, { avoidStairs: avoid });
+      const r = findRoute(doc, start, goal, { avoidStairs: avoid, words: t.words });
       if (moveFocus.current === null && !(document.activeElement instanceof HTMLInputElement)) moveFocus.current = 'sheet';
       if (!r.ok) return setDir({ stage: 'none', goal, start, reason: r.reason });
       setDir({ stage: 'route', goal, start, route: r.route });
@@ -393,11 +387,11 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   const startDirections = (o: MapObject) => {
     const f = doc.floors.find((x) => x.objects.includes(o));
     if (!f) return;
-    const goal: Goal = { floorId: f.id, objectId: o.id, x: o.x, y: o.y, name: placeLabel(o) };
+    const goal: Goal = { floorId: f.id, objectId: o.id, x: o.x, y: o.y, name: placeLabel(o, t.words) };
     const hint = fromHint();
     const hf = hint ? doc.floors.find((x) => x.objects.some((y) => y.id === hint)) : undefined;
     const ho = hf?.objects.find((y) => y.id === hint);
-    if (hf && ho && ho.id !== o.id) return runRoute(goal, { floorId: hf.id, objectId: ho.id, x: ho.x, y: ho.y, name: placeLabel(ho) });
+    if (hf && ho && ho.id !== o.id) return runRoute(goal, { floorId: hf.id, objectId: ho.id, x: ho.x, y: ho.y, name: placeLabel(ho, t.words) });
     moveFocus.current = 'sheet';
     setDir({ stage: 'pick', goal });
   };
@@ -427,8 +421,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
       if (!p) return;
       // A tap on a road, a lot or a building means "here", not "the whole thing".
       const start: Start = o && o.id !== dir.goal.objectId && !isBig(o) && !(o.kind === 'asset' && ROADLIKE.test(o.assetKey))
-        ? { floorId: floor.id, objectId: o.id, x: o.x, y: o.y, name: placeLabel(o) }
-        : { floorId: floor.id, x: p.x, y: p.y, name: 'the spot you picked' };
+        ? { floorId: floor.id, objectId: o.id, x: o.x, y: o.y, name: placeLabel(o, t.words) }
+        : { floorId: floor.id, x: p.x, y: p.y, name: t.words.spot };
       runRoute(dir.goal, start);
       return;
     }
@@ -456,10 +450,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
   };
 
   return (
-    <main className="viewer" style={floorVars(group.indexOf(floor))}>
+    <main className="viewer" lang={lang.htmlLang} style={floorVars(group.indexOf(floor))}>
       {preview && (
         <div className="preview-banner">
-          Preview: this is the employee view. <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>Back to editing</button>
+          {t.previewBanner} <button className="link" onClick={() => navigate(`/edit/${doc.id}`)}>{t.backToEditing}</button>
         </div>
       )}
       <div className="print-only viewer-print" ref={printRef} aria-hidden="true">
@@ -476,7 +470,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
 
       <div className="viewer-canvas" ref={boxRef} onClick={() => setShowResults(false)}>
         {/* The drawing itself can't be read aloud; search and the panels below say what's selected. */}
-        <div role="img" aria-label={`Map of ${floorTitle(doc, floor)}. Use the search box to find a space or place.`}>
+        <div role="img" aria-label={t.mapOf(floorTitle(doc, floor))}>
         <Stage
           visible={measured}
           width={size.width}
@@ -495,7 +489,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             <ViewerFloor floor={floor} focusedId={focused?.id} />
             <MapHighlights matches={matches} focused={focused} view={view} />
             {!floor.interiorOf && <InteriorMarkers objects={floor.objects} ids={interiorIds} scale={view.scale} />}
-            {here && !route && <HereMarker x={here.x} y={here.y} scale={view.scale} />}
+            {here && !route && <HereMarker x={here.x} y={here.y} scale={view.scale} label={t.youAreHere} />}
           </Layer>
           {/* The route draws itself in over about a second. On its own layer, each frame of that
               redraws just the line, not the whole floor (thousands of spaces on a big garage). */}
@@ -504,7 +498,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
           </Layer>
         </Stage>
         </div>
-        <button className="fab" onClick={resetView} aria-label="Show whole floor" title="Show whole floor" data-testid="reset-view">
+        <button className="fab" onClick={resetView} aria-label={t.showWholeFloor} title={t.showWholeFloor} data-testid="reset-view">
           <Icon name="fit" />
         </button>
         {sideOpen && group.length > 1 && (
@@ -515,10 +509,10 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
               route,
             })}
             currentId={floor.id}
-            title={inside ? `${buildingName(inside.building)}, side view` : 'Side view'}
+            title={inside ? t.sideViewOf(buildingName(inside.building)) : t.sideView}
             onPick={(fid) => {
               const f = doc.floors.find((x) => x.id === fid);
-              if (f) sayFloor(`${floorTitle(doc, f)} shown.`);
+              if (f) sayFloor(t.floorShown(floorTitle(doc, f)));
               moveFocus.current = route ? 'sheet' : tapped ? 'card' : 'side-button';
               setSideOpen(false);
               if (route) return showFloorOfRoute(route, fid);
@@ -544,8 +538,8 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
         )}
         {dir?.stage === 'tap' && !sideOpen && (
           <div className="dir-banner dir-sheet" data-testid="dir-tap-banner">
-            <span>Tap where you are now</span>
-            <button className="btn" onClick={() => { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); }}>Cancel</button>
+            <span>{t.tapNow}</span>
+            <button className="btn" onClick={() => { moveFocus.current = 'sheet'; setDir({ stage: 'pick', goal: dir.goal }); }}>{t.cancel}</button>
           </div>
         )}
         {dir && dir.stage !== 'tap' && !sideOpen && (
@@ -560,7 +554,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             onStep={(fid) => {
               if (!route) return;
               const f = doc.floors.find((x) => x.id === fid);
-              if (f && fid !== floor.id) sayFloor(`${floorTitle(doc, f)} shown.`);
+              if (f && fid !== floor.id) sayFloor(t.floorShown(floorTitle(doc, f)));
               showFloorOfRoute(route, fid);
             }}
             onAvoidStairs={(v) => {
@@ -582,7 +576,7 @@ export function ViewerPage({ mapId, repo, preview, backTo = '/' }: {
             if (!sideOpen) setListOpen(false);
           }}
           onPickFloor={(f) => {
-            sayFloor(`${floorTitle(doc, f)} shown${routeFloors.has(f.id) ? ', with the route' : ''}.`);
+            sayFloor((routeFloors.has(f.id) ? t.floorShownWithRoute : t.floorShown)(floorTitle(doc, f)));
             if (dir?.stage === 'route') return showFloorOfRoute(dir.route, f.id);
             setFloorId(f.id);
             if (!dir) { setTapped(null); setFocus(null); }

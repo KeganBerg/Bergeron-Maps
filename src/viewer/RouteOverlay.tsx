@@ -39,19 +39,12 @@ export function RouteOverlay({ route, floorId, scale }: { route: Route; floorId:
           <Circle radius={7 * k} fill={ink} stroke="#ffffff" strokeWidth={3 * k} />
           <Label y={-12 * k} name="route-change">
             <Tag fill={ink} pointerDirection="down" pointerWidth={10 * k} pointerHeight={6 * k} cornerRadius={3 * k} />
-            <Text text={tagText(s.text)} fill="#ffffff" fontSize={13 * k} fontStyle="bold" fontFamily={MAP_PALETTE.font} padding={6 * k} />
+            <Text text={s.tag ?? s.text} fill="#ffffff" fontSize={13 * k} fontStyle="bold" fontFamily={MAP_PALETTE.font} padding={6 * k} />
           </Label>
         </Group>
       ))}
     </Group>
   );
-}
-
-/** "Take Elevator 1 up to Floor 3" -> "Up to Floor 3"; "Take Up ramp to F3" -> "Up ramp to F3"; "Go inside Main building" stays. */
-export function tagText(t: string): string {
-  const m = /\b(up|down|across) to (.+)$/.exec(t);
-  if (m) return `${m[1][0].toUpperCase()}${m[1].slice(1)} to ${m[2]}`;
-  return t.replace(/^Take /, '');
 }
 
 const DRAW_MS = 900;
@@ -83,7 +76,7 @@ function dashFor(length: number, shown: number) {
 }
 
 /** "You are here", where a sign's QR code says the person is standing (a ?from= link). */
-export function HereMarker({ x, y, scale }: { x: number; y: number; scale: number }) {
+export function HereMarker({ x, y, scale, label }: { x: number; y: number; scale: number; label: string }) {
   const ink = MAP_PALETTE.selection;
   const k = 1 / scale;
   return (
@@ -91,7 +84,7 @@ export function HereMarker({ x, y, scale }: { x: number; y: number; scale: numbe
       <Circle radius={9 * k} fill="#2563eb" stroke="#ffffff" strokeWidth={3 * k} />
       <Label y={-14 * k}>
         <Tag fill={ink} pointerDirection="down" pointerWidth={10 * k} pointerHeight={6 * k} cornerRadius={3 * k} />
-        <Text text="You are here" fill="#ffffff" fontSize={13 * k} fontStyle="bold" fontFamily={MAP_PALETTE.font} padding={6 * k} />
+        <Text text={label} fill="#ffffff" fontSize={13 * k} fontStyle="bold" fontFamily={MAP_PALETTE.font} padding={6 * k} />
       </Label>
     </Group>
   );

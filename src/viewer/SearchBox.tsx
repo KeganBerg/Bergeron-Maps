@@ -1,5 +1,6 @@
 import type { SearchHit } from '../model/search';
 import { Icon } from '../ui/icons';
+import { useT } from '../i18n/useLanguage';
 
 /** The viewer's search box and its list of results (arrow keys move through them, Escape closes). */
 export function SearchBox({ query, setQuery, showResults, setShowResults, hits, goTo, submitSearch, quietFocus }: {
@@ -13,17 +14,18 @@ export function SearchBox({ query, setQuery, showResults, setShowResults, hits, 
   /** True while focus is being put back on the box by the app, not the person: don't open the results. */
   quietFocus: React.MutableRefObject<boolean>;
 }) {
+  const t = useT();
   return (
       <form className="viewer-search" role="search" onSubmit={(e) => { e.preventDefault(); submitSearch(); }}>
         <Icon name="search" size={18} />
         <input
           type="search"
           inputMode="search"
-          placeholder="Find a space, e.g. B16"
+          placeholder={t.searchPlaceholder}
           value={query}
           onChange={(e) => { setQuery(e.target.value); setShowResults(true); }}
           onFocus={() => { if (!quietFocus.current) setShowResults(true); }}
-          aria-label="Find a parking space"
+          aria-label={t.searchLabel}
           aria-controls={showResults && query.trim() ? "viewer-results" : undefined}
           onKeyDown={(e) => {
             if (e.key === 'Escape') setShowResults(false);
@@ -35,7 +37,7 @@ export function SearchBox({ query, setQuery, showResults, setShowResults, hits, 
           data-testid="viewer-search"
         />
         {showResults && query.trim() && (
-          <ul className="results" id="viewer-results" aria-label="Search results" data-testid="search-results"
+          <ul className="results" id="viewer-results" aria-label={t.searchResults} data-testid="search-results"
             onKeyDown={(e) => {
               // Up and down move through the results; Escape goes back to the search box.
               const items = [...e.currentTarget.querySelectorAll<HTMLElement>('button')];
@@ -46,7 +48,7 @@ export function SearchBox({ query, setQuery, showResults, setShowResults, hits, 
               else if (e.key === 'Escape') { input?.focus(); setShowResults(false); }
             }}>
             {hits.length === 0 ? (
-              <li className="none">No space or landmark called “{query.trim()}” on this map. Check the number and try again.</li>
+              <li className="none">{t.noMatchFor(query.trim())}</li>
             ) : (
               hits.map((h) => (
                 <li key={`${h.floorId}:${h.object.id}`}>

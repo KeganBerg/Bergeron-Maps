@@ -1,6 +1,7 @@
 import { ASSET_BY_KEY } from '../assets/library';
 import { floorTitle } from './interiors';
 import type { MapDocument, MapObject } from './types';
+import { ENGLISH, type MapWords } from './words';
 
 export interface SearchHit {
   floorId: string;
@@ -30,10 +31,10 @@ const numberOnly = (label: string, q: string) => {
  * start with the query) and landmarks by name or label, across every floor.
  * Hidden layers are skipped so viewers never land on something they can't see.
  */
-export function searchMap(doc: MapDocument, query: string): SearchHit[] {
+export function searchMap(doc: MapDocument, query: string, words: MapWords = ENGLISH): SearchHit[] {
   const q = normalizeQuery(query);
   if (!q) return [];
-  const words = query.toLowerCase().trim().split(/\s+/);
+  const terms = query.toLowerCase().trim().split(/\s+/);
   const exact: SearchHit[] = [];
   const byNumber: SearchHit[] = [];
   const partial: SearchHit[] = [];
@@ -45,7 +46,7 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
       if (o.kind === 'space') {
         const id = normalizeQuery(o.label);
         if (!id) continue;
-        const hit = { floorId: f.id, floorName, object: o, title: `Space ${o.label}` };
+        const hit = { floorId: f.id, floorName, object: o, title: words.space(o.label) };
         // Garages often number spaces per floor, like "F6 37": searching just "37"
         // should still find them (one hit per floor), right after full matches.
         const tail = normalizeQuery(o.label.split(/[\s\-_.]+/).filter(Boolean).pop() ?? '');
@@ -55,10 +56,12 @@ export function searchMap(doc: MapDocument, query: string): SearchHit[] {
           byNumber.push({ ...hit, exact: true });
         else if (id.startsWith(q) || (tail !== id && tail.startsWith(q))) partial.push({ ...hit, exact: false });
       } else {
-        const name = o.kind === 'text' ? o.text : [o.name, o.label, ASSET_BY_KEY[o.assetKey]?.name].filter(Boolean).join(' ');
+        // A symbol is found by its English name and by its name in the reader's language.
+        const local = o.kind === 'asset' ? words.symbol(o.assetKey) : undefined;
+        const name = o.kind === 'text' ? o.text : [o.name, o.label, ASSET_BY_KEY[o.assetKey]?.name, local].filter(Boolean).join(' ');
         const hay = name.toLowerCase();
-        if (words.every((w) => hay.includes(w))) {
-          const title = o.kind === 'text' ? o.text : o.name || o.label || ASSET_BY_KEY[o.assetKey]?.name || 'Object';
+        if (terms.every((w) => hay.includes(w))) {
+          const title = o.kind === 'text' ? o.text : o.name || o.label || local || ASSET_BY_KEY[o.assetKey]?.name || words.place;
           const isExact = title.toLowerCase() === query.toLowerCase().trim();
           (isExact ? exact : partial).push({ floorId: f.id, floorName, object: o, title, exact: isExact });
         }

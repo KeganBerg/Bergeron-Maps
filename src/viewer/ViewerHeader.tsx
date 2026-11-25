@@ -1,5 +1,7 @@
 import { Icon } from '../ui/icons';
 import { ago } from './viewerHelpers';
+import { useLanguageInfo, useT } from '../i18n/useLanguage';
+import { LanguagePicker } from '../ui/LanguagePicker';
 
 /** The viewer's top bar: back, the map's name and floor, the list of places, and refresh. */
 export function ViewerHeader({ mapName, floorName, updatedAt, preview, listOpen, onBack, onToggleList, onRefresh }: {
@@ -15,25 +17,28 @@ export function ViewerHeader({ mapName, floorName, updatedAt, preview, listOpen,
   onToggleList: () => void;
   onRefresh: () => void;
 }) {
+  const t = useT();
+  const { locale } = useLanguageInfo();
   return (
     <header className="viewer-header">
       {onBack && (
-        <button className="icon-btn" aria-label={preview ? 'Back to editor' : 'All maps'} onClick={onBack}>
+        <button className="icon-btn" aria-label={preview ? t.backToEditor : t.allMaps} onClick={onBack}>
           <Icon name="back" />
         </button>
       )}
       <div className="titles">
         <h1 data-testid="viewer-facility">{mapName}</h1>
         <span className="muted small">
-          {floorName}, {preview ? 'draft' : 'updated'} {ago(updatedAt)}
+          {(preview ? t.draftWhen : t.updatedWhen)(floorName, ago(updatedAt, locale))}
         </span>
       </div>
-      <button className={`icon-btn${listOpen ? ' on' : ''}`} aria-label="List of spaces and places" title="List of spaces and places on this floor"
+      <button className={`icon-btn${listOpen ? ' on' : ''}`} aria-label={t.listButton} title={t.listButtonTitle}
         aria-expanded={listOpen} data-testid="list-toggle"
         onClick={onToggleList}>
         <Icon name="rows" />
       </button>
-      <button className="icon-btn" aria-label="Refresh map" title="Get the latest version" onClick={onRefresh}><Icon name="restore" /></button>
+      <button className="icon-btn" aria-label={t.refresh} title={t.refreshTitle} onClick={onRefresh}><Icon name="restore" /></button>
+      <LanguagePicker compact />
     </header>
   );
 }

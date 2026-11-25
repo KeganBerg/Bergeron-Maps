@@ -6,6 +6,7 @@ import { COST, type Grid, cellAt, cellX, cellY, clampedCell, floorGrid } from '.
 import { BEND, DIRS, dedupe, KEEP_CLEAR, polyLength, roomAt, roundCorners, search, searchTurns, simplify, square, trace } from './route/search';
 import { type End, type Place, approachOf, placeCells } from './route/places';
 import { type Portal, type PortalKind, nameOf, portals } from './route/portals';
+import { ENGLISH, type MapWords, type Way } from './words';
 export { type Grid, cellAt, floorGrid } from './route/grid';
 export { type Place } from './route/places';
 export { type PortalKind, connectorKind, isConnector, reaches } from './route/portals';
@@ -40,7 +41,10 @@ export interface RouteLeg {
 export interface RouteStep {
   floorId: string;
   kind: 'walk' | PortalKind;
+  /** What to do, in the language of RouteOptions.words. */
   text: string;
+  /** For floor changes: the short tag drawn on the map ("Up to Floor 3", "Elevator 1"). */
+  tag?: string;
   /** For walking steps: the leg drawn on the map. */
   leg?: number;
   /** For floor changes: the floor you come out on. */
@@ -63,6 +67,8 @@ export interface Route {
 export interface RouteOptions {
   /** Step-free: skip stairs and escalators. */
   avoidStairs?: boolean;
+  /** The language the steps are written in (English by default). */
+  words?: MapWords;
 }
 
 export type RouteResult = { ok: true; route: Route } | { ok: false; reason: 'same' | 'none' };
@@ -236,7 +242,7 @@ type Seg = { kind: 'leg'; a: End; b: End; res: LegResult } | { kind: 'hop'; hop:
 function routeOnce(doc: MapDocument, from: End, to: End, squeeze: boolean, opts: RouteOptions): Omit<Route, 'squeezed'> | null {
   if (from.floor === to.floor) {
     const leg = walk(from, to, squeeze);
-    if (leg) return build(doc, [{ kind: 'leg', a: from, b: to, res: leg }]);
+    if (leg) return build(doc, [{ kind: 'leg', a: from, b: to, res: leg }], opts.words ?? ENGLISH);
   }
   const all = portals(doc).filter((p) => !(opts.avoidStairs && (p.kind === 'stairs' || p.kind === 'escalator')));
   // Graph nodes: 0 = start, 1 = destination, then both ends of every portal.
@@ -328,7 +334,7 @@ function routeOnce(doc: MapDocument, from: End, to: End, squeeze: boolean, opts:
       if (!leg) { blocked.add(`${u}>${v}`); failed = true; break; }
       segs.push({ kind: 'leg', a: ends[u], b: ends[v], res: leg });
     }
-    if (!failed) return build(doc, joinWalks(segs, squeeze));
+    if (!failed) return build(doc, joinWalks(segs, squeeze), opts.words ?? ENGLISH);
   }
   return null;
 }
@@ -356,14 +362,14 @@ const FT = 5;
 export const feet = (px: number) => Math.max(10, Math.round(px / FT / 10) * 10);
 
 /** "Space B4", "Elevator 1", "the spot you picked". */
-export function placeLabel(o: MapObject | undefined): string {
-  if (!o) return 'the spot you picked';
-  if (o.kind === 'space') return `Space ${o.label || '(no number)'}`;
+export function placeLabel(o: MapObject | undefined, words: MapWords = ENGLISH): string {
+  if (!o) return words.spot;
+  if (o.kind === 'space') return words.space(o.label || words.noNumber);
   if (o.kind === 'text') return o.text;
-  return nameOf(o, 'there');
+  return nameOf(o, words.place, words);
 }
 
-function build(doc: MapDocument, segs: Seg[]): Omit<Route, 'squeezed'> {
+function build(doc: MapDocument, segs: Seg[], words: MapWords): Omit<Route, 'squeezed'> {
   const legs: RouteLeg[] = [];
   const steps: RouteStep[] = [];
   let changes = 0;
@@ -374,7 +380,9 @@ function build(doc: MapDocument, segs: Seg[]): Omit<Route, 'squeezed'> {
       const length = polyLength(s.res.points);
       if (length < 1) continue;
       legs.push({ floorId: s.a.floor.id, points: s.res.points, length });
-      steps.push({ floorId: s.a.floor.id, kind: 'walk', text: `Walk to ${s.b.landing && !s.b.obj ? s.b.landing.name : placeLabel(s.b.obj)}`, leg: legs.length - 1, x: s.b.x, y: s.b.y });
+      const l = s.b.landing;
+      const to = l && !s.b.obj ? (l.of ? nameOf(l.of, l.name, words) : l.name) : placeLabel(s.b.obj, words);
+      steps.push({ floorId: s.a.floor.id, kind: 'walk', text: words.walkTo(to), leg: legs.length - 1, x: s.b.x, y: s.b.y });
       lastHop = -1;
       continue;
     }
@@ -384,11 +392,12 @@ function build(doc: MapDocument, segs: Seg[]): Omit<Route, 'squeezed'> {
     // Riding the same elevator past a floor is one step, not two.
     if (prev && prev.kind === s.hop.portal.kind && prev.kind !== 'inside' && prev.kind !== 'outside') {
       // Named for the one you got on.
-      steps[lastHop] = changeStep(doc, s.hop, prev.floorId, out, prev.x, prev.y, lastName);
+      steps[lastHop] = changeStep(doc, s.hop, prev.floorId, out, prev.x, prev.y, words, lastName);
     } else {
       // Named for the one you walked to (each floor's stair or ramp can have its own name).
-      lastName = inn.obj ? nameOf(inn.obj, s.hop.portal.name) : s.hop.portal.name;
-      steps.push(changeStep(doc, s.hop, inn.floor.id, out, inn.x, inn.y, lastName));
+      const fallback = s.hop.portal.a.obj ? nameOf(s.hop.portal.a.obj, s.hop.portal.name, words) : s.hop.portal.name;
+      lastName = inn.obj ? nameOf(inn.obj, fallback, words) : fallback;
+      steps.push(changeStep(doc, s.hop, inn.floor.id, out, inn.x, inn.y, words, lastName));
       lastHop = steps.length - 1;
     }
   }
@@ -400,20 +409,21 @@ function hopEnds(h: Hop): [End, End] {
   return h.forward ? [h.portal.a, h.portal.b] : [h.portal.b, h.portal.a];
 }
 
-function changeStep(doc: MapDocument, hop: Hop, floorId: string, out: End, x: number, y: number, name = hop.portal.name): RouteStep {
+function changeStep(doc: MapDocument, hop: Hop, floorId: string, out: End, x: number, y: number, words: MapWords, name = hop.portal.name): RouteStep {
   const p = hop.portal;
   if (p.kind === 'inside') {
-    return hop.forward
-      ? { floorId, kind: 'inside', text: `Go inside ${p.name}`, toFloorId: out.floor.id, x, y }
-      : { floorId, kind: 'outside', text: `Leave ${p.name}`, toFloorId: out.floor.id, x, y };
+    const text = hop.forward ? words.goInside(p.name) : words.leave(p.name);
+    return { floorId, kind: hop.forward ? 'inside' : 'outside', text, tag: text, toFloorId: out.floor.id, x, y };
   }
   const fromFloor = doc.floors.find((f) => f.id === floorId)!;
   const group = floorGroup(doc, fromFloor);
   const up = group.indexOf(out.floor) > group.indexOf(fromFloor);
-  const dir = p.kind === 'walkway' ? 'across' : up ? 'up' : 'down';
+  const dir: Way = p.kind === 'walkway' ? 'across' : up ? 'up' : 'down';
   // "Up ramp to F3" already says where it goes.
   const says = new RegExp(`(^|\\s)${out.floor.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(name);
-  return { floorId, kind: p.kind, text: says ? `Take ${name}` : `Take ${name} ${dir} to ${out.floor.name}`, toFloorId: out.floor.id, x, y };
+  return says
+    ? { floorId, kind: p.kind, text: words.take(name), tag: name, toFloorId: out.floor.id, x, y }
+    : { floorId, kind: p.kind, text: words.takeTo(name, dir, out.floor.name), tag: words.wayTo(dir, out.floor.name), toFloorId: out.floor.id, x, y };
 }
 /** Rough walking time: about 250 ft a minute, plus time for each floor change. */
 export function minutes(route: Route): number {
@@ -421,7 +431,7 @@ export function minutes(route: Route): number {
 }
 
 /** Places people commonly start from: entrances, elevators, stairs, pickup points. */
-export function startPlaces(doc: MapDocument): { floor: Floor; obj: MapObject; name: string }[] {
+export function startPlaces(doc: MapDocument, words: MapWords = ENGLISH): { floor: Floor; obj: MapObject; name: string }[] {
   const out: { floor: Floor; obj: MapObject; name: string }[] = [];
   for (const f of doc.floors) {
     for (const o of f.objects) {
@@ -431,7 +441,7 @@ export function startPlaces(doc: MapDocument): { floor: Floor; obj: MapObject; n
       const k = o.assetKey;
       const useful = def.connector || def.walk === 'opener' && !['door', 'double-door', 'crosswalk', 'pedestrian-crossing', 'barrier-arm'].includes(k)
         || k.startsWith('pin-') || k.startsWith('valet-') || k === 'pay-station' || k === 'info-desk' || k === 'reception-desk';
-      if (useful) out.push({ floor: f, obj: o, name: nameOf(o, def.name) });
+      if (useful) out.push({ floor: f, obj: o, name: nameOf(o, def.name, words) });
     }
   }
   return out;

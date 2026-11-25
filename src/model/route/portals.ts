@@ -4,6 +4,7 @@ import { buildingName, floorGroup, interiorFloors } from '../interiors';
 import { toLocal, toWorld } from '../shape';
 import type { AssetObject, Floor, MapDocument, MapObject } from '../types';
 import { type End } from './places';
+import { ENGLISH, type MapWords, symbolName } from '../words';
 
 /**
  * Walking directions, part 4: how floors join. Stairs, elevators and ramps
@@ -40,8 +41,8 @@ export function reaches(doc: MapDocument, floor: Floor, o: AssetObject): Floor[]
   return [group[i - 1], group[i + 1]].filter((f): f is Floor => !!f);
 }
 
-export const nameOf = (o: MapObject, fallback: string) =>
-  o.name?.trim() || (o.kind === 'asset' ? o.label?.trim() || ASSET_BY_KEY[o.assetKey]?.name : undefined) || fallback;
+export const nameOf = (o: MapObject, fallback: string, words: MapWords = ENGLISH) =>
+  o.name?.trim() || (o.kind === 'asset' ? o.label?.trim() || symbolName(o.assetKey, words) : undefined) || fallback;
 
 const portalsCache = new WeakMap<MapDocument, Portal[]>();
 
@@ -80,7 +81,7 @@ export function portals(doc: MapDocument): Portal[] {
           name: nameOf(o, ASSET_BY_KEY[o.assetKey]?.name ?? 'Stairs'),
           penalty,
           a: { floor: f, obj: o, x: o.x, y: o.y },
-          b: best ? { floor: to, obj: best, x: best.x, y: best.y } : { floor: to, x: o.x, y: o.y, landing: { kind, name: nameOf(o, ASSET_BY_KEY[o.assetKey]?.name ?? 'Stairs') } },
+          b: best ? { floor: to, obj: best, x: best.x, y: best.y } : { floor: to, x: o.x, y: o.y, landing: { kind, name: nameOf(o, ASSET_BY_KEY[o.assetKey]?.name ?? 'Stairs'), of: o } },
         });
       }
     }

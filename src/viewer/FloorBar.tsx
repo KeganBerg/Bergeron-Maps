@@ -2,6 +2,7 @@ import type { AssetObject, Floor } from '../model/types';
 import { buildingName } from '../model/interiors';
 import { floorVars } from '../theme';
 import { Icon } from '../ui/icons';
+import { useT } from '../i18n/useLanguage';
 
 /**
  * The bar of floors along the bottom of the viewer: Outside (inside a
@@ -20,19 +21,20 @@ export function FloorBar({ floor, group, inside, sideOpen, routeFloors, onOutsid
   onToggleSide: () => void;
   onPickFloor: (f: Floor) => void;
 }) {
+  const t = useT();
   return (
-        <nav className="viewer-floors" aria-label="Floors">
+        <nav className="viewer-floors" aria-label={t.floors}>
           {inside && (
-            <button className="outside" onClick={onOutside} data-testid="go-outside" title={`Back outside to ${inside.floor.name}`}>
-              <Icon name="back" size={16} /> Outside
+            <button className="outside" onClick={onOutside} data-testid="go-outside" title={t.backOutsideTo(inside.floor.name)}>
+              <Icon name="back" size={16} /> {t.outside}
             </button>
           )}
           {inside && <span className="viewer-building" data-testid="viewer-building">{buildingName(inside.building)}</span>}
           {group.length > 1 && (
             <button className={`side-toggle${sideOpen ? ' on' : ''}`} aria-expanded={sideOpen} data-testid="side-view-toggle"
-              aria-label="Side view of all floors" title="See every floor stacked, side on"
+              aria-label={t.allFloorsLabel} title={t.allFloorsTitle}
               onClick={onToggleSide}>
-              <Icon name="floors" size={18} /> <span>All floors</span>
+              <Icon name="floors" size={18} /> <span>{t.allFloors}</span>
             </button>
           )}
           {(inside && group.length < 2 ? [] : group).map((f, i) => (
