@@ -22,9 +22,9 @@ describe('map words in another language', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const texts = r.route.steps.map((s) => s.text);
-    expect(texts[0]).toMatch(/^Camine a (Elevator|Stairway) 1$/);
+    expect(texts[0]).toMatch(/^Camine hasta (Elevator|Stairway) 1$/);
     expect(texts[1]).toMatch(/^Tome (Elevator|Stairway) 1 para subir a Floor 3$/);
-    expect(texts[2]).toBe('Camine a Espacio 3B5');
+    expect(texts[2]).toBe('Camine hasta Espacio 3B5');
     expect(r.route.steps[1].tag).toBe('Suba a Floor 3');
   });
 
@@ -50,5 +50,12 @@ describe('map words in another language', () => {
     expect(groups[0].title).toBe('Lugares');
     expect(groups[1].title).toMatch(/^Fila: espacios \S+ a \S+$/);
     expect(groups.flatMap((g) => g.items).some((i) => i.detail === 'Accesible')).toBe(true);
+  });
+
+  it('spaces Chinese the standard way: a space next to Latin letters and digits, none between Chinese characters', () => {
+    expect(zh.words.walkTo('Elevator 1')).toBe('步行至 Elevator 1');
+    expect(zh.words.walkTo('电梯')).toBe('步行至电梯');
+    expect(zh.words.space('3B5')).toBe('车位 3B5');
+    expect(zh.routeSummary(180, 2, 'Entrance')).toBe('180 英尺，从 Entrance 出发约需 2 分钟');
   });
 });

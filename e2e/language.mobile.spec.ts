@@ -32,14 +32,14 @@ test('an employee picks Spanish: search, the card and directions are in Spanish,
   await page.getByTestId('directions').click();
   await expect(page.getByTestId('directions-sheet')).toContainText('¿Desde dónde sale?');
   await page.getByTestId('dir-start').filter({ hasText: 'Entrance' }).first().click();
-  await expect(page.getByTestId('route-step').first()).toContainText('Camine a');
+  await expect(page.getByTestId('route-step').first()).toContainText('Camine hasta');
   // The map's own names (typed by the manager) stay as they are.
   await expect(page.getByTestId('dir-summary')).toContainText('desde Entrance');
 
   // Switching language with the route up rewords it in place.
   await page.getByTestId('language-picker').selectOption('vi');
   await expect(page.getByTestId('route-step').first()).toContainText('Đi bộ đến');
-  await expect(page.getByTestId('directions-sheet')).toContainText('Đến Chỗ 2B3');
+  await expect(page.getByTestId('directions-sheet')).toContainText('Đến Chỗ đậu 2B3');
 
   await page.reload();
   await expect(page.getByTestId('viewer-search')).toHaveAttribute('placeholder', 'Tìm chỗ đậu, ví dụ B16');

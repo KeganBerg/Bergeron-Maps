@@ -39,6 +39,17 @@ English and new to apps.
 
 ## Review needed
 
-The Spanish, Chinese, Tagalog and Vietnamese text was machine-drafted. Before it is promised to a
-customer, a native speaker should read each file (about 120 short lines each) and fix anything that
-sounds unnatural. Free options: a bilingual employee at a customer site, or a friend or family member.
+The Spanish, Chinese, Tagalog and Vietnamese text was machine-drafted, then given a second review
+pass for grammar, plurals and consistent terms (2026-11-25). Software can't promise native-level
+accuracy, so each language needs a professional native speaker's sign-off before it is promised to
+customers. The review sheets (one spreadsheet per language: English beside the translation, with
+where each line appears, an OK column, a correction column and a sign-off block) are in the project
+files under `translations/`. Copy the reviewer's corrections into the matching file in `src/i18n/`.
+
+Points worth a reviewer's attention:
+
+- Tagalog: "puwesto" for a parking space (some workers may say "slot"), and whether counts take the
+  "na" linker ("7 na item").
+- Spanish: US Latin American usage ("elevador", "autos", formal "usted").
+- Chinese: simplified characters only. Traditional (common with Cantonese speakers) would be a
+  sixth language.
