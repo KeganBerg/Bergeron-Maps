@@ -30,7 +30,8 @@ src/
               (All accounts: AdminPage holds the companies list, AdminCompanyPane one company, AdminTools setup and backups;
               its search and pane choice are in model/adminAccounts.ts)
   ui/         Shared UI pieces: dialogs, fields, icons, brand, motion (useMotion: rows and cards that change ease in/out; a page fades in once),
-              MoreMenu (a row's less-used actions), Toast (result notices that fade out)
+              MoreMenu (a row's less-used actions), Toast (result notices that fade out), the language picker
+  i18n/       What the viewer, public links and sign-in say, one file per language (docs/LANGUAGES.md)
   errors/     Friendly error messages and optional error reports
 supabase/
   migrations/ The database schema, in order (source of truth)

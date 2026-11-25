@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
+import { useLanguageInfo, useT } from '../i18n/useLanguage';
+import { LanguagePicker } from '../ui/LanguagePicker';
 import { setLocalMode, supabase, clearSignInProblem, takeSignInProblem, pendingEmailLink, finishEmailLink, signInWithCode, sendProblem } from './client';
 
 const RETURN_KEY = 'bm.returnTo';
@@ -22,6 +24,8 @@ export function takeReturnRoute(): string | null {
  */
 export function SignInPage({ siteLink }: { siteLink: boolean }) {
   // The purchase page sends new buyers here with ?email=, so the address they paid with is filled in.
+  const t = useT();
+  const lang = useLanguageInfo();
   const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get('email')?.slice(0, 200) ?? '');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -36,7 +40,7 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
   const send = async () => {
     if (!supabase) return;
     const address = email.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) return setError('Enter your work email address.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) return setError(t.enterEmail);
     setBusy(true);
     setError(null);
     clearSignInProblem();
@@ -71,7 +75,7 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
 
   const submitCode = async () => {
     const digits = code.replace(/\s+/g, '');
-    if (!/^\d{6,10}$/.test(digits)) return setError('Enter the code from the email. It’s 6 digits.');
+    if (!/^\d{6,10}$/.test(digits)) return setError(t.enterCode);
     setBusy(true);
     setError(null);
     const problem = await signInWithCode(email.trim().toLowerCase(), digits);
@@ -83,15 +87,15 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
     return (
       <div className="home">
         <AppHeader />
-        <main className="signin">
+        <main className="signin" lang={lang.htmlLang}>
           <div className="signin-card" data-testid="signin-finish">
             <div className="signin-head">
-              <h2>Finish signing in</h2>
-              <p>Sign in to Bergeron Maps on this device.</p>
+              <h2>{t.finishTitle}</h2>
+              <p>{t.finishText}</p>
             </div>
             {error && <p className="error-text" role="alert">{error}</p>}
             <button className="btn primary" autoFocus disabled={busy} onClick={() => void finish()} data-testid="signin-finish-btn">
-              {busy ? 'Signing in…' : 'Finish signing in'}
+              {busy ? t.signingIn : t.finishTitle}
             </button>
           </div>
         </main>
@@ -103,51 +107,52 @@ export function SignInPage({ siteLink }: { siteLink: boolean }) {
   return (
     <div className="home">
       <AppHeader />
-      <main className="signin">
+      <main className="signin" lang={lang.htmlLang}>
         {sent ? (
-          <div key="sent" className="signin-card" data-testid="signin-sent" ref={sentCard} tabIndex={-1} role="region" aria-label="Check your email" aria-describedby="signin-sent-text">
+          <div key="sent" className="signin-card" data-testid="signin-sent" ref={sentCard} tabIndex={-1} role="region" aria-label={t.checkEmail} aria-describedby="signin-sent-text">
             <div className="signin-head">
-              <h2>Check your email</h2>
-              <p id="signin-sent-text">We sent a sign-in link and code to <strong>{address}</strong>.</p>
+              <h2>{t.checkEmail}</h2>
+              <p id="signin-sent-text">{t.sentTo[0]}<strong>{address}</strong>{t.sentTo[1]}</p>
             </div>
             <form noValidate onSubmit={(e) => { e.preventDefault(); void submitCode(); }}>
               <label className="signin-field">
-                Code
+                {t.code}
                 <input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={12} value={code} onChange={(e) => setCode(e.target.value)}
                   placeholder="123456" data-testid="signin-code"
                   aria-invalid={error ? true : undefined} aria-describedby={error ? 'signin-code-error' : undefined} />
                 {error && <span className="error-text" role="alert" id="signin-code-error">{error}</span>}
               </label>
               <div className="signin-actions">
-                <button className="btn primary" disabled={busy} data-testid="signin-code-send">{busy ? 'Signing in…' : 'Sign in'}</button>
-                <button type="button" className="btn" onClick={() => { setSent(false); setError(null); }}>Use a different email</button>
+                <button className="btn primary" disabled={busy} data-testid="signin-code-send">{busy ? t.signingIn : t.signIn}</button>
+                <button type="button" className="btn" onClick={() => { setSent(false); setError(null); }}>{t.differentEmail}</button>
               </div>
             </form>
-            <p className="signin-note">Not in your inbox? Check spam. The link and code expire in an hour.</p>
+            <p className="signin-note">{t.notInInbox}</p>
           </div>
         ) : (
           <div key="email" className="signin-card">
             <div className="signin-head">
-              <h2>{siteLink ? 'Sign in to open your site' : 'Sign in'}</h2>
-              <p>We’ll email you a link to sign in. No password needed.</p>
+              <h2>{siteLink ? t.signInToSite : t.signIn}</h2>
+              <p>{t.noPassword}</p>
             </div>
             <form noValidate onSubmit={(e) => { e.preventDefault(); void send(); }}>
               <label className="signin-field">
-                Work email
+                {t.workEmail}
                 <input type="email" autoComplete="email" inputMode="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com" data-testid="signin-email"
                   aria-invalid={error ? true : undefined} aria-describedby={error ? 'signin-error' : undefined} />
                 {error && <span className="error-text" role="alert" id="signin-error">{error}</span>}
               </label>
-              <button className="btn primary" disabled={busy} data-testid="signin-send">{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
+              <button className="btn primary" disabled={busy} data-testid="signin-send">{busy ? t.sending : t.emailMeLink}</button>
             </form>
             {!siteLink && (
               <button type="button" className="link signin-alt" onClick={() => { setLocalMode(true); window.location.reload(); }} data-testid="try-local">
-                Try it without an account
+                {t.tryWithoutAccount}
               </button>
             )}
           </div>
         )}
+        <div className="lang-row"><LanguagePicker /></div>
       </main>
     </div>
   );

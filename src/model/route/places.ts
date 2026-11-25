@@ -28,9 +28,10 @@ export interface End {
   /**
    * Where a stair, elevator or ramp comes out on a floor that has none drawn
    * (a floor not mapped yet, say): its kind and name. Landings of the same
-   * kind at the same spot are one shaft, ridden straight past.
+   * kind at the same spot are one shaft, ridden straight past. `of` is the
+   * connector on the floor it came from, to name it in the reader's language.
    */
-  landing?: { kind: PortalKind; name: string };
+  landing?: { kind: PortalKind; name: string; of?: MapObject };
 }
 
 /** The cells of a place, opened up so a route can reach it even inside a row of spaces. */

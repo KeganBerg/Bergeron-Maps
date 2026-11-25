@@ -6,6 +6,8 @@ import { navigate } from '../router';
 import type { MapRepository } from '../storage/repository';
 import { ViewerPage } from '../viewer/ViewerPage';
 import { supabase } from './client';
+import { useLanguageInfo, useT } from '../i18n/useLanguage';
+import { LanguagePicker } from '../ui/LanguagePicker';
 
 interface PublicMap { site_name: string; map_id: string; name: string; doc: MapDocument; published_at: string }
 
@@ -21,6 +23,8 @@ export const isPublicSiteRoute = (parts: string[]) => parts[0] === 'view' && !!p
  * made public, and only their published version.
  */
 export function PublicSitePage({ slug, mapId }: { slug: string; mapId?: string }) {
+  const t = useT();
+  const lang = useLanguageInfo();
   const [maps, setMaps] = useState<PublicMap[] | null>(null);
   const [failed, setFailed] = useState(false);
   const fetchSite = () => supabase!.rpc('get_public_site', { p_slug: slug }).then(({ data, error }) => ({ list: (data ?? []) as PublicMap[], error }));
@@ -57,7 +61,7 @@ export function PublicSitePage({ slug, mapId }: { slug: string; mapId?: string }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maps === null, slug]);
 
-  if (maps === null) return <div className="page-message"><p>Loading…</p></div>;
+  if (maps === null) return <div className="page-message" lang={lang.htmlLang}><p>{t.loading}</p></div>;
   const only = maps.length === 1 ? maps[0] : undefined;
   const open = mapId ? maps.find((m) => m.map_id === mapId) : only;
   if (open) return <ViewerPage key={open.map_id} mapId={open.map_id} repo={repo} preview={false} backTo={only ? null : `/view/${slug}`} />;
@@ -65,15 +69,15 @@ export function PublicSitePage({ slug, mapId }: { slug: string; mapId?: string }
   return (
     <div className="home">
       <AppHeader />
-      <main className="home-main locations">
+      <main className="home-main locations" lang={lang.htmlLang}>
         {maps.length === 0 ? (
           <div className="empty-state" data-testid="public-none">
-            <p>{failed ? 'This map couldn’t be loaded. Check your connection and try again.' : 'There’s no public map at this link. It may have been taken offline, or the link changed.'}</p>
-            {failed && <button className="btn primary" onClick={() => { setMaps(null); setAttempt((n) => n + 1); }} data-testid="public-retry">Try again</button>}
+            <p>{failed ? t.publicFailed : t.publicNone}</p>
+            {failed && <button className="btn primary" onClick={() => { setMaps(null); setAttempt((n) => n + 1); }} data-testid="public-retry">{t.tryAgain}</button>}
           </div>
         ) : (
           <>
-            <div className="page-head"><h2>{maps[0].site_name}</h2></div>
+            <div className="page-head"><h2>{maps[0].site_name}</h2><LanguagePicker /></div>
             <ul className="loc-maps">
               {maps.map((m) => (
                 <li key={m.map_id}>

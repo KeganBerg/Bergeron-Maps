@@ -418,6 +418,14 @@ label.check { flex-direction: row !important; align-items: center; gap: 8px; fon
 .viewer-header .titles { flex: 1; display: flex; flex-direction: column; gap: var(--stack-gap); min-width: 0; }
 .viewer-header .titles h1 { font-size: var(--fs-xl); font-weight: var(--fw-bold); line-height: var(--lh-tight); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viewer-header .titles > span { line-height: var(--lh-tight); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Language picker: an invisible select covers the whole control, so a tap anywhere opens the phone's own list. */
+.lang-picker { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text-soft); font-size: var(--fs-md); cursor: pointer; flex: none; }
+.lang-picker:hover { background: var(--hover); }
+.lang-picker:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.lang-picker select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: var(--fs-lg); }
+.lang-picker.compact { width: 32px; padding: 0; justify-content: center; border: 0; background: transparent; }
+.viewer-header .lang-picker { color: inherit; }
+.lang-row { display: flex; justify-content: center; margin-top: 16px; }
 .viewer-search { position: relative; margin: 4px 12px 8px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--field-border); border-radius: 8px; padding: 0 12px; color: var(--muted); background: var(--panel); }
 .viewer-search input { flex: 1; border: 0 !important; padding: 11px 0 !important; font-size: var(--fs-lg); outline: none; background: transparent !important; color: var(--text); }
 .results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; list-style: none; margin: 0; padding: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.15); z-index: 20; max-height: 50vh; overflow: auto; }

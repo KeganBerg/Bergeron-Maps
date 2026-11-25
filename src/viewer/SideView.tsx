@@ -7,6 +7,7 @@ import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { SideLink, SideViewModel } from '../model/sideView';
 import { floorColor, floorTextColor } from '../theme';
 import { Icon } from '../ui/icons';
+import { useT } from '../i18n/useLanguage';
 
 const CAR = 'M1 11V6l5-5h11l6 5h2v5z';
 
@@ -18,6 +19,7 @@ export function SideViewDrawing({ model, width, currentId, accent = '#d97706', o
   onPick?: (floorId: string) => void;
   idPrefix?: string;
 }) {
+  const t = useT();
   const n = model.floors.length;
   const rowH = n <= 4 ? 76 : n <= 8 ? 60 : 46;
   const tagW = Math.round(Math.min(104, Math.max(56, width * 0.2)));
@@ -95,10 +97,10 @@ export function SideViewDrawing({ model, width, currentId, accent = '#d97706', o
               if (!(mark?.space && mark.level === i && Math.abs(cx + 13 - mx) < 22)) cars.push(cx);
             }
           }
-        const label = [f.name, current ? 'shown now' : '', f.spaces ? `${f.spaces} ${f.spaces === 1 ? 'space' : 'spaces'}` : ''].filter(Boolean).join(', ');
+        const label = [f.name, current ? t.shownNow : '', f.spaces ? t.spaceCount(f.spaces) : ''].filter(Boolean).join(', ');
         return (
           <g key={f.id} className={`sv-floor${current ? ' current' : ''}`} data-floor={f.id}
-            {...(onPick ? { role: 'button', tabIndex: 0, 'aria-label': `Open ${label}`, 'aria-current': current || undefined, onClick: () => onPick(f.id), onKeyDown: key(f.id) } : {})}>
+            {...(onPick ? { role: 'button', tabIndex: 0, 'aria-label': t.open(label), 'aria-current': current || undefined, onClick: () => onPick(f.id), onKeyDown: key(f.id) } : {})}>
             <rect className="sv-hit" x={0} y={y - rowH} width={width} height={rowH} fill="currentColor" fillOpacity={current ? 0.07 : 0} stroke="none" />
             <path className="sv-slab" d={`M${left} ${y}H${right}`} strokeWidth={current ? 5 : 4} />
             {cars.map((cx, k) => (
@@ -134,7 +136,6 @@ export function SideViewDrawing({ model, width, currentId, accent = '#d97706', o
   );
 }
 
-const KIND_NAMES: Record<SideLink['kind'], string> = { ramp: 'Ramp', stairs: 'Stairs', escalator: 'Escalator', elevator: 'Elevator' };
 
 /** The sheet in the viewer: the drawing, a key, and tap a floor to open it. */
 export function SideViewSheet({ model, currentId, title, onPick, onClose }: {
@@ -159,24 +160,25 @@ export function SideViewSheet({ model, currentId, title, onPick, onClose }: {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const kinds = [...new Set(model.links.map((l) => l.kind))];
+  const t = useT();
+  const kinds: SideLink['kind'][] = [...new Set(model.links.map((l) => l.kind))];
   return (
     <div className="dir-sheet side-view" role="region" aria-label={title} tabIndex={-1} data-testid="side-view"
       onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); } }}>
       <div className="dir-head">
         <div>
           <strong>{title}</strong>
-          <span className="muted">Tap a floor to open it.</span>
+          <span className="muted">{t.tapAFloor}</span>
         </div>
-        <button className="icon-btn" aria-label="Close side view" onClick={onClose} data-testid="side-view-close"><Icon name="close" /></button>
+        <button className="icon-btn" aria-label={t.closeSideView} onClick={onClose} data-testid="side-view-close"><Icon name="close" /></button>
       </div>
       <div className="side-view-body" ref={box}>
         {width > 0 && <SideViewDrawing model={model} width={width} currentId={currentId} onPick={onPick} accent="var(--sv-accent)" />}
       </div>
       <p className="side-view-key muted" data-testid="side-view-key">
         {kinds.length
-          ? [...kinds.map((k) => KIND_NAMES[k]), model.route ? 'Your route' : ''].filter(Boolean).join(', ')
-          : 'No ramps, stairs or elevators connect these floors on the map yet.'}
+          ? [...kinds.map((k) => t[k]), model.route ? t.yourRoute : ''].filter(Boolean).join(', ')
+          : t.noConnections}
       </p>
     </div>
   );
