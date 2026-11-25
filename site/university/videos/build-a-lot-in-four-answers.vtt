@@ -1,0 +1,125 @@
+WEBVTT
+
+1
+00:00:04.102 --> 00:00:09.332
+In this video you’ll build a full parking map by answering four numbers, then tidy
+
+2
+00:00:09.332 --> 00:00:10.927
+it up to match your site.
+
+3
+00:00:11.377 --> 00:00:17.687
+On the Maps page, find your site and choose Add the first map.
+
+4
+00:00:17.687 --> 00:00:22.877
+If the site already has a map, use Add map instead.
+
+5
+00:00:23.328 --> 00:00:28.382
+Give the map a name your team will recognize, like Main garage.
+
+6
+00:00:28.834 --> 00:00:32.852
+Build it for me is already picked.
+
+7
+00:00:32.852 --> 00:00:35.334
+Now the four answers.
+
+8
+00:00:35.785 --> 00:00:39.685
+Floors. Use one for a surface lot.
+
+9
+00:00:39.685 --> 00:00:41.865
+Our garage has two.
+
+10
+00:00:42.317 --> 00:00:48.581
+Rows per floor. Rows are lettered A, B, C, and so on.
+
+11
+00:00:48.581 --> 00:00:50.117
+We have four.
+
+12
+00:00:50.568 --> 00:00:57.250
+Spaces per row. They’re numbered one, two, three.
+
+13
+00:00:57.250 --> 00:00:59.568
+We’ll say twelve.
+
+14
+00:01:00.019 --> 00:01:06.519
+And accessible spaces. They go at the start of row A.
+
+15
+00:01:06.971 --> 00:01:09.496
+The preview updates as you type.
+
+16
+00:01:09.496 --> 00:01:13.914
+Lanes, the entrance, ramps and stairs are added for you.
+
+17
+00:01:13.914 --> 00:01:17.780
+Check each floor with the tabs under the preview.
+
+18
+00:01:18.230 --> 00:01:22.516
+The button says how many spaces you’ll get.
+
+19
+00:01:22.516 --> 00:01:24.310
+Choose Create map.
+
+20
+00:01:24.762 --> 00:01:27.205
+Here’s your map in the editor.
+
+21
+00:01:27.205 --> 00:01:33.476
+Each space number starts with the floor, then the row letter, then the space.
+
+22
+00:01:33.476 --> 00:01:35.023
+So this one is 1A1.
+
+23
+00:01:35.477 --> 00:01:38.389
+Now tidy it up to match your site.
+
+24
+00:01:38.389 --> 00:01:42.416
+Click a row, and its settings open on the left.
+
+25
+00:01:42.416 --> 00:01:45.414
+Say this row really has ten spaces.
+
+26
+00:01:45.414 --> 00:01:47.213
+Change Spaces to ten.
+
+27
+00:01:47.666 --> 00:01:51.798
+To change one space, double-click it.
+
+28
+00:01:51.798 --> 00:01:56.266
+Here we make space 1D6 a reserved space.
+
+29
+00:01:56.718 --> 00:02:02.018
+Switch floors with the tabs at the bottom.
+
+30
+00:02:02.469 --> 00:02:06.205
+Everything saves as you go. You’ll see Saved at the top.
+
+31
+00:02:06.205 --> 00:02:11.541
+Your team won’t see any of this until you publish, which is two videos from now.

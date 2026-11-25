@@ -57,13 +57,16 @@ export class MapGoneError extends Error {
 export const TRASH_RETENTION_DAYS = 30;
 /** Each site has this many numbered map slots. A map in the trash frees its slot. */
 export const SITE_MAP_SLOTS = 5;
-/** At most this many maps per site can be live (published) at once. */
-export const SITE_LIVE_MAPS = 2;
+/**
+ * At most this many maps per site can be live (published) at once. A site is one paid location, so
+ * one live map; the other slots hold spare layouts. The database enforces the same limit.
+ */
+export const SITE_LIVE_MAPS = 1;
 
 export const slotsFullMessage = (site: string) =>
   `All ${SITE_MAP_SLOTS} map slots at “${site}” are in use. Delete one of its maps to free a slot.`;
 export const liveFullMessage = (site: string) =>
-  `“${site}” already has ${SITE_LIVE_MAPS} live maps, the most a site can have. Take one offline from the Sites page, then publish this one.`;
+  `“${site}” already has 1 live map, the most a site can have. Take that one offline from the Sites page, then publish this one.`;
 
 /** Lowest slot number not in `used`, or null when every slot is taken. */
 export function firstFreeSlot(used: Iterable<number | undefined>, wanted?: number): number | null {

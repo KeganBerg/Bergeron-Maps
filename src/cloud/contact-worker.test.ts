@@ -31,8 +31,16 @@ describe('POST /api/contact', () => {
     expect(mail.html).toContain('lockup.png');
     expect(mail.html).toContain('href="mailto:pat@example.com?subject=');
     expect(mail.html).toContain('Reply to Pat');
-    expect(mail.html).not.toMatch(/Not given|Industry|Their note|·|&middot;/);
+    expect(mail.html).not.toMatch(/Not given|\(nothing\)|Industry|·|&middot;/);
+    expect(mail.html).toMatch(/Their note<\/p>\s*<p[^>]*>&nbsp;<\/p>/); // the note box stays, empty
     expect(mail.text).not.toContain('Not given');
+  });
+  it('treats the old placeholder words from cached pages as blank', async () => {
+    const send = ok();
+    await contact(post({ ...form, Company: 'Not given', 'Anything else': '(nothing)' }), env, send);
+    const mail = JSON.parse(String((send.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(mail.html).not.toMatch(/Not given|\(nothing\)/);
+    expect(mail.text).not.toMatch(/Not given|\(nothing\)/);
   });
   it('accepts the preview and local addresses', async () => {
     for (const o of ['https://pr-7-bergeron-maps.bergeronmaps.workers.dev', 'http://localhost:5173', 'https://www.bergeronmaps.com'])

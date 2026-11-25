@@ -11,6 +11,10 @@ test('signing out ends only this device’s sign-in and forgets this device’s 
   await expect(page.getByTestId('nav-team')).toBeVisible();
   await page.evaluate(() => { localStorage.setItem('bm.company', 'c-x'); localStorage.setItem('bm.returnTo', '/team'); });
   await page.getByTestId('account-menu').click();
+  // The training hub opens in a new tab, so the map stays open here.
+  const university = page.getByTestId('menu-university');
+  await expect(university).toHaveAttribute('href', '/university/');
+  await expect(university).toHaveAttribute('target', '_blank');
   await page.getByTestId('sign-out').click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   const logout = sb.log.find((l) => l.includes('/auth/v1/logout'));

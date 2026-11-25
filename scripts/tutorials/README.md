@@ -48,3 +48,11 @@ only what happens on screen needs steps 5 and 6.
 The videos find buttons by their words, so renaming a button breaks a recording loudly rather than quietly.
 Video 3 places points on the sketch through the drawing library's own transform (`pictureToScreen`), so it
 follows any change to zoom or layout.
+
+## Putting a video on Bergeron Maps University
+
+The finished videos are shown at bergeronmaps.com/university/ (`scripts/site-university.mjs`). Copy the
+three files from `out/final/` into `site/university/videos/`, named by the video's slug (for example
+`build-a-lot-in-four-answers.mp4`, `.vtt` and `.png`), add the video to `COURSE` in
+`scripts/site-university.mjs` if it is new, and run `node scripts/site-pages.mjs`. The page reads the
+length from the .mp4 and the words from the .vtt, so a re-cut video needs no other change.
