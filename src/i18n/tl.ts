@@ -77,9 +77,10 @@ export const tl: Messages = {
     goesTo: (floors) => `Papunta sa ${floors}`,
     walkTo: (place) => `Maglakad papunta sa ${place}`,
     goInside: (b) => `Pumasok sa ${b}`,
-    leave: (b) => `Lumabas sa ${b}`,
-    take: (name) => `Sumakay sa ${name}`,
-    takeTo: (name, way, floor) => `Sumakay sa ${name} ${WAY[way]} sa ${floor}`,
+    leave: (b) => `Lumabas ng ${b}`,
+    // "Gamitin" (use) fits elevators, stairs and ramps alike; you can't ride stairs.
+    take: (name) => `Gamitin ang ${name}`,
+    takeTo: (name, way, floor) => `Gamitin ang ${name} ${WAY[way]} sa ${floor}`,
     wayTo: (way, floor) => `${WAY[way][0].toUpperCase()}${WAY[way].slice(1)} sa ${floor}`,
     places: 'Mga lugar',
     row: (a, b) => `Hanay: puwesto ${span(a, b)}`,
@@ -91,8 +92,8 @@ export const tl: Messages = {
   loadingMap: 'Nilo-load ang mapa…',
   tryAgain: 'Subukan ulit',
   allMaps: 'Lahat ng mapa',
-  mapGone: 'Hindi available ang mapang ito. Baka nabura na ito.',
-  notPublished: 'Hindi pa naka-publish ang mapang ito, o inalis na ito. Hilingin sa iyong manager na i-publish ito.',
+  mapGone: 'Hindi mabuksan ang mapang ito. Maaaring nabura na ito.',
+  notPublished: 'Hindi pa naka-publish ang mapang ito, o inalis na ito. Pakisabihan ang iyong manager na i-publish ito.',
   loadFailed: 'Hindi ma-load ang pinakabagong bersyon ng mapang ito. Tingnan ang iyong koneksyon at subukan ulit.',
   mapUpdated: 'Na-update ang mapa sa pinakabagong naka-publish na bersyon.',
 
@@ -106,7 +107,7 @@ export const tl: Messages = {
   refresh: 'I-refresh ang mapa',
   refreshTitle: 'Kunin ang pinakabagong bersyon',
 
-  mapOf: (floor) => `Mapa ng ${floor}. Gamitin ang search para maghanap ng puwesto o lugar.`,
+  mapOf: (floor) => `Mapa ng ${floor}. Gamitin ang search box para maghanap ng puwesto o lugar.`,
   showWholeFloor: 'Ipakita ang buong palapag',
   youAreHere: 'Narito ka',
   floorShown: (floor) => `Ipinapakita ang ${floor}.`,
@@ -117,8 +118,8 @@ export const tl: Messages = {
   searchResults: 'Mga resulta',
   noMatchFor: (q) => `Walang puwesto o lugar na “${q}” sa mapang ito. Tingnan ang numero at subukan ulit.`,
   noMatches: 'Walang resulta',
-  manyResults: (n) => `${n} resulta ang ipinapakita. Mag-type pa para paliitin ito.`,
-  results: (n) => `${n} resulta`,
+  manyResults: (n) => `${n} na resulta ang ipinapakita. Mag-type pa para paliitin ang paghahanap.`,
+  results: (n) => `${n} ${n === 1 ? 'resulta' : 'na resulta'}`,
 
   close: 'Isara',
   goInside: 'Pumasok',
@@ -127,7 +128,7 @@ export const tl: Messages = {
   shareLinkTo: (name) => `Ibahagi ang link sa ${name}`,
   shareThis: 'Ibahagi ang link nito',
   accessibleSpace: 'Puwesto para sa may kapansanan',
-  object: 'Bagay',
+  object: 'Item',
 
   floors: 'Mga palapag',
   outside: 'Labas',
@@ -137,7 +138,7 @@ export const tl: Messages = {
   allFloorsTitle: 'Tingnan ang lahat ng palapag na magkakapatong, mula sa gilid',
 
   listOf: (floor) => `Mga puwesto at lugar sa ${floor}`,
-  listCount: (n) => `${n} item. Pumili ng isa para makita ito sa mapa.`,
+  listCount: (n) => `${n} ${n === 1 ? 'item' : 'na item'}. Pumili ng isa para makita ito sa mapa.`,
   listEmpty: 'Wala pang may pangalan sa palapag na ito.',
   closeList: 'Isara ang listahan',
 
@@ -152,7 +153,7 @@ export const tl: Messages = {
   yourRoute: 'Ang ruta mo',
   noConnections: 'Wala pang rampa, hagdan o elevator na nagdurugtong sa mga palapag na ito sa mapa.',
   shownNow: 'ipinapakita ngayon',
-  spaceCount: (n) => `${n} puwesto`,
+  spaceCount: (n) => `${n} ${n === 1 ? 'puwesto' : 'na puwesto'}`,
   open: (floor) => `Buksan ang ${floor}`,
 
   directionsTo: (place) => `Direksyon papunta sa ${place}`,
@@ -162,9 +163,9 @@ export const tl: Messages = {
   cancel: 'Kanselahin',
   to: (place) => `Papunta sa ${place}`,
   finding: 'Hinahanap ang daan…',
-  alreadyThere: 'Nandiyan ka na.',
+  alreadyThere: 'Nandito ka na.',
   noWay: (from, noStairs) =>
-    `Wala kaming nakitang daan papunta roon mula sa ${from}${noStairs ? ' nang walang hagdan' : ''}. Baka kulang ang mapa ng pinto, daanan o koneksyon ng palapag. Hilingin sa iyong manager na tingnan ito.`,
+    `Wala kaming nakitang daan papunta roon mula sa ${from}${noStairs ? ' nang hindi gumagamit ng hagdan' : ''}. Maaaring kulang sa mapa ang isang pinto, daanan o koneksyon ng palapag. Pakisabihan ang iyong manager na suriin ito.`,
   changeStart: 'Palitan ang simula',
   allowStairs: 'Payagan ang hagdan',
   avoidStairs: 'Iwasan ang hagdan',
@@ -176,8 +177,8 @@ export const tl: Messages = {
   sayPick: (place) => `Direksyon papunta sa ${place}. Saan ka manggagaling?`,
   sayTap: 'Pindutin sa mapa kung nasaan ka, o piliin ang Kanselahin para pumili sa listahan.',
   sayNoWay: (place, from) => `Walang nakitang daan papunta sa ${place} mula sa ${from}.`,
-  sayRoute: (place, feet, minutes, steps) => `Direksyon papunta sa ${place}: ${feet} talampakan, mga ${minutes} minuto, ${steps} hakbang.`,
-  saySideView: (n) => `Tanaw sa gilid ng ${n} palapag. Pumili ng palapag para buksan ito.`,
+  sayRoute: (place, feet, minutes, steps) => `Direksyon papunta sa ${place}: ${feet} talampakan, mga ${minutes} minuto, ${steps} ${steps === 1 ? 'tagubilin' : 'na tagubilin'}.`,
+  saySideView: (n) => `Tanaw sa gilid ng ${n} na palapag. Pumili ng palapag para buksan ito.`,
   sayList: (floor) => `Listahan ng mga puwesto at lugar sa ${floor}.`,
 
   publicFailed: 'Hindi ma-load ang mapang ito. Tingnan ang iyong koneksyon at subukan ulit.',
@@ -199,5 +200,5 @@ export const tl: Messages = {
   emailMeLink: 'I-email sa akin ang link para mag-sign in',
   tryWithoutAccount: 'Subukan nang walang account',
   enterEmail: 'Ilagay ang iyong email sa trabaho.',
-  enterCode: 'Ilagay ang code mula sa email. 6 na numero ito.',
+  enterCode: 'Ilagay ang code mula sa email. Ito ay may 6 na numero.',
 };
