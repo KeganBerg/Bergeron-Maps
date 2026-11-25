@@ -16,6 +16,8 @@ import { removeCompanyImages, runPictureMoveOnce } from './mapImages';
 import { friendly, supabase } from './client';
 
 const MAX_HITS = 50;
+/** What the page last showed (per signed-in admin), so coming back to All accounts draws at once while it reloads. */
+const lastSeen = new Map<string, { data: AdminCompany[]; maps: AdminMap[] }>();
 const TOOL_LABEL: Record<AdminTool, string> = { setup: 'Set up a company', backups: 'Backups' };
 
 /** Saves text as a file in the browser's downloads. */
@@ -44,8 +46,8 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   nav?: React.ReactNode; account: React.ReactNode; email: string; onOpen: (companyId: string, to?: string) => void; onCreated: () => void;
 }) {
   const { query } = useRoute();
-  const [data, setData] = useState<AdminCompany[] | null>(null);
-  const [maps, setMaps] = useState<AdminMap[]>([]);
+  const [data, setData] = useState<AdminCompany[] | null>(() => lastSeen.get(email)?.data ?? null);
+  const [maps, setMaps] = useState<AdminMap[]>(() => lastSeen.get(email)?.maps ?? []);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
@@ -96,13 +98,17 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   };
 
   const load = async () => {
-    const r = await supabase!.rpc('admin_overview');
+    // Both at once, shown together. Admins can read every company's maps (row-level security allows it), so map search needs no extra setup.
+    const [r, m] = await Promise.all([
+      supabase!.rpc('admin_overview'),
+      supabase!.from('maps').select('id, name, company_id, facility_id, updated_at, deleted_at, revision, published_maps(revision)')
+        .order('updated_at', { ascending: false }).limit(5000),
+    ]);
     if (r.error) return setError(friendly(r.error));
-    setData(r.data as AdminCompany[]);
-    // Admins can read every company's maps (row-level security allows it), so map search needs no extra setup.
-    const m = await supabase!.from('maps').select('id, name, company_id, facility_id, updated_at, deleted_at, revision, published_maps(revision)')
-      .order('updated_at', { ascending: false }).limit(5000);
-    if (!m.error) setMaps(m.data as unknown as AdminMap[]);
+    const next = { data: r.data as AdminCompany[], maps: m.error ? maps : m.data as unknown as AdminMap[] };
+    setData(next.data);
+    setMaps(next.maps);
+    lastSeen.set(email, next);
   };
   useEffect(() => {
     void load();

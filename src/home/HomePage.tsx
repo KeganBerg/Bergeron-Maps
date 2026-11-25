@@ -70,6 +70,9 @@ export function AppHeader({ nav, children }: { nav?: ReactNode; children?: React
 
 const LOCAL_BANNER = 'Browser-only mode: maps are saved in this browser and nobody else can see them.';
 
+/** What the page last showed for each company's maps, so coming back to Maps draws at once while it reloads. */
+const lastSeen = new WeakMap<MapRepository, { maps: MapSummary[]; sites: string[]; trash: MapSummary[] }>();
+
 /**
  * The manager's home: every site they can edit, each with its maps and their
  * publish status. `banner` and `headerExtra` let online mode add the company
@@ -80,12 +83,13 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
   /** The account lead's first-steps checklist (online, owners only). */
   gettingStarted?: boolean;
 }) {
-  const [sites, setSites] = useState<string[]>([]);
-  const [maps, setMaps] = useState<MapSummary[] | null>(null);
+  const [seen] = useState(() => lastSeen.get(repo));
+  const [sites, setSites] = useState<string[]>(seen?.sites ?? []);
+  const [maps, setMaps] = useState<MapSummary[] | null>(seen?.maps ?? null);
   const motion = useMotion();
   const sitesMotion = useMotion();
   const grids = useMotionGroup();
-  const [trash, setTrash] = useState<MapSummary[]>([]);
+  const [trash, setTrash] = useState<MapSummary[]>(seen?.trash ?? []);
   const [creating, setCreating] = useState<false | { site?: string; slot?: number }>(false);
   const [trashing, setTrashing] = useState<MapSummary | null>(null);
   const [unpublishing, setUnpublishing] = useState<MapSummary | null>(null);
@@ -114,6 +118,7 @@ export function HomePage({ repo, banner = LOCAL_BANNER, headerExtra, nav, title 
       setMaps(maps);
       if (sites) setSites(sites);
       setTrash(trash);
+      lastSeen.set(repo, { maps, sites: sites ?? [], trash });
     } catch (e) {
       setError(`Your maps couldn’t be loaded. ${friendly(e, '')}`.trim());
       setMaps([]);

@@ -70,6 +70,10 @@ function describe(m: Member, sites: Site[]): string {
   return `${m.role === 'manager' ? 'Site manager' : 'Employee'}, ${where}`;
 }
 
+/** What the page last showed for a company, so coming back to it draws at once while it reloads. */
+interface TeamData { sites: Site[]; codes: Record<string, string>; members: Member[] | null; maxSites: number | null; requests: ManagerRequest[]; publicSites: Set<string> }
+const lastSeen = new Map<string, TeamData>();
+
 /**
  * Sites and people for one company. Access is given by email to specific
  * sites; each site has a link for its managers and a code for employees.
@@ -81,12 +85,14 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
 }) {
   const company = membership.companyId;
   const full = canManageCompany(membership);
-  const [sites, setSites] = useState<Site[]>([]);
-  const [codes, setCodes] = useState<Record<string, string>>({});
-  const [members, setMembers] = useState<Member[] | null>(null);
+  const seenKey = `${myEmail}:${company}:${membership.role}:${membership.siteIds?.join(',') ?? '*'}`;
+  const [seen] = useState(() => lastSeen.get(seenKey));
+  const [sites, setSites] = useState<Site[]>(seen?.sites ?? []);
+  const [codes, setCodes] = useState<Record<string, string>>(seen?.codes ?? {});
+  const [members, setMembers] = useState<Member[] | null>(seen?.members ?? null);
   const [email, setEmail] = useState('');
   const [access, setAccess] = useState<Access>('site-manager');
-  const [siteId, setSiteId] = useState('');
+  const [siteId, setSiteId] = useState(seen?.sites[0]?.id ?? '');
   const [newSite, setNewSite] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -95,12 +101,12 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const [removing, setRemoving] = useState<Member | null>(null);
   const [rotating, setRotating] = useState<Site | null>(null);
   const [editingLink, setEditingLink] = useState<{ id: string; value: string } | null>(null);
-  const [maxSites, setMaxSites] = useState<number | null>(null);
-  const [requests, setRequests] = useState<ManagerRequest[]>([]);
+  const [maxSites, setMaxSites] = useState<number | null>(seen?.maxSites ?? null);
+  const [requests, setRequests] = useState<ManagerRequest[]>(seen?.requests ?? []);
   const [moving, setMoving] = useState<{ member: Member; from: string; to: string } | null>(null);
   const [replacing, setReplacing] = useState<{ member: Member; role: Role; ids: string[] | null } | null>(null);
   /** Sites with at least one public, live map: only those have a public link worth sending. */
-  const [publicSites, setPublicSites] = useState<Set<string>>(new Set());
+  const [publicSites, setPublicSites] = useState<Set<string>>(seen?.publicSites ?? new Set());
   const { query } = useRoute();
   const motion = useMotion();
   const listMotion = useMotion();
@@ -132,34 +138,41 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
     await load();
   };
 
+  /** Everything the page shows, asked for at once and shown together, so the page fills in one step rather than in waves. */
   const load = async () => {
     const db = supabase!;
     const s = await db.from('facilities').select('id, name, slug, address').eq('company_id', company).order('name');
     if (s.error) return setError(friendly(s.error));
     const list = (s.data ?? []) as Site[];
     const mine = membership.siteIds === null ? list : list.filter((x) => membership.siteIds!.includes(x.id));
-    setSites(mine);
-    setSiteId((cur) => cur || mine[0]?.id || '');
-    const c: Record<string, string> = {};
-    await Promise.all(mine.map(async (x) => {
-      const r = await db.rpc('get_join_code', { p_facility: x.id });
-      if (!r.error) c[x.id] = r.data as string;
-    }));
-    setCodes(c);
-    const pub = await db.from('maps').select('facility_id, is_public, published_maps(map_id)').eq('company_id', company).eq('is_public', true).is('deleted_at', null);
+    const [codeList, pub, contract, pending, m] = await Promise.all([
+      Promise.all(mine.map(async (x) => {
+        const r = await db.rpc('get_join_code', { p_facility: x.id });
+        return [x.id, r.error ? null : r.data as string] as const;
+      })),
+      db.from('maps').select('facility_id, is_public, published_maps(map_id)').eq('company_id', company).eq('is_public', true).is('deleted_at', null),
+      full ? db.from('companies').select('max_sites').eq('id', company).maybeSingle() : null,
+      full ? db.from('manager_requests').select('id, email, facility_id, note, created_at').eq('company_id', company).eq('status', 'pending').order('created_at') : null,
+      db.rpc('list_members', { p_company: company }),
+    ]);
     const pubRows = (pub.data ?? []) as unknown as { facility_id: string; is_public: boolean; published_maps: unknown }[];
-    setPublicSites(new Set(pubRows.filter((r) => r.is_public && r.published_maps).map((r) => r.facility_id)));
-    if (full) {
-      const [c, q] = await Promise.all([
-        db.from('companies').select('max_sites').eq('id', company).maybeSingle(),
-        db.from('manager_requests').select('id, email, facility_id, note, created_at').eq('company_id', company).eq('status', 'pending').order('created_at'),
-      ]);
-      setMaxSites((c.data as { max_sites: number | null } | null)?.max_sites ?? null);
-      setRequests((q.data ?? []) as ManagerRequest[]);
-    }
-    const m = await db.rpc('list_members', { p_company: company });
+    const next: TeamData = {
+      sites: mine,
+      codes: Object.fromEntries(codeList.filter((c): c is readonly [string, string] => c[1] !== null)),
+      publicSites: new Set(pubRows.filter((r) => r.is_public && r.published_maps).map((r) => r.facility_id)),
+      maxSites: (contract?.data as { max_sites: number | null } | null | undefined)?.max_sites ?? null,
+      requests: (pending?.data ?? []) as ManagerRequest[],
+      members: m.error ? members : m.data as Member[],
+    };
+    setSites(next.sites);
+    setSiteId((cur) => cur || mine[0]?.id || '');
+    setCodes(next.codes);
+    setPublicSites(next.publicSites);
+    setMaxSites(next.maxSites);
+    setRequests(next.requests);
     if (m.error) setError(friendly(m.error));
-    else setMembers(m.data as Member[]);
+    else setMembers(next.members);
+    lastSeen.set(seenKey, next);
   };
   useEffect(() => { void load(); }, [company]);
 
