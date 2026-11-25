@@ -1,67 +1,21 @@
 import { useEffect, useState } from 'react';
 import { AppHeader } from '../home/HomePage';
+import {
+  accountTotals, adminPane, companySummary, describeHit, hitTitle, searchAccounts, KIND_LABEL,
+  type AdminCompany, type AdminMap, type AdminPerson, type AdminSite, type AdminTool, type Hit,
+} from '../model/adminAccounts';
+import { navigate, useRoute } from '../router';
 import { ConfirmDialog, Dialog } from '../ui/Dialog';
-import { useMotion, useMotionGroup } from '../ui/motion';
+import { Icon } from '../ui/icons';
+import { useMotion } from '../ui/motion';
+import { AdminCompanyPane } from './AdminCompanyPane';
+import { BackupsPanel, SetupCompanyPanel } from './AdminTools';
 import { backupCompany, backupFileName, serializeBackup } from './backup';
-import { RestoreFromBackup } from './RestoreFromBackup';
 import { removeCompanyImages, runPictureMoveOnce } from './mapImages';
 import { friendly, supabase } from './client';
-import { RenameForm } from './rename';
-import { siteLink } from './TeamPage';
 
-interface AdminSite {
-  id: string; name: string; slug: string; address: string | null; maps: number; trashed?: number; published: number; public?: number;
-}
-interface AdminPerson {
-  user_id?: string | null; email: string; role: 'owner' | 'manager' | 'employee'; facility_ids: string[] | null; pending: boolean; last_sign_in: string | null;
-}
-interface AdminRequest { id: string; email: string; facility_id: string; note: string | null; created_at: string }
-interface AdminCompany {
-  id: string; name: string; created_at: string; max_sites?: number | null; sites: AdminSite[]; people: AdminPerson[]; requests?: AdminRequest[];
-}
-interface AdminMap {
-  id: string; name: string; company_id: string; facility_id: string; updated_at: string; deleted_at: string | null; revision: number;
-  published_maps: { revision: number } | null;
-}
-
-type Hit =
-  | { kind: 'company'; key: string; company: AdminCompany }
-  | { kind: 'site'; key: string; company: AdminCompany; site: AdminSite }
-  | { kind: 'person'; key: string; company: AdminCompany; person: AdminPerson }
-  | { kind: 'map'; key: string; company: AdminCompany; site?: AdminSite; map: AdminMap };
-
-const KIND_LABEL: Record<Hit['kind'], string> = { company: 'Company', site: 'Site', person: 'Person', map: 'Map' };
 const MAX_HITS = 50;
-
-/** Everything matching the query, across every company: names, link names, emails and map ids. */
-function search(q: string, companies: AdminCompany[], maps: AdminMap[]): Hit[] {
-  const has = (v: string | null | undefined) => !!v && v.toLowerCase().includes(q);
-  const hits: Hit[] = [];
-  const byId = new Map(companies.map((c) => [c.id, c]));
-  for (const c of companies) {
-    if (has(c.name)) hits.push({ kind: 'company', key: `c${c.id}`, company: c });
-    for (const site of c.sites) if (has(site.name) || has(site.slug)) hits.push({ kind: 'site', key: `s${site.id}`, company: c, site });
-    for (const person of c.people) if (has(person.email)) hits.push({ kind: 'person', key: `p${c.id}${person.email}`, company: c, person });
-  }
-  for (const map of maps) {
-    const company = byId.get(map.company_id);
-    if (!company || !(has(map.name) || (q.length >= 6 && map.id.startsWith(q)))) continue;
-    hits.push({ kind: 'map', key: `m${map.id}`, company, site: company.sites.find((s) => s.id === map.facility_id), map });
-  }
-  return hits;
-}
-
-function mapState(m: AdminMap): string {
-  if (m.deleted_at) return 'In Recently deleted';
-  if (!m.published_maps) return 'Draft, not published';
-  return m.published_maps.revision === m.revision ? 'Published' : 'Unpublished changes';
-}
-
-function access(p: AdminPerson, sites: AdminSite[]): string {
-  const role = p.role === 'owner' ? 'Account lead' : p.role === 'manager' ? (p.facility_ids === null ? 'Regional manager' : 'Site manager') : 'Employee';
-  const where = p.facility_ids === null ? 'all sites' : p.facility_ids.map((id) => sites.find((s) => s.id === id)?.name ?? 'a site').join(', ');
-  return `${role}, ${where}`;
-}
+const TOOL_LABEL: Record<AdminTool, string> = { setup: 'Set up a company', backups: 'Backups' };
 
 /** Saves text as a file in the browser's downloads. */
 function saveFile(name: string, text: string) {
@@ -75,30 +29,25 @@ function saveFile(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
-
 /**
  * Bergeron Maps admins only: every company with its sites and people, and
  * the place to set up a new company. The database refuses this data to
  * anyone else, whatever the browser asks for.
+ *
+ * Laid out like a mail app: the companies list on the left, the chosen
+ * company (or an admin tool) on the right. The choice lives in the link
+ * (#/admin?company=<id>, #/admin?tool=backups), so Back works and phones,
+ * which show one pane at a time, can go from the list to a company and back.
  */
 export function AdminPage({ nav, account, email, onOpen, onCreated }: {
   nav?: React.ReactNode; account: React.ReactNode; email: string; onOpen: (companyId: string, to?: string) => void; onCreated: () => void;
 }) {
+  const { query } = useRoute();
   const [data, setData] = useState<AdminCompany[] | null>(null);
   const [maps, setMaps] = useState<AdminMap[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
-  const [company, setCompany] = useState('');
-  const [site, setSite] = useState('');
-  const [address, setAddress] = useState('');
-  const [lead, setLead] = useState('');
-  const [limit, setLimit] = useState('1');
-  const [busy, setBusy] = useState(false);
-  const [editing, setEditing] = useState<{ kind: 'limit' | 'address'; id: string; value: string } | null>(null);
-  const [renaming, setRenaming] = useState<{ kind: 'company' | 'site'; id: string } | null>(null);
-  const [adding, setAdding] = useState<{ company: string; name: string; address: string } | null>(null);
   const [deletingSite, setDeletingSite] = useState<{ company: AdminCompany; site: AdminSite } | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<AdminCompany | null>(null);
   const [confirmName, setConfirmName] = useState('');
@@ -126,7 +75,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
     }
   };
 
-
   /** Runs one change, shows its result, and reloads the overview. */
   const act = async (fn: () => PromiseLike<{ error: unknown }>, ok: string) => {
     setError(null);
@@ -140,7 +88,6 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
 
   /** After a rename: say so, update the header and menus, and reload the overview. */
   const renamed = async (was: string, name: string) => {
-    setRenaming(null);
     setError(null);
     setNote(`${was} is now called ${name}.`);
     onCreated();
@@ -162,261 +109,120 @@ export function AdminPage({ nav, account, email, onOpen, onCreated }: {
     void runPictureMoveOnce(supabase!);
   }, []);
 
-  const create = async () => {
-    setBusy(true);
-    setError(null);
-    const max = limit.trim() ? Number(limit) : null;
-    const r = await supabase!.rpc('setup_company', {
-      p_name: company, p_site_name: site, p_site_address: address.trim() || null, p_lead_email: lead.trim() || null, p_max_sites: max,
-    });
-    setBusy(false);
-    if (r.error) return setError(friendly(r.error));
-    setNote(lead.trim()
-      ? `${company.trim()} is set up. ${lead.trim().toLowerCase()} is its account lead and gets every site as soon as they sign in at the app link.`
-      : `${company.trim()} is set up with you as its owner. Open it to add its managers.`);
-    setCompany('');
-    setSite('');
-    setAddress('');
-    setLead('');
-    setLimit('1');
-    onCreated();
-    await load();
-  };
-
   const q = filter.trim().toLowerCase();
-  const hits = q && data ? search(q, data, maps) : [];
-  const hitCompanies = new Set(hits.map((h) => h.company.id));
-  const shown = (data ?? []).filter((c) => !q || hitCompanies.has(c.id));
+  const hits = q && data ? searchAccounts(q, data, maps) : [];
+  const pane = data ? adminPane(data, query) : null;
+  const shownId = pane?.kind === 'company' ? pane.company.id : null;
+  const shownTool = pane?.kind === 'tool' ? pane.tool : null;
+  const status = { working: !!working, setWorking, setNote, setError };
+  // A map opens in the editor; anything else opens its company here.
   const go = (h: Hit) => {
-    if (h.kind === 'company') return onOpen(h.company.id, '/team');
-    if (h.kind === 'site') return onOpen(h.company.id, `/${h.site.slug}`);
-    if (h.kind === 'person') return onOpen(h.company.id, `/team?q=${encodeURIComponent(h.person.email)}`);
-    return onOpen(h.company.id, h.map.deleted_at ? '/' : `/edit/${h.map.id}`);
-  };
-  const describeHit = (h: Hit) => {
-    if (h.kind === 'company') return `${h.company.sites.length} sites, ${h.company.people.length} people`;
-    if (h.kind === 'site') return `${h.company.name}, ${h.site.maps} ${h.site.maps === 1 ? 'map' : 'maps'}`;
-    if (h.kind === 'person') return `${h.company.name}, ${access(h.person, h.company.sites)}${h.person.pending ? ' (hasn’t signed in yet)' : ''}`;
-    return `${h.company.name}, ${h.site?.name ?? 'a site'}, ${mapState(h.map)}, edited ${when(h.map.updated_at)}`;
+    if (h.kind === 'map') return onOpen(h.company.id, h.map.deleted_at ? '/' : `/edit/${h.map.id}`);
+    navigate(`/admin?company=${h.company.id}`);
   };
   const motion = useMotion();
-  const searchMotion = useMotion();
-  const lists = useMotionGroup();
-  const totals = data && {
-    companies: data.length,
-    sites: data.reduce((n, c) => n + c.sites.length, 0),
-    people: data.reduce((n, c) => n + c.people.length, 0),
-    maps: data.reduce((n, c) => n + c.sites.reduce((m, s) => m + s.maps, 0), 0),
-  };
+  const detailMotion = useMotion();
+  const totals = data && accountTotals(data);
+  // Moving to another company or tool clears the last result, so it isn't read as being about the new one.
+  const clear = () => { setNote(null); setError(null); };
 
   return (
     <div className="home">
       <AppHeader nav={nav}>{account}</AppHeader>
       <main className="home-main team admin" ref={motion}>
-        <div className="page-head"><h2>All accounts</h2></div>
-        {totals && (
-          <dl className="admin-stats" data-testid="admin-totals">
-            {([['Companies', totals.companies], ['Sites', totals.sites], ['People', totals.people], ['Maps', totals.maps]] as const).map(([label, n]) => (
-              <div key={label}><dt>{label}</dt><dd>{n}</dd></div>
-            ))}
-          </dl>
-        )}
-        {error && <p className="error-text" role="alert">{error}</p>}
-        {note && <p className="ok-text" role="status">{note}</p>}
-        {working && <p className="muted small" role="status" data-testid="backup-working">{working}…</p>}
-
-        <div className="admin-search" ref={searchMotion}>
-          <input type="search" value={filter} onChange={(e) => setFilter(e.target.value)} autoFocus
-            placeholder="Search companies, sites, people (email) and maps" aria-label="Search all accounts" data-testid="admin-search" />
-          {q && data && (
-            <div className="search-results" role="region" aria-label="Search results" data-testid="admin-results">
-              {hits.length === 0 ? <p className="muted small">Nothing matches “{filter.trim()}”.</p> : (
-                <ul>
-                  {hits.slice(0, MAX_HITS).map((h) => (
-                    <li key={h.key}>
-                      <button onClick={() => go(h)}>
-                        <span className={`hit-kind ${h.kind}`}>{KIND_LABEL[h.kind]}</span>
-                        <span className="hit-text">
-                          <strong>{h.kind === 'company' ? h.company.name : h.kind === 'site' ? h.site.name : h.kind === 'person' ? h.person.email : h.map.name}</strong>
-                          <span className="muted small">{describeHit(h)}</span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {hits.length > MAX_HITS && <p className="muted small">Showing the first {MAX_HITS} of {hits.length}. Add more of the name or email to narrow it down.</p>}
-            </div>
+        <div className="page-head">
+          <h2>All accounts</h2>
+          {totals && (
+            <dl className="admin-stats" data-testid="admin-totals">
+              {([['Companies', totals.companies], ['Sites', totals.sites], ['People', totals.people], ['Maps', totals.maps]] as const).map(([label, n]) => (
+                <div key={label}><dt>{label}</dt><dd>{n}</dd></div>
+              ))}
+            </dl>
           )}
         </div>
 
-        {!q && <section className="panel-card">
-          <h3>Set up a company</h3>
-          <p className="muted small">From the signed contract: the client’s account lead, how many sites they pay for, and the first site’s address.</p>
-          <form className="setup-company" onSubmit={(e) => { e.preventDefault(); void create(); }}>
-            <label className="stack">Company name<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" required maxLength={120} data-testid="setup-name" /></label>
-            <label className="stack">Account lead email<input type="email" value={lead} onChange={(e) => setLead(e.target.value)} placeholder="lead@company.com" data-testid="setup-lead" /></label>
-            <label className="stack">Sites in contract<input type="number" min={1} max={10000} value={limit} onChange={(e) => setLimit(e.target.value)} data-testid="setup-limit" /></label>
-            <label className="stack">First site<input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Site Name" required maxLength={120} data-testid="setup-site" /></label>
-            <label className="stack setup-wide">Site address<input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city, state" maxLength={300} /></label>
-            <button className="btn primary" disabled={busy || !company.trim() || !site.trim()}>Create company</button>
-          </form>
-        </section>}
-
-        {!q && data && <section className="panel-card" data-testid="backups">
-          <h3>Backups</h3>
-          <p className="muted small">
-            A backup file holds a company’s sites, links and join codes, who has access, and every map with what employees see and its saved versions.
-            Download one before deleting a company, so it can be brought back if the client returns. A backup also brings back a map deleted forever or a site deleted by mistake.
-          </p>
-          <div className="site-actions backup-actions">
-            <button className="btn small" disabled={!!working || !data.length} onClick={() => void download(data)} data-testid="backup-all">
-              Download backup of all accounts
-            </button>
-            <RestoreFromBackup live={new Set(data.map((c) => c.id))} working={!!working} setWorking={setWorking} setError={setError}
-              setNote={setNote} onRestored={async () => { onCreated(); await load(); }} />
-          </div>
-        </section>}
-
-
-
-        {data === null && !error && <p className="muted">Loading…</p>}
-        {data?.length === 0 && <p className="muted">No companies yet. Set one up above.</p>}
-
-        {shown.map((c) => (
-          <section className="panel-card" key={c.id} data-testid={`admin-company-${c.name}`} ref={lists(`${c.id}-card`)}>
-            <div className="admin-company-head">
-              {renaming?.kind === 'company' && renaming.id === c.id ? (
-                <RenameForm kind="company" id={c.id} current={c.name} onDone={(n) => void renamed(c.name, n)} onCancel={() => setRenaming(null)} />
-              ) : (
-                <h3>{c.name}{' '}
-                  <button className="link rename-link" onClick={() => setRenaming({ kind: 'company', id: c.id })} data-testid={`rename-company-${c.name}`}>Rename</button>
-                </h3>
-              )}
-              <span className="site-actions">
-                <button className="btn small" disabled={!!working} onClick={() => void download([c])} data-testid={`backup-${c.name}`}>Download backup</button>
-                <button className="btn small" onClick={() => onOpen(c.id, '/team')}>Sites &amp; people</button>
-                <button className="btn small primary" onClick={() => onOpen(c.id)}>Open maps</button>
-              </span>
-            </div>
-            <p className="muted small admin-contract">
-              Set up {when(c.created_at)},{' '}
-              {editing?.kind === 'limit' && editing.id === c.id ? (
-                <form className="link-edit" onSubmit={(e) => { e.preventDefault(); setEditing(null);
-                  void act(() => supabase!.rpc('set_site_limit', { p_company: c.id, p_max_sites: editing.value.trim() ? Number(editing.value) : null }), `Site limit for ${c.name} saved.`); }}>
-                  <input type="number" min={1} autoFocus value={editing.value} onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                    aria-label="Sites in contract" placeholder="No limit" data-testid="limit-input" />
-                  <button className="btn small primary">Save</button>
-                  <button type="button" className="btn small" onClick={() => setEditing(null)}>Cancel</button>
-                </form>
-              ) : (
-                <>
-                  {c.max_sites == null ? `${c.sites.length} ${c.sites.length === 1 ? 'site' : 'sites'}, no site limit set` : `${c.sites.length} of ${c.max_sites} contracted sites`}{' '}
-                  <button className="link" onClick={() => setEditing({ kind: 'limit', id: c.id, value: c.max_sites?.toString() ?? '' })} data-testid={`edit-limit-${c.name}`}>Change</button>
-                </>
-              )}
-            </p>
-
-            {!!c.requests?.length && (
-              <>
-                <h4>Manager requests</h4>
-                <ul className="people" ref={lists(`${c.id}-requests`)}>
-                  {c.requests.map((q) => (
-                    <li key={q.id}>
-                      <span>
-                        <strong>{q.email}</strong>
-                        <span className="muted small">{c.sites.find((x) => x.id === q.facility_id)?.name ?? 'A site'}{q.note ? `: “${q.note}”` : ''}</span>
-                      </span>
-                      <span className="site-actions">
-                        <button className="btn small primary" onClick={() => void act(() => supabase!.rpc('decide_manager_request', { p_request: q.id, p_approve: true }),
-                          `${q.email} is now a site manager.`)}>Approve</button>
-                        <button className="btn small" onClick={() => void act(() => supabase!.rpc('decide_manager_request', { p_request: q.id, p_approve: false }),
-                          `Request from ${q.email} denied.`)}>Deny</button>
-                      </span>
+        <div className={`admin-split${pane?.chosen ? ' has-choice' : ''}`}>
+          <aside className="admin-list" aria-label="Companies and tools">
+            <input type="search" value={filter} onChange={(e) => setFilter(e.target.value)}
+              placeholder="Search all accounts" aria-label="Search all accounts" data-testid="admin-search" />
+            <a href="#/admin?tool=setup" className={`btn primary admin-new${shownTool === 'setup' ? ' on' : ''}`} onClick={clear} data-testid="admin-tool-setup">
+              <Icon name="plus" size={16} /> Set up a company
+            </a>
+            {q && data ? (
+              <div className="search-results" role="region" aria-label="Search results" data-testid="admin-results">
+                {hits.length === 0 ? <p className="muted small">Nothing matches “{filter.trim()}”.</p> : (
+                  <ul>
+                    {hits.slice(0, MAX_HITS).map((h) => (
+                      <li key={h.key}>
+                        <button onClick={() => { clear(); go(h); }}>
+                          <span className={`hit-kind ${h.kind}`}>{KIND_LABEL[h.kind]}</span>
+                          <span className="hit-text">
+                            <strong>{hitTitle(h)}</strong>
+                            <span className="muted small">{describeHit(h)}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {hits.length > MAX_HITS && <p className="muted small">Showing the first {MAX_HITS} of {hits.length}. Add more of the name or email to narrow it down.</p>}
+              </div>
+            ) : (
+              <nav className="admin-companies" aria-label="Companies">
+                <h3>Companies</h3>
+                {data === null && !error && <p className="muted small">Loading…</p>}
+                {data?.length === 0 && <p className="muted small">No companies yet.</p>}
+                <ul>
+                  {data?.map((c) => (
+                    <li key={c.id}>
+                      <a href={`#/admin?company=${c.id}`} className={shownId === c.id ? 'on' : undefined} aria-current={shownId === c.id ? 'page' : undefined}
+                        onClick={clear} data-testid={`admin-pick-${c.name}`}>
+                        <strong>{c.name}</strong>
+                        <span className="muted small">{companySummary(c)}</span>
+                        {!!c.requests?.length && <span className="nav-count" aria-label={`${c.requests.length} manager requests waiting`}>{c.requests.length}</span>}
+                      </a>
                     </li>
                   ))}
                 </ul>
-              </>
+              </nav>
             )}
-
-            <h4>Sites</h4>
-            <ul className="site-list" ref={lists(`${c.id}-sites`)}>
-              {c.sites.map((s) => (
-                <li key={s.id} data-testid={`admin-site-${s.name}`}>
-                  <span className="site-name">
-                    {renaming?.kind === 'site' && renaming.id === s.id ? (
-                      <RenameForm kind="site" id={s.id} current={s.name} others={c.sites.filter((x) => x.id !== s.id).map((x) => x.name)}
-                        onDone={(n) => void renamed(s.name, n)} onCancel={() => setRenaming(null)} />
-                    ) : (
-                      <strong>{s.name}{' '}
-                        <button className="link rename-link" onClick={() => setRenaming({ kind: 'site', id: s.id })} data-testid={`rename-site-${s.name}`}>Rename</button>
-                      </strong>
-                    )}
-                    {editing?.kind === 'address' && editing.id === s.id ? (
-                      <form className="link-edit" onSubmit={(e) => { e.preventDefault(); setEditing(null);
-                        void act(() => supabase!.rpc('set_site_address', { p_facility: s.id, p_address: editing.value }), `Address for ${s.name} saved.`); }}>
-                        <input autoFocus value={editing.value} maxLength={300} onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                          aria-label="Site address" placeholder="Street, city, state" />
-                        <button className="btn small primary">Save</button>
-                        <button type="button" className="btn small" onClick={() => setEditing(null)}>Cancel</button>
-                      </form>
-                    ) : (
-                      <span className="muted small">
-                        {s.address ?? 'No address yet'}{' '}
-                        <button className="link" onClick={() => setEditing({ kind: 'address', id: s.id, value: s.address ?? '' })}>{s.address ? 'Change' : 'Add address'}</button>
-                      </span>
-                    )}
-                    <span className="muted small site-url">{siteLink(s.slug)}</span>
-                  </span>
-                  <span className="site-actions">
-                    <span className="muted small">{s.maps} {s.maps === 1 ? 'map' : 'maps'}, {s.published} published{s.public ? `, ${s.public} public` : ''}</span>
-                    <button className="btn small danger-text" onClick={() => setDeletingSite({ company: c, site: s })} data-testid={`delete-site-${s.name}`}>Delete</button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {adding?.company === c.id ? (
-              <form className="inline-form admin-add-site" onSubmit={(e) => { e.preventDefault(); const a = adding; setAdding(null);
-                void act(() => supabase!.rpc('add_contract_site', { p_company: c.id, p_name: a.name, p_address: a.address.trim() || null }), `${a.name.trim()} added to ${c.name}.`); }}>
-                <input autoFocus value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} placeholder="Site Name" maxLength={120} aria-label="Site name" />
-                <input value={adding.address} onChange={(e) => setAdding({ ...adding, address: e.target.value })} placeholder="Street, city, state" maxLength={300} aria-label="Site address" />
-                <button className="btn small primary" disabled={!adding.name.trim()}>Add site</button>
-                <button type="button" className="btn small" onClick={() => setAdding(null)}>Cancel</button>
-              </form>
-            ) : (
-              <button className="btn small" onClick={() => setAdding({ company: c.id, name: '', address: '' })}
-                disabled={c.max_sites != null && c.sites.length >= c.max_sites}
-                title={c.max_sites != null && c.sites.length >= c.max_sites ? 'Every contracted site is set up. Raise the site limit first.' : undefined}>
-                Add contracted site
-              </button>
-            )}
-
-            <h4>People</h4>
-            {c.people.length === 0 ? <p className="muted small">Nobody yet.</p> : (
-              <ul className="people" ref={lists(`${c.id}-people`)}>
-                {c.people.map((p) => (
-                  <li key={p.email}>
-                    <span>
-                      <strong>{p.email}</strong>
-                      <span className="muted small">{access(p, c.sites)}</span>
-                    </span>
-                    <span className="site-actions">
-                      <span className="muted small">{p.pending ? 'Hasn’t signed in yet' : p.last_sign_in ? `Last signed in ${when(p.last_sign_in)}` : ''}</span>
-                      {p.email.toLowerCase() !== email.toLowerCase() && (
-                        <button className="btn small danger-text" onClick={() => setRemoving({ company: c, person: p })} data-testid={`remove-${c.name}-${p.email}`}>Remove</button>
-                      )}
-                    </span>
+            <nav className="admin-companies admin-tools" aria-label="Admin tools">
+              <h3>Tools</h3>
+              <ul>
+                {(['backups'] as const).map((t) => (
+                  <li key={t}>
+                    <a href={`#/admin?tool=${t}`} className={shownTool === t ? 'on' : undefined} aria-current={shownTool === t ? 'page' : undefined}
+                      onClick={clear} data-testid={`admin-tool-${t}`}>
+                      <strong>{TOOL_LABEL[t]}</strong>
+                    </a>
                   </li>
                 ))}
               </ul>
+            </nav>
+          </aside>
+
+          <div className="admin-detail" ref={detailMotion}>
+            <a href="#/admin" className="link back-link admin-back"><Icon name="back" size={16} /> All companies</a>
+            {error && <p className="error-text" role="alert">{error}</p>}
+            {note && <p className="ok-text" role="status">{note}</p>}
+            {working && <p className="muted small" role="status" data-testid="backup-working">{working}…</p>}
+            {data === null && !error && <p className="muted">Loading…</p>}
+            {data && pane?.kind === 'company' && (
+              <AdminCompanyPane key={pane.company.id} company={pane.company} email={email} working={!!working} act={act}
+                onRenamed={(was, name) => void renamed(was, name)} onOpen={onOpen} onDownload={() => void download([pane.company])}
+                onDeleteSite={(site) => setDeletingSite({ company: pane.company, site })}
+                onDeleteCompany={() => { setConfirmName(''); setDeletingCompany(pane.company); }}
+                onRemovePerson={(person) => setRemoving({ company: pane.company, person })} />
             )}
-            <div className="admin-danger">
-              <button className="btn small danger-text" onClick={() => { setConfirmName(''); setDeletingCompany(c); }} data-testid={`delete-company-${c.name}`}>
-                Delete company
-              </button>
-            </div>
-          </section>
-        ))}
+            {data && shownTool === 'setup' && (
+              <SetupCompanyPanel setNote={setNote} setError={setError}
+                onCreated={async (id) => { onCreated(); await load(); if (id) navigate(`/admin?company=${id}`); }} />
+            )}
+            {data && shownTool === 'backups' && (
+              <BackupsPanel {...status} data={data} onDownloadAll={() => void download(data)} onRestored={async () => { onCreated(); await load(); }} />
+            )}
+          </div>
+        </div>
       </main>
 
       {deletingSite && (() => {

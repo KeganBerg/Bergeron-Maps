@@ -43,7 +43,8 @@ test('a company is backed up from the delete dialog, deleted, and restored from 
   await page.getByTestId('delete-company-confirm').click();
   await expect(page.getByTestId(`admin-company-${COMPANY.name}`)).toHaveCount(0);
 
-  // Restore: pick the file, see what's in it, bring it back.
+  // Restore: pick the file in Backups (beside the companies list), see what's in it, bring it back.
+  await page.getByTestId('admin-tool-backups').click();
   await page.getByTestId('restore-file').setInputFiles(file);
   const dialog = page.getByRole('dialog', { name: 'Restore from backup' });
   await expect(dialog).toContainText('2 sites, 3 people, 1 map, 1 saved version');
@@ -51,6 +52,7 @@ test('a company is backed up from the delete dialog, deleted, and restored from 
   await expect(page.getByTestId('restore-result')).toContainText(`${COMPANY.name} is back: 2 sites, 1 map (1 published), 3 people with access, 1 saved version`);
   await page.screenshot({ path: info.outputPath('restore-result.png') });
   await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByTestId(`admin-pick-${COMPANY.name}`).click();
   await expect(page.getByTestId(`admin-company-${COMPANY.name}`)).toContainText(SITE_A.name);
   expect(sb.maps.find((m) => m.id === MAP_ID)?.company_id).toBe(COMPANY.id);
   expect(sb.versions).toHaveLength(1);
@@ -62,7 +64,7 @@ test('one file backs up every company; a company that still exists with nothing 
   const sb = new MockSupabase(page);
   withMap(sb);
   await sb.install(USERS.admin);
-  await page.goto('/#/admin');
+  await page.goto('/#/admin?tool=backups');
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('backup-all').click()]);
   expect(download.suggestedFilename()).toMatch(/^All-accounts-backup-/);
   const file = info.outputPath('all.bmbackup.json');
@@ -81,7 +83,7 @@ test('one file backs up every company; a company that still exists with nothing 
 test('a map file or a broken file is refused with a plain message', async ({ page }) => {
   const sb = new MockSupabase(page);
   await sb.install(USERS.admin);
-  await page.goto('/#/admin');
+  await page.goto('/#/admin?tool=backups');
   await page.getByTestId('restore-file').setInputFiles({ name: 'Garage.bmap.json', mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({ format: 'bergeron-maps/map', map: createMap('x') })) });
   await expect(page.getByRole('alert')).toContainText('single map file');
@@ -93,7 +95,7 @@ test('a map deleted forever comes back from a backup while the company stays as 
   const sb = new MockSupabase(page);
   withMap(sb);
   await sb.install(USERS.admin);
-  await page.goto('/#/admin');
+  await page.goto('/#/admin?tool=backups');
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('backup-all').click()]);
   const file = info.outputPath('all.bmbackup.json');
   await download.saveAs(file);
