@@ -36,7 +36,8 @@ supabase/
   migrations/ The database schema, in order (source of truth)
   tests/      Database tests against a real Postgres
 e2e/          Playwright tests (e2e/online/: online mode against a mock Supabase)
-site/         Marketing site
+site/         Marketing site, and Bergeron Maps University (site/university/: training videos,
+              common questions, help) written by scripts/site-university.mjs
 docs/         Architecture, runbooks, rules
 ```
 

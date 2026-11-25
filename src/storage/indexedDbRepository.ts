@@ -38,7 +38,7 @@ function placeAt(all: MapRecord[], r: MapRecord, site: string, wanted?: number):
   const others = active(all, site, r.id);
   const slot = others.length < SITE_MAP_SLOTS ? firstFreeSlot(others.map((o) => o.slot), wanted) : null;
   if (!slot) throw new Error(slotsFullMessage(site));
-  if (r.publish && others.filter((o) => o.publish).length >= SITE_LIVE_MAPS) throw new Error(`“${site}” already has ${SITE_LIVE_MAPS} live maps, the most a site can have. Take one offline first.`);
+  if (r.publish && others.filter((o) => o.publish).length >= SITE_LIVE_MAPS) throw new Error(`“${site}” already has 1 live map, the most a site can have. Take that one offline first.`);
   return { ...r, site, slot, deletedAt: undefined };
 }
 

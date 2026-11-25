@@ -1,3 +1,4 @@
+import { CompanySetupPage, useNeedsSetup } from './CompanySetupPage';
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPage, EditorPage, preloadAdmin, preloadTeam, TeamPage } from '../lazyPages';
 import { AppHeader, HomePage } from '../home/HomePage';
@@ -79,6 +80,11 @@ export function OnlineApp() {
     return () => { alive = false; };
   }, [answersRequests, membership?.companyId, parts[0], requestsTick]);
 
+  // A company opened by an online order starts with a placeholder site: its account lead sets the
+  // company up (names and addresses) before anything else.
+  const [setupTick, setSetupTick] = useState(0);
+  const setupDue = useNeedsSetup(membership?.companyId ?? null, membership?.role === 'owner' && !siteParam, setupTick);
+
   // Fetch the code for the tabs this person can open while they look at the current one.
   const mayEdit = !!membership && canEdit(membership);
   useEffect(() => {
@@ -155,8 +161,11 @@ export function OnlineApp() {
     );
 
   if (!editor) return locations;
+  if (setupDue === null && membership.role === 'owner' && !siteParam) return <div className="page-message"><p>Loading…</p></div>;
+  if (setupDue) return <CompanySetupPage companyId={membership.companyId} nav={nav} account={accountMenu} onDone={() => { setSetupTick((t) => t + 1); s.refresh(); }} />;
   return (
     <HomePage key={`${membership.companyId}:${siteParam ?? ''}`} repo={repo} nav={nav} headerExtra={accountMenu} banner={null}
-      title={siteParam ? 'Your site' : `${membership.companyName} sites`} canAddSite={canManageCompany(membership) && !siteParam} />
+      title={siteParam ? 'Your site' : `${membership.companyName} sites`} canAddSite={canManageCompany(membership) && !siteParam}
+      gettingStarted={membership.role === 'owner' && !siteParam} />
   );
 }

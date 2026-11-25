@@ -109,6 +109,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
   const accessForm = useMotion();
   const [find, setFind] = useState(() => query.get('q') ?? '');
   const [renamingCompany, setRenamingCompany] = useState(false);
+  const [renamingSite, setRenamingSite] = useState<string | null>(null);
   /** The new company name, shown until the reloaded access carries it. */
   const [newName, setNewName] = useState<{ id: string; name: string } | null>(null);
   const companyName = newName?.id === company ? newName.name : membership.companyName;
@@ -306,7 +307,11 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                 {shownSites.map((s) => (
                   <li key={s.id} data-testid={`team-site-${s.name}`}>
                     <span className="site-name">
-                      <strong>{s.name}</strong>
+                      {renamingSite === s.id ? (
+                        <RenameForm kind="site" id={s.id} current={s.name} others={sites.filter((x) => x.id !== s.id).map((x) => x.name)}
+                          onCancel={() => setRenamingSite(null)}
+                          onDone={(name) => { setRenamingSite(null); setNote(`Site renamed to ${name}. Its link and join code stay the same.`); void load(); }} />
+                      ) : <strong>{s.name}</strong>}
                       {s.address && <span className="muted small">{s.address}</span>}
                       {editingLink?.id === s.id ? (
                         <form className="link-edit" onSubmit={(e) => { e.preventDefault(); void saveLink(); }}>
@@ -329,6 +334,7 @@ export function TeamPage({ membership, email: myEmail = '', nav, account, onRequ
                       <MoreMenu label={`More for ${s.name}`} testId={`more-site-${s.name}`} items={[
                         ...(publicSites.has(s.id) ? [{ label: 'Copy public link', onClick: () => copy(publicSiteLink(s.slug), 'Public link'),
                           title: 'Opens this site’s public maps without signing in.', testId: `public-link-${s.name}` }] : []),
+                        ...(full && renamingSite !== s.id ? [{ label: 'Rename', onClick: () => setRenamingSite(s.id), testId: `rename-${s.name}` }] : []),
                         ...(full && editingLink?.id !== s.id ? [{ label: 'Edit link', onClick: () => setEditingLink({ id: s.id, value: s.slug }), testId: `edit-link-${s.name}` }] : []),
                         ...(codes[s.id] ? [{ label: 'New join code', onClick: () => setRotating(s), testId: `new-code-${s.name}` }] : []),
                       ]} />

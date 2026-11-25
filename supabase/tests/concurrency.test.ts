@@ -155,14 +155,13 @@ describe('two managers at the same moment', () => {
       (await as<{ id: string }>(db, w.manager, `insert into maps (facility_id, name, draft) values ($1, $2, $3) returning id`, [w.facility, name, doc(name)]))[0].id;
     const b = await add('B');
     const c = await add('C');
-    await as(db, w.manager, 'select public.publish_map($1)', [w.map]);
     const pub = 'select public.publish_map($1)';
     const [first, second] = await race([w.owner, w.manager], [pub, pub], [[b], [c]]);
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(false);
-    expect(second.error).toMatch(/already has 2 live maps/);
+    expect(second.error).toMatch(/already has 1 live map/);
     const live = await as<{ map_id: string }>(db, w.manager, 'select map_id from published_maps where facility_id = $1 order by map_id', [w.facility]);
-    expect(live.map((r) => r.map_id).sort()).toEqual([w.map, b].sort());
+    expect(live.map((r) => r.map_id)).toEqual([b]);
   });
 
   it('publishing while another manager saves publishes one whole version, never a mix', async () => {

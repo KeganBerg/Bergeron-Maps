@@ -42,7 +42,9 @@ export async function contact(request, env, send = fetch) {
   if (!data || typeof data !== 'object') return reply(400, { success: false, error: 'Bad request' });
   // The hidden field only bots fill in: pretend it worked.
   if (data._honey) return reply(200, { success: true });
-  const field = (k) => String(data[k] ?? '').trim().slice(0, 2000);
+  // Pages cached from before the form sent blanks still send these words for an empty answer.
+  const BLANK = ['Not given', '(nothing)'];
+  const field = (k) => { const v = String(data[k] ?? '').trim().slice(0, 2000); return BLANK.includes(v) ? '' : v; };
   const name = field('Name'), email = field('Work email');
   if (!name || !EMAIL.test(email)) return reply(400, { success: false, error: 'Name and a valid email are needed' });
   if (!env.RESEND_API_KEY) return reply(503, { success: false, error: 'Not set up' });
@@ -127,7 +129,8 @@ export async function access(request, env, send = fetch) {
 
 /**
  * The website form's lead, for the company inbox. Only the answers the visitor gave are listed;
- * their note gets its own block; the page it came from sits small at the bottom.
+ * their note always gets its own block, left empty when they wrote nothing (Kegan's choice, so every
+ * lead email has the same shape); the page it came from sits small at the bottom.
  */
 export function leadEmail({ name, email, company, industry, sites, note, page }) {
   const who = company ? `${esc(name)} from <strong>${esc(company)}</strong>` : `<strong>${esc(name)}</strong>`;
@@ -146,8 +149,8 @@ export function leadEmail({ name, email, company, industry, sites, note, page })
   return shell(`<h1 style="margin:0 0 8px;font-size:22px;line-height:1.3;">New map request</h1>
 <p style="margin:0 0 20px;font-size:16px;line-height:1.5;color:#333333;">${who} asked for a map.</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border-bottom:1px solid #e6e6e1;">${facts.map(row).join('')}</table>
-${note ? `<p style="margin:0 0 6px;font-size:14px;font-weight:bold;color:#0b0b0b;">Their note</p>
-<p style="margin:0 0 24px;padding:12px 16px;background:#f7f7f4;border-left:3px solid #0b0b0b;font-size:15px;line-height:1.5;color:#333333;white-space:pre-wrap;">${esc(note)}</p>` : ''}
+<p style="margin:0 0 6px;font-size:14px;font-weight:bold;color:#0b0b0b;">Their note</p>
+<p style="margin:0 0 24px;padding:12px 16px;background:#f7f7f4;border-left:3px solid #0b0b0b;font-size:15px;line-height:1.5;color:#333333;white-space:pre-wrap;">${note ? esc(note) : '&nbsp;'}</p>
 ${button(mailto, `Reply to ${esc(name.split(/\s+/)[0])}`)}
 <p style="margin:16px 0 24px;font-size:13px;line-height:1.5;color:#777777;">Or just hit Reply in your inbox.</p>`,
   `Sent from the form on ${esc(from || 'bergeronmaps.com')}.`);

@@ -182,15 +182,14 @@ describe('restore drill: the whole Supabase project is lost', () => {
       }
       await as(oldDb, ownerId, `select public.add_member($1, $2, 'employee', array[$3]::uuid[])`, [id, `new${ci}@mail.test`, sites[2]]);
 
-      // Maps: the big garage (live, with unpublished changes), a second live map, a public one, and one in Recently deleted.
+      // Maps: the big garage (live, with unpublished changes), a draft beside it, a public one, and one in Recently deleted.
       const insert = async (site: string, name: string, draft: unknown, isPublic = false) =>
         (await as<{ id: string }>(oldDb, ownerId, 'insert into maps (facility_id, name, draft, is_public) values ($1, $2, $3, $4) returning id',
           [site, name, JSON.stringify(draft), isPublic]))[0].id;
       const garage = await insert(sites[0], 'Garage', ci === 0 ? bigDoc('Garage', 1200) : smallDoc('Garage'));
       await as(oldDb, ownerId, 'select public.publish_map($1)', [garage]);
       await as(oldDb, ownerId, 'update maps set draft = $2 where id = $1', [garage, JSON.stringify(ci === 0 ? bigDoc('Garage', 1200, 1) : smallDoc('Garage', 1))]);
-      const roof = await insert(sites[0], 'Roof level', smallDoc('Roof level'));
-      await as(oldDb, ownerId, 'select public.publish_map($1)', [roof]);
+      await insert(sites[0], 'Roof level', smallDoc('Roof level'));
       const lot = await insert(sites[1], 'East Lot', smallDoc('East Lot'), true);
       await as(oldDb, ownerId, 'select public.publish_map($1)', [lot]);
       const old = await insert(sites[2], 'Old layout', smallDoc('Old layout'));

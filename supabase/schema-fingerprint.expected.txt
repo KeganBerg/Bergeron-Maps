@@ -1,5 +1,5 @@
 scheduled jobs: pg_cron is off
-212 objects, fingerprint b5ad2d84ac90
+212 objects, fingerprint a6da3e5d2b40
 constraint audit_log.audit_log_company_id_fkey 328812a1 
 constraint audit_log.audit_log_pkey 4c6419b3 
 constraint companies.companies_contract_term_months_check 59ee97a4 
@@ -94,7 +94,7 @@ function end_sessions(p_user uuid) d5581d8e
 function facilities_after_delete() ae91e4c2 
 function facilities_before_insert() d5561028 -,anon,authenticated
 function facilities_default_slug() 4944d10b -,anon,authenticated
-function facilities_protect_address() b90186a7 
+function facilities_protect_address() 5f824170 
 function facilities_protect_columns() 62f37e49 -,anon,authenticated
 function facilities_protect_maps() 5e482776 -,authenticated
 function floor_count(m maps) 8dcd2ed4 authenticated
@@ -114,7 +114,7 @@ function map_copy_doc(p_kind text, p_id uuid, OUT doc jsonb, OUT company_id uuid
 function map_image_hash(p_src text) 902ad66c 
 function map_is_live(p_map uuid) 9ef6bc22 authenticated
 function maps_after_move() 430a7bda 
-function maps_assign_slot() 144c9d11 
+function maps_assign_slot() 9c7f8258 
 function maps_before_write() deafe54c authenticated
 function move_member(p_company uuid, p_email text, p_from uuid, p_to uuid) 4aa0d718 authenticated
 function my_locations() f14a06f2 authenticated
@@ -124,7 +124,7 @@ function new_join_code() 687d78f4
 function on_auth_user_created() 625185a2 authenticated
 function provision_paid_account(p_customer text, p_subscription text, p_company text, p_email text, p_locations integer, p_term integer) 0a803f5c 
 function prune_auto_versions() d14d97a0 
-function publish_map(p_map uuid) 2b2e283d authenticated
+function publish_map(p_map uuid) 54ad0539 authenticated
 function purge_expired_trash() 01eb4274 
 function remove_member(p_company uuid, p_user uuid) ccfdfee0 authenticated
 function request_manager_access(p_facility uuid, p_note text) 3b15761c authenticated
