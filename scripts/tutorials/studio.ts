@@ -26,6 +26,8 @@ export { USERS };
 
 /** One step of a video: what the narrator says, and what happens on screen meanwhile. */
 export interface Beat {
+  /** What is on screen as this line starts: the cue a person recording the voice speaks on. */
+  cue?: string;
   say: string;
   /** The caption, when it should read differently from what is said (space numbers: "1A1", said "1 A 1"). */
   caption?: string;

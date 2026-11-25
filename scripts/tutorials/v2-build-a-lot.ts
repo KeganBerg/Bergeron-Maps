@@ -12,9 +12,11 @@ export const video: Video = {
   next: 'Trace your sketch or site plan',
   beats: [
     {
+      cue: 'The title card has just faded to the Maps page. Nothing moves yet.',
       say: 'In this video you’ll build a parking map by entering four numbers. Then you’ll change it to match your site.',
     },
     {
+      cue: 'The pointer moves to Add the first map and clicks it.',
       say: 'On the Maps page, find your site and choose Add the first map. If the site already has a map, use Add map instead.',
       do: async (s) => {
         await s.pause(2200);
@@ -23,18 +25,21 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The New map box is open. The name starts typing.',
       say: 'Give the map a name your team will recognize, like Main garage.',
       do: async (s) => {
         await s.type(s.page.getByTestId('map-name-input'), 'Main garage', 110);
       },
     },
     {
+      cue: 'The pointer moves to Build it for me.',
       say: 'Build it for me is already selected. Now enter the four numbers.',
       do: async (s) => {
         await s.moveTo(s.page.getByTestId('mode-quick'), 900);
       },
     },
     {
+      cue: 'The pointer goes to Floors and types 2.',
       say: 'Floors. Use one for a surface lot. Our garage has two.',
       do: async (s) => {
         await s.pause(1200);
@@ -42,6 +47,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to Rows per floor and types 4.',
       say: 'Rows per floor. Rows are lettered A, B, C, and so on. We have four.',
       do: async (s) => {
         await s.pause(1200);
@@ -49,6 +55,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to Spaces per row and types 12.',
       say: 'Spaces per row. They’re numbered one, two, three. We have twelve.',
       do: async (s) => {
         await s.pause(1200);
@@ -56,6 +63,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to Accessible spaces and types 4.',
       say: 'And accessible spaces. They go at the start of row A.',
       do: async (s) => {
         await s.pause(1000);
@@ -63,6 +71,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer moves to the preview picture, then clicks the Floor 2 and Floor 1 tabs.',
       say: 'The preview updates as you type. Lanes, the entrance, ramps and stairs are added for you. Check each floor with the tabs under the preview.',
       do: async (s) => {
         await s.moveTo(s.page.getByTestId('quick-preview'), 900);
@@ -73,6 +82,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer moves to the Create map button and clicks it.',
       say: 'The button says how many spaces you’ll get. Choose Create map.',
       do: async (s) => {
         await s.pause(1200);
@@ -81,6 +91,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The editor has opened. The pointer moves to the top-left space.',
       say: 'Here’s your map in the editor. Each space number starts with the floor, then the row letter, then the space. So this one is 1 A 1.',
       caption:
         'Here’s your map in the editor. Each space number starts with the floor, then the row letter, then the space. So this one is 1A1.',
@@ -90,6 +101,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer clicks the bottom row. Its settings open on the left.',
       say: 'Now change the map to match your site. Click a row, and its settings open on the left. If this row has ten spaces, change Spaces to ten.',
       do: async (s) => {
         await s.pause(1800);
@@ -100,6 +112,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer moves to one space in the bottom row and double-clicks it.',
       say: 'To change one space, double-click it. Here we make space 1 D 6 a reserved space.',
       caption: 'To change one space, double-click it. Here we make space 1D6 a reserved space.',
       do: async (s) => {
@@ -111,6 +124,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer moves to the Floor 2 tab at the bottom.',
       say: 'Switch floors with the tabs at the bottom.',
       do: async (s) => {
         await s.page.keyboard.press('Escape');
@@ -118,6 +132,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer moves to Saved at the top. Last line before the end card.',
       say: 'Everything saves as you go. You’ll see Saved at the top. Your team won’t see any of this until you publish.',
       do: async (s) => {
         await s.pause(1500);

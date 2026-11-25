@@ -25,9 +25,11 @@ export const video: Video = {
   next: 'Publish and preview',
   beats: [
     {
+      cue: 'The title card has just faded to the Maps page. Nothing moves yet.',
       say: 'In this video you’ll put a picture of your site under your map. It can be a hand sketch, a site plan, or an aerial photo. Then you’ll trace over it.',
     },
     {
+      cue: 'The pointer goes to Add the first map under Sample Lot.',
       say: 'Start a new map at your site. This time pick Start blank, then Create blank map.',
       do: async (s) => {
         await s.pause(1500);
@@ -40,6 +42,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The empty editor is open. The pointer goes to the Layers tab.',
       say: 'Open the Layers tab and choose Upload site plan or aerial photo. A phone photo of a paper sketch works fine.',
       do: async (s) => {
         await s.click(s.page.getByText('Layers', { exact: true }).first(), 900);
@@ -53,6 +56,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The sketch has just appeared. The pointer goes to the Fit button.',
       say: 'The picture goes on its own layer and is locked, so it won’t move while you draw. Choose Fit to see all of it.',
       do: async (s) => {
         await s.pause(3000);
@@ -60,6 +64,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to the Opacity slider and drags it.',
       say: 'If the picture is hard to draw over, make it lighter with the Opacity slider.',
       do: async (s) => {
         const slider = s.page.getByLabel('Opacity');
@@ -72,6 +77,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The pointer goes to the Add tab, then Draw a row of spaces.',
       say: 'Now go back to Add and choose Draw a row of spaces. Drag along the front of a row in your sketch. The app counts how many spaces fit.',
       do: async (s) => {
         await s.click(s.page.getByText('Add', { exact: true }).first(), 900);
@@ -83,6 +89,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The Add a row box is open. The pointer moves to the number of spaces.',
       say: 'Check the number of spaces. Then type the row letter in Prefix, and choose Create.',
       do: async (s) => {
         await s.pause(1000);
@@ -94,18 +101,21 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The box has closed and row A is on the map. The pointer goes back to Draw a row of spaces.',
       say: 'Do the same for the next row. Drag along the front of the row, type its letter, and choose Create.',
       do: async (s) => {
         await drawRow(s, [260, 380], [890, 380], 'B');
       },
     },
     {
+      cue: 'Row B is on the map. The pointer goes back to Draw a row of spaces.',
       say: 'Rows can also be at an angle. Drag along the angled row, and the row turns to match.',
       do: async (s) => {
         await drawRow(s, [1000, 560], [1234, 425], 'C');
       },
     },
     {
+      cue: 'Row C is on the map. The word curved starts typing in the search box.',
       say: 'For a curved lane, search the library for curved, and add a curved driving lane.',
       do: async (s) => {
         await s.type(s.page.getByPlaceholder(/Search .* objects/), 'curved', 120);
@@ -114,6 +124,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The curved lane has just been added. The pointer moves to its first end.',
       say: 'Now drag each end of the curved lane to the ends of the lane in your sketch. You can move them again at any time.',
       do: async (s) => {
         await s.pause(800);
@@ -130,6 +141,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'Both ends are placed. The pointer moves to the first bend handle.',
       say: 'Then drag the two bend handles until the curve follows the lane in your sketch. The map updates as you drag.',
       do: async (s) => {
         await s.pause(600);
@@ -141,6 +153,7 @@ export const video: Video = {
       },
     },
     {
+      cue: 'The curve is in place. The pointer goes to the Layers tab. Last line.',
       say: 'When you’re done, hide the picture from the Layers tab to see your map on its own. Everything you traced stays.',
       do: async (s) => {
         await s.click({ x: 1150, y: 640 }, 700);
