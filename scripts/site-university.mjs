@@ -71,6 +71,8 @@ export const FAQ = [
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const SUPPORT = 'bergeronmaps@gmail.com';
+// The primary support line (Kegan, 2026-11-25). Shown as written; the link dials the US number.
+const PHONE = { shown: '(802) 578-3856', dial: '+18025783856' };
 const file = (slug, ext) => `site/university/videos/${slug}.${ext}`;
 
 /** Seconds of video, from the mp4's movie header (mvhd box): timescale and duration. */
@@ -149,15 +151,18 @@ const help = `<section id="help" class="bg-ink text-white">
       <div class="wrap grid gap-10 py-20 lg:grid-cols-12 lg:py-24">
         <div class="lg:col-span-5">
           <h2 class="h2">Get help</h2>
-          <p class="mt-6 text-lg text-white/75">Can't find the answer here? Email us and a person on our team will help you.</p>
-          <a class="btn btn-sign mt-8" href="mailto:${SUPPORT}?subject=Help%20with%20Bergeron%20Maps">Email ${SUPPORT}</a>
+          <p class="mt-6 text-lg text-white/75">Can't find the answer here? Call or email us, and a person on our team will help you.</p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a class="btn btn-sign" href="tel:${PHONE.dial}">Call ${PHONE.shown}</a>
+            <a class="btn btn-line" href="mailto:${SUPPORT}?subject=Help%20with%20Bergeron%20Maps">Email ${SUPPORT}</a>
+          </div>
         </div>
         <div class="lg:col-span-6 lg:col-start-7">
-          <h3 class="text-xl font-semibold">To help us answer quickly, tell us:</h3>
+          <h3 class="text-xl font-semibold">To help us answer quickly, have this ready:</h3>
           <ul class="mt-5 list-disc space-y-2 pl-5 text-lg text-white/75">
             <li>Your company and site name.</li>
             <li>What you were trying to do, and what happened.</li>
-            <li>A screenshot, if you can take one.</li>
+            <li>A screenshot, if you are emailing and can take one.</li>
           </ul>
           <p class="mt-8 text-white/60">Problems using a map with a screen reader or keyboard: see <a class="underline hover:text-white" href="../accessibility/">Accessibility</a>.</p>
         </div>

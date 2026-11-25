@@ -66,4 +66,4 @@ Where each claim is backed in the app. Update this when the site or the app chan
 | Reserved and accessible spaces are marked | Reserved, accessible and other space variants |
 | List view, keyboard use, contrast, 44 px targets (accessibility page) | Viewer list of spaces and places, docs/ACCESSIBILITY.md |
 | "We'll build the first map with you" | A service the team provides, not an app feature |
-| Bergeron Maps University: videos, common questions, help by email (purchase page and `site/university/`) | The pages themselves; each answer names the app's own buttons. Help is a person answering bergeronmaps@gmail.com. Re-check the answers in `scripts/site-university.mjs` when a button they name changes |
+| Bergeron Maps University: videos, common questions, help by phone or email (purchase page and `site/university/`) | The pages themselves; each answer names the app's own buttons. Help is a person answering bergeronmaps@gmail.com or the support line (802) 578-3856. Re-check the answers in `scripts/site-university.mjs` when a button they name changes |
