@@ -1,6 +1,6 @@
 /* bergeronmaps.com home page: a few purposeful animations (GSAP), nothing else. The header menus are in nav.js. */
 (function () {
-  // Contact form → POST /api/contact (worker/index.js), which emails it to bergeronmaps@gmail.com through Resend.
+  // Contact form → POST /api/contact (worker/index.js), which emails it to the company inbox through Resend.
   var LEADS = '/api/contact';
   var form = document.getElementById('contact-form');
   var err = document.getElementById('form-error');
@@ -25,9 +25,9 @@
   function failSend() {
     err.innerHTML = '';
     var a = document.createElement('a');
-    a.href = 'mailto:bergeronmaps@gmail.com';
+    a.href = 'mailto:support@bergeronmaps.com';
     a.className = 'underline underline-offset-4';
-    a.textContent = 'bergeronmaps@gmail.com';
+    a.textContent = 'support@bergeronmaps.com';
     err.append("Your request didn't go through. Please try again in a minute, or email us at ", a, '.');
     err.classList.remove('hidden');
   }

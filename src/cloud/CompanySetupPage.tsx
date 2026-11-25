@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { AppHeader } from '../home/HomePage';
 import { needsSetup, setupProblem, setupRows, type SetupSite } from '../model/companySetup';
 import { navigate } from '../router';
+import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_TEL } from '../support';
 import { friendly, supabase } from './client';
 
 interface Site { id: string; name: string; address: string | null }
@@ -84,7 +85,7 @@ export function CompanySetupPage({ companyId, nav, account, onDone }: {
             ))}
             {error && <p className="error-text" role="alert">{error}</p>}
             <button className="btn primary" disabled={busy} data-testid="setup-save">{busy ? 'Saving…' : 'Save and build my first map'}</button>
-            <p className="muted small">Need a hand? Email <a href="mailto:bergeronmaps@gmail.com?subject=Help%20setting%20up%20Bergeron%20Maps">bergeronmaps@gmail.com</a> and we&apos;ll walk you through it.</p>
+            <p className="muted small">Need a hand? Call <a href={`tel:${SUPPORT_TEL}`}>{SUPPORT_PHONE}</a> or email <a href={`mailto:${SUPPORT_EMAIL}?subject=Help%20setting%20up%20Bergeron%20Maps`}>{SUPPORT_EMAIL}</a> and we&apos;ll walk you through it.</p>
           </form>
         )}
         {error && !rows && <p className="error-text" role="alert">{error}</p>}

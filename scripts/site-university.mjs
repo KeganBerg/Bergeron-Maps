@@ -70,7 +70,7 @@ export const FAQ = [
 ];
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const SUPPORT = 'bergeronmaps@gmail.com';
+const SUPPORT = 'support@bergeronmaps.com';
 const file = (slug, ext) => `site/university/videos/${slug}.${ext}`;
 
 /** Seconds of video, from the mp4's movie header (mvhd box): timescale and duration. */
