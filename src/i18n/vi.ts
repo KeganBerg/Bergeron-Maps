@@ -1,4 +1,5 @@
 import type { Messages } from './en';
+import { SYMBOLS } from './symbols/vi';
 import { joinWith } from '../model/words';
 import { SUPPORT_EMAIL } from '../support';
 
@@ -6,63 +7,6 @@ import { SUPPORT_EMAIL } from '../support';
  * Vietnamese. Machine-drafted: a native speaker should review it before it's
  * promised to customers (see docs/LANGUAGES.md).
  */
-const SYMBOLS: Record<string, string> = {
-  'valet-booth': 'Quầy giữ xe hộ',
-  'valet-podium': 'Bục giữ xe hộ',
-  'valet-pickup': 'Khu nhận xe',
-  'valet-dropoff': 'Khu giao xe',
-  'valet-staging': 'Khu xe chờ',
-  'valet-queue': 'Hàng xe chờ',
-  gate: 'Cổng',
-  'garage-door': 'Cửa nhà xe',
-  'rollup-door': 'Cửa cuốn dịch vụ',
-  ramp: 'Dốc nhà xe',
-  'ramp-up': 'Dốc lên',
-  'ramp-down': 'Dốc xuống',
-  walkway: 'Lối đi bộ',
-  'ped-entrance': 'Lối vào cho người đi bộ',
-  'ped-exit': 'Lối ra cho người đi bộ',
-  'lobby-entrance': 'Lối vào sảnh',
-  'building-entrance': 'Lối vào tòa nhà',
-  'pedestrian-bridge': 'Cầu đi bộ',
-  stairs: 'Cầu thang',
-  stairwell: 'Lồng cầu thang',
-  elevator: 'Thang máy',
-  'elevator-bank': 'Dãy thang máy',
-  escalator: 'Thang cuốn',
-  'elevator-lobby': 'Sảnh thang máy',
-  'vehicle-ramp': 'Dốc cho xe',
-  'level-up': 'Biển chỉ lên tầng trên',
-  'level-down': 'Biển chỉ xuống tầng dưới',
-  'floor-connection': 'Lối nối giữa các tầng',
-  entrance: 'Lối vào nhà xe',
-  exit: 'Lối ra nhà xe',
-  'reception-desk': 'Quầy lễ tân',
-  'pay-station': 'Quầy bán vé',
-  'info-desk': 'Quầy thông tin',
-  'student-entrance': 'Lối vào cho học sinh',
-  'staff-entrance': 'Lối vào cho giáo viên và nhân viên',
-  'visitor-entrance': 'Lối vào cho khách',
-  'bus-entrance': 'Lối vào cho xe buýt',
-  'delivery-entrance': 'Lối vào giao hàng',
-  'security-checkpoint': 'Trạm kiểm tra an ninh',
-  'access-gate': 'Cổng kiểm soát ra vào',
-  'accessible-ramp': 'Dốc cho người khuyết tật',
-  'valet-zone': 'Khu giữ xe hộ',
-  'pin-general': 'Vị trí',
-  'pin-guest-pickup': 'Điểm đón khách',
-  'pin-dropoff': 'Điểm giao xe',
-  'pin-meeting': 'Điểm hẹn',
-  'pin-emergency-meeting': 'Điểm tập trung khẩn cấp',
-  'pin-key-pickup': 'Điểm nhận chìa khóa',
-  'pin-key-return': 'Điểm trả chìa khóa',
-  'pin-temporary': 'Dấu tạm thời',
-  'pin-important': 'Địa điểm quan trọng',
-  'pin-warning': 'Dấu cảnh báo',
-  'pin-custom': 'Dấu',
-  'pin-number': 'Dấu có số',
-  'pin-letter': 'Dấu có chữ',
-};
 
 const WAY = { up: 'lên', down: 'xuống', across: 'sang' };
 const span = (a: string, b: string) => (a === b ? a : `${a} đến ${b}`);

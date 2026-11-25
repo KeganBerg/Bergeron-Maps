@@ -69,3 +69,13 @@ describe('joining pieces of text', () => {
     expect(zh.words.list(['Floor 2', 'Floor 3'])).toBe('Floor 2、Floor 3');
   });
 });
+
+describe('building names', () => {
+  it('calls an unnamed building by its kind, in the reader’s language', async () => {
+    const { buildingTitle } = await import('../model/interiors');
+    const b = { kind: 'asset', assetKey: 'service-department', name: '', label: '' } as unknown as Parameters<typeof buildingTitle>[0];
+    expect(buildingTitle(b)).toBe('Service department');
+    expect(buildingTitle(b, es.words)).toBe('Departamento de servicio');
+    expect(buildingTitle({ ...b, name: 'Shop B' })).toBe('Shop B');
+  });
+});

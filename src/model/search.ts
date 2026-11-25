@@ -39,7 +39,7 @@ export function searchMap(doc: MapDocument, query: string, words: MapWords = ENG
   const byNumber: SearchHit[] = [];
   const partial: SearchHit[] = [];
   for (const f of doc.floors) {
-    const floorName = floorTitle(doc, f);
+    const floorName = floorTitle(doc, f, words);
     const hidden = new Set(f.layers.filter((l) => !l.visible).map((l) => l.id));
     for (const o of f.objects) {
       if (o.hidden || hidden.has(o.layerId)) continue;

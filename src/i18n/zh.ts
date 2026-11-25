@@ -1,4 +1,5 @@
 import type { Messages } from './en';
+import { SYMBOLS } from './symbols/zh';
 import { joinWith } from '../model/words';
 import { SUPPORT_EMAIL } from '../support';
 
@@ -6,63 +7,6 @@ import { SUPPORT_EMAIL } from '../support';
  * Chinese, simplified characters. Machine-drafted: a native speaker should
  * review it before it's promised to customers (see docs/LANGUAGES.md).
  */
-const SYMBOLS: Record<string, string> = {
-  'valet-booth': '代客泊车亭',
-  'valet-podium': '代客泊车服务台',
-  'valet-pickup': '取车区',
-  'valet-dropoff': '交车区',
-  'valet-staging': '车辆待停区',
-  'valet-queue': '车辆排队区',
-  gate: '大门',
-  'garage-door': '车库门',
-  'rollup-door': '卷帘服务门',
-  ramp: '车库坡道',
-  'ramp-up': '上行坡道',
-  'ramp-down': '下行坡道',
-  walkway: '人行通道',
-  'ped-entrance': '行人入口',
-  'ped-exit': '行人出口',
-  'lobby-entrance': '大堂入口',
-  'building-entrance': '大楼入口',
-  'pedestrian-bridge': '人行天桥',
-  stairs: '楼梯',
-  stairwell: '楼梯间',
-  elevator: '电梯',
-  'elevator-bank': '电梯组',
-  escalator: '自动扶梯',
-  'elevator-lobby': '电梯厅',
-  'vehicle-ramp': '车辆坡道',
-  'level-up': '上一层指示',
-  'level-down': '下一层指示',
-  'floor-connection': '楼层连接',
-  entrance: '车库入口',
-  exit: '车库出口',
-  'reception-desk': '前台',
-  'pay-station': '售票亭',
-  'info-desk': '服务台',
-  'student-entrance': '学生入口',
-  'staff-entrance': '教职员入口',
-  'visitor-entrance': '访客入口',
-  'bus-entrance': '巴士入口',
-  'delivery-entrance': '送货入口',
-  'security-checkpoint': '安检处',
-  'access-gate': '门禁闸口',
-  'accessible-ramp': '无障碍坡道',
-  'valet-zone': '代客泊车区',
-  'pin-general': '位置',
-  'pin-guest-pickup': '客人上车点',
-  'pin-dropoff': '交车点',
-  'pin-meeting': '集合点',
-  'pin-emergency-meeting': '紧急集合点',
-  'pin-key-pickup': '取钥匙处',
-  'pin-key-return': '还钥匙处',
-  'pin-temporary': '临时标记',
-  'pin-important': '重要地点',
-  'pin-warning': '警示标记',
-  'pin-custom': '标记',
-  'pin-number': '数字标记',
-  'pin-letter': '字母标记',
-};
 
 /**
  * Chinese puts a space between Chinese characters and Latin letters or digits

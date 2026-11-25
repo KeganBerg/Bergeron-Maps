@@ -1,6 +1,6 @@
 import { ASSET_BY_KEY } from '../assets/library';
 import { objectBox } from './geometry';
-import { floorGroup } from './interiors';
+import { buildingOf, buildingTitle, floorGroup } from './interiors';
 import type { Box, Floor, MapDocument, MapObject } from './types';
 import { COST, type Grid, cellAt, cellX, cellY, clampedCell, floorGrid } from './route/grid';
 import { BEND, DIRS, dedupe, KEEP_CLEAR, polyLength, roomAt, roundCorners, search, searchTurns, simplify, square, trace } from './route/search';
@@ -412,7 +412,9 @@ function hopEnds(h: Hop): [End, End] {
 function changeStep(doc: MapDocument, hop: Hop, floorId: string, out: End, x: number, y: number, words: MapWords, name = hop.portal.name): RouteStep {
   const p = hop.portal;
   if (p.kind === 'inside') {
-    const text = hop.forward ? words.goInside(p.name) : words.leave(p.name);
+    const b = buildingOf(doc, p.b.floor)?.building;
+    const building = b ? buildingTitle(b, words) : p.name;
+    const text = hop.forward ? words.goInside(building) : words.leave(building);
     return { floorId, kind: hop.forward ? 'inside' : 'outside', text, tag: text, toFloorId: out.floor.id, x, y };
   }
   const fromFloor = doc.floors.find((f) => f.id === floorId)!;

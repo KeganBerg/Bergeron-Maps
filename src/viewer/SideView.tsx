@@ -66,15 +66,16 @@ export function SideViewDrawing({ model, width, currentId, accent = '#d97706', o
   const my = mark ? slab(mark.level) : 0;
   const flip = mx > left + bw * 0.55;
   const calloutY = top - 30;
-  // The callout's words sit on its leader line, kept inside the drawing on a narrow phone (about 7px a letter at 13px).
-  const textW = mark ? mark.text.length * 6.6 : 0;
+  // The callout's words sit on its leader line, kept inside the drawing on a narrow phone (about 7px a letter at 13px;
+  // a Chinese character is a full 13px square).
+  const textW = mark ? [...mark.text].reduce((w, c) => w + (c.charCodeAt(0) >= 0x2e80 ? 13 : 6.6), 0) : 0;
   const elbow = mx + (flip ? -20 : 20);
   const tx = flip ? Math.min(elbow, Math.max(textW + 6, elbow)) : Math.max(6, Math.min(width - 6 - textW, elbow));
   const lineTo = flip ? tx - textW : tx + textW;
 
   return (
     <svg className="sv" width={width} height={height} viewBox={`0 0 ${width} ${height}`} fill="none" stroke="currentColor"
-      role="group" aria-label="Side view of the floors">
+      role="group" aria-label={t.allFloorsLabel}>
       {/* Underground: shaded below the ground line. */}
       {model.ground > 0 && <rect x={0} y={groundY} width={width} height={slab(0) - groundY + 8} fill="currentColor" fillOpacity={0.05} stroke="none" />}
       {/* Columns. */}

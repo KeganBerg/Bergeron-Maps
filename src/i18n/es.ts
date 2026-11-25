@@ -1,4 +1,5 @@
 import type { Messages } from './en';
+import { SYMBOLS } from './symbols/es';
 import { joinWith } from '../model/words';
 import { SUPPORT_EMAIL } from '../support';
 
@@ -6,63 +7,6 @@ import { SUPPORT_EMAIL } from '../support';
  * Spanish. Machine-drafted: a native speaker should review it before it's
  * promised to customers (see docs/LANGUAGES.md).
  */
-const SYMBOLS: Record<string, string> = {
-  'valet-booth': 'Caseta de valet',
-  'valet-podium': 'Podio de valet',
-  'valet-pickup': 'Área de recogida de vehículos',
-  'valet-dropoff': 'Área de entrega de vehículos',
-  'valet-staging': 'Área de espera de vehículos',
-  'valet-queue': 'Fila de vehículos',
-  gate: 'Portón',
-  'garage-door': 'Puerta del garaje',
-  'rollup-door': 'Puerta enrollable de servicio',
-  ramp: 'Rampa del garaje',
-  'ramp-up': 'Rampa de subida',
-  'ramp-down': 'Rampa de bajada',
-  walkway: 'Pasillo peatonal',
-  'ped-entrance': 'Entrada peatonal',
-  'ped-exit': 'Salida peatonal',
-  'lobby-entrance': 'Entrada del vestíbulo',
-  'building-entrance': 'Entrada del edificio',
-  'pedestrian-bridge': 'Puente peatonal',
-  stairs: 'Escalera',
-  stairwell: 'Cubo de escalera',
-  elevator: 'Elevador',
-  'elevator-bank': 'Grupo de elevadores',
-  escalator: 'Escalera eléctrica',
-  'elevator-lobby': 'Vestíbulo de elevadores',
-  'vehicle-ramp': 'Rampa para vehículos',
-  'level-up': 'Indicador de subida al siguiente piso',
-  'level-down': 'Indicador de bajada al siguiente piso',
-  'floor-connection': 'Conexión entre pisos',
-  entrance: 'Entrada del garaje',
-  exit: 'Salida del garaje',
-  'reception-desk': 'Recepción',
-  'pay-station': 'Caseta de boletos',
-  'info-desk': 'Información',
-  'student-entrance': 'Entrada de estudiantes',
-  'staff-entrance': 'Entrada del personal',
-  'visitor-entrance': 'Entrada de visitantes',
-  'bus-entrance': 'Entrada de autobuses',
-  'delivery-entrance': 'Entrada de entregas',
-  'security-checkpoint': 'Control de seguridad',
-  'access-gate': 'Portón de acceso controlado',
-  'accessible-ramp': 'Rampa accesible',
-  'valet-zone': 'Zona de valet',
-  'pin-general': 'Ubicación',
-  'pin-guest-pickup': 'Punto de recogida de clientes',
-  'pin-dropoff': 'Punto de entrega de vehículos',
-  'pin-meeting': 'Punto de encuentro',
-  'pin-emergency-meeting': 'Punto de encuentro de emergencia',
-  'pin-key-pickup': 'Punto de recogida de llaves',
-  'pin-key-return': 'Punto de devolución de llaves',
-  'pin-temporary': 'Marcador temporal',
-  'pin-important': 'Lugar importante',
-  'pin-warning': 'Advertencia',
-  'pin-custom': 'Marcador',
-  'pin-number': 'Marcador numerado',
-  'pin-letter': 'Marcador con letra',
-};
 
 const WAY = { up: 'subir', down: 'bajar', across: 'cruzar' };
 const span = (a: string, b: string) => (a === b ? a : `${a} a ${b}`);

@@ -11,11 +11,11 @@ export function FloorList({ doc, floor, onPick, onClose }: { doc: MapDocument; f
   const groups = useMemo(() => floorListing(doc, floor, t.words), [doc, floor, t]);
   const count = groups.reduce((n, g) => n + g.items.length, 0);
   return (
-    <div className="dir-sheet floor-list" role="region" aria-label={t.listOf(floorTitle(doc, floor))} tabIndex={-1} data-testid="floor-list"
+    <div className="dir-sheet floor-list" role="region" aria-label={t.listOf(floorTitle(doc, floor, t.words))} tabIndex={-1} data-testid="floor-list"
       onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div className="dir-head">
         <div>
-          <strong>{floorTitle(doc, floor)}</strong>
+          <strong>{floorTitle(doc, floor, t.words)}</strong>
           <span className="muted">{count ? t.listCount(count) : t.listEmpty}</span>
         </div>
         <button className="icon-btn" aria-label={t.closeList} onClick={onClose} data-testid="list-close"><Icon name="close" /></button>

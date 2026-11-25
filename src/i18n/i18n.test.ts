@@ -80,5 +80,9 @@ describe.each(LANGUAGES.map((l) => [l.english, MESSAGES[l.code]] as const))('%s'
     const spanish = Object.keys(ASSET_BY_KEY).filter((k) => MESSAGES.es.words.symbol(k));
     expect(named).toEqual(spanish);
     for (const k of named) expect(t.words.symbol(k)!.trim(), k).not.toBe('');
+    // Every symbol a viewer can tap or see in a list has a name. Only the editor's own tools are left out.
+    const EDITOR_ONLY = ['Background and reference', 'Drawing elements', 'Custom and reusable', 'Text and labels'];
+    const unnamed = Object.values(ASSET_BY_KEY).filter((d) => !EDITOR_ONLY.includes(d.category) && !t.words.symbol(d.key)).map((d) => d.key);
+    expect(unnamed).toEqual([]);
   });
 });

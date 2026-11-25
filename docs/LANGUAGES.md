@@ -14,8 +14,10 @@ attendants, security) read another language first.
 - A link can ask for a language: `…/app/#/view/<site-link>?lang=es`. Useful for signs printed in
   one language. It isn't saved; the picker is.
 - Names typed on the map (map, floor, space numbers, "Entrance", "North stairs") are never
-  translated. Only the words around them are. A symbol nobody named ("Elevator") is shown in the
-  reader's language.
+  translated. Only the words around them are. A symbol nobody named ("Elevator", "Restroom") is
+  shown in the reader's language, and so is the kind under a name. `src/i18n/symbols/<lang>.ts`
+  names every symbol a viewer can see; only the editor's drawing, background, text-label and
+  template tools are left out (they never show as places).
 - The editor, admin pages, emails, the marketing site and Bergeron Maps University are English only
   for now. Sign-in errors are translated too: `src/cloud/signInProblem.ts` turns the server's
   English error into a reason, and each language says it (`signInProblem`). Only an error that
@@ -26,6 +28,7 @@ attendants, security) read another language first.
 - `src/i18n/en.ts` holds every sentence, and its type. `es.ts`, `zh.ts`, `tl.ts`, `vi.ts` must have
   the same keys or TypeScript fails. Sentences with a name or number are functions, so each
   language can order the words and handle plurals its own way.
+- `src/i18n/symbols/<lang>.ts`: symbol names, by asset key.
 - `src/model/words.ts` is the part map logic uses (space names, route steps, floor list headings).
   `findRoute`, `floorListing`, `searchMap` and `startPlaces` take it, English by default.
 - `src/i18n/useLanguage.ts`: the chosen language (`useT()` for the words, `useLanguageInfo()` for
