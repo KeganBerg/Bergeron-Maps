@@ -102,7 +102,7 @@ export const video: Video = {
       },
     },
     {
-      say: 'Each site holds up to five maps, and two of them can be published at a time. For example, your everyday layout and an event layout.',
+      say: 'Each site holds up to five maps, and one of them can be published at a time. You can keep the others as spare layouts, for example for an event.',
       do: async (s) => {
         await s.moveTo(s.page.getByText(/of 5 slots used/).first(), 1000);
       },
