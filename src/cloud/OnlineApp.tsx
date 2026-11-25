@@ -114,7 +114,7 @@ export function OnlineApp() {
   const editor = !!membership && canEdit(membership);
   const section = parts[0] === 'admin' ? 'admin' : parts[0] === 'team' ? 'team' : 'maps';
   const tabs: [string, string, string, IconName][] = [
-    ...(membership && editor ? [['maps', '/', 'Maps', 'map'], ['team', '/team', 'Sites & people', 'people']] as [string, string, string, IconName][] : []),
+    ...(membership && editor ? [['maps', '/', setupDue ? 'Company setup' : 'Maps', setupDue ? 'accounts' : 'map'], ['team', '/team', 'Sites & people', 'people']] as [string, string, string, IconName][] : []),
     ...(s.isAdmin ? [['admin', '/admin', 'All accounts', 'accounts']] as [string, string, string, IconName][] : []),
   ];
   const nav = tabs.length > 1 ? (

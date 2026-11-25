@@ -63,7 +63,7 @@ export function CompanySetupPage({ companyId, nav, account, onDone }: {
   return (
     <div className="home">
       <AppHeader nav={nav}>{account}</AppHeader>
-      <main className="signin"><div className="signin-card company-setup" data-testid="company-setup">
+      <main className="home-main"><div className="signin-card company-setup" data-testid="company-setup">
         <h2>Set up your company</h2>
         <p className="muted">Name your company and each location you bought. Addresses are set once, so check them. You can add or rename sites later on Sites &amp; people.</p>
         {!rows && !error && <p className="muted">Loading…</p>}
