@@ -11,8 +11,8 @@ tests in `src/cloud/stripe-worker.test.ts` and `src/cloud/accounts-worker.test.t
    locations (1 to 20; more goes through a conversation with Alex) and a 6 or 12 month term (same
    price), then fills in company, name and email. The page posts that to `POST /api/checkout` with
    `term` and `returnPath: '/get-your-map/'`, and Stripe sends the buyer back there with
-   `?checkout=done` or `?checkout=canceled`. The page isn't linked from the site, is `noindex` and
-   isn't in the sitemap until sales go live (`src/siteClaims.test.ts` checks this).
+   `?checkout=done` or `?checkout=canceled`. Every "Get your map now" button on the site links here, and
+   "Request a quote" opens it with `?quote=1`, which emails the quote to the buyer and to us (`worker/quote.js`).
 2. The Worker starts a Stripe Checkout page in subscription mode with two lines, both times the number
    of locations:
    - **Map setup**, one-time, $2,500: charged today.
@@ -140,8 +140,6 @@ Never paste keys in chat. They go straight from Stripe into Cloudflare.
 - A terms page on the site, then the `STRIPE_TERMS` secret set to `required` and the terms link added in
   Stripe → Settings → Business → Public details.
 - Sales tax: decide with an accountant. Stripe Tax costs extra per transaction, so it stays off until then.
-- Link the purchase page from the site (the "Get your map now" buttons) and add it to the sitemap only
-  once it works end to end in live mode, and remove the "nothing links to the purchase page" test then.
 - Live mode: repeat steps 2 to 5 outside the sandbox with live values, then set `CHECKOUT_LIVE` to `true`.
 - Large or custom deals: send a Stripe invoice from the Dashboard (Invoicing), no code needed.
 

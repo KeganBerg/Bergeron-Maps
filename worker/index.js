@@ -1,6 +1,7 @@
 // bergeronmaps.com Worker. Serves the built site and app from _site/ (the ASSETS binding) and
 // handles a few routes of its own (emails go through Resend):
-//   POST /api/contact  the "Get your map now" form, emailed to the company inbox;
+//   POST /api/contact  Talk to Alex on the purchase page, emailed to the company inbox;
+//   POST /api/quote    Email me this quote: the quote to the customer, a copy to the company inbox (worker/quote.js);
 //   POST /api/access   the "you've been given access" email to a person a manager just added.
 //   POST /api/checkout and /api/stripe-webhook  Get Your Map Now payments (worker/stripe.js),
 //                      which also open and pause accounts (worker/accounts.js).
@@ -12,6 +13,7 @@
 import { INBOX, FROM, ORIGIN, EMAIL, reply, esc, shell, button } from './shared.js';
 import { checkout, checkoutTestPage, stripeWebhook } from './stripe.js';
 import { sendGraceReminders } from './grace.js';
+import { quote } from './quote.js';
 
 const FIELDS = ['Name', 'Company', 'Work email', 'Industry', 'Number of sites', 'Anything else', 'Page'];
 
@@ -19,6 +21,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/contact') return contact(request, env);
+    if (url.pathname === '/api/quote') return quote(request, env);
     if (url.pathname === '/api/access') return access(request, env);
     if (url.pathname === '/api/checkout') return checkout(request, env);
     if (url.pathname === '/api/checkout-test') return checkoutTestPage(request, env);

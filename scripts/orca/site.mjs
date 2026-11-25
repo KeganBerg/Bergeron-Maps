@@ -10,9 +10,6 @@ mark('hero search: type "EV" and Enter (CDP)'); await page.locator('#hp-q').focu
 
 mark('product demo: pick tab 2 with keyboard');
 await page.evaluate(() => document.querySelectorAll('[role=tab]')[1]?.focus()); await sleep(1200); await key('Return', 2500);
-mark('contact form send'); await page.evaluate(() => document.querySelector('#contact-form')?.scrollIntoView()); await sleep(600);
-await page.evaluate(() => { const f = document.querySelector('#contact-form'); for (const el of f.querySelectorAll('input, textarea, select')) { if (el.type==='email') el.value='a@example.com'; else if (el.tagName==='SELECT') el.selectedIndex=1; else if (el.type!=='checkbox' && el.type!=='hidden') el.value='Test value'; el.dispatchEvent(new Event('input',{bubbles:true})); } f.querySelector('button[type=submit], button').focus(); }); await sleep(1500);
-await key('Return', 4000);
 mark('dealership calculator: change hours field'); await page.goto('http://localhost:8099/industries/dealerships/'); await sleep(4000);
 await page.locator('input[name=n]').focus(); await sleep(1000); await page.locator('input[name=n]').fill('100'); await sleep(2500); await page.keyboard.type('0'); await sleep(2500);
 } catch (e) { mark('ERROR ' + e.message.split('\n')[0]); }

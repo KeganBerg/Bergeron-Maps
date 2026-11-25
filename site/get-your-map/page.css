@@ -229,3 +229,6 @@ input[aria-invalid="true"] { border-color: var(--bad); }
 .foot { border-top: 1px solid var(--line); padding: 24px 0 40px; font-size: var(--fs-sm); color: var(--muted); }
 .foot .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
 [tabindex="-1"]:focus { outline: none; }
+
+/* Spam trap in the quote form: hidden from people, bots fill it in. */
+.hp-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
