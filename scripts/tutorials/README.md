@@ -12,6 +12,7 @@ burned in and a title card at each end.
 - `v1-sign-in.ts` to `v5-team.ts`: one video each, written as beats. A beat is what the narrator says
   (`say`), an optional caption when it should read differently (space "1A1" is said "1 A 1"), and what
   happens on screen meanwhile (`do`).
+- `recorder.mjs`: records the page in real time (a screencast) and draws the pointer.
 - `videos.ts`: the list of videos, in order.
 - `record.rec.ts`: the Playwright test that records each video.
 - `narration.ts`: writes `out/<id>/lines.json`, the lines to send to the voice service.
@@ -55,3 +56,11 @@ three files from `out/final/` into `site/university/videos/`, named by the video
 `build-a-lot-in-four-answers.mp4`, `.vtt` and `.png`), add the video to `COURSE` in
 `scripts/site-university.mjs` if it is new, and run `node scripts/site-pages.mjs`. The page reads the
 length from the .mp4 and the words from the .vtt, so a re-cut video needs no other change.
+
+## Recording the voice yourself
+
+`npx vite-node scripts/tutorials/cue-sheet.ts` writes `out/final/recording-script.md`, with each line's start
+time, what is on screen then (the beat's `cue`) and its words. It also writes each video without its voice
+(`-silent.mp4`), to play while speaking along. It is easier to record each line as its own clip:
+save them as `out/<id>/voice/00.wav`, `01.wav` and so on, then run steps 4 to 6 above. The screen is re-timed
+to the recorded voice, so the lines don't need to match the old timing.

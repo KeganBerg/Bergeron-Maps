@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createQuickLot } from '../../src/model/quickLot';
 import { MockSupabase, SITE_A, SITE_B, USERS, type User } from '../../e2e/online/mock-supabase';
-import { centre, glide, record, withPointer } from '../industry-shots/recorder.mjs';
+import { centre, glide, record, withPointer } from './recorder.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = join(HERE, '../../site');
@@ -26,6 +26,8 @@ export { USERS };
 
 /** One step of a video: what the narrator says, and what happens on screen meanwhile. */
 export interface Beat {
+  /** What is on screen as this line starts: the cue a person recording the voice speaks on. */
+  cue?: string;
   say: string;
   /** The caption, when it should read differently from what is said (space numbers: "1A1", said "1 A 1"). */
   caption?: string;

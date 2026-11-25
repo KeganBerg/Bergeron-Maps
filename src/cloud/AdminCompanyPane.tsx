@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { accessText, type AdminCompany, type AdminPerson, type AdminSite } from '../model/adminAccounts';
 import { useMotionGroup } from '../ui/motion';
+import { MoreMenu } from '../ui/MoreMenu';
 import { supabase } from './client';
 import { RenameForm } from './rename';
 import { siteLink } from './TeamPage';
@@ -103,9 +104,7 @@ export function AdminCompanyPane({ company: c, maps, email, working, act, onRena
                     <RenameForm kind="site" id={s.id} current={s.name} others={c.sites.filter((x) => x.id !== s.id).map((x) => x.name)}
                       onDone={(n) => renamed(s.name, n)} onCancel={() => setRenaming(null)} />
                   ) : (
-                    <strong>{s.name}{' '}
-                      <button className="link rename-link" onClick={() => setRenaming({ kind: 'site', id: s.id })} data-testid={`rename-site-${s.name}`}>Rename</button>
-                    </strong>
+                    <strong>{s.name}</strong>
                   )}
                   {editing?.kind === 'address' && editing.id === s.id ? (
                     <form className="link-edit" onSubmit={(e) => { e.preventDefault(); setEditing(null);
@@ -116,17 +115,18 @@ export function AdminCompanyPane({ company: c, maps, email, working, act, onRena
                       <button type="button" className="btn small" onClick={() => setEditing(null)}>Cancel</button>
                     </form>
                   ) : (
-                    <span className="muted small">
-                      {s.address ?? 'No address yet'}{' '}
-                      <button className="link" onClick={() => setEditing({ kind: 'address', id: s.id, value: s.address ?? '' })}>{s.address ? 'Change' : 'Add address'}</button>
-                    </span>
+                    <span className="muted small">{s.address ?? 'No address yet'}</span>
                   )}
                   <span className="muted small site-url">{siteLink(s.slug)}</span>
                   <SiteReviewLine review={siteReview(s, maps)} />
                 </span>
                 <span className="site-actions">
                   <span className="muted small">{s.maps} {s.maps === 1 ? 'map' : 'maps'}, {s.published} published{s.public ? `, ${s.public} public` : ''}</span>
-                  <button className="btn small danger-text" onClick={() => onDeleteSite(s)} data-testid={`delete-site-${s.name}`}>Delete</button>
+                  <MoreMenu label={`More for ${s.name}`} testId={`more-site-${s.name}`} items={[
+                    { label: 'Rename', onClick: () => setRenaming({ kind: 'site', id: s.id }), testId: `rename-site-${s.name}` },
+                    { label: s.address ? 'Change address' : 'Add address', onClick: () => setEditing({ kind: 'address', id: s.id, value: s.address ?? '' }), testId: `address-${s.name}` },
+                    { label: 'Delete site', danger: true, onClick: () => onDeleteSite(s), testId: `delete-site-${s.name}` },
+                  ]} />
                 </span>
               </li>
             ))}
@@ -159,9 +159,9 @@ export function AdminCompanyPane({ company: c, maps, email, working, act, onRena
                   </span>
                   <span className="site-actions">
                     <span className="muted small">{p.pending ? 'Hasn’t signed in yet' : p.last_sign_in ? `Last signed in ${when(p.last_sign_in)}` : ''}</span>
-                    {p.email.toLowerCase() !== email.toLowerCase() && (
-                      <button className="btn small danger-text" onClick={() => onRemovePerson(p)} data-testid={`remove-${c.name}-${p.email}`}>Remove</button>
-                    )}
+                    <MoreMenu label={`More for ${p.email}`} testId={`more-${c.name}-${p.email}`} items={p.email.toLowerCase() === email.toLowerCase() ? [] : [
+                      { label: 'Remove access', danger: true, onClick: () => onRemovePerson(p), testId: `remove-${c.name}-${p.email}` },
+                    ]} />
                   </span>
                 </li>
               ))}

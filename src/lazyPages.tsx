@@ -1,4 +1,5 @@
-import { lazy, Suspense, type ComponentProps } from 'react';
+import { lazy, Suspense, type ComponentProps, type ReactNode } from 'react';
+import { AppHeader } from './home/HomePage';
 
 /**
  * Pages most visitors never open load on first use, so the map viewer (what
@@ -25,13 +26,21 @@ export const preloadEditor = () => void import('./editor/EditorPage');
  */
 const Admin = lazy(() => import('./cloud/AdminPage').then((m) => ({ default: m.AdminPage })));
 const Team = lazy(() => import('./cloud/TeamPage').then((m) => ({ default: m.TeamPage })));
-const loadingPage = <div className="page-message"><p>Loading…</p></div>;
+/** While a page's code arrives, the top bar and side bar stay put and only the page area waits, so the frame never blinks. */
+function loadingPage({ nav, account }: { nav?: ReactNode; account?: ReactNode }) {
+  return (
+    <div className="home">
+      <AppHeader nav={nav}>{account}</AppHeader>
+      <main className="home-main" aria-busy="true" />
+    </div>
+  );
+}
 
 export function AdminPage(props: ComponentProps<typeof Admin>) {
-  return <Suspense fallback={loadingPage}><Admin {...props} /></Suspense>;
+  return <Suspense fallback={loadingPage(props)}><Admin {...props} /></Suspense>;
 }
 export function TeamPage(props: ComponentProps<typeof Team>) {
-  return <Suspense fallback={loadingPage}><Team {...props} /></Suspense>;
+  return <Suspense fallback={loadingPage(props)}><Team {...props} /></Suspense>;
 }
 /** Starts downloading the admin and manager pages once someone who can open them is signed in. */
 export const preloadAdmin = () => void import('./cloud/AdminPage');

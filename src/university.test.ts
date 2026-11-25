@@ -39,5 +39,6 @@ describe('Bergeron Maps University', () => {
     const buy = readFileSync(join('site', 'get-your-map', 'index.html'), 'utf8');
     expect(buy).toContain('Bergeron Maps University, included');
     expect(buy).toContain('href="/university/"');
+    expect(hub).toContain('href="tel:+18025783856"');
   });
 });
