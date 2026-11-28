@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>Option E, Symbol storm | Bergeron Maps</title>
+<style>
+/* Option E, "Symbol storm": the app's whole symbol library fills the screen, then pours into place and builds a site map. */
+:root {
+  --ink: #0b0b0b;
+  --sign: #f2b705;
+  --navy: #0b2545;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: #fff; font-family: var(--font); font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.review { background: #26282b; color: #d8d8d8; font-size: 13px; position: relative; z-index: 10; }
+.review .wrap { display: flex; gap: 20px; align-items: center; min-height: 36px; flex-wrap: wrap; }
+.review b { color: #fff; font-weight: 600; }
+.review a { text-decoration: none; opacity: .75; }
+.review a:hover, .review a[aria-current] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+header { position: absolute; left: 0; right: 0; z-index: 8; background: var(--ink); border-bottom: 1px solid rgba(255,255,255,.12); }
+header .wrap { display: flex; align-items: center; gap: 28px; height: 72px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand svg:first-child { height: 18px; width: auto; border-right: 1px solid rgba(255,255,255,.35); padding-right: 12px; box-sizing: content-box; }
+.brand svg + svg { height: 12px; width: auto; }
+nav { margin-left: auto; display: flex; gap: 26px; font-size: 15px; align-items: center; }
+nav a { text-decoration: none; opacity: .85; white-space: nowrap; }
+@media (max-width: 860px) { nav a:not(.btn) { display: none; } }
+@media (max-width: 480px) { .brand svg + svg { display: none; } .brand svg:first-child { border: 0; } }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 2px; white-space: nowrap; border: 0; cursor: pointer; font-family: inherit; }
+.btn-sign { background: var(--sign); color: var(--ink); opacity: 1 !important; }
+.btn-sign:hover { background: #fff; }
+
+.stage { position: relative; height: clamp(680px, 100vh, 980px); overflow: hidden; background: var(--ink); }
+canvas#wall { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+.mapbox { position: absolute; z-index: 2; right: max(20px, calc((100vw - 1240px) / 2 + 20px)); top: 50%; width: min(60vw, 900px); aspect-ratio: 1229 / 866; transform: translateY(-46%); }
+.mapbox svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mapbox #hr-real > rect:first-child { opacity: 0; }
+.sp text { fill: #0b2545; font-family: var(--font); font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.sp.hit .sp-body { fill: var(--sign); }
+.sp[data-find] { cursor: pointer; }
+.sp[data-find]:hover .sp-body { fill: #fff2c2; }
+#hr-ring { stroke: var(--sign); stroke-width: 6; fill: none; }
+#hr-route { stroke: #fff; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.board { position: absolute; z-index: 1; right: max(20px, calc((100vw - 1240px) / 2 + 20px)); top: 50%; width: min(60vw, 900px); aspect-ratio: 1229 / 866; transform: translateY(-46%); background: #e7e4dd; opacity: 0; }
+
+/* Two lines that swap as the story moves on. */
+.say { position: absolute; z-index: 3; left: 0; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.say h2 { margin: 0; font-size: clamp(3rem, 9vw, 8.4rem); line-height: .92; letter-spacing: -0.04em; font-weight: 700; text-align: center; }
+.say h2 span { display: block; color: var(--sign); }
+.pitch { position: absolute; z-index: 4; left: 0; right: 0; top: 50%; transform: translateY(-50%); }
+.pitch .in { max-width: 470px; }
+.pitch h1 { margin: 0; font-size: clamp(2.6rem, 5.2vw, 4.6rem); line-height: .98; letter-spacing: -0.03em; font-weight: 700; text-wrap: balance; }
+.pitch p { margin: 18px 0 0; color: rgba(255,255,255,.75); max-width: 40ch; }
+.pitch .cta { display: flex; gap: 22px; align-items: center; margin-top: 22px; flex-wrap: wrap; }
+.pitch .cta a.more { font-size: 15px; font-weight: 600; text-underline-offset: 4px; }
+.replay { position: absolute; z-index: 6; right: 20px; bottom: 16px; font: 600 13px var(--font); color: rgba(255,255,255,.75); background: none; border: 1px solid rgba(255,255,255,.3); border-radius: 3px; padding: 6px 10px; cursor: pointer; }
+.note { position: absolute; z-index: 5; left: 20px; bottom: 18px; font-size: 12px; color: rgba(255,255,255,.5); }
+@media (max-width: 860px) {
+  .mapbox, .board { left: 20px; right: 20px; width: auto; top: auto; bottom: 64px; transform: none; }
+  .pitch { top: 100px; transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="review"><div class="wrap"><b>Design option E: Symbol storm</b><a href="option-d.html">Option D</a><a href="option-e.html" aria-current="page">Option E</a><a href="option-f.html">Option F</a></div></div>
+<main>
+<section class="stage" id="stage">
+  <header><div class="wrap">
+    <a class="brand" href="https://bergeronmaps.com/" aria-label="Bergeron Maps home">{{LOGO}}</a>
+    <nav aria-label="Main"><a href="https://bergeronmaps.com/#industries">Industries</a><a href="https://bergeronmaps.com/#how">How it works</a><a href="https://bergeronmaps.com/#platform">Platform</a><a href="https://bergeronmaps.com/app/">Sign in</a><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a></nav>
+  </div></header>
+  <canvas id="wall" aria-hidden="true"></canvas>
+  <div class="say" id="say1" aria-hidden="true"><h2>{{ICONCOUNT}} ready-made symbols.<span>One map.</span></h2></div>
+  <div class="board" id="board" aria-hidden="true"></div>
+  <div class="mapbox" id="mapbox">{{REAL}}</div>
+  <div class="pitch" id="pitch"><div class="wrap"><div class="in">
+    <h1>Everything on your site, in its place.</h1>
+    <p>Spaces, ramps, key boxes, chargers, offices and entrances. Drop in the app's symbols, and your team can find any of them from a phone.</p>
+    <div class="cta"><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a><a class="more" href="https://bergeronmaps.com/#industries">Explore industries</a></div>
+  </div></div></div>
+  <span class="note">Symbols and map drawn by the app, on a sample site.</span>
+  <button class="replay" type="button" id="replay">Play again</button>
+</section>
+</main>
+<script>var ICONS = {{ICONS}};</script>
+{{GSAP}}
+<script>
+(function () {
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var stage = document.getElementById('stage'), cv = document.getElementById('wall'), ctx = cv.getContext('2d');
+  var world = document.getElementById('hr-world'), box = document.getElementById('mapbox');
+  var dpr = Math.min(2, devicePixelRatio || 1), W = 0, H = 0;
+  var imgs = ICONS.map(function (ic) { var im = new Image(); im.src = ic.u; return im; });
+  var tiles = [];
+  var mouse = { x: -9999, y: -9999 };
+
+  // The wall: every symbol as a library tile, in a grid that fills the screen.
+  function layout() {
+    W = stage.clientWidth; H = stage.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var size = W < 700 ? 44 : 62, cols = Math.ceil(W / size) + 1, rows = Math.ceil(H / size) + 1;
+    tiles = [];
+    var cx = W / 2, cy = H / 2;
+    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+      var x = c * size + size / 2 - (cols * size - W) / 2, y = r * size + size / 2 - (rows * size - H) / 2;
+      var d = Math.hypot(x - cx, y - cy);
+      tiles.push({ x: x, y: y, hx: x, hy: y, s: 0, a: 1, rot: 0, im: imgs[(r * 7 + c * 3) % imgs.length], size: size, d: d, ox: 0, oy: 0 });
+    }
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (var i = 0; i < tiles.length; i++) {
+      var t = tiles[i];
+      if (t.s <= 0.01 || t.a <= 0.01) continue;
+      // Tiles lean away from the pointer.
+      var dx = t.x - mouse.x, dy = t.y - mouse.y, dd = dx * dx + dy * dy, push = dd < 22000 ? (1 - dd / 22000) * 26 : 0;
+      var m = push ? push / Math.sqrt(dd || 1) : 0;
+      t.ox += (dx * m - t.ox) * 0.2; t.oy += (dy * m - t.oy) * 0.2;
+      var s = t.size * 0.78 * t.s;
+      ctx.save();
+      ctx.globalAlpha = t.a;
+      ctx.translate(t.x + t.ox, t.y + t.oy); ctx.rotate(t.rot);
+      ctx.fillStyle = '#1b1d20'; ctx.fillRect(-s / 2 - 4, -s / 2 - 4, s + 8, s + 8);
+      if (t.im.complete && t.im.naturalWidth) {
+        var k = Math.min(s / t.im.naturalWidth, s / t.im.naturalHeight);
+        ctx.drawImage(t.im, -t.im.naturalWidth * k / 2, -t.im.naturalHeight * k / 2, t.im.naturalWidth * k, t.im.naturalHeight * k);
+      }
+      ctx.restore();
+    }
+  }
+  stage.addEventListener('pointermove', function (e) { var b = stage.getBoundingClientRect(); mouse.x = e.clientX - b.left; mouse.y = e.clientY - b.top; });
+  stage.addEventListener('pointerleave', function () { mouse.x = mouse.y = -9999; });
+
+  // Each object of the map gets a wrapper, so it can fly in without touching its own placement.
+  var NS = 'http://www.w3.org/2000/svg';
+  var parts = [].slice.call(world.children).map(function (c) {
+    var g = document.createElementNS(NS, 'g'); world.insertBefore(g, c); g.appendChild(c); return g;
+  });
+  var roads = parts.filter(function (g) { return g.firstChild.classList.contains('as-road'); });
+  var spaces = parts.filter(function (g) { return g.firstChild.classList.contains('sp'); });
+  var marks = parts.filter(function (g) { return roads.indexOf(g) < 0 && spaces.indexOf(g) < 0; });
+  // Spaces fall in row by row, left to right, like a row being dragged out in the editor.
+  spaces.sort(function (a, b) { var A = a.firstChild.getAttribute('data-label'), B = b.firstChild.getAttribute('data-label'); var ra = A.replace(/\d+$/, ''), rb = B.replace(/\d+$/, ''); return ra < rb ? -1 : ra > rb ? 1 : parseInt(A.match(/\d+$/)[0]) - parseInt(B.match(/\d+$/)[0]); });
+
+  var tl = null;
+  function play() {
+    if (tl) tl.kill();
+    layout();
+    var mb = box.getBoundingClientRect(), sb = stage.getBoundingClientRect();
+    var mx = mb.left - sb.left + mb.width / 2, my = mb.top - sb.top + mb.height / 2;
+    var maxD = tiles.reduce(function (m, t) { return Math.max(m, t.d); }, 1);
+    tiles.forEach(function (t) { t.s = 0; t.a = 1; t.rot = 0; t.x = t.hx; t.y = t.hy; });
+    var ticker = function () { draw(); };
+    gsap.ticker.add(ticker);
+    tl = gsap.timeline({ onComplete: function () { gsap.ticker.remove(ticker); draw(); } });
+    tl.set(parts, { opacity: 0 }).set('#board', { opacity: 0 }).set('#pitch', { opacity: 0 }).set('#say1', { opacity: 0, scale: 0.94 }).set('#hr-ring', { opacity: 0 })
+      .call(function () { [].forEach.call(world.querySelectorAll('.sp.hit'), function (e) { e.classList.remove('hit'); }); })
+      // 1. The library wall ripples in from the middle.
+      .to(tiles, { s: 1, duration: 0.5, ease: 'back.out(2.2)', stagger: function (i, t) { return t.d / maxD * 1.0; } })
+      .to('#say1', { opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' }, 0.5)
+      .to({}, { duration: 1.1 })
+      // 2. Everything pours into the map's frame.
+      .to('#say1', { opacity: 0, scale: 1.06, duration: 0.4 })
+      .to(tiles, { x: function () { return mx + (Math.random() - 0.5) * 60; }, y: function () { return my + (Math.random() - 0.5) * 60; }, rot: function () { return (Math.random() - 0.5) * 6; }, s: 0.2, a: 0,
+        duration: 1.1, ease: 'power3.in', stagger: function (i, t) { return (1 - t.d / maxD) * 0.6; } }, '<')
+      .to('#board', { opacity: 1, duration: 0.5 }, '-=0.5')
+      // 3. The site builds itself: roads, then rows of spaces, then the landmarks drop in.
+      .fromTo(roads, { opacity: 0, scaleX: 0, svgOrigin: '400 300' }, { opacity: 1, scaleX: 1, duration: 0.6, ease: 'power3.out', stagger: 0.08 }, '-=0.2')
+      .fromTo(spaces, { opacity: 0, y: -60, scale: 0.6, transformOrigin: '50% 50%' }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: 'back.out(2)', stagger: 0.012 }, '-=0.2')
+      .fromTo(marks, { opacity: 0, y: -120, scale: 1.4, transformOrigin: '50% 50%' }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: 'bounce.out', stagger: 0.07 }, '-=0.4')
+      .to('#pitch', { opacity: 1, duration: 0.6 }, '-=0.2')
+      .call(function () { find('1C12'); });
+  }
+  function find(label) {
+    var el = world.querySelector('[data-find="' + label + '"]'), r = document.getElementById('hr-ring');
+    if (!el) return;
+    [].forEach.call(world.querySelectorAll('.sp.hit'), function (e) { e.classList.remove('hit'); });
+    var x = +el.getAttribute('data-x'), y = +el.getAttribute('data-y'), w = +el.getAttribute('data-w'), h = +el.getAttribute('data-h');
+    r.setAttribute('x', x - w / 2 - 8); r.setAttribute('y', y - h / 2 - 8); r.setAttribute('width', w + 16); r.setAttribute('height', h + 16);
+    el.classList.add('hit');
+    gsap.fromTo(r, { opacity: 0, scale: 1.8, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(2)' });
+  }
+  [].forEach.call(world.querySelectorAll('.sp[data-find]'), function (e) { e.addEventListener('click', function () { find(e.getAttribute('data-find')); }); });
+  document.getElementById('replay').addEventListener('click', play);
+  addEventListener('resize', function () { if (!tl || !tl.isActive()) { layout(); } });
+
+  if (reduced) { layout(); gsap.set('#board', { opacity: 1 }); gsap.set('#say1', { opacity: 0 }); find('1C12'); return; }
+  Promise.all(imgs.slice(0, 80).map(function (im) { return im.decode ? im.decode().catch(function () {}) : null; })).then(play);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>Option F, Through the letters | Bergeron Maps</title>
+<style>
+/* Option F, "Through the letters": a giant headline is a window onto a moving map. Then the camera flies through a letter and the map fills the screen. */
+:root {
+  --ink: #0b0b0b;
+  --sign: #f2b705;
+  --navy: #0b2545;
+  --ground: #e7e4dd;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: #fff; font-family: var(--font); font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.review { background: #26282b; color: #d8d8d8; font-size: 13px; position: relative; z-index: 10; }
+.review .wrap { display: flex; gap: 20px; align-items: center; min-height: 36px; flex-wrap: wrap; }
+.review b { color: #fff; font-weight: 600; }
+.review a { text-decoration: none; opacity: .75; }
+.review a:hover, .review a[aria-current] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+header { position: absolute; left: 0; right: 0; z-index: 8; }
+header .wrap { display: flex; align-items: center; gap: 28px; height: 72px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand svg:first-child { height: 18px; width: auto; border-right: 1px solid rgba(255,255,255,.35); padding-right: 12px; box-sizing: content-box; }
+.brand svg + svg { height: 12px; width: auto; }
+nav { margin-left: auto; display: flex; gap: 26px; font-size: 15px; align-items: center; }
+nav a { text-decoration: none; opacity: .85; white-space: nowrap; }
+@media (max-width: 860px) { nav a:not(.btn) { display: none; } }
+@media (max-width: 480px) { .brand svg + svg { display: none; } .brand svg:first-child { border: 0; } }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 2px; white-space: nowrap; }
+.btn-sign { background: var(--sign); color: var(--ink); opacity: 1 !important; }
+.btn-sign:hover { background: #fff; }
+header.light { color: var(--ink); }
+
+.stage { position: relative; height: clamp(680px, 100vh, 980px); overflow: hidden; background: var(--ink); }
+svg#window { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#big { font-family: var(--font); font-weight: 700; letter-spacing: -0.045em; }
+.line { position: absolute; z-index: 4; left: 0; right: 0; bottom: 56px; }
+.line .wrap { display: flex; justify-content: space-between; align-items: end; gap: 32px; flex-wrap: wrap; }
+.line p { margin: 0; font-size: clamp(1.1rem, 1.8vw, 1.45rem); max-width: 34ch; color: rgba(255,255,255,.85); }
+.cta { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.cta a.more { font-size: 15px; font-weight: 600; text-underline-offset: 4px; }
+
+/* After the fly-through: the map is the page, with the pitch on a solid panel. */
+.after { position: absolute; z-index: 5; left: max(20px, calc((100vw - 1240px) / 2 + 20px)); bottom: 32px; width: min(520px, calc(100% - 40px)); background: var(--ink); padding: 30px 30px 26px; opacity: 0; visibility: hidden; }
+.after h1 { margin: 0; font-size: clamp(2.2rem, 4.2vw, 3.4rem); line-height: 1.02; letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; }
+.after p { margin: 14px 0 0; color: rgba(255,255,255,.78); }
+.after .cta { margin-top: 22px; }
+.found { position: absolute; z-index: 5; right: max(20px, calc((100vw - 1240px) / 2 + 20px)); top: 96px; width: 300px; background: #fff; color: var(--navy); border-top: 6px solid #c8102e; padding: 16px 20px 18px; opacity: 0; }
+.found b { display: block; font-size: 36px; line-height: 1.05; font-weight: 700; }
+.found span { display: block; font-size: 15px; color: #4a5462; margin-top: 4px; }
+.replay { position: absolute; z-index: 6; right: 20px; bottom: 14px; font: 600 13px var(--font); color: rgba(255,255,255,.8); background: rgba(11,11,11,.6); border: 1px solid rgba(255,255,255,.3); border-radius: 3px; padding: 6px 10px; cursor: pointer; }
+.sr { position: absolute; left: -9999px; }
+@media (max-width: 760px) { .found { top: 84px; left: 20px; right: 20px; width: auto; } .line { bottom: 32px; } }
+</style>
+</head>
+<body>
+<div class="review"><div class="wrap"><b>Design option F: Through the letters</b><a href="option-d.html">Option D</a><a href="option-e.html">Option E</a><a href="option-f.html" aria-current="page">Option F</a></div></div>
+<main>
+<section class="stage" id="stage">
+  <header id="head"><div class="wrap">
+    <a class="brand" href="https://bergeronmaps.com/" aria-label="Bergeron Maps home">{{LOGO}}</a>
+    <nav aria-label="Main"><a href="https://bergeronmaps.com/#industries">Industries</a><a href="https://bergeronmaps.com/#how">How it works</a><a href="https://bergeronmaps.com/#platform">Platform</a><a href="https://bergeronmaps.com/app/">Sign in</a><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a></nav>
+  </div></header>
+  <h1 class="sr">Find it. Interactive 2D maps of every facility.</h1>
+  <svg id="window" aria-hidden="true">
+    <defs><mask id="m" maskUnits="userSpaceOnUse"><rect id="m-bg" fill="#000"/><g id="m-g"><text id="big" fill="#fff" text-anchor="middle" dominant-baseline="alphabetic">Find it.</text></g></mask></defs>
+    <rect id="paper" fill="#0b0b0b"/>
+    <g mask="url(#m)"><rect id="ground" fill="#e7e4dd"/><image id="map" href="{{MAPURL}}" preserveAspectRatio="xMidYMid slice"/></g>
+    <rect id="ring" fill="none" stroke="#f2b705" stroke-width="6" opacity="0"/>
+  </svg>
+  <div class="line" id="line"><div class="wrap">
+    <p>Interactive 2D maps of every facility. Your team types a space, room or landmark and the map takes them there.</p>
+    <div class="cta"><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a><a class="more" href="https://bergeronmaps.com/#industries">Explore industries</a></div>
+  </div></div>
+  <div class="found" id="found"><b>1C12</b><span>Floor 1, Parking space</span></div>
+  <div class="after" id="after">
+    <h1>Every facility. Clearly mapped.</h1>
+    <p>From dealerships and schools to valet and warehouses. A sample site, drawn by the app.</p>
+    <div class="cta"><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a><a class="more" href="https://bergeronmaps.com/#industries">Explore industries</a></div>
+  </div>
+  <button class="replay" type="button" id="replay">Play again</button>
+</section>
+</main>
+{{GSAP}}
+<script>
+(function () {
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var stage = document.getElementById('stage'), svg = document.getElementById('window');
+  var big = document.getElementById('big'), mg = document.getElementById('m-g'), map = document.getElementById('map');
+  // The map picture's own units (the app drawing's viewBox) and where 1C12 sits in it.
+  var VB = {{VIEWBOX}}, T = {{TARGET}};
+  var W, H, pan = { x: 0, z: 1 }, open = { k: 1 };
+  var origin = { x: 0, y: 0 };
+
+  function size() {
+    W = stage.clientWidth; H = stage.clientHeight;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    ['m-bg', 'paper', 'ground'].forEach(function (id) { var r = document.getElementById(id); r.setAttribute('width', W); r.setAttribute('height', H); });
+    var fs = Math.min(W * 0.3, H * 0.62);
+    big.setAttribute('font-size', fs); big.setAttribute('x', W / 2); big.setAttribute('y', H * 0.6);
+    // Fly through the stem of the first "i": measure that letter.
+    var e = big.getExtentOfChar(1);
+    origin.x = e.x + e.width / 2; origin.y = e.y + e.height * 0.72;
+    apply();
+  }
+  // The map is drawn larger than the screen, so it can drift slowly behind the letters.
+  function mapRect() {
+    var s = Math.max(W / VB[2], H / VB[3]) * 1.0 * pan.z;
+    var w = VB[2] * s, h = VB[3] * s;
+    return { s: s, x: (W - w) / 2 + pan.x * (w - W) / 2, y: (H - h) / 2, w: w, h: h };
+  }
+  function apply() {
+    var r = mapRect();
+    map.setAttribute('x', r.x); map.setAttribute('y', r.y); map.setAttribute('width', r.w); map.setAttribute('height', r.h);
+    mg.setAttribute('transform', 'translate(' + origin.x + ' ' + origin.y + ') scale(' + open.k + ') translate(' + -origin.x + ' ' + -origin.y + ')');
+    var ring = document.getElementById('ring');
+    ring.setAttribute('x', r.x + (T.x - T.w / 2 - VB[0] - 8) * r.s); ring.setAttribute('y', r.y + (T.y - T.h / 2 - VB[1] - 8) * r.s);
+    ring.setAttribute('width', (T.w + 16) * r.s); ring.setAttribute('height', (T.h + 16) * r.s);
+  }
+
+  var tl = null, drift = null;
+  function play() {
+    if (tl) tl.kill(); if (drift) drift.kill();
+    pan.x = -1; pan.z = 1; open.k = 1; size();
+    gsap.set('#m-bg', { attr: { fill: '#000000' } });
+    gsap.set('#after, #found', { opacity: 0, visibility: 'hidden' }); gsap.set('#line', { opacity: 1, y: 0 }); gsap.set('#ring', { opacity: 0 });
+    document.getElementById('head').classList.remove('light');
+    // The map drifts behind the words the whole time.
+    drift = gsap.to(pan, { x: 1, duration: 14, ease: 'none', repeat: -1, yoyo: true, onUpdate: apply });
+    tl = gsap.timeline();
+    tl.fromTo(open, { k: 0.86 }, { k: 1, duration: 1.4, ease: 'power3.out', onUpdate: apply }, 0)
+      .from('#line', { opacity: 0, y: 24, duration: 0.7, ease: 'power3.out' }, 0.4)
+      .to({}, { duration: 2.6 })
+      // Through the letter: the "i" grows until the map is all there is.
+      .to('#line', { opacity: 0, y: 20, duration: 0.4 })
+      .call(function () { drift.pause(); })
+      .to(open, { k: 90, duration: 2.0, ease: 'power3.in', onUpdate: apply }, '<')
+      .to(pan, { x: 0, z: 0.92, duration: 2.0, ease: 'power2.inOut', onUpdate: apply }, '<')
+      // The last of the letter's edges clear: the whole mask turns on.
+      .to('#m-bg', { attr: { fill: '#ffffff' }, duration: 0.7, ease: 'power1.in' }, '-=0.8')
+      .call(function () { document.getElementById('head').classList.add('light'); }, null, '-=0.6')
+      .to('#ring', { opacity: 1, duration: 0.3 }, '-=0.1')
+      .fromTo('#ring', { scale: 1.8, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.5, ease: 'back.out(2)' }, '<')
+      .to('#found', { opacity: 1, visibility: 'visible', duration: 0.4 }, '<')
+      .to('#after', { opacity: 1, visibility: 'visible', duration: 0.5 }, '-=0.2');
+  }
+  document.getElementById('replay').addEventListener('click', play);
+  addEventListener('resize', function () { size(); });
+  if (reduced) { size(); document.getElementById('m-bg').setAttribute('fill', '#fff'); open.k = 90; pan.x = 0; pan.z = 0.92; apply(); gsap.set('#line', { opacity: 0 }); gsap.set('#after, #found, #ring', { opacity: 1, visibility: 'visible' }); document.getElementById('head').classList.add('light'); return; }
+  // Wait one frame so the font is measured at its real size.
+  requestAnimationFrame(play);
+})();
+</script>
+</body>
+</html>

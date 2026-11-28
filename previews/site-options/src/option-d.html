@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>Option D, Floor stack | Bergeron Maps</title>
+<style>
+/* Option D, "Floor stack": the site's real floor maps float as a 3D stack. A search pulls one level out and the camera lands on it. */
+:root {
+  --ink: #0b0b0b;
+  --night: #101215;
+  --sign: #f2b705;
+  --navy: #0b2545;
+  --l1: #c8102e; --l2: #d4650f; --l3: #007a33; --l4: #0057b8;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--night); color: #fff; font-family: var(--font); font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.review { background: #26282b; color: #d8d8d8; font-size: 13px; position: relative; z-index: 10; }
+.review .wrap { display: flex; gap: 20px; align-items: center; min-height: 36px; flex-wrap: wrap; }
+.review b { color: #fff; font-weight: 600; }
+.review a { text-decoration: none; opacity: .75; }
+.review a:hover, .review a[aria-current] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+header { position: absolute; left: 0; right: 0; z-index: 8; }
+header .wrap { display: flex; align-items: center; gap: 28px; height: 72px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand svg:first-child { height: 18px; width: auto; border-right: 1px solid rgba(255,255,255,.35); padding-right: 12px; box-sizing: content-box; }
+.brand svg + svg { height: 12px; width: auto; }
+nav { margin-left: auto; display: flex; gap: 26px; font-size: 15px; align-items: center; }
+nav a { text-decoration: none; opacity: .85; white-space: nowrap; }
+@media (max-width: 860px) { nav a:not(.btn) { display: none; } }
+@media (max-width: 480px) { .brand svg + svg { display: none; } .brand svg:first-child { border: 0; } }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 2px; white-space: nowrap; }
+.btn-sign { background: var(--sign); color: var(--ink); opacity: 1 !important; }
+.btn-sign:hover { background: #fff; }
+
+/* ---- The stage ---- */
+.stage { position: relative; height: clamp(680px, 100vh, 980px); overflow: hidden; background: var(--night); }
+/* A drafting grid on the ground plane, for depth. */
+.ground { position: absolute; left: 50%; top: 58%; width: 3200px; height: 3200px; margin: -1600px 0 0 -1600px; transform: perspective(1800px) rotateX(64deg); background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px); background-size: 80px 80px; -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 100%); mask-image: radial-gradient(closest-side, #000 30%, transparent 100%); }
+.scene { position: absolute; inset: 0; perspective: 2400px; perspective-origin: 50% 30%; }
+.stack { position: absolute; left: 50%; top: 54%; }
+.stack-x { position: absolute; left: var(--sx, 64%); top: 56%; width: 0; height: 0; transform-style: preserve-3d; width: 0; height: 0; transform-style: preserve-3d; }
+.plate { position: absolute; width: 1000px; height: 705px; left: -500px; top: -352px; transform-style: preserve-3d; background: #e7e4dd; }
+.plate svg { display: block; width: 100%; height: 100%; }
+.plate .edge { position: absolute; left: 0; right: 0; bottom: 0; height: 18px; background: var(--c); transform-origin: 50% 100%; transform: rotateX(-90deg); }
+.plate::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 18px; background: var(--c); filter: brightness(.75); transform-origin: 100% 50%; transform: rotateY(90deg); }
+.plate::before { content: attr(data-name); position: absolute; left: 0; top: -58px; background: var(--c); color: #fff; font: 700 30px var(--font); padding: 6px 16px; }
+.plate[data-level="1"] { --c: var(--l1); } .plate[data-level="2"] { --c: var(--l2); } .plate[data-level="3"] { --c: var(--l3); } .plate[data-level="4"] { --c: var(--l4); }
+.sp text { fill: #0b2545; font-family: var(--font); font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.sp.hit .sp-body { fill: var(--sign); }
+.plate [id$="-route"] { stroke: var(--navy); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.plate [id$="-ring"] { stroke: var(--sign); stroke-width: 7; fill: none; opacity: 0; }
+
+/* ---- Words over the scene ---- */
+.copy { position: absolute; z-index: 5; left: 0; right: 0; top: 108px; pointer-events: none; }
+.copy .wrap > * { pointer-events: auto; }
+h1 { margin: 0; font-size: clamp(2.8rem, 6.8vw, 6.2rem); line-height: .96; letter-spacing: -0.035em; font-weight: 700; max-width: 9.5em; text-wrap: balance; }
+.sub { margin: 18px 0 0; color: rgba(255,255,255,.75); max-width: 40ch; }
+.cta { display: flex; gap: 22px; align-items: center; margin-top: 22px; flex-wrap: wrap; }
+.cta a.more { font-size: 15px; font-weight: 600; text-underline-offset: 4px; }
+.finder { position: absolute; z-index: 6; left: 50%; bottom: 36px; transform: translateX(-50%); width: min(520px, calc(100% - 40px)); }
+.finder .box { display: flex; align-items: center; gap: 12px; background: #fff; color: var(--navy); border-radius: 4px; padding: 0 18px; height: 62px; font-size: 22px; }
+.finder .q { flex: 1; font-weight: 600; min-width: 0; }
+.finder .q:empty::before { content: "Find a space on any level"; color: #66707c; font-weight: 400; }
+.finder .lv { font-size: 15px; font-weight: 600; color: #fff; background: var(--c, #444); padding: 6px 10px; border-radius: 3px; opacity: 0; }
+.caret { width: 2px; height: 1.1em; background: var(--navy); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.found { position: absolute; z-index: 6; left: max(20px, calc((100vw - 1240px) / 2 + 20px)); top: 120px; background: #fff; color: var(--navy); border-top: 6px solid var(--c, #007a33); padding: 18px 22px 20px; width: 300px; opacity: 0; }
+.found b { display: block; font-size: 40px; line-height: 1.05; font-weight: 700; }
+.found span { display: block; font-size: 15px; color: #4a5462; margin-top: 4px; }
+.found .r { margin-top: 14px; font-weight: 600; color: var(--navy); background: #eef2f6; padding: 9px 12px; border-radius: 3px; }
+.note { position: absolute; z-index: 5; right: 20px; bottom: 12px; font-size: 12px; color: rgba(255,255,255,.5); }
+.tryit { position: absolute; z-index: 6; left: 50%; bottom: 106px; transform: translateX(-50%); display: flex; gap: 8px; }
+.tryit button { font: 600 14px var(--font); color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.3); border-radius: 3px; padding: 7px 12px; cursor: pointer; }
+.tryit button:hover { background: rgba(255,255,255,.18); }
+@media (max-width: 760px) { .copy { top: 92px; } .sub { display: none; } .tryit { bottom: 96px; } .finder .box { height: 54px; font-size: 18px; } }
+</style>
+</head>
+<body>
+<div class="review"><div class="wrap"><b>Design option D: Floor stack</b><a href="option-d.html" aria-current="page">Option D</a><a href="option-e.html">Option E</a><a href="option-f.html">Option F</a></div></div>
+<main>
+<section class="stage" id="stage" aria-label="Sample four-level site">
+  <header><div class="wrap">
+    <a class="brand" href="https://bergeronmaps.com/" aria-label="Bergeron Maps home">{{LOGO}}</a>
+    <nav aria-label="Main"><a href="https://bergeronmaps.com/#industries">Industries</a><a href="https://bergeronmaps.com/#how">How it works</a><a href="https://bergeronmaps.com/#platform">Platform</a><a href="https://bergeronmaps.com/app/">Sign in</a><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a></nav>
+  </div></header>
+  <div class="ground" aria-hidden="true"></div>
+  <div class="scene" aria-hidden="true"><div class="stack-x" id="stack">{{FLOORS}}</div></div>
+  <div class="copy"><div class="wrap">
+    <h1>Every level of your site, one search away.</h1>
+    <p class="sub">Bergeron Maps draws each floor as an interactive 2D map. Your team types a space and lands on the right level, with walking directions.</p>
+    <div class="cta"><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a><a class="more" href="https://bergeronmaps.com/#industries">Explore industries</a></div>
+  </div></div>
+  <div class="tryit" id="tryit"><button type="button" data-q="3C9">3C9</button><button type="button" data-q="1A4">1A4</button><button type="button" data-q="4B12">4B12</button><button type="button" data-q="2D7">2D7</button></div>
+  <div class="finder" aria-live="polite"><div class="box"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="#0b2545" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="#0b2545" stroke-width="2.4" stroke-linecap="round"/></svg><span class="q" id="q"></span><span class="caret"></span><span class="lv" id="lv">Level 3</span></div></div>
+  <div class="found" id="found"><b id="f-t">3C9</b><span id="f-s">Level 3, Parking space</span><span class="r">Walking route from Entrance</span></div>
+  <div class="note">A sample site. The 2D floor maps are drawn by the app; the 3D stack is for this page.</div>
+</section>
+</main>
+{{GSAP}}
+<script>
+(function () {
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var COLORS = ['#c8102e', '#d4650f', '#007a33', '#0057b8'];
+  var stage = document.getElementById('stage'), stack = document.getElementById('stack');
+  var plates = [].slice.call(stack.querySelectorAll('.plate'));
+  plates.forEach(function (p) { p.setAttribute('data-name', 'Level ' + p.getAttribute('data-level')); });
+  var VB = plates[0].querySelector('svg').getAttribute('viewBox').split(' ').map(Number);
+  var PW = 1000, PH = 705;
+  var drops = plates.map(function () { return { z: 0, o: 1 }; });
+  // Camera state: tilt (rx), turn (rz), scale, pan, gap between floors, and which floor is pulled out.
+  var copy = document.querySelector('.copy');
+  function idleCx() { return stage.clientWidth < 900 ? 0 : 14; }
+  var cam = { cx: 0, land: 0, rx: 60, rz: -34, s: 0.62, px: 0, py: 0, gap: 150, lift: 0, f: -1, dim: 0, mx: 0, my: 0 };
+  function fitScale() { var w = stage.clientWidth; return Math.min(0.66, w / 1600 + 0.04); }
+  function render() {
+    stack.style.left = (50 + (cam.cx) ) + '%';
+    copy.style.opacity = 1 - cam.land;
+    stack.style.transform = 'translate(' + cam.px + 'px,' + cam.py + 'px) scale(' + cam.s + ') rotateX(' + (cam.rx + cam.my) + 'deg) rotateZ(' + (cam.rz + cam.mx) + 'deg)';
+    plates.forEach(function (p, i) {
+      var z = (i - 1.5) * cam.gap, op = 1;
+      if (cam.f >= 0) {
+        if (i === cam.f) { z = z * (1 - cam.lift); }
+        else { z += (i < cam.f ? -1 : 1) * 320 * cam.lift; op = 1 - 0.97 * cam.dim; }
+      }
+      p.style.transform = 'translateZ(' + (z + drops[i].z) + 'px)';
+      p.style.opacity = op * drops[i].o;
+    });
+  }
+  cam.s = fitScale(); cam.cx = idleCx(); render();
+
+  function num(el, k) { return +el.getAttribute('data-' + k); }
+  function find(label) {
+    var lv = +label[0], plate = plates[lv - 1];
+    return { lv: lv, plate: plate, el: plate.querySelector('[data-find="' + label + '"]'), n: lv };
+  }
+  function routeFor(t) {
+    var world = t.plate.querySelector('[id$="-world"]');
+    var lanes = world.getAttribute('data-lanes').split(',').map(Number);
+    var entry = t.plate.querySelector('[data-find="Entrance"]');
+    var tx = num(t.el, 'x'), ty = num(t.el, 'y'), ex = num(entry, 'x'), ey = num(entry, 'y');
+    var lane = lanes.reduce(function (a, b) { return Math.abs(b - ty) < Math.abs(a - ty) ? b : a; });
+    return 'M' + ex + ' ' + (ey - 10) + 'V' + lane + 'H' + tx + 'V' + (ty + (ty < lane ? num(t.el, 'h') / 2 : -num(t.el, 'h') / 2));
+  }
+
+  var q = document.getElementById('q'), lvTag = document.getElementById('lv');
+  var tl = null, auto = !reduced, timer = null, last = null;
+  function clear() {
+    if (!last) return;
+    last.el.classList.remove('hit');
+    var r = last.plate.querySelector('[id$="-ring"]'), rt = last.plate.querySelector('[id$="-route"]');
+    r.style.opacity = 0; rt.setAttribute('d', 'M0 0');
+  }
+  function go(label) {
+    if (tl) tl.kill();
+    clear();
+    var t = find(label); last = t;
+    var x = num(t.el, 'x'), y = num(t.el, 'y'), w = num(t.el, 'w'), h = num(t.el, 'h');
+    var ring = t.plate.querySelector('[id$="-ring"]'), route = t.plate.querySelector('[id$="-route"]');
+    ring.setAttribute('x', x - w / 2 - 9); ring.setAttribute('y', y - h / 2 - 9); ring.setAttribute('width', w + 18); ring.setAttribute('height', h + 18);
+    // Where the space sits on the plate, so the landing puts it at the centre of the screen.
+    var sx = (x - VB[0]) / VB[2] * PW - PW / 2, sy = (y - VB[1]) / VB[3] * PH - PH / 2;
+    var landS = Math.min(1.5, stage.clientWidth / 760);
+    var typed = { n: 0 };
+    tl = gsap.timeline();
+    tl.set(lvTag, { opacity: 0 })
+      .to(typed, { n: label.length, duration: 0.13 * label.length, ease: 'none', onStart: function () { q.textContent = ''; }, onUpdate: function () { q.textContent = label.slice(0, Math.round(typed.n)); } })
+      .call(function () { cam.f = t.lv - 1; lvTag.textContent = 'Level ' + t.lv; lvTag.style.setProperty('--c', COLORS[t.lv - 1]); })
+      .to(lvTag, { opacity: 1, duration: 0.25 })
+      // The level slides out of the stack and the others fall away.
+      .to(cam, { lift: 1, dim: 1, duration: 0.9, ease: 'power3.inOut', onUpdate: render })
+      // The camera comes down flat onto it and closes in on the space.
+      .to(cam, { cx: 0, land: 1, rx: 0, rz: 0, mx: 0, my: 0, s: landS, px: -sx * landS, py: -sy * landS - 40, duration: 1.5, ease: 'power3.inOut', onUpdate: render }, '-=0.2')
+      .call(function () { route.setAttribute('d', routeFor(t)); var len = route.getTotalLength(); gsap.fromTo(route, { strokeDasharray: len, strokeDashoffset: len }, { strokeDashoffset: 0, duration: 1.1, ease: 'power1.inOut' }); })
+      .to({}, { duration: 0.9 })
+      .call(function () { t.el.classList.add('hit'); document.getElementById('f-t').textContent = label; document.getElementById('f-s').textContent = 'Level ' + t.lv + ', Parking space'; document.getElementById('found').style.setProperty('--c', COLORS[t.lv - 1]); })
+      .fromTo('#found', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4 })
+      .fromTo(ring, { opacity: 0, scale: 1.8, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(2)' });
+    return tl;
+  }
+  function back() {
+    var b = gsap.timeline();
+    b.call(clear).to('#found', { opacity: 0, duration: 0.25 })
+      .to(cam, { cx: idleCx(), land: 0, rx: 60, rz: -34, s: fitScale(), px: 0, py: 0, duration: 1.4, ease: 'power3.inOut', onUpdate: render })
+      .to(cam, { lift: 0, dim: 0, duration: 0.8, ease: 'power2.inOut', onUpdate: render }, '-=0.6')
+      .call(function () { cam.f = -1; q.textContent = ''; })
+      .to(lvTag, { opacity: 0, duration: 0.2 }, '<');
+    return b;
+  }
+  var order = ['3C9', '1A4', '4B12', '2D7'], k = 0;
+  function loop() {
+    if (!auto) return;
+    go(order[k++ % order.length]).eventCallback('onComplete', function () {
+      timer = setTimeout(function () { if (!auto) return; back().eventCallback('onComplete', function () { timer = setTimeout(loop, 900); }); }, 2600);
+    });
+  }
+  function stop() { auto = false; clearTimeout(timer); }
+  [].forEach.call(document.querySelectorAll('#tryit button'), function (b) {
+    b.addEventListener('click', function () {
+      stop();
+      var label = b.getAttribute('data-q');
+      if (cam.f >= 0) back().eventCallback('onComplete', function () { go(label); }); else go(label);
+    });
+  });
+
+  // The stack turns a little with the mouse while it is floating.
+  stage.addEventListener('pointermove', function (e) {
+    if (reduced || cam.f >= 0) return;
+    var b = stage.getBoundingClientRect();
+    gsap.to(cam, { mx: ((e.clientX - b.left) / b.width - 0.5) * 10, my: ((e.clientY - b.top) / b.height - 0.5) * -6, duration: 0.8, ease: 'power2.out', onUpdate: render });
+  });
+  addEventListener('resize', function () { if (cam.f < 0) { cam.s = fitScale(); cam.cx = idleCx(); render(); } });
+
+  if (reduced) { cam.f = 2; cam.lift = 1; cam.dim = 1; render(); return; }
+  // Opening: the floors drop into place one by one, then spread apart.
+  cam.gap = 0; render();
+  drops.forEach(function (d) { d.z = 1400; d.o = 0; });
+  render();
+  gsap.to(drops, { z: 0, o: 1, duration: 1.1, ease: 'power3.out', stagger: 0.16, onUpdate: render });
+  gsap.to(cam, { gap: 150, duration: 1.2, delay: 0.8, ease: 'power3.inOut', onUpdate: render });
+  timer = setTimeout(loop, 2600);
+})();
+</script>
+</body>
+</html>

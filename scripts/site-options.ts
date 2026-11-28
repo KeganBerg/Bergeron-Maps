@@ -15,6 +15,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createQuickLot } from '../src/model/quickLot';
 import { sideView } from '../src/model/sideView';
 import { SideViewDrawing } from '../src/viewer/SideView';
+import { ASSETS, assetPreviewUrl } from '../src/assets/library';
 
 const root = new URL('../', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -71,7 +72,60 @@ const webp = (name: string) =>
   `data:image/webp;base64,${readFileSync(new URL(`site/img/industries/${name}.webp`, root)).toString('base64')}`;
 const gsap = read('site/vendor/gsap.min.js');
 
+// Option D: the hero floor as four levels of a garage (same layout, spaces renumbered per level, as quick lot numbers them).
+const floors = [1, 2, 3, 4]
+  .map((n) =>
+    real
+      .replace(/(>|data-find="|data-label=")1([A-D]\d{1,2})(<|")/g, `$1${n}$2$3`)
+      .replace(/id="hr-(real|world|route|ring|entrance)"/g, `id="f${n}-$1"`)
+      .replace(/ role="img" aria-label="[^"]*"/, ' aria-hidden="true"'),
+  )
+  .map((svg, i) => `<div class="plate" data-level="${i + 1}"><div class="edge"></div>${svg}</div>`)
+  .join('');
+
+// Option E: the app's own library symbols, as the editor's library tiles draw them.
+// Taken a category at a time, so every kind of site is in the mix.
+const skip = new Set([
+  'Drawing elements',
+  'Text and labels',
+  'Background and reference',
+  'Custom and reusable',
+  'Zones and boundaries',
+]);
+const byCat = new Map<string, { n: string; c: string; u: string }[]>();
+for (const a of ASSETS) {
+  const u = assetPreviewUrl(a);
+  if (!u || u.length > 9000 || skip.has(a.category)) continue;
+  byCat.set(a.category, [...(byCat.get(a.category) ?? []), { n: a.name, c: a.category, u }]);
+}
+const icons: { n: string; c: string; u: string }[] = [];
+for (let i = 0; icons.length < 320 && i < 60; i++)
+  for (const list of byCat.values()) if (list[i] && icons.length < 320) icons.push(list[i]);
+
+// Option F: the hero map as one picture, to show through the headline letters.
+const mapUrl = `data:image/svg+xml;base64,${Buffer.from(
+  real
+    .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')
+    // A picture can't see the page's CSS, so the space numbers bring their own type.
+    .replace(
+      '>',
+      '><style>.sp text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;font-weight:700;text-anchor:middle;dominant-baseline:central;fill:#0b2545}</style>',
+    ),
+).toString('base64')}`;
+
+const vbox = real
+  .match(/viewBox="([^"]+)"/)![1]
+  .split(' ')
+  .map(Number);
+const t12 = real.match(/data-find="1C12"[^>]*data-x="([^"]+)" data-y="([^"]+)" data-w="([^"]+)" data-h="([^"]+)"/)!;
+
 const parts: Record<string, string> = {
+  VIEWBOX: JSON.stringify(vbox),
+  TARGET: JSON.stringify({ x: +t12[1], y: +t12[2], w: +t12[3], h: +t12[4] }),
+  FLOORS: floors,
+  ICONS: JSON.stringify(icons),
+  ICONCOUNT: String(ASSETS.length),
+  MAPURL: mapUrl,
   PLAN: plan,
   REAL: real,
   LOGO: logo,
