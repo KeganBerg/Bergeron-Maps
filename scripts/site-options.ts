@@ -119,7 +119,37 @@ const vbox = real
   .map(Number);
 const t12 = real.match(/data-find="1C12"[^>]*data-x="([^"]+)" data-y="([^"]+)" data-w="([^"]+)" data-h="([^"]+)"/)!;
 
+// Option F, full page: every searchable thing on the hero floor, and the line drawing as a picture.
+const findables = [
+  ...real.matchAll(
+    /data-find="([^"]+)" data-kind="([^"]+)" data-x="([^"]+)" data-y="([^"]+)" data-w="([^"]+)" data-h="([^"]+)"/g,
+  ),
+].map((m) => ({
+  n: m[1],
+  k: m[2],
+  x: +m[3],
+  y: +m[4],
+  w: +m[5],
+  h: +m[6],
+}));
+const planPic = plan
+  .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" color="#2e3740" ')
+  .replace(/ class="[^"]*"/, '')
+  .replace(
+    '<g>',
+    `<style>text{fill:#2e3740;stroke:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:11px;text-anchor:middle}.bp-num{font-weight:600}.bp-note{font-size:10px}.bp-aisle{stroke-dasharray:10 8}</style><rect x="${vbox[0]}" y="${vbox[1]}" width="${vbox[2]}" height="${vbox[3]}" fill="#fbfcfb" stroke="none"/><g>`,
+  );
+const planUrl = `data:image/svg+xml;base64,${Buffer.from(planPic).toString('base64')}`;
+
 const parts: Record<string, string> = {
+  FINDS: JSON.stringify(findables),
+  PLANURL: planUrl,
+  TAB_VALET: webp('valet-tablet'),
+  ED_SCHOOL: webp('school-editor'),
+  ED_DEALER: webp('dealership-editor'),
+  ED_VALET: webp('valet-editor'),
+  ED_WAREHOUSE: webp('warehouse-editor'),
+  ED_OFFICE: webp('office-editor'),
   VIEWBOX: JSON.stringify(vbox),
   TARGET: JSON.stringify({ x: +t12[1], y: +t12[2], w: +t12[3], h: +t12[4] }),
   FLOORS: floors,
@@ -140,7 +170,7 @@ const parts: Record<string, string> = {
 
 const src = new URL('previews/site-options/src/', root);
 for (const file of readdirSync(src).filter((f) => f.endsWith('.html'))) {
-  const html = readFileSync(new URL(file, src), 'utf8').replace(/\{\{([A-Z]+)\}\}/g, (all, k: string) => {
+  const html = readFileSync(new URL(file, src), 'utf8').replace(/\{\{([A-Z_]+)\}\}/g, (all, k: string) => {
     if (!(k in parts)) throw new Error(`${file}: unknown part ${k}`);
     return parts[k];
   });

@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>Option F, full page | Bergeron Maps</title>
+<style>
+/* Option F, full page: every section headline is a window cut into the page. Through the letters you see the real thing: the map, the sketch, the editor, the symbols. */
+:root {
+  --ink: #0b0b0b;
+  --sign: #f2b705;
+  --navy: #0b2545;
+  --ground: #e7e4dd;
+  --muted: rgba(255,255,255,.72);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: #fff; font-family: var(--font); font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+.review { background: #26282b; color: #d8d8d8; font-size: 13px; position: relative; z-index: 10; }
+.review .wrap { display: flex; gap: 20px; align-items: center; min-height: 36px; flex-wrap: wrap; }
+.review b { color: #fff; font-weight: 600; }
+.review a { text-decoration: none; opacity: .75; }
+.review a:hover, .review a[aria-current] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+header { position: absolute; left: 0; right: 0; z-index: 8; transition: color .4s; }
+header .wrap { display: flex; align-items: center; gap: 28px; height: 72px; }
+header.light { color: var(--ink); background: #fff; border-bottom: 1px solid #d5d9de; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand svg:first-child { height: 18px; width: auto; border-right: 1px solid currentColor; padding-right: 12px; box-sizing: content-box; }
+.brand svg + svg { height: 12px; width: auto; }
+nav { margin-left: auto; display: flex; gap: 26px; font-size: 15px; align-items: center; }
+nav a { text-decoration: none; opacity: .85; white-space: nowrap; }
+@media (max-width: 860px) { nav a:not(.btn) { display: none; } }
+@media (max-width: 480px) { .brand svg + svg { display: none; } .brand svg:first-child { border: 0; } }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 2px; white-space: nowrap; border: 0; cursor: pointer; font-family: inherit; }
+.btn-sign { background: var(--sign); color: var(--ink); opacity: 1 !important; }
+.btn-sign:hover { background: #fff; }
+.more { font-size: 15px; font-weight: 600; text-underline-offset: 4px; }
+.sr { position: absolute; left: -9999px; }
+
+/* ---- 1. Hero: "Find it." then through the i ---- */
+.stage { position: relative; height: clamp(680px, 100vh, 980px); overflow: hidden; background: var(--ink); }
+svg#window { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#big { font-family: var(--font); font-weight: 700; letter-spacing: -0.045em; }
+.line { position: absolute; z-index: 4; left: 0; right: 0; bottom: 56px; }
+.line .wrap { display: flex; justify-content: space-between; align-items: end; gap: 32px; flex-wrap: wrap; }
+.line p { margin: 0; font-size: clamp(1.1rem, 1.8vw, 1.45rem); max-width: 34ch; color: rgba(255,255,255,.85); }
+.cta { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.after { position: absolute; z-index: 5; left: max(20px, calc((100vw - 1240px) / 2 + 20px)); bottom: 32px; width: min(500px, calc(100% - 40px)); background: var(--ink); padding: 28px 28px 24px; opacity: 0; visibility: hidden; }
+.after h1 { margin: 0; font-size: clamp(2.1rem, 4vw, 3.2rem); line-height: 1.02; letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; }
+.after p { margin: 12px 0 0; color: var(--muted); }
+.after .cta { margin-top: 20px; }
+.finder { position: absolute; z-index: 6; top: 92px; right: max(20px, calc((100vw - 1240px) / 2 + 20px)); width: min(360px, calc(100% - 40px)); opacity: 0; visibility: hidden; }
+.finder .box { display: flex; align-items: center; gap: 10px; background: #fff; border: 2px solid var(--navy); border-radius: 4px; padding: 0 14px; height: 52px; }
+.finder input { border: 0; outline: 0; font: 400 17px var(--font); color: var(--navy); width: 100%; background: transparent; }
+.finder input::placeholder { color: #66707c; }
+.results { list-style: none; margin: 6px 0 0; padding: 0; background: #fff; border-radius: 4px; overflow: hidden; }
+.results:empty { display: none; }
+.results button { display: flex; justify-content: space-between; width: 100%; border: 0; background: #fff; padding: 10px 14px; font: 400 15px var(--font); color: var(--navy); cursor: pointer; text-align: left; }
+.results button b { font-weight: 600; }
+.results button span { color: #5b6573; font-size: 13px; }
+.results button:hover, .results button.on { background: #eef2f6; }
+.found { margin-top: 8px; background: #fff; color: var(--navy); border-top: 5px solid #c8102e; padding: 12px 16px 14px; }
+.found b { display: block; font-size: 28px; line-height: 1.05; font-weight: 700; }
+.found span { display: block; font-size: 14px; color: #4a5462; margin-top: 2px; }
+.replay { position: absolute; z-index: 6; right: 20px; bottom: 14px; font: 600 13px var(--font); color: rgba(255,255,255,.85); background: rgba(11,11,11,.65); border: 1px solid rgba(255,255,255,.3); border-radius: 3px; padding: 6px 10px; cursor: pointer; }
+
+/* ---- Window sections ---- */
+.win { position: relative; padding-block: 112px 40px; overflow: hidden; }
+.win .art { display: block; width: 100%; }
+.win .art svg { display: block; width: 100%; height: auto; overflow: visible; }
+.win .cap { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: 24px 40px; align-items: start; margin-top: 28px; }
+.win .cap .k { font-size: 15px; font-weight: 600; color: var(--sign); padding-top: 5px; }
+.win .cap p { margin: 0; font-size: clamp(1.15rem, 1.9vw, 1.55rem); line-height: 1.35; max-width: 34ch; }
+.win .cap p span { color: var(--muted); }
+.win .cap .src { font-size: 13px; color: rgba(255,255,255,.5); max-width: 26ch; text-align: right; padding-top: 6px; }
+@media (max-width: 760px) { .win { padding-block: 72px 24px; } .win .cap { grid-template-columns: minmax(0, 1fr); gap: 10px; } .win .cap .src { text-align: left; } }
+
+/* Industries: a row of words, each one a window onto that industry's sample map. */
+.inds { padding-block: 120px 60px; overflow: hidden; }
+.inds h2 { margin: 0 0 8px; font-size: clamp(1.15rem, 1.9vw, 1.55rem); font-weight: 600; }
+.inds .lead { margin: 0; color: var(--muted); font-size: clamp(1.05rem, 1.6vw, 1.3rem); }
+.row { display: flex; gap: 4vw; margin-top: 40px; will-change: transform; padding-left: max(20px, calc((100vw - 1240px) / 2 + 20px)); }
+.row a { flex: none; display: block; text-decoration: none; position: relative; }
+.row a svg { display: block; height: clamp(120px, 19vw, 280px); width: auto; overflow: visible; }
+.row a span { display: block; margin-top: 10px; font-size: 15px; color: var(--muted); }
+.row a span b { color: #fff; font-weight: 600; }
+.row a:hover span b { color: var(--sign); }
+@media (max-width: 760px) { .row { flex-direction: column; gap: 28px; transform: none !important; } .row a svg { height: auto; width: calc(100vw - 40px); } }
+
+/* Finish */
+.end { padding-block: 120px 56px; }
+.end .cap { display: flex; justify-content: space-between; align-items: end; gap: 32px; flex-wrap: wrap; margin-top: 28px; }
+.end .cap p { margin: 0; max-width: 46ch; color: var(--muted); font-size: clamp(1.05rem, 1.6vw, 1.3rem); }
+.end .cap p a { color: #fff; }
+footer { border-top: 1px solid rgba(255,255,255,.14); padding-block: 28px 40px; color: rgba(255,255,255,.6); font-size: 14px; }
+footer .wrap { display: flex; gap: 28px; flex-wrap: wrap; align-items: center; }
+footer .wrap span:first-child { margin-right: auto; }
+
+/* A cursor that works like the map's find marker. Mouse only. */
+.cursor { position: fixed; z-index: 50; left: 0; top: 0; width: 30px; height: 30px; margin: -15px 0 0 -15px; border: 3px solid var(--sign); border-radius: 3px; pointer-events: none; opacity: 0; transition: width .2s, height .2s, margin .2s, opacity .2s; }
+.cursor.big { width: 54px; height: 54px; margin: -27px 0 0 -27px; }
+@media (hover: none), (prefers-reduced-motion: reduce) { .cursor { display: none; } }
+</style>
+</head>
+<body>
+<div class="review"><div class="wrap"><b>Design option F, full page</b><a href="option-f2.html" aria-current="page">Full page</a><a href="option-f.html">First screen only</a></div></div>
+<main>
+<!-- 1. Hero -->
+<section class="stage" id="stage">
+  <header id="head"><div class="wrap">
+    <a class="brand" href="https://bergeronmaps.com/" aria-label="Bergeron Maps home">{{LOGO}}</a>
+    <nav aria-label="Main"><a href="#how">How it works</a><a href="#industries">Industries</a><a href="#symbols">Platform</a><a href="https://bergeronmaps.com/app/">Sign in</a><a class="btn btn-sign" href="#get">Get your map now</a></nav>
+  </div></header>
+  <h1 class="sr">Find it. Interactive 2D maps of every facility.</h1>
+  <svg id="window" aria-hidden="true">
+    <defs><mask id="m" maskUnits="userSpaceOnUse"><rect id="m-bg" fill="#000"/><g id="m-g"><text id="big" fill="#fff" text-anchor="middle">Find it.</text></g></mask></defs>
+    <rect id="paper" fill="#0b0b0b"/>
+    <g mask="url(#m)"><rect id="ground" fill="#e7e4dd"/><image id="map" href="{{MAPURL}}" preserveAspectRatio="none"/></g>
+    <rect id="ring" fill="none" stroke="#f2b705" stroke-width="6" rx="3" opacity="0"/>
+  </svg>
+  <div class="line" id="line"><div class="wrap">
+    <p>Interactive 2D maps of every facility. Your team types a space, room or landmark and the map takes them there.</p>
+    <div class="cta"><a class="btn btn-sign" href="#get">Get your map now</a><a class="more" href="#how">See how it works</a></div>
+  </div></div>
+  <form class="finder" id="finder" role="search">
+    <label class="box"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="#0b2545" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="#0b2545" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <input id="q" autocomplete="off" placeholder="Try Key box or 1A7" aria-label="Find a space, room or landmark" /></label>
+    <ul class="results" id="res"></ul>
+    <div class="found" id="found" aria-live="polite"><b id="f-t">1C12</b><span id="f-s">Floor 1, Parking space</span></div>
+  </form>
+  <div class="after" id="after">
+    <h1 aria-hidden="true">Every facility. Clearly mapped.</h1>
+    <p>From dealerships and schools to valet and warehouses. This is a sample site, drawn by the app. Search it.</p>
+    <div class="cta"><a class="btn btn-sign" href="#get">Get your map now</a><a class="more" href="#how">See how it works</a></div>
+  </div>
+  <button class="replay" type="button" id="replay">Play again</button>
+</section>
+
+<!-- 2. How it works, three windows -->
+<section class="win" id="how" aria-labelledby="w1">
+  <div class="wrap"><div class="art" data-lines="Draw it." data-src="plan" data-tint="#fbfcfb"></div>
+  <div class="cap"><span class="k" id="w1">Step 1: Draw</span><p>Start from the sketch you already have. <span>Trace a photo of your drawing, or answer four questions and the builder lays out the rows, lanes and ramps.</span></p><span class="src">Through the letters: a hand drawing of the sample site.</span></div></div>
+</section>
+<section class="win" aria-labelledby="w2">
+  <div class="wrap"><div class="art" data-lines="Publish it." data-src="editor"></div>
+  <div class="cap"><span class="k" id="w2">Step 2: Publish</span><p>Edits stay in draft until you publish. <span>Give managers access by email address, or share a six-character site code with employees.</span></p><span class="src">Through the letters: the editor, on a sample dealership.</span></div></div>
+</section>
+<section class="win" aria-labelledby="w3">
+  <div class="wrap"><div class="art" data-lines="Find it." data-src="phone"></div>
+  <div class="cap"><span class="k" id="w3">Step 3: Find</span><p>Your team types a space, room or landmark. <span>It lights up on the right floor with walking directions, in any phone's browser, with nothing to install.</span></p><span class="src">Through the letters: the viewer, on a sample garage.</span></div></div>
+</section>
+
+<!-- 3. Industries -->
+<section class="inds" id="industries" aria-labelledby="ih">
+  <div class="wrap"><h2 id="ih">Industries we serve.</h2><p class="lead">One platform, set up for the way your facility works.</p></div>
+  <div class="row" id="row">
+    <a href="https://bergeronmaps.com/industries/schools/" data-word="Schools" data-src="ed-school"><span><b>School and education</b>, campus safety and parking</span></a>
+    <a href="https://bergeronmaps.com/industries/dealerships/" data-word="Dealerships" data-src="ed-dealer"><span><b>Dealerships</b>, faster customer to key times</span></a>
+    <a href="https://bergeronmaps.com/industries/valet/" data-word="Valet" data-src="ed-valet"><span><b>Valet</b>, fewer labor hours, faster training</span></a>
+    <a href="https://bergeronmaps.com/industries/warehouses/" data-word="Warehouses" data-src="ed-warehouse"><span><b>Warehouses</b>, faster location finding</span></a>
+    <a href="https://bergeronmaps.com/industries/other/" data-word="Offices" data-src="ed-office"><span><b>Other industries</b>, offices, rooms and more</span></a>
+  </div>
+</section>
+
+<!-- 4. The symbol library -->
+<section class="win" id="symbols" aria-labelledby="w4">
+  <div class="wrap"><div class="art" data-lines="{{ICONCOUNT}} symbols." data-src="icons"></div>
+  <div class="cap"><span class="k" id="w4">Platform</span><p>Ready-made symbols for parking, buildings, campuses, offices and more. <span>Set the color, opacity and border of anything you place. Drag a row and every space is numbered for you.</span></p><span class="src">Through the letters: the app's own symbol library.</span></div></div>
+</section>
+
+<!-- 5. Finish -->
+<section class="end" id="get" aria-labelledby="w5">
+  <div class="wrap"><div class="art" data-lines="Get your|map now." data-src="map"></div>
+  <div class="cap"><p id="w5">We're taking on our first pilot sites. Start at one location and we'll build the first map with you. Or email <a href="mailto:sales@bergeronmaps.com">sales@bergeronmaps.com</a>.</p>
+    <div class="cta"><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a></div></div></div>
+</section>
+</main>
+<footer><div class="wrap"><span>Bergeron Maps</span><a href="https://bergeronmaps.com/university/">Bergeron Maps University</a><a href="https://bergeronmaps.com/accessibility/">Accessibility</a><span>support@bergeronmaps.com</span></div></footer>
+<div class="cursor" id="cursor" aria-hidden="true"></div>
+
+<script>
+var FINDS = {{FINDS}}, ICONS = {{ICONS}};
+var PICS = { plan: '{{PLANURL}}', map: '{{MAPURL}}', editor: '{{ED_DEALER}}', phone: '{{TAB_VALET}}',
+  'ed-school': '{{ED_SCHOOL}}', 'ed-dealer': '{{ED_DEALER}}', 'ed-valet': '{{ED_VALET}}', 'ed-warehouse': '{{ED_WAREHOUSE}}', 'ed-office': '{{ED_OFFICE}}' };
+</script>
+{{GSAP}}
+<script>
+(function () {
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var NS = 'http://www.w3.org/2000/svg';
+
+  /* ================= 1. Hero ================= */
+  var stage = document.getElementById('stage'), svg = document.getElementById('window');
+  var big = document.getElementById('big'), mg = document.getElementById('m-g'), map = document.getElementById('map'), ring = document.getElementById('ring');
+  var VB = {{VIEWBOX}};
+  var W, H, open = { k: 1 }, origin = { x: 0, y: 0 };
+  // The camera, in the map's own units: the point at the centre of the screen, and zoom.
+  var cam = { cx: VB[0] + VB[2] / 2, cy: VB[1] + VB[3] / 2, z: 1 };
+  var target = FINDS.filter(function (f) { return f.n === '1C12'; })[0];
+  function base() { return Math.max(W / VB[2], H / VB[3]); }
+  function size() {
+    W = stage.clientWidth; H = stage.clientHeight;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    ['m-bg', 'paper', 'ground'].forEach(function (id) { var r = document.getElementById(id); r.setAttribute('width', W); r.setAttribute('height', H); });
+    var fs = Math.min(W * 0.3, H * 0.62);
+    big.setAttribute('font-size', fs); big.setAttribute('x', W / 2); big.setAttribute('y', H * 0.62);
+    var e = big.getExtentOfChar(1);
+    origin.x = e.x + e.width / 2; origin.y = e.y + e.height * 0.72;
+    apply();
+  }
+  function apply() {
+    var s = base() * cam.z, w = VB[2] * s, h = VB[3] * s;
+    var x = W / 2 - (cam.cx - VB[0]) * s, y = H / 2 - (cam.cy - VB[1]) * s;
+    map.setAttribute('x', x); map.setAttribute('y', y); map.setAttribute('width', w); map.setAttribute('height', h);
+    mg.setAttribute('transform', 'translate(' + origin.x + ' ' + origin.y + ') scale(' + open.k + ') translate(' + -origin.x + ' ' + -origin.y + ')');
+    if (target) {
+      ring.setAttribute('x', x + (target.x - target.w / 2 - VB[0] - 7) * s); ring.setAttribute('y', y + (target.y - target.h / 2 - VB[1] - 7) * s);
+      ring.setAttribute('width', (target.w + 14) * s); ring.setAttribute('height', (target.h + 14) * s);
+    }
+  }
+  // Where the camera sits so a thing is shown big, right of the panel on wide screens.
+  function shotOf(f, z) {
+    var s = base() * z, off = W > 900 ? W * 0.16 : 0, offy = W > 900 ? 0 : -H * 0.1;
+    return { cx: f.x - off / s, cy: f.y - offy / s, z: z };
+  }
+
+  var tl = null, drift = null, live = false;
+  function play() {
+    if (tl) tl.kill(); if (drift) drift.kill();
+    live = false; target = FINDS.filter(function (f) { return f.n === '1C12'; })[0];
+    cam.cx = VB[0] + VB[2] * 0.3; cam.cy = VB[1] + VB[3] / 2; cam.z = 1; open.k = 1; size();
+    gsap.set('#m-bg', { attr: { fill: '#000000' } });
+    gsap.set('#after, #finder', { opacity: 0, visibility: 'hidden' }); gsap.set('#line', { opacity: 1, y: 0 }); gsap.set(ring, { opacity: 0 });
+    document.getElementById('head').classList.remove('light');
+    drift = gsap.to(cam, { cx: VB[0] + VB[2] * 0.7, duration: 9, ease: 'sine.inOut', repeat: -1, yoyo: true, onUpdate: apply });
+    var end = shotOf(target, 1.25);
+    tl = gsap.timeline();
+    tl.fromTo(open, { k: 0.86 }, { k: 1, duration: 1.4, ease: 'power3.out', onUpdate: apply }, 0)
+      .from('#line', { opacity: 0, y: 24, duration: 0.7, ease: 'power3.out' }, 0.4)
+      .to({}, { duration: 2.4 })
+      .to('#line', { opacity: 0, y: 20, duration: 0.4 })
+      .call(function () { drift.pause(); })
+      .to(open, { k: 90, duration: 2.0, ease: 'power3.in', onUpdate: apply }, '<')
+      .to(cam, { cx: end.cx, cy: end.cy, z: end.z, duration: 2.0, ease: 'power2.inOut', onUpdate: apply }, '<')
+      .to('#m-bg', { attr: { fill: '#ffffff' }, duration: 0.7, ease: 'power1.in' }, '-=0.8')
+      .call(function () { document.getElementById('head').classList.add('light'); live = true; }, null, '-=0.5')
+      .fromTo(ring, { opacity: 0, scale: 1.8, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(2)' })
+      .to('#after, #finder', { opacity: 1, visibility: 'visible', duration: 0.5 }, '-=0.2');
+  }
+
+  // After the fly-through the map is live: search it and the camera flies to the answer.
+  var q = document.getElementById('q'), res = document.getElementById('res');
+  function matches(t) {
+    t = t.trim().toLowerCase(); if (!t) return [];
+    return FINDS.filter(function (f) { return f.n.toLowerCase().indexOf(t) >= 0 || f.k.toLowerCase().indexOf(t) >= 0; })
+      .sort(function (a, b) { var A = a.n.toLowerCase(), B = b.n.toLowerCase(); return (A === t ? -1 : 0) - (B === t ? -1 : 0) || A.indexOf(t) - B.indexOf(t) || A.length - B.length; }).slice(0, 5);
+  }
+  function go(f) {
+    target = f; res.innerHTML = ''; q.value = f.n;
+    document.getElementById('f-t').textContent = f.n;
+    document.getElementById('f-s').textContent = 'Floor 1' + (f.k !== f.n ? ', ' + f.k : '');
+    var shot = shotOf(f, f.w < 60 ? 1.6 : 1.25);
+    gsap.timeline()
+      .to(ring, { opacity: 0, duration: 0.15 })
+      // Pull back a little, then in: a short flight rather than a jump.
+      .to(cam, { z: 0.95, duration: 0.5, ease: 'power2.in', onUpdate: apply }, 0)
+      .to(cam, { cx: shot.cx, cy: shot.cy, duration: 1.0, ease: 'power2.inOut', onUpdate: apply }, 0)
+      .to(cam, { z: shot.z, duration: 0.6, ease: 'power2.out', onUpdate: apply }, 0.5)
+      .fromTo(ring, { opacity: 0, scale: 1.8, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(2)' })
+      .fromTo('#found', { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3 }, '<');
+  }
+  q.addEventListener('input', function () {
+    var m = matches(q.value); res.innerHTML = '';
+    m.forEach(function (f, i) {
+      var li = document.createElement('li'), b = document.createElement('button'), n = document.createElement('b'), s = document.createElement('span');
+      b.type = 'button'; if (!i) b.className = 'on'; n.textContent = f.n; s.textContent = 'Floor 1';
+      b.append(n, s); b.addEventListener('click', function () { go(f); }); li.appendChild(b); res.appendChild(li);
+    });
+  });
+  document.getElementById('finder').addEventListener('submit', function (e) { e.preventDefault(); var m = matches(q.value)[0]; if (m) go(m); });
+  // Click the map to find what is under the pointer.
+  svg.addEventListener('click', function (e) {
+    if (!live) return;
+    var b = svg.getBoundingClientRect(), s = base() * cam.z;
+    var mx = cam.cx + (e.clientX - b.left - W / 2) / s, my = cam.cy + (e.clientY - b.top - H / 2) / s;
+    var hit = FINDS.filter(function (f) { return Math.abs(mx - f.x) <= f.w / 2 && Math.abs(my - f.y) <= f.h / 2; })[0];
+    if (hit) go(hit);
+  });
+  document.getElementById('replay').addEventListener('click', play);
+  addEventListener('resize', size);
+
+  /* ================= 2. Window sections ================= */
+  // The symbol library, drawn once onto a picture, to show through "458 symbols."
+  function iconWall(cb) {
+    var cols = 30, rows = 9, cell = 64, c = document.createElement('canvas');
+    c.width = cols * cell; c.height = rows * cell;
+    var x = c.getContext('2d'); x.fillStyle = '#e7e4dd'; x.fillRect(0, 0, c.width, c.height);
+    var left = cols * rows, done = 0;
+    for (var i = 0; i < cols * rows; i++) (function (i) {
+      var im = new Image();
+      im.onload = im.onerror = function () {
+        var cx = (i % cols) * cell, cy = Math.floor(i / cols) * cell;
+        x.fillStyle = '#ffffff'; x.fillRect(cx + 4, cy + 4, cell - 8, cell - 8);
+        if (im.naturalWidth) { var k = Math.min((cell - 18) / im.naturalWidth, (cell - 18) / im.naturalHeight); x.drawImage(im, cx + cell / 2 - im.naturalWidth * k / 2, cy + cell / 2 - im.naturalHeight * k / 2, im.naturalWidth * k, im.naturalHeight * k); }
+        if (++done === left) cb(c.toDataURL('image/png'));
+      };
+      im.src = ICONS[(i * 7) % ICONS.length].u;
+    })(i);
+  }
+
+  var wins = [];
+  // One window: the words are a mask, the picture sits behind and drifts as the page scrolls.
+  function makeWindow(host, lines, src, fit) {
+    var s = document.createElementNS(NS, 'svg'), id = 'wm' + wins.length;
+    s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = '<defs><mask id="' + id + '" maskUnits="userSpaceOnUse"><rect class="mbg" fill="#000"/><g class="t"></g></mask></defs>' +
+      '<rect class="under" fill="#1a1c1f"/><g mask="url(#' + id + ')"><rect class="tint" fill="#e7e4dd"/><image class="pic" preserveAspectRatio="xMidYMid slice"/></g>';
+    host.insertBefore(s, host.firstChild);
+    var g = s.querySelector('.t'), texts = lines.map(function (l) {
+      var t = document.createElementNS(NS, 'text'); t.textContent = l; t.setAttribute('fill', '#fff');
+      t.setAttribute('font-family', getComputedStyle(document.body).fontFamily); t.setAttribute('font-weight', '700'); t.setAttribute('letter-spacing', '-0.04em');
+      g.appendChild(t); return t;
+    });
+    var w = { host: host, svg: s, texts: texts, fit: fit, p: 0, aspect: VB[2] / VB[3], pic: s.querySelector('.pic') };
+    function use(u) {
+      w.pic.setAttribute('href', u);
+      var im = new Image();
+      im.onload = function () { if (im.naturalWidth && im.naturalHeight) { w.aspect = im.naturalWidth / im.naturalHeight; drawWindow(w); } };
+      im.src = u;
+    }
+    if (PICS[src]) use(PICS[src]);
+    else if (src === 'icons') iconWall(use);
+    wins.push(w);
+    layoutWindow(w);
+    return w;
+  }
+  function layoutWindow(w) {
+    var fs = 100;
+    w.texts.forEach(function (t) { t.setAttribute('font-size', fs); });
+    var long = Math.max.apply(null, w.texts.map(function (t) { return t.getComputedTextLength(); }));
+    if (w.fit === 'width') fs = 100 * (w.host.clientWidth / long);
+    else fs = w.fit;
+    var lh = fs * 0.88, width = 0;
+    w.texts.forEach(function (t, i) { t.setAttribute('font-size', fs); t.setAttribute('x', 0); t.setAttribute('y', fs * 0.8 + i * lh); width = Math.max(width, t.getComputedTextLength()); });
+    var height = fs * 0.8 + (w.texts.length - 1) * lh + fs * 0.24;
+    w.W = Math.ceil(width + fs * 0.04); w.H = Math.ceil(height);
+    w.svg.setAttribute('viewBox', '0 0 ' + w.W + ' ' + w.H); w.svg.setAttribute('width', w.W); w.svg.setAttribute('height', w.H);
+    [].forEach.call(w.svg.querySelectorAll('.mbg, .tint, .under'), function (r) { r.setAttribute('width', w.W); r.setAttribute('height', w.H); });
+    w.svg.querySelector('.under').setAttribute('mask', ''); w.svg.querySelector('.under').style.display = 'none';
+    drawWindow(w);
+  }
+  function drawWindow(w) {
+    // The picture is shown near its real size, a little wider than the words, and slides behind them with scroll.
+    var pw = Math.max(w.W * 1.15, w.H * 1.15 * w.aspect), ph = pw / w.aspect;
+    w.pic.setAttribute('width', pw); w.pic.setAttribute('height', ph);
+    w.pic.setAttribute('x', -(pw - w.W) * w.p); w.pic.setAttribute('y', -(ph - w.H) * w.p);
+  }
+  [].forEach.call(document.querySelectorAll('.art'), function (a) { makeWindow(a, a.getAttribute('data-lines').split('|'), a.getAttribute('data-src'), 'width'); });
+  var row = document.getElementById('row');
+  [].forEach.call(row.querySelectorAll('a'), function (a) {
+    var fs = Math.max(110, Math.min(280, innerWidth * 0.19)) / 0.88;
+    makeWindow(a, [a.getAttribute('data-word')], a.getAttribute('data-src'), innerWidth <= 760 ? 'width' : fs);
+  });
+
+  // Words rise into place the first time they come on screen.
+  if (!reduced) wins.forEach(function (w) {
+    gsap.set(w.texts, { y: function () { return w.H * 0.25; }, opacity: 0 });
+    var io = new IntersectionObserver(function (es) {
+      if (!es[0].isIntersecting) return; io.disconnect();
+      gsap.to(w.texts, { y: 0, opacity: 1, duration: 1.1, ease: 'power4.out', stagger: 0.12 });
+    }, { rootMargin: '0px 0px -15% 0px' });
+    io.observe(w.svg);
+  });
+
+  // Scroll moves the pictures behind the words, and the industry row sideways.
+  function onScroll() {
+    var vh = innerHeight;
+    wins.forEach(function (w) {
+      var b = w.svg.getBoundingClientRect();
+      w.p = Math.max(0, Math.min(1, (vh - b.top) / (vh + b.height)));
+      drawWindow(w);
+    });
+    if (innerWidth > 760) {
+      var rb = document.getElementById('industries').getBoundingClientRect();
+      // Starts once the row is well on screen, ends as the section leaves.
+      var p = Math.max(0, Math.min(1, (vh * 0.6 - rb.top) / (rb.height + vh * 0.2)));
+      var extra = Math.max(0, row.scrollWidth - innerWidth + 40);
+      row.style.transform = 'translateX(' + (-extra * p) + 'px)';
+    }
+  }
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', function () { wins.forEach(layoutWindow); onScroll(); });
+  onScroll();
+
+  /* ================= The find-marker cursor ================= */
+  var cur = document.getElementById('cursor'), pos = { x: -100, y: -100 }, at = { x: -100, y: -100 };
+  if (!reduced && matchMedia('(hover: hover)').matches) {
+    addEventListener('pointermove', function (e) { at.x = e.clientX; at.y = e.clientY; cur.style.opacity = 1; });
+    document.addEventListener('pointerleave', function () { cur.style.opacity = 0; });
+    document.addEventListener('pointerover', function (e) { cur.classList.toggle('big', !!e.target.closest('a, button, .row a, #window')); });
+    gsap.ticker.add(function () { pos.x += (at.x - pos.x) * 0.22; pos.y += (at.y - pos.y) * 0.22; cur.style.transform = 'translate(' + pos.x + 'px,' + pos.y + 'px)'; });
+  }
+
+  if (reduced) {
+    size(); target = FINDS.filter(function (f) { return f.n === '1C12'; })[0];
+    var e = shotOf(target, 1.25); cam.cx = e.cx; cam.cy = e.cy; cam.z = e.z; open.k = 90;
+    document.getElementById('m-bg').setAttribute('fill', '#fff'); apply(); live = true;
+    gsap.set('#line', { opacity: 0 }); gsap.set('#after, #finder, #ring', { opacity: 1, visibility: 'visible' }); document.getElementById('head').classList.add('light');
+    return;
+  }
+  requestAnimationFrame(play);
+})();
+</script>
+</body>
+</html>

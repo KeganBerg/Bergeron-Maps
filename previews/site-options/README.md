@@ -21,3 +21,7 @@ npx vite-node scripts/site-options.ts
 ```
 
 The built pages (`option-a.html` and so on) are self-contained, so they open straight from disk.
+
+## Round 3: option F as a full page
+
+`option-f2.html` (Kegan picked F). Every section headline is a window: "Draw it." over the hand drawing, "Publish it." over the editor, "Find it." over the viewer, a sliding row of industry names over each sample site, the symbol count over the symbol library, and "Get your map now." over the map. After the fly-through the hero map is searchable. A yellow find-marker cursor follows the mouse.
