@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>Option B, Level colors | Bergeron Maps</title>
+<style>
+/* Option B, "Level colors": the page is signed like a parking garage. Each level has its colour, and the colour fills the screen. */
+:root {
+  --ink: #0b0b0b;
+  --sign: #f2b705;
+  --l1: #c8102e;
+  --l2: #d4650f;
+  --l3: #007a33;
+  --l4: #0057b8;
+  --lv: var(--l3);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: #fff; font-family: var(--font); font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+.review { background: #26282b; color: #d8d8d8; font-size: 13px; }
+.review .wrap { display: flex; gap: 20px; align-items: center; min-height: 36px; flex-wrap: wrap; }
+.review b { color: #fff; font-weight: 600; }
+.review a { text-decoration: none; opacity: .75; }
+.review a:hover, .review a[aria-current] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+
+header { background: var(--ink); border-bottom: 1px solid rgba(255,255,255,.14); position: relative; z-index: 5; }
+header .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand svg:first-child { height: 18px; width: auto; border-right: 1px solid rgba(255,255,255,.35); padding-right: 12px; box-sizing: content-box; }
+.brand svg + svg { height: 12px; width: auto; }
+nav { margin-left: auto; display: flex; gap: 26px; font-size: 15px; align-items: center; }
+nav a { text-decoration: none; opacity: .85; white-space: nowrap; }
+nav a:hover { opacity: 1; }
+@media (max-width: 860px) { nav a:not(.btn) { display: none; } }
+@media (max-width: 480px) { .brand svg + svg { display: none; } .brand svg:first-child { border: 0; } }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 2px; white-space: nowrap; }
+.btn-sign { background: var(--sign); color: var(--ink); opacity: 1 !important; }
+.btn-sign:hover { background: #fff; }
+.btn-white { background: #fff; color: var(--ink); }
+.btn-white:hover { background: var(--sign); }
+
+/* ---- Hero: the whole ground is the level colour ---- */
+.hero { background: var(--lv); padding-block: 40px 0; overflow: hidden; }
+.hero .top { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; align-items: end; }
+.hero h1 { margin: 0; font-size: clamp(2.6rem, 5.4vw, 4.8rem); line-height: .98; letter-spacing: -0.03em; font-weight: 700; text-wrap: balance; }
+.plate { background: var(--ink); margin-top: 24px; padding: 26px 28px; max-width: 560px; }
+.plate p { margin: 0; color: rgba(255,255,255,.8); }
+.plate .cta { display: flex; gap: 22px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+.plate .cta a.more { font-size: 15px; font-weight: 600; text-underline-offset: 4px; }
+
+/* The level sign, the way garages paint it on a pillar. */
+.sign { justify-self: end; width: min(100%, 420px); }
+.sign .face { border: 8px solid #fff; padding: 18px 26px 6px; display: grid; grid-template-columns: auto 1fr; gap: 0 18px; align-items: end; overflow: hidden; }
+.sign .lvw { grid-column: 1 / -1; font-size: 30px; font-weight: 700; line-height: 1; }
+.sign .digit { font-size: clamp(8rem, 14vw, 11.5rem); font-weight: 700; line-height: .86; letter-spacing: -0.05em; display: block; height: .86em; overflow: hidden; }
+.sign .digit span { display: block; }
+.sign .found { align-self: center; padding-bottom: 18px; }
+.sign .found small { display: block; font-size: 15px; font-weight: 600; opacity: .9; }
+.sign .found b { display: block; font-size: clamp(2rem, 3.6vw, 2.8rem); line-height: 1.05; font-weight: 700; }
+.sign .bar { background: #fff; color: var(--ink); display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 16px; font-weight: 600; }
+.sign .bar svg { flex: none; }
+.sign .bar .q { color: #0b2545; min-width: 4ch; }
+.sign .bar .caret { width: 2px; height: 1.1em; background: #0b2545; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* The app's side view, drawn in white on the level colour. */
+.section-view { margin-top: 28px; color: #fff; }
+.section-view svg { display: block; width: 100%; height: auto; }
+.section-view .sv-floor rect[rx] { stroke: #fff; stroke-width: 2; }
+.section-view .sv-floor .sv-hit { transition: fill-opacity .4s; }
+.section-view .sv-floor.on .sv-hit { fill-opacity: .14; }
+.section-view .sv-mark { display: none; }
+.section-view .sv-mark.on { display: inline; }
+#car { fill: var(--sign); stroke: none; }
+.cap { font-size: 13px; opacity: .85; padding-block: 10px 18px; }
+
+/* ---- Below: each section is a level, with its colour on the edge ---- */
+.lvl { border-left: 14px solid var(--c); background: var(--ink); }
+.lvl .wrap { padding-block: 88px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; }
+.lvl .tag { align-self: start; display: inline-flex; flex-direction: column; background: var(--c); padding: 12px 16px 10px; min-width: 150px; }
+.lvl .tag small { font-size: 14px; font-weight: 600; }
+.lvl .tag b { font-size: 64px; line-height: .9; font-weight: 700; letter-spacing: -0.04em; }
+.lvl h2 { margin: 0; font-size: clamp(2rem, 4.2vw, 3.4rem); line-height: 1.05; letter-spacing: -0.02em; font-weight: 700; max-width: 18ch; text-wrap: balance; }
+.lvl .lead { color: rgba(255,255,255,.72); max-width: 56ch; margin: 16px 0 0; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-top: 40px; border-top: 3px solid var(--c); }
+.steps div { padding: 20px 24px 0 0; }
+.steps b { display: block; font-size: 20px; font-weight: 600; }
+.steps span { display: block; color: rgba(255,255,255,.72); margin-top: 6px; font-size: 16px; }
+.inds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 36px; }
+.inds a { display: block; text-decoration: none; background: #17181a; border-top: 4px solid var(--c); padding: 16px 16px 18px; }
+.inds a:hover { background: #222428; }
+.inds b { display: block; font-weight: 600; }
+.inds span { display: block; color: rgba(255,255,255,.65); font-size: 14px; margin-top: 4px; }
+
+/* Elevator panel: which level of the page you are on. */
+.panel { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); z-index: 6; display: grid; gap: 6px; }
+.panel a { width: 42px; height: 42px; display: grid; place-items: center; font-weight: 700; font-size: 17px; text-decoration: none; background: rgba(11,11,11,.72); color: #fff; border: 2px solid var(--c); }
+.panel a.on { background: var(--c); }
+@media (max-width: 900px) {
+  .hero .top { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .sign { justify-self: start; }
+  .lvl .wrap { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 64px; }
+  .steps, .inds { grid-template-columns: minmax(0, 1fr); }
+  .steps div { padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,.12); }
+  .panel { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .sign .bar .caret { animation: none; } }
+</style>
+</head>
+<body>
+<div class="review"><div class="wrap"><b>Design option B: Level colors</b><a href="option-a.html">Option A</a><a href="option-b.html" aria-current="page">Option B</a><a href="option-c.html">Option C</a></div></div>
+<header><div class="wrap">
+  <a class="brand" href="https://bergeronmaps.com/" aria-label="Bergeron Maps home">{{LOGO}}</a>
+  <nav aria-label="Main"><a href="https://bergeronmaps.com/#industries">Industries</a><a href="https://bergeronmaps.com/#how">How it works</a><a href="https://bergeronmaps.com/#platform">Platform</a><a href="https://bergeronmaps.com/app/">Sign in</a><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a></nav>
+</div></header>
+
+<main>
+<section class="hero" id="lv1">
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Find any space, on any floor.</h1>
+        <div class="plate">
+          <p>Bergeron Maps gives every floor its own color, the way real garages sign their levels. Your team types a space and the map opens on the right floor, in any phone's browser.</p>
+          <div class="cta"><a class="btn btn-sign" href="https://bergeronmaps.com/#contact">Get your map now</a><a class="more" href="https://bergeronmaps.com/#industries">Explore industries</a></div>
+        </div>
+      </div>
+      <div class="sign" aria-live="polite">
+        <div class="face">
+          <span class="lvw">Level</span>
+          <span class="digit" aria-hidden="true"><span id="digit">3</span></span>
+          <span class="found"><small>Space</small><b id="space">3C9</b></span>
+        </div>
+        <div class="bar"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="#0b2545" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="#0b2545" stroke-width="2.4" stroke-linecap="round"/></svg><span class="q" id="q">3C9</span><span class="caret"></span></div>
+        <span id="said" class="sr" style="position:absolute;left:-9999px">Space 3C9 is on Level 3</span>
+      </div>
+    </div>
+    <div class="section-view" id="sv">{{SIDE}}</div>
+    <div class="cap">The app's own side view of a sample four-level garage. In the viewer, All floors shows this for your site.</div>
+  </div>
+</section>
+
+<section class="lvl" id="lv2" style="--c: var(--l2)"><div class="wrap">
+  <div><span class="tag"><small>Level</small><b>2</b></span></div>
+  <div>
+    <h2>From a sketch on paper to every phone on your team.</h2>
+    <p class="lead">Most managers already draw their site by hand. Start there.</p>
+    <div class="steps">
+      <div><b>Draw</b><span>Trace a photo of your sketch, or answer four questions and the builder lays out rows, lanes and ramps.</span></div>
+      <div><b>Publish</b><span>Edits stay in draft until you publish. Employees join with a six-character site code.</span></div>
+      <div><b>Find</b><span>Type a space, room or landmark. It lights up on the right floor, with walking directions.</span></div>
+    </div>
+  </div>
+</div></section>
+
+<section class="lvl" id="lv3" style="--c: var(--l3)"><div class="wrap">
+  <div><span class="tag"><small>Level</small><b>3</b></span></div>
+  <div>
+    <h2>Industries we serve.</h2>
+    <p class="lead">One platform, set up for the way your facility works.</p>
+    <div class="inds">
+      <a href="https://bergeronmaps.com/industries/schools/"><b>School and education</b><span>Campus safety and parking</span></a>
+      <a href="https://bergeronmaps.com/industries/dealerships/"><b>Dealerships</b><span>Faster customer to key times</span></a>
+      <a href="https://bergeronmaps.com/industries/valet/"><b>Valet</b><span>Fewer labor hours</span></a>
+      <a href="https://bergeronmaps.com/industries/warehouses/"><b>Warehouses</b><span>Faster location finding</span></a>
+      <a href="https://bergeronmaps.com/industries/other/"><b>Other industries</b><span>Any physical facility</span></a>
+    </div>
+  </div>
+</div></section>
+
+<section class="lvl" id="lv4" style="--c: var(--l4)"><div class="wrap">
+  <div><span class="tag"><small>Level</small><b>4</b></span></div>
+  <div>
+    <h2>We're taking on our first pilot sites.</h2>
+    <p class="lead">Start at one location. We'll build the first map with you and stay in close contact through the pilot. Pricing is per site.</p>
+    <p style="margin-top:28px"><a class="btn btn-white" href="https://bergeronmaps.com/#contact">Get your map now</a></p>
+  </div>
+</div></section>
+</main>
+
+<nav class="panel" aria-label="Page levels">
+  <a href="#lv1" style="--c: var(--l1)" aria-label="Level 1, top of page">1</a>
+  <a href="#lv2" style="--c: var(--l2)" aria-label="Level 2, how it works">2</a>
+  <a href="#lv3" style="--c: var(--l3)" aria-label="Level 3, industries">3</a>
+  <a href="#lv4" style="--c: var(--l4)" aria-label="Level 4, pilot sites">4</a>
+</nav>
+
+{{GSAP}}
+<script>
+(function () {
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var COLORS = ['#c8102e', '#d4650f', '#007a33', '#0057b8'];
+  var FINDS = ['1A4', '2B10', '3C9', '4D2'];
+  var svg = document.querySelector('#sv svg');
+  var floors = [].slice.call(svg.querySelectorAll('.sv-floor'));   // drawn bottom level first
+  var marks = [].slice.call(svg.querySelectorAll('.sv-mark'));
+  var hero = document.querySelector('.hero');
+  // Elevator car, in the app drawing's own units (rows 76 tall, Level 1 slab at y 356).
+  var shaft = svg.querySelector('.sv-elevator rect');
+  var sx = +shaft.getAttribute('x'), sw = +shaft.getAttribute('width');
+  var slab = function (i) { return 356 - i * 76; };
+  var car = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  car.id = 'car'; car.setAttribute('x', sx + 6); car.setAttribute('width', sw - 12); car.setAttribute('height', 58); car.setAttribute('rx', 2);
+  shaft.parentNode.appendChild(car);
+  var digit = document.getElementById('digit'), space = document.getElementById('space'), q = document.getElementById('q'), said = document.getElementById('said');
+  var panel = [].slice.call(document.querySelectorAll('.panel a'));
+  var cur = 2;
+
+  function show(i, animate) {
+    floors.forEach(function (f, k) { f.classList.toggle('on', k === i); });
+    marks.forEach(function (m) { m.classList.toggle('on', +m.getAttribute('data-level') === i + 1); });
+    said.textContent = 'Space ' + FINDS[i] + ' is on Level ' + (i + 1);
+    if (!animate || reduced) {
+      car.setAttribute('y', slab(i) - 64); hero.style.setProperty('--lv', COLORS[i]);
+      digit.textContent = String(i + 1); space.textContent = FINDS[i]; q.textContent = FINDS[i];
+      return null;
+    }
+    var tl = gsap.timeline();
+    var typed = { n: 0 }, text = FINDS[i];
+    tl.to(typed, { n: text.length, duration: 0.14 * text.length, ease: 'none', onStart: function () { q.textContent = ''; },
+        onUpdate: function () { q.textContent = text.slice(0, Math.round(typed.n)); } })
+      .to(car, { attr: { y: slab(i) - 64 }, duration: 0.5 + 0.45 * Math.abs(i - cur), ease: 'power2.inOut' }, '+=0.25')
+      .to(hero, { '--lv': COLORS[i], duration: 0.7, ease: 'power1.inOut' }, '-=0.6')
+      .to(digit, { yPercent: -100, duration: 0.28, ease: 'power2.in' }, '-=0.7')
+      .call(function () { digit.textContent = String(i + 1); space.textContent = FINDS[i]; })
+      .fromTo(digit, { yPercent: 100 }, { yPercent: 0, duration: 0.45, ease: 'power3.out' })
+      .fromTo(space, { opacity: 0, x: -12 }, { opacity: 1, x: 0, duration: 0.35 }, '<');
+    cur = i;
+    return tl;
+  }
+
+  show(2, false);
+  if (!reduced) {
+    var order = [3, 0, 1, 2], k = 0;
+    var loop = function () { var t = show(order[k++ % order.length], true); t.eventCallback('onComplete', function () { setTimeout(loop, 2400); }); };
+    setTimeout(loop, 2200);
+  }
+
+  // Elevator panel lights the level of the page you are on.
+  var secs = ['lv1', 'lv2', 'lv3', 'lv4'].map(function (id) { return document.getElementById(id); });
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { var n = secs.indexOf(e.target); panel.forEach(function (a, j) { a.classList.toggle('on', j === n); }); } });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  secs.forEach(function (s) { io.observe(s); });
+  // Each level band slides its colour edge in once, as it arrives.
+  if (!reduced) secs.slice(1).forEach(function (s) {
+    var o = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { o.disconnect(); gsap.from(s.querySelector('.tag'), { yPercent: 40, opacity: 0, duration: 0.6, ease: 'power3.out' }); gsap.from(s.querySelectorAll('.steps div, .inds a'), { y: 18, opacity: 0, duration: 0.5, stagger: 0.07, delay: 0.15 }); } }, { rootMargin: '0px 0px -20% 0px' });
+    o.observe(s);
+  });
+})();
+</script>
+</body>
+</html>

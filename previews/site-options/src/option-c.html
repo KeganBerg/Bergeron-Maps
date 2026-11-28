@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>Option C, Sketch to map | Bergeron Maps</title>
+<style>
+/* Option C, "Sketch to map": a pad of graph paper. The visitor drags across their own hand drawing and it becomes the real map. */
+:root {
+  --ink: #0b0b0b;
+  --pad: #fbfcfb;
+  --grid: #dfe8ec;
+  --grid-major: #c9d7de;
+  --pencil: #2e3740;
+  --sign: #f2b705;
+  --navy: #0b2545;
+  --muted: #4a525b;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--pad); color: var(--ink); font-family: var(--font); font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+.review { background: #26282b; color: #d8d8d8; font-size: 13px; }
+.review .wrap { display: flex; gap: 20px; align-items: center; min-height: 36px; flex-wrap: wrap; }
+.review b { color: #fff; font-weight: 600; }
+.review a { text-decoration: none; opacity: .75; }
+.review a:hover, .review a[aria-current] { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+
+header { background: var(--pad); border-bottom: 1px solid var(--grid-major); }
+header .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+.brand svg:first-child { height: 18px; width: auto; border-right: 1px solid rgba(11,11,11,.3); padding-right: 12px; box-sizing: content-box; }
+.brand svg + svg { height: 12px; width: auto; }
+nav { margin-left: auto; display: flex; gap: 26px; font-size: 15px; align-items: center; }
+nav a { text-decoration: none; color: #2b2f33; white-space: nowrap; }
+nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 860px) { nav a:not(.btn) { display: none; } }
+@media (max-width: 480px) { .brand svg + svg { display: none; } .brand svg:first-child { border: 0; } }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 2px; white-space: nowrap; }
+nav .btn, .btn-ink { background: var(--ink); color: #fff !important; }
+nav .btn:hover, .btn-ink:hover { background: #2b2f33; text-decoration: none; }
+
+/* ---- Hero ---- */
+.hero { background-color: var(--pad);
+  background-image: linear-gradient(var(--grid-major) 1px, transparent 1px), linear-gradient(90deg, var(--grid-major) 1px, transparent 1px), linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; padding-block: 64px 72px; }
+.hero .top { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 48px; align-items: end; }
+.hero h1 { margin: 0; font-size: clamp(2.8rem, 6.4vw, 5.6rem); line-height: 1.0; letter-spacing: -0.03em; font-weight: 700; text-wrap: balance; }
+.hero h1 .u { position: relative; white-space: nowrap; }
+.hero h1 .u svg { position: absolute; left: -2%; width: 104%; bottom: -0.16em; height: .3em; overflow: visible; }
+.hero .side p { margin: 0; color: var(--muted); max-width: 44ch; }
+.hero .cta { display: flex; gap: 22px; align-items: center; margin-top: 22px; flex-wrap: wrap; }
+.hero .cta a.more { font-size: 15px; font-weight: 600; text-underline-offset: 4px; }
+
+/* The drawing board: sketch on the left of the handle, the app's map on the right. */
+.board { position: relative; margin-top: 48px; background: #fff; border: 1px solid #b9c7cf; box-shadow: 0 1px 0 #b9c7cf, 0 18px 40px rgba(46,55,64,.10); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.board .sk, .board #hr-real { display: block; width: 100%; height: auto; }
+.board #hr-real { position: absolute; inset: 0; height: 100%; }
+.sk { color: var(--pencil); background: transparent; }
+.sk text { fill: currentColor; stroke: none; font-family: var(--font); font-size: 11px; text-anchor: middle; }
+.sk .bp-stall, .sk .bp-box { stroke-width: 1.6; }
+.sk .bp-num { font-size: 11px; font-weight: 600; }
+.sk .bp-note { font-size: 10px; }
+.sk .bp-aisle { stroke-dasharray: 10 8; stroke-width: 1; }
+.sp text { fill: #0b2545; font-family: var(--font); font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.sp.hit .sp-body { fill: var(--sign); }
+#hr-ring { stroke: var(--sign); stroke-width: 6; }
+#hr-route { stroke: var(--navy); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.handle { position: absolute; top: 0; bottom: 0; left: var(--x, 50%); width: 0; z-index: 3; }
+.handle::before { content: ""; position: absolute; top: 0; bottom: 0; left: -1.5px; width: 3px; background: var(--ink); }
+.handle button { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); width: 48px; height: 48px; border: 0; border-radius: 2px; background: var(--ink); cursor: ew-resize; display: grid; place-items: center; padding: 0; }
+.tagl, .tagr { position: absolute; top: 14px; z-index: 2; font-size: 14px; font-weight: 600; padding: 6px 10px; }
+.tagl { left: 14px; background: #fff; color: var(--pencil); border: 1px solid #b9c7cf; }
+.tagr { right: 14px; background: var(--navy); color: #fff; }
+.board .note { position: absolute; right: 14px; bottom: 10px; font-size: 12px; color: #5b6573; z-index: 2; }
+.how { margin-top: 14px; font-size: 14px; color: var(--muted); }
+
+/* ---- Below: what happens after the drawing ---- */
+.after { background: var(--ink); color: #fff; padding-block: 96px; }
+.after .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 64px; align-items: center; }
+.after h2 { margin: 0; font-size: clamp(2rem, 4.2vw, 3.4rem); line-height: 1.05; letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; }
+.after ol { list-style: none; padding: 0; margin: 32px 0 0; display: grid; gap: 0; }
+.after li { padding: 18px 0; border-top: 1px solid rgba(255,255,255,.16); display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 16px; }
+.after li b { font-weight: 600; }
+.after li span { color: rgba(255,255,255,.72); }
+.phones { display: flex; gap: 20px; justify-content: center; }
+.phones .ph { width: 46%; max-width: 250px; aspect-ratio: 330 / 640; overflow: hidden; border: 6px solid #1d1f22; border-radius: 26px; background: #1d1f22; }
+.phones .ph:nth-child(2) { margin-top: 56px; }
+.phones img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+@media (max-width: 900px) {
+  .hero .top, .after .wrap { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .after li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+</style>
+</head>
+<body>
+<div class="review"><div class="wrap"><b>Design option C: Sketch to map</b><a href="option-a.html">Option A</a><a href="option-b.html">Option B</a><a href="option-c.html" aria-current="page">Option C</a></div></div>
+<header><div class="wrap">
+  <a class="brand" href="https://bergeronmaps.com/" aria-label="Bergeron Maps home">{{LOGO}}</a>
+  <nav aria-label="Main"><a href="https://bergeronmaps.com/#industries">Industries</a><a href="https://bergeronmaps.com/#how">How it works</a><a href="https://bergeronmaps.com/#platform">Platform</a><a href="https://bergeronmaps.com/app/">Sign in</a><a class="btn" href="https://bergeronmaps.com/#contact">Get your map now</a></nav>
+</div></header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <div class="top">
+      <h1>Start with the <span class="u">sketch<svg viewBox="0 0 200 20" preserveAspectRatio="none" aria-hidden="true"><path id="under" d="M3 13 C 40 6, 90 4, 130 8 S 185 14, 197 7" fill="none" stroke="#f2b705" stroke-width="7" stroke-linecap="round"/></svg></span> you already have.</h1>
+      <div class="side">
+        <p>Most managers draw their site by hand. Snap a photo of the drawing, trace over it in the editor, and publish a map your whole team can search from any phone.</p>
+        <div class="cta"><a class="btn btn-ink" href="https://bergeronmaps.com/#contact">Get your map now</a><a class="more" href="https://bergeronmaps.com/#how">See how it works</a></div>
+      </div>
+    </div>
+
+    <div class="board" id="board">
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="pencil" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+      <div class="sk-wrap">{{PLAN}}</div>
+      {{REAL}}
+      <span class="tagl">Your sketch</span>
+      <span class="tagr">Your map</span>
+      <div class="handle" id="handle"><button type="button" id="grip" role="slider" aria-label="Compare the sketch and the map" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6 3 12l6 6M15 6l6 6-6 6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="square"/></svg></button></div>
+      <span class="note">A sample site. Not a real client.</span>
+    </div>
+    <p class="how">Drag the handle, or use the arrow keys, to compare the two.</p>
+  </div>
+</section>
+
+<section class="after"><div class="wrap">
+  <div>
+    <h2>Then everyone on your team can find it.</h2>
+    <ol>
+      <li><b>Trace</b><span>Put the photo of your sketch under the map and draw over it. Drag a row and every space is numbered for you.</span></li>
+      <li><b>Publish</b><span>Edits stay in draft until you publish. Employees join with a six-character site code.</span></li>
+      <li><b>Find</b><span>Type a space, room or landmark. It lights up on the right floor, with walking directions.</span></li>
+    </ol>
+  </div>
+  <div class="phones">
+    <div class="ph"><img src="{{DEALER}}" alt="Phone viewer on a sample dealership, with a route to space U19" /></div>
+    <div class="ph"><img src="{{VALET}}" alt="Phone viewer on a sample garage, with a route to space 3C9" /></div>
+  </div>
+</div></section>
+</main>
+
+{{GSAP}}
+<script>
+(function () {
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var board = document.getElementById('board'), handle = document.getElementById('handle'), grip = document.getElementById('grip');
+  var plan = document.getElementById('plan'), real = document.getElementById('hr-real');
+  plan.classList.remove('drawing', 'hero-svg'); plan.classList.add('sk');
+  plan.querySelector('g').setAttribute('filter', 'url(#pencil)');
+  // Labels on turned objects (the entrance) read right way up, as a person would write them.
+  [].forEach.call(plan.querySelectorAll('g[transform*="rotate(180)"] > text'), function (t) { t.setAttribute('transform', 'rotate(180)'); });
+  real.removeAttribute('role'); real.setAttribute('aria-label', 'The same site as the app draws it');
+  var pos = { x: 50 };
+  function set(x) {
+    pos.x = Math.max(0, Math.min(100, x));
+    handle.style.setProperty('--x', pos.x + '%');
+    real.style.clipPath = 'inset(0 0 0 ' + pos.x + '%)';
+    grip.setAttribute('aria-valuenow', Math.round(pos.x));
+  }
+  // One space found on the map side, so the map reads as the app, not a picture.
+  var hit = real.querySelector('[data-find="1C12"]');
+  function ring(show) {
+    var r = document.getElementById('hr-ring');
+    if (!hit) return;
+    var x = +hit.getAttribute('data-x'), y = +hit.getAttribute('data-y'), w = +hit.getAttribute('data-w'), h = +hit.getAttribute('data-h');
+    r.setAttribute('x', x - w / 2 - 7); r.setAttribute('y', y - h / 2 - 7); r.setAttribute('width', w + 14); r.setAttribute('height', h + 14);
+    hit.classList.toggle('hit', show); r.style.opacity = show ? 1 : 0;
+  }
+
+  // Drag anywhere on the board, or use the keyboard on the handle.
+  var dragging = false;
+  function at(e) { var b = board.getBoundingClientRect(); return (e.clientX - b.left) / b.width * 100; }
+  board.addEventListener('pointerdown', function (e) { dragging = true; board.setPointerCapture(e.pointerId); stop(); set(at(e)); });
+  board.addEventListener('pointermove', function (e) { if (dragging) set(at(e)); });
+  board.addEventListener('pointerup', function () { dragging = false; });
+  grip.addEventListener('keydown', function (e) {
+    var d = { ArrowLeft: -5, ArrowRight: 5, Home: -100, End: 100 }[e.key];
+    if (d !== undefined) { e.preventDefault(); stop(); set(pos.x + d); }
+  });
+  var intro = null;
+  function stop() { if (intro) { intro.kill(); intro = null; } }
+
+  if (reduced) { set(50); ring(true); return; }
+  // The opening: the pencil draws the site, then the handle sweeps across and the map takes over.
+  var lines = plan.querySelectorAll('path, rect, circle');
+  lines.forEach(function (el) { var l = el.getTotalLength ? el.getTotalLength() : 0; if (l) gsap.set(el, { strokeDasharray: l, strokeDashoffset: l }); });
+  gsap.set(plan.querySelectorAll('text'), { opacity: 0 });
+  var under = document.getElementById('under'), ul = under.getTotalLength();
+  gsap.set(under, { strokeDasharray: ul, strokeDashoffset: ul });
+  set(100); ring(false);
+  intro = gsap.timeline({ delay: 0.3 })
+    .to(under, { strokeDashoffset: 0, duration: 0.7, ease: 'power2.out' })
+    .to(lines, { strokeDashoffset: 0, duration: 1.6, ease: 'power1.inOut', stagger: { amount: 0.9 } }, '-=0.3')
+    .to(plan.querySelectorAll('text'), { opacity: 1, duration: 0.4, stagger: { amount: 0.4 } }, '-=0.8')
+    .to(pos, { x: 4, duration: 1.8, ease: 'power2.inOut', onUpdate: function () { set(pos.x); } }, '+=0.3')
+    .call(function () { ring(true); })
+    .fromTo('#hr-ring', { opacity: 0 }, { opacity: 1, duration: 0.3 })
+    .to(pos, { x: 42, duration: 1.2, ease: 'power3.inOut', onUpdate: function () { set(pos.x); } }, '+=0.6');
+})();
+</script>
+</body>
+</html>
